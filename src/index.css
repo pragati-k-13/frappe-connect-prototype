@@ -1,0 +1,209 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Text selection inverts the foreground, matching the rest of the Frappe apps. */
+::selection {
+  background-color: var(--ink-gray-9);
+  color: var(--surface-elevation-1);
+}
+
+/* Each quiz question fades up as it replaces the last one. The step change is
+   the only thing that moves, so the map on the right reads as a stable frame
+   around a changing question. */
+.step-enter-active {
+  transition:
+    opacity 0.28s ease,
+    transform 0.28s ease;
+}
+.step-leave-active {
+  transition: opacity 0.12s ease;
+  position: absolute;
+}
+.step-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.step-leave-to {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .step-enter-active,
+  .step-leave-active {
+    transition-duration: 0.01ms;
+  }
+  .step-enter-from {
+    transform: none;
+  }
+}
+
+/* The nested segment field under a selected radio expands rather than popping,
+   so the list below it doesn't appear to jump. */
+.branch-enter-active,
+.branch-leave-active {
+  transition:
+    opacity 0.2s ease,
+    max-height 0.24s ease;
+  overflow: hidden;
+}
+.branch-enter-from,
+.branch-leave-to {
+  opacity: 0;
+  max-height: 0;
+}
+.branch-enter-to,
+.branch-leave-from {
+  max-height: 5rem;
+}
+
+/* Map panel stat row.
+   Six labelled counts that read as one claim about the network's size — broken
+   across lines unevenly, they read as several. What decides whether they fit on
+   one line is the PANEL's width, not the window's, and the panel is NARROWEST
+   at 1024px, where the layout turns two-column and the map hands most of its
+   width to the quiz (316px of usable room there, against 956px at 1600px). A
+   viewport breakpoint therefore gets this exactly backwards; the query below
+   measures the panel instead.
+   Hand-written because Tailwind 3 needs a plugin for @container and this is the
+   only place that wants one. */
+.fc-map-panel {
+  container-type: inline-size;
+}
+
+/* Grid, not flex, and every column gets the same floor. Left to size
+   themselves the six cells run 26px ("Asia") to 71px ("Middle East"), so a
+   uniform gap lands the numbers at wildly uneven intervals and the row reads as
+   six unrelated facts. The floor pulls the short ones up — the range closes to
+   48-71px — without stretching the columns to equal `1fr` widths, which at a
+   956px panel would fling them back out to the edges.
+   Narrow panel: 3 x 2. */
+.fc-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(48px, max-content));
+  justify-content: center;
+  column-gap: 1.5rem;
+  row-gap: 1.25rem;
+}
+
+/* Wide enough for one row at that floor. Four of the six sit at 48px, "Middle
+   East" needs 71 and "Americas" 57, so the columns come to 320px and each tier
+   below is that plus its gaps. These widths are the panel's CONTENT box, which
+   is what @container measures: at `p-8` that's 64px less than the panel's own
+   width. */
+@container (min-width: 380px) {
+  .fc-stats {
+    grid-template-columns: repeat(6, minmax(48px, max-content));
+    column-gap: 0.75rem; /* 380px */
+  }
+}
+@container (min-width: 420px) {
+  .fc-stats {
+    column-gap: 1.25rem; /* 420px */
+  }
+}
+@container (min-width: 480px) {
+  .fc-stats {
+    column-gap: 2rem; /* 480px */
+  }
+}
+
+/* frappe-ui's `Avatar` hardcodes `object-cover` on its <img>, which is right for
+   a face and wrong for a logo: the partner marks run from 0.74:1 to 5.69:1, so
+   cover would crop 8848 Digital to its middle 41% and Hybrowlabs to 18% —
+   slicing the lettering off both. This flips that one declaration to `contain`
+   and gives the letterbox a white ground.
+   `object-fit` isn't inherited, so it can't be done with a utility on the root,
+   and the <img> takes no attrs of its own — it has to be reached from outside. */
+.fc-logo-avatar {
+  background-color: theme('colors.white');
+  /* The mark sits inside the box rather than against its edges. The crops are
+     tight to each logo's ink (see `assets/partners/README.md`), so with no
+     inset the wider marks ran corner to corner and read as cropped. 4px of a
+     40px box; `box-sizing: border-box` keeps the avatar itself 40px. */
+  padding: 4px;
+}
+.fc-logo-avatar img {
+  object-fit: contain;
+}
+
+/* Partner listing rows.
+   A hovered row hides the divider below it AND the one above it, so the fill
+   reads as one unbroken block rather than a band with lines clipped to its
+   edges. CSS can only look forward, so "the divider above" is expressed as the
+   PREVIOUS row hiding its own: `:has(+ .fc-partner-row:hover)`.
+   Transparent rather than `none` — the 1px stays in the layout, so nothing
+   below the cursor shifts by a pixel as you move down the list.
+   The first row needs no rule for the divider above it: there isn't one. */
+.fc-partner-row:hover > .fc-partner-row-body,
+.fc-partner-row:has(+ .fc-partner-row:hover) > .fc-partner-row-body {
+  border-bottom-color: transparent;
+}
+
+/* The last row of a run has nothing below it to be separated from. The listing
+   splits into two runs around the mid-list app refinement, so `:last-child`
+   fires twice: once on the row above that block, once at the end of the list.
+   Colour rather than width, so every row keeps the same height and nothing
+   shifts when the rule above appears or disappears on hover. */
+.fc-partner-row:last-child > .fc-partner-row-body {
+  border-bottom-color: transparent;
+}
+
+/* frappe-ui's `SidebarHeader` indents its logo frame 10px from the rail edge
+   (a `px-1` region holding a `px-1.5` button), while `SidebarItem` indents its
+   icon 12px — so the app mark sat two pixels left of every nav icon under it,
+   which is exactly the sort of thing that reads as sloppy without being
+   nameable. Scoped to this app's sidebar rather than the component globally.
+
+   ⚠️ `.size-7` is the logo frame's own utility class, used here as a hook
+   because the component exposes no handle for it. If frappe-ui resizes that
+   frame, this override is what breaks. */
+.fc-sidebar [data-slot='sidebar-header'] .size-7 {
+  margin-left: 2px;
+}
+
+/* `Dialog`'s `size` prop is an enum of Tailwind `max-w-*` steps — `xl` is
+   576px, `2xl` is 672px, and neither is the 500px this modal wants. The panel
+   carries frappe-ui's own `dialog-content` class but takes no class of ours,
+   so the hook is a marker INSIDE the panel: only a dialog containing
+   `.fc-estimate` is widened, and every other dialog keeps its `size` prop. */
+.dialog-content:has(.fc-estimate) {
+  max-width: 500px;
+}
+
+/* The panel's own padding, for the same reason as the width: frappe-ui's Dialog
+   hardcodes `px-4 pb-6 pt-5 sm:px-6` on its body wrapper, which takes no class
+   of ours. `> div:has(.fc-estimate)` is that wrapper — a direct child of the
+   panel, so it can't also match the panel itself, which carries the same
+   background class.
+
+   18px on top rather than 20 because the title's own line box already carries
+   a few pixels of leading above its cap; the other three sides are measured
+   against ink. */
+.dialog-content:has(.fc-estimate) > div:has(.fc-estimate) {
+  padding: 18px 20px 20px;
+}
+
+/* The scrim behind every dialog in the app, not just this one — two overlay
+   densities on one product would be worse than the light one it replaces.
+   frappe-ui ships `bg-black-overlay-200` (27% black), which leaves the page
+   behind legible enough to compete with the panel; this is `black-overlay-400`
+   (45%), the next step but one on the same scale.
+
+   The literal rather than a token: the overlay scale exists as Tailwind palette
+   entries only, with no CSS variables behind it — checked. The value is copied
+   from `frappe-ui/tailwind/generated/colors.json` → `overlay.black.400`.
+
+   ⚠️ This also overrides frappe-ui's `dark:bg-black-overlay-700`. Nothing in
+   `src/` uses dark mode today, but if that changes this rule needs its own dark
+   half rather than a darker single value. */
+.dialog-overlay {
+  background-color: oklch(0 0 0 / 0.451);
+}
+
+/* The gap under the title. frappe-ui puts `mb-6` on the Dialog's header block,
+   which is the element immediately before ours — so `:has(+ .fc-estimate)` is
+   the previous-sibling selector CSS otherwise doesn't have. Same trick as the
+   partner row's divider suppression. */
+.dialog-content:has(.fc-estimate) div:has(+ .fc-estimate) {
+  margin-bottom: 16px;
+}

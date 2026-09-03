@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 116 32" width="116" height="32" role="img" aria-label="Bluecrest">
+  <title>Bluecrest (placeholder)</title>
+  <path d="M4 24 A9 9 0 0 1 22 24" fill="none" stroke="#6b7280" stroke-width="3.4" stroke-linecap="round"/><circle cx="13" cy="24" r="2.6" fill="#6b7280"/>
+  <text x="32" y="22" font-family="ui-sans-serif,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif" font-size="16" font-weight="600"
+        letter-spacing="-0.2" fill="#6b7280">Bluecrest</text>
+</svg>

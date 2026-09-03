@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 107 32" width="107" height="32" role="img" aria-label="Meridian">
+  <title>Meridian (placeholder)</title>
+  <path d="M13 6 L21 11 L21 21 L13 26 L5 21 L5 11 Z" fill="none" stroke="#6b7280" stroke-width="3"/>
+  <text x="32" y="22" font-family="ui-sans-serif,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif" font-size="16" font-weight="500"
+        letter-spacing="-0.2" fill="#6b7280">Meridian</text>
+</svg>

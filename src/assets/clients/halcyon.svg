@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 97 32" width="97" height="32" role="img" aria-label="Halcyon">
+  <title>Halcyon (placeholder)</title>
+  <path d="M13 6 V26 M3 16 H23" stroke="#6b7280" stroke-width="3.4" stroke-linecap="round"/>
+  <text x="32" y="22" font-family="ui-sans-serif,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif" font-size="16" font-weight="500"
+        letter-spacing="-0.2" fill="#6b7280">Halcyon</text>
+</svg>
