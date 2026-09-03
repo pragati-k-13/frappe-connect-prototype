@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { Button, ScrollArea, Sidebar, SidebarHeader, SidebarItem, SidebarLabel } from 'frappe-ui'
+import LoginDialog from './LoginDialog.vue'
 import { useConnectStore } from '../stores/connect'
 
 // Collapsed on arrival: the quiz and the map are the point of this screen, and
@@ -180,7 +181,12 @@ defineProps({
              on the results and profile screens, but a solid button in the
              chrome outranks the page's own primary action — on the profile it
              read louder than Contact, which is the thing the page is for. -->
-        <Button v-if="!store.signedIn" variant="ghost" label="Log in or create account">
+        <Button
+          v-if="!store.signedIn"
+          variant="ghost"
+          label="Log in or create account"
+          @click="store.requireLogin()"
+        >
           <template #suffix><LucideArrowRight class="size-4" /></template>
         </Button>
 
@@ -202,5 +208,11 @@ defineProps({
         </main>
       </ScrollArea>
     </div>
+
+    <!-- One login prompt for the whole app. It lives here because ConnectShell
+         wraps every in-app screen, so a list of thirteen partner rows doesn't
+         mount thirteen copies of the same modal — every gated control opens
+         this one through `store.requireLogin()`. -->
+    <LoginDialog />
   </div>
 </template>

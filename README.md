@@ -51,10 +51,12 @@ Beyond that:
 - **Counts don't reconcile with the list.** The map and chips show the directory's real
   figures (156 partners); the list is seeded with thirteen representative ones. The map
   and the chips do agree with each other — both read `REGIONS`.
-- **Save, Contact, Share feedback, "Log in or create account", "Write a review", "View
-  all", "View" and "Message partner" are inert.** They show placement and affordance.
-  "Book a slot" and the estimate modal are the exceptions — both work, they just don't
-  submit anywhere.
+- **Log in works.** "Log in via Frappe Cloud" spins for a moment and signs you in — there's
+  no auth behind it, just the state change. Contact and Save open it first when you're
+  signed out, and finish what you started once you're in. "Sign up" is inert.
+- **Share feedback, "Write a review", "View all", "View" and "Message partner" are inert.**
+  They show placement and affordance. "Book a slot" and the estimate modal are the
+  exceptions — both work, they just don't submit anywhere.
 
 ## Where the reasoning lives
 

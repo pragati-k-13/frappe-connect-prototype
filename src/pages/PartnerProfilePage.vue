@@ -18,6 +18,7 @@ import PartnerVisionSection from '../components/PartnerVisionSection.vue'
 import PartnerPricingSection from '../components/PartnerPricingSection.vue'
 import PartnerReviewsSection from '../components/PartnerReviewsSection.vue'
 import PartnerStoriesSection from '../components/PartnerStoriesSection.vue'
+import { useConnectStore } from '../stores/connect'
 import PartnerMarketplaceSection from '../components/PartnerMarketplaceSection.vue'
 import BookSlotDialog from '../components/BookSlotDialog.vue'
 import { PARTNERS } from '../data/partners'
@@ -47,6 +48,8 @@ const subtitle = computed(() => {
 // visitor's saved partners. Not shared with the row's state on purpose: wiring one
 // boolean across two screens would imply persistence this mock doesn't have.
 const saved = ref(false)
+const store = useConnectStore()
+
 const booking = ref(false)
 </script>
 
@@ -119,17 +122,18 @@ const booking = ref(false)
               variant="subtle"
               :aria-pressed="saved"
               :aria-label="saved ? `Remove ${partner.name} from saved` : `Save ${partner.name}`"
-              @click="saved = !saved"
+              @click="store.requireLogin(() => (saved = !saved))"
             >
               <template #icon>
                 <LucideBookmark class="size-4" :class="saved ? 'fill-current' : ''" />
               </template>
             </Button>
           </Tooltip>
-          <!-- ⚠️ Inert. This goes to the in-app messages screen, which doesn't
-               exist yet — deliberately not routed to a stub, so the gap stays
-               visible instead of looking finished. -->
-          <Button variant="solid" label="Contact">
+          <!-- Signed out, this opens the login prompt; signed in it is still
+               ⚠️ inert, because it goes to the in-app messages screen, which
+               doesn't exist yet — deliberately not routed to a stub, so the gap
+               stays visible instead of looking finished. -->
+          <Button variant="solid" label="Contact" @click="store.requireLogin()">
             <template #prefix><LucideSend class="size-4" /></template>
           </Button>
         </div>

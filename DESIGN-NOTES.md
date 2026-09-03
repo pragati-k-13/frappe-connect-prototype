@@ -735,6 +735,46 @@ read as a copy-paste bug. The cost is that a single-partner region gets an
 arbitrary-but-plausible pick from its pool rather than the most characteristic one; pinning
 a specific app to a specific partner is a one-line change.
 
+### The login prompt
+
+`LoginDialog.vue`, opened through `store.requireLogin()`. "Log in via Frappe
+Cloud" spins for 1.4s and signs you in; "Sign up" is ⚠️ inert, because signing
+up is a Frappe Cloud flow that lives outside this app and stubbing it here would
+invent an account-creation screen nobody has designed.
+
+**One dialog for the whole app**, mounted in `ConnectShell` because that wraps
+every in-app screen. The alternative — a dialog per gated control — puts thirteen
+copies of the same modal on the results page, one per partner row.
+
+**The gate holds what you were doing.** `requireLogin(action)` runs the action
+outright when you're signed in; signed out it opens the prompt and keeps the
+action until `completeLogin`. So pressing Save on a partner signs you in and
+_saves that partner_ — you land on the thing you wanted, not back on the button.
+Dismissing drops the held action, because running it afterwards would be the app
+doing something you cancelled. The callback is a module-level variable rather
+than store state: it's a function, which is both pointless to make reactive and
+awkward to serialise.
+
+⚠️ **Cancelling mid-spin cancels the timer.** Without that, closing the panel a
+beat after pressing the button still signs you in a second later, with no panel
+left to explain why.
+
+**Gated today:** the top bar's own "Log in or create account", Contact and Save
+on the profile, and Save on every listing row. **Not gated:** "Write a review",
+which needs a _completed project_ rather than an account — a different gate,
+noted below — and the estimate modal's "Message partner", which sits behind a
+modal that is itself meant to be gated on `store.hasProject`, so you can't reach
+it signed out in the first place.
+
+The subtitle names what an account is for rather than what you just pressed. Four
+different strings saying the same thing would be four strings to maintain, and
+the visitor already knows which button they hit.
+
+⚠️ There is no auth. The 1.4s delay exists so the pending state is reviewable —
+a button that swaps to "Logging you in" and back inside one frame can't be
+designed against. A real build replaces the timer with the Frappe Cloud OAuth
+round trip and keeps everything else.
+
 ### Reviews
 
 **The verdict sits above the prose**: who wrote this, what they scored it, then

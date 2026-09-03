@@ -38,6 +38,12 @@ const emptyAnswers = () => ({
 // account with no project yet) a change in this file alone.
 const ACCOUNT_STATES = ['visitor', 'client']
 
+// What the visitor was trying to do when the login prompt interrupted them, so
+// it can be finished once they're in. Module scope rather than store state on
+// purpose: it's a callback, and a function sitting in reactive state is both
+// pointless to track and awkward to serialise.
+let pendingAction = null
+
 // The listing's primary order, always. Tier is the one ranking the partner
 // programme itself publishes, so it outranks whatever order the filters happen
 // to leave behind — a gold partner never sits below a bronze one.
@@ -55,6 +61,11 @@ export const useConnectStore = defineStore('connect', {
     // See ACCOUNT_STATES above. Deliberately NOT cleared by `reset()`: it's
     // which demo you're in, not something the quiz collected — same as `role`.
     account: 'visitor',
+    // Whether the login prompt is showing. `ConnectShell` renders one dialog
+    // for the whole app and every gated control opens it through
+    // `requireLogin`, so a list of thirteen partner rows doesn't mount
+    // thirteen copies of the same modal.
+    loginOpen: false,
     // Who the signed-in viewer is. Invented, but harmlessly so: this is the
     // demo's own business user, not a person at any of the real partners in
     // the directory, so a made-up name here asserts nothing about anyone.
@@ -154,6 +165,39 @@ export const useConnectStore = defineStore('connect', {
     setAccount(account) {
       if (!ACCOUNT_STATES.includes(account)) return
       this.account = account
+    },
+
+    // The gate. Wrap any action that needs an account:
+    //
+    //   @click="store.requireLogin(() => (saved = !saved))"
+    //
+    // Signed in, it just runs. Signed out, it opens the prompt and holds the
+    // action until `completeLogin` — so the visitor lands back on the thing
+    // they were doing rather than on a page that forgot. Returns whether it
+    // ran, for callers that care.
+    requireLogin(action) {
+      if (this.signedIn) {
+        action?.()
+        return true
+      }
+      pendingAction = action ?? null
+      this.loginOpen = true
+      return false
+    },
+
+    completeLogin() {
+      this.setAccount('client')
+      this.loginOpen = false
+      const action = pendingAction
+      pendingAction = null
+      action?.()
+    },
+
+    // Dismissing drops the held action. Running it later, after the visitor
+    // deliberately backed out, would be the app doing something they cancelled.
+    dismissLogin() {
+      this.loginOpen = false
+      pendingAction = null
     },
 
     answer(key, value) {

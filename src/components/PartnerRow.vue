@@ -3,13 +3,19 @@ import { computed, ref } from 'vue'
 import { Avatar, Button, Tooltip } from 'frappe-ui'
 import TierIcon from './TierIcon.vue'
 import { logoFor } from '../data/logos'
+import { useConnectStore } from '../stores/connect'
 
 const props = defineProps({
   partner: { type: Object, required: true },
 })
 
+const store = useConnectStore()
+
 // Saving is local to the mock — a real build writes to the visitor's saved
-// partners, which is the first thing an account actually buys you.
+// partners, which is the first thing an account actually buys you. Which is
+// also why it's gated: `requireLogin` holds the toggle until the visitor is in,
+// then runs it, so they land on a saved partner rather than back where they
+// started having to press it again.
 const saved = ref(false)
 
 // A real logo when `src/assets/partners/<id>.<ext>` exists, initials otherwise —
@@ -160,7 +166,7 @@ const industryLine = computed(() => {
             variant="ghost"
             :aria-pressed="saved"
             :aria-label="saved ? `Remove ${partner.name} from saved` : `Save ${partner.name}`"
-            @click="saved = !saved"
+            @click="store.requireLogin(() => (saved = !saved))"
           >
             <template #icon>
               <LucideBookmark class="size-4" :class="saved ? 'fill-current text-ink-gray-8' : ''" />
