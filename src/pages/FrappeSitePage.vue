@@ -11,6 +11,11 @@
 // in a NEW TAB, per the design. That's why it's a plain anchor with
 // target="_blank" rather than a RouterLink.
 
+// Where the app is mounted — '/' locally, '/frappe-connect-prototype/' on
+// GitHub Pages. Only the one hand-written anchor below needs it; every other
+// link in the app goes through the router, which handles the base itself.
+const baseUrl = import.meta.env.BASE_URL
+
 const BENEFITS = [
   {
     title: 'Worldwide presence',
@@ -35,14 +40,19 @@ const BENEFITS = [
     <!-- Site chrome -->
     <header class="flex h-14 items-center justify-between border-b border-gray-200 px-5">
       <nav class="flex items-center gap-2 text-p-base" aria-label="Breadcrumb">
-        <span class="flex size-6 items-center justify-center rounded-4 bg-gray-900 text-xs font-bold text-white">
+        <span
+          class="flex size-6 items-center justify-center rounded-4 bg-gray-900 text-xs font-bold text-white"
+        >
           F
         </span>
         <a href="#" class="text-ink-gray-8 hover:underline">Frappe</a>
         <LucideChevronRight class="size-4 text-ink-gray-4" />
         <span class="text-ink-gray-6">Partners</span>
       </nav>
-      <button type="button" class="flex items-center gap-1.5 text-p-base text-ink-gray-7 hover:text-ink-gray-9">
+      <button
+        type="button"
+        class="flex items-center gap-1.5 text-p-base text-ink-gray-7 hover:text-ink-gray-9"
+      >
         Log in or create account
         <LucideArrowRight class="size-4" />
       </button>
@@ -54,9 +64,9 @@ const BENEFITS = [
         Meet a global community of committed open source entrepreneurs
       </h1>
       <p class="mt-5 text-lg leading-relaxed text-ink-gray-7">
-        Frappe builds innovative products and our global network of partners help businesses implement
-        them smoothly. Our partners are trained and certified to ensure our customers get the best
-        Frappe experience.
+        Frappe builds innovative products and our global network of partners help businesses
+        implement them smoothly. Our partners are trained and certified to ensure our customers get
+        the best Frappe experience.
       </p>
 
       <!-- Photo stand-in. The real page runs a group shot here; a gradient keeps
@@ -84,8 +94,14 @@ const BENEFITS = [
         <p class="text-lg text-ink-gray-8">
           Frappe Partners to find the best match for your business.
         </p>
+        <!-- A real anchor rather than a router-link, because it deliberately
+             opens a new tab: the fiction is that you're leaving frappe.io and
+             arriving at Connect.
+             ⚠️ `BASE_URL` prefixed, so it survives being served from a
+             subpath. A bare "/connect" points at the domain root, which under
+             GitHub Pages is somebody else's page. -->
         <a
-          href="/connect"
+          :href="`${baseUrl}connect`"
           target="_blank"
           rel="noopener"
           class="inline-flex shrink-0 items-center gap-2 rounded-4 bg-gray-900 px-4 py-2.5 text-p-base font-medium text-white transition-colors hover:bg-gray-800"
@@ -95,7 +111,9 @@ const BENEFITS = [
         </a>
       </div>
 
-      <h2 class="mt-14 font-serif text-3xl text-ink-gray-9">Benefits of working with a Frappe Partner</h2>
+      <h2 class="mt-14 font-serif text-3xl text-ink-gray-9">
+        Benefits of working with a Frappe Partner
+      </h2>
       <dl class="mt-7 space-y-7">
         <div v-for="b in BENEFITS" :key="b.title" class="flex gap-4">
           <div

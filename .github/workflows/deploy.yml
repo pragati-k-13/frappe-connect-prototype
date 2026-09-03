@@ -1,0 +1,60 @@
+# Builds the prototype and publishes it to GitHub Pages on every push to main.
+#
+# Nothing here needs a secret or a token: Pages deployments authenticate with
+# the `id-token` permission below, which GitHub grants the workflow itself.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # So the site can be republished from the Actions tab without a code change.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time, and a superseded run is abandoned rather than
+# queued — the newest push is the one worth publishing.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Vite 7 needs 20.19+ or 22.12+; 22 is the safe side of that line.
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      # ⚠️ Load-bearing. GitHub Pages has no rewrite rules, so a shared link
+      # like /connect/partners/tridots-tech is a file the host doesn't have and
+      # it serves its 404 page. Making the app's own index.html that 404 page
+      # lets the app boot and route to the right screen. Without this line,
+      # every link except the site root breaks — which is every link anyone
+      # would actually paste to someone else.
+      - run: cp dist/index.html dist/404.html
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
