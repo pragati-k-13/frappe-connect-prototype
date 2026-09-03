@@ -737,6 +737,17 @@ a specific app to a specific partner is a one-line change.
 
 ### Reviews
 
+⚠️ **A single line of text takes `text-base`, not `text-p-base`.** The two differ
+only in line-height — 16px against 21px for the same 14px type — and the
+difference hides in places you don't look for it. The reviewer's name sat 7px
+above their company against a 2px margin, because the _timestamp_ beside the
+name was `text-p-base`: at 21px it stretched the flex row holding the 16px name,
+and `items-start` left 5px of dead air underneath. The company line's own
+paragraph leading added ~2px more. The margin was doing almost none of the work.
+
+Both are tight now and the margin is 4px, which is 4px on screen. Only the review
+body keeps paragraph leading — it's the one part that actually wraps.
+
 **The aggregate comes from the partner record** — the same `rating` and `reviews` the
 listing row shows, so the two screens can't disagree. It deliberately isn't the average
 of the rows below it: those are the first four of twelve, and a sample of a set doesn't

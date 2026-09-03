@@ -127,10 +127,18 @@ const ago = (months) => (months < 12 ? `${months} months ago` : `${Math.floor(mo
             <div class="flex items-start justify-between gap-3">
               <p class="text-base font-medium text-ink-gray-8">{{ r.name }}</p>
               <!-- Stored as an age rather than a date, so the label can't drift
-                   as the mock gets older — see `data/reviews.js`. -->
-              <p class="shrink-0 text-p-base text-ink-gray-5">{{ ago(r.monthsAgo) }}</p>
+                   as the mock gets older — see `data/reviews.js`.
+
+                   ⚠️ `text-base`, not `text-p-base`, and that matters more than
+                   it looks. Paragraph leading gives a single 14px line a 21px
+                   box; this one shares a flex row with the name, whose box is
+                   16px, so `items-start` left 5px of dead air under the name
+                   before the company line's own margin started. The gap read as
+                   ~7px against a 2px margin. Single lines take the tight scale;
+                   only the review body below wants paragraph leading. -->
+              <p class="shrink-0 text-base text-ink-gray-5">{{ ago(r.monthsAgo) }}</p>
             </div>
-            <p class="mt-0.5 text-p-base text-ink-gray-6">{{ r.company }}</p>
+            <p class="mt-1 text-base text-ink-gray-6">{{ r.company }}</p>
           </div>
         </div>
 

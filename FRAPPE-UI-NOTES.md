@@ -121,6 +121,13 @@ also what keeps an active row's `shadow-sm` clear of the `ScrollArea` root's
 **There is no Accordion, Collapsible or Table.** reka-ui has the first two. The `list`
 family is a separate import subpath (`frappe-ui/list`) with its own stylesheet.
 
+**`text-*` and `text-p-*` are the same sizes at different line-heights.** `base`
+is 14px in a 16px box; `p-base` is 14px in a 21px box. Use the paragraph scale
+only for text that wraps — on a single line it adds ~2px of invisible leading
+above the cap, and inside a flex row it silently stretches the row to its own
+height, pushing everything below it down. Both symptoms read as "the margin is
+wrong" when the margin is fine.
+
 **No currency or number formatter is exported.** The chart formatters are deliberately
 unexported because they hardcode `en-US`.
 
