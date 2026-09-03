@@ -142,12 +142,13 @@ const ago = (months) => (months < 12 ? `${months} months ago` : `${Math.floor(mo
           </div>
         </div>
 
-        <!-- Body and footer sit outside the avatar row rather than indented
-             beside it: at this column width an indented paragraph loses 48px of
-             measure for no gain, and the design runs them full width too. -->
-        <p class="mt-2 text-p-base text-ink-gray-7">{{ r.text }}</p>
+        <!-- The verdict sits above the prose, not under it: who wrote this,
+             what they scored it, then why. Under the body it was the last thing
+             in the row and read as a footnote to the paragraph, when it's
+             actually the part someone scanning a list of reviews is looking
+             for. -->
         <div class="mt-2 flex items-center gap-4">
-          <p class="flex items-center gap-1.5 text-p-base font-medium text-ink-gray-8">
+          <p class="flex items-center gap-1.5 text-base font-medium text-ink-gray-8">
             <!-- Lighter than the figure beside it: `fill-current` would inherit the
                  row's ink-8, which makes a solid black star the loudest thing in
                  the review. -->
@@ -158,11 +159,17 @@ const ago = (months) => (months < 12 ? `${months} months ago` : `${Math.floor(mo
           <!-- Only shown when true. "Would not recommend" as a grey line next
                to a 3-star rating reads as a label rather than a verdict; the
                rating already carries it. -->
-          <p v-if="r.recommend" class="flex items-center gap-1.5 text-p-base text-ink-gray-6">
+          <p v-if="r.recommend" class="flex items-center gap-1.5 text-base text-ink-gray-6">
             <LucideCheck class="size-3.5" aria-hidden="true" />
             Would recommend
           </p>
         </div>
+
+        <!-- Body full width rather than indented beside the avatar: at this
+             column width an indented paragraph loses 48px of measure for no
+             gain, and the design runs it full width too. The rating row above
+             takes the same left edge for the same reason. -->
+        <p class="mt-2 text-p-base text-ink-gray-7">{{ r.text }}</p>
       </article>
     </div>
 

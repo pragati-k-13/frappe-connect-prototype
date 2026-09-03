@@ -737,6 +737,15 @@ a specific app to a specific partner is a one-line change.
 
 ### Reviews
 
+**The verdict sits above the prose**: who wrote this, what they scored it, then
+why. Under the body it was the last thing in the row and read as a footnote to
+the paragraph, when it's the part someone scanning a list of reviews is actually
+looking for.
+
+Both the rating row and the body run full width rather than indenting beside the
+avatar — at this column width an indented paragraph loses 48px of measure for no
+gain, and the design runs it full width too.
+
 ⚠️ **A single line of text takes `text-base`, not `text-p-base`.** The two differ
 only in line-height — 16px against 21px for the same 14px type — and the
 difference hides in places you don't look for it. The reviewer's name sat 7px
