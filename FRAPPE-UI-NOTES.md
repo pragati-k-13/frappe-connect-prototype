@@ -104,6 +104,20 @@ lucide icons.
 `:hover` rule to suppress a divider simply never applies. Put the border on the row
 itself and use a hover variant.
 
+**`SidebarItem` matches the whole path, not a prefix.** Active state is inferred
+with `current.path === target.path`, so an item pointing at a parent route lights
+up on that route only — every child screen shows no location at all. Pass
+`:active` explicitly for any item that heads a section of the app.
+
+**`Sidebar`'s spacing is tuned for the collapsed rail, not the expanded one.**
+The 48px collapsed width, the header's 10px logo indent and the item's 16px icon
+indent (viewport `px-2` + the item's `pl-2`) exist so that a 28px logo box and a
+16px icon are _both_ centred on 24px. The 6px left-edge stagger you see when
+expanded is the price of that, and it can't be removed without un-centring the
+collapsed rail — the two boxes are different sizes. `px-2` on the viewport is
+also what keeps an active row's `shadow-sm` clear of the `ScrollArea` root's
+`overflow-hidden`.
+
 **There is no Accordion, Collapsible or Table.** reka-ui has the first two. The `list`
 family is a separate import subpath (`frappe-ui/list`) with its own stylesheet.
 

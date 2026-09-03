@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { Button, ScrollArea, Sidebar, SidebarHeader, SidebarItem, SidebarLabel } from 'frappe-ui'
 import { useConnectStore } from '../stores/connect'
 
@@ -10,6 +11,15 @@ import { useConnectStore } from '../stores/connect'
 const collapsed = ref(true)
 
 const store = useConnectStore()
+
+// ⚠️ `SidebarItem` infers its active state by comparing the WHOLE path
+// (`current.path === target.path`), so a child route lights nothing at all.
+// "Find partners" points at /connect, which meant the rail showed no location
+// on the partner list and on every profile — two of the three in-app screens,
+// and the two you spend the most time on. Every route under /connect is the
+// partner directory, so the match is a prefix.
+const route = useRoute()
+const inDirectory = computed(() => route.path.startsWith('/connect'))
 
 // The header is already a Dropdown trigger — `SidebarHeader` takes `menuItems`
 // and renders the chevron itself, so clicking the logo opens this rather than
@@ -63,30 +73,48 @@ defineProps({
         </template>
       </SidebarHeader>
 
-      <ScrollArea class="mt-1 min-h-0 flex-1" viewport-class="px-1">
+      <!-- `px-2` on the viewport is frappe-ui's own figure and it is load-bearing
+           twice: the ScrollArea root is `overflow-hidden`, so the padding is what
+           keeps the active row's shadow from being clipped, AND it is what centres
+           a 16px icon in the 48px collapsed rail (8px padding + the item's own
+           8px = 16px, centre 24px, exactly half of 48).
+           ⚠️ Don't tighten it to `px-1` to line the icons up with the header logo
+           in the expanded state. That was tried: it aligns the expanded rail at
+           12px and knocks the collapsed rail's icons 4px left of centre while the
+           logo sits 2px right of it. Six pixels apart in a 48px rail is far more
+           visible than frappe-ui's 6px stagger when expanded. -->
+      <ScrollArea class="min-h-0 flex-1" viewport-class="px-2 pt-0.5">
         <SidebarLabel>Discover</SidebarLabel>
         <!-- A building, not a magnifying glass: the item is the directory of
              partner companies, and search is a control that lives inside it. -->
-        <SidebarItem label="Find partners" to="/connect">
-          <template #prefix><LucideBuilding2 class="size-4 text-ink-gray-6" /></template>
-        </SidebarItem>
-        <SidebarItem label="Saved partners">
-          <template #prefix><LucideBookmark class="size-4 text-ink-gray-6" /></template>
-        </SidebarItem>
-        <SidebarItem label="Starter packs">
-          <template #prefix><LucidePackage class="size-4 text-ink-gray-6" /></template>
-        </SidebarItem>
+        <!-- `space-y-0.5` and a `nav` per group, as in frappe-ui's own reference
+             sidebar. The rows were flush before, which reads denser than the
+             component intends and puts an active row's fill hard against its
+             neighbours. -->
+        <nav class="space-y-0.5">
+          <SidebarItem label="Find partners" to="/connect" :active="inDirectory">
+            <template #prefix><LucideBuilding2 class="size-4 text-ink-gray-6" /></template>
+          </SidebarItem>
+          <SidebarItem label="Saved partners">
+            <template #prefix><LucideBookmark class="size-4 text-ink-gray-6" /></template>
+          </SidebarItem>
+          <SidebarItem label="Starter packs">
+            <template #prefix><LucidePackage class="size-4 text-ink-gray-6" /></template>
+          </SidebarItem>
+        </nav>
 
         <!-- The collaboration half of the product. Present so the rail shows
              where implementation tracking lands, inert until those screens
              exist. -->
         <SidebarLabel>Your projects</SidebarLabel>
-        <SidebarItem label="Requests">
-          <template #prefix><LucideSend class="size-4 text-ink-gray-6" /></template>
-        </SidebarItem>
-        <SidebarItem label="Implementation">
-          <template #prefix><LucideListChecks class="size-4 text-ink-gray-6" /></template>
-        </SidebarItem>
+        <nav class="space-y-0.5">
+          <SidebarItem label="Requests">
+            <template #prefix><LucideSend class="size-4 text-ink-gray-6" /></template>
+          </SidebarItem>
+          <SidebarItem label="Implementation">
+            <template #prefix><LucideListChecks class="size-4 text-ink-gray-6" /></template>
+          </SidebarItem>
+        </nav>
       </ScrollArea>
     </Sidebar>
 

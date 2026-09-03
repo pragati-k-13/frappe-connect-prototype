@@ -841,15 +841,44 @@ the menu is empty and the chevron doesn't appear.
 signed out.** It used to read "Find a partner", which told a visitor what they
 could already see.
 
-⚠️ `SidebarHeader` indents its logo frame **10px** from the rail edge (a `px-1`
-region holding a `px-1.5` button) while `SidebarItem` indents its icon **12px**,
-so the app mark sat two pixels left of every nav icon under it. `.fc-sidebar` in
-`index.css` corrects that with a 2px margin. `.size-7` is used as the hook
-because the component exposes no handle for the frame — if frappe-ui resizes it,
-that override is what breaks.
+⚠️ **"Find partners" needs an explicit `:active`.** `SidebarItem` infers the
+active state by comparing the whole path (`current.path === target.path`), so a
+child route lights nothing at all. The item points at `/connect`, which meant
+the rail showed no location on the partner list and on every profile — two of
+the three in-app screens, and the two you spend the most time on. Every route
+under `/connect` is the partner directory, so the match is a prefix.
 
-The header's _label_ still sits 10px right of the nav labels (46px against
-36px). That one is the component's own proportions — a 28px logo against 16px
+**Rows carry `space-y-0.5` inside a `nav` per group**, as in frappe-ui's own
+reference sidebar. They were flush before, which reads denser than the component
+intends and puts an active row's fill hard against its neighbours.
+
+⚠️ **Don't try to align the logo with the nav icons.** `SidebarHeader` indents
+its logo frame 10px from the rail edge (a `px-1` region holding a `px-1.5`
+button); `SidebarItem` indents its icon 16px (frappe-ui's `px-2` viewport plus
+the item's own `pl-2`). That 6px stagger looks like a bug, and it was "fixed"
+here twice — first with a 2px margin on the logo, then by tightening the
+viewport to `px-1` so both landed on 12px.
+
+Both were wrong, and the arithmetic says why. **frappe-ui's numbers are tuned
+for the collapsed rail, which is 48px wide — dead centre 24px:**
+
+|             | frappe-ui          | The "fix"    |
+| ----------- | ------------------ | ------------ |
+| Logo centre | 10 + 14 = **24** ✓ | 12 + 14 = 26 |
+| Icon centre | 16 + 8 = **24** ✓  | 12 + 8 = 20  |
+
+A 28px logo box at 10px and a 16px icon at 16px are both exactly centred in the
+collapsed rail. Aligning their left edges when expanded necessarily breaks that,
+because the boxes are different sizes — and six pixels apart in a 48px rail is
+far more visible than a 6px stagger down the edge of a 240px panel. The override
+is gone and the viewport is back to frappe-ui's `px-2`.
+
+That `px-2` is load-bearing for a second reason: the `ScrollArea` root is
+`overflow-hidden`, so the padding is also what keeps an active row's `shadow-sm`
+from being clipped. At `px-1` it had about a pixel of clearance.
+
+The header's _label_ still sits 6px right of the nav labels (46px against
+40px). That one is the component's own proportions — a 28px logo against 16px
 icons — and closing it would mean shrinking the app mark to icon size.
 
 **"Find partners" is a building, not a magnifying glass.** The item is the

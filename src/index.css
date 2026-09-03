@@ -148,19 +148,6 @@
   border-bottom-color: transparent;
 }
 
-/* frappe-ui's `SidebarHeader` indents its logo frame 10px from the rail edge
-   (a `px-1` region holding a `px-1.5` button), while `SidebarItem` indents its
-   icon 12px — so the app mark sat two pixels left of every nav icon under it,
-   which is exactly the sort of thing that reads as sloppy without being
-   nameable. Scoped to this app's sidebar rather than the component globally.
-
-   ⚠️ `.size-7` is the logo frame's own utility class, used here as a hook
-   because the component exposes no handle for it. If frappe-ui resizes that
-   frame, this override is what breaks. */
-.fc-sidebar [data-slot='sidebar-header'] .size-7 {
-  margin-left: 2px;
-}
-
 /* `Dialog`'s `size` prop is an enum of Tailwind `max-w-*` steps — `xl` is
    576px, `2xl` is 672px, and neither is the 500px this modal wants. The panel
    carries frappe-ui's own `dialog-content` class but takes no class of ours,
