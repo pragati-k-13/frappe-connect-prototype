@@ -1,8 +1,9 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { Avatar, Button, Tooltip } from 'frappe-ui'
 import TierIcon from './TierIcon.vue'
 import { logoFor } from '../data/logos'
+import { contactToast, savedToast } from '../feedback'
 import { useConnectStore } from '../stores/connect'
 
 const props = defineProps({
@@ -11,12 +12,25 @@ const props = defineProps({
 
 const store = useConnectStore()
 
-// Saving is local to the mock — a real build writes to the visitor's saved
-// partners, which is the first thing an account actually buys you. Which is
-// also why it's gated: `requireLogin` holds the toggle until the visitor is in,
-// then runs it, so they land on a saved partner rather than back where they
+// Read from the store, not a local `ref`. A real build writes to the visitor's
+// saved partners, which is the first thing an account actually buys you — and
+// which is why it's gated: `requireLogin` holds the toggle until the visitor is
+// in, then runs it, so they land on a saved partner rather than back where they
 // started having to press it again.
-const saved = ref(false)
+//
+// It used to be a local `ref(false)` here and another one on the profile page,
+// which meant saving from the row and then opening that partner showed it
+// unsaved. One list on the store is what lets the confirmation be true.
+const saved = computed(() => store.isSaved(props.partner.id))
+
+// The toggle, the confirmation and the undo are one gesture, so they're one
+// function. `toggleSaved` hands back the state it moved to, and Undo is simply
+// the same call again.
+const toggleSave = () =>
+  store.requireLogin(() => {
+    const now = store.toggleSaved(props.partner.id)
+    savedToast(props.partner, now, () => store.toggleSaved(props.partner.id))
+  })
 
 // A real logo when `src/assets/partners/<id>.<ext>` exists, initials otherwise —
 // see `data/logos.js`. Both render in the same 40px box so the list never
@@ -166,14 +180,18 @@ const industryLine = computed(() => {
             variant="ghost"
             :aria-pressed="saved"
             :aria-label="saved ? `Remove ${partner.name} from saved` : `Save ${partner.name}`"
-            @click="store.requireLogin(() => (saved = !saved))"
+            @click="toggleSave"
           >
             <template #icon>
               <LucideBookmark class="size-4" :class="saved ? 'fill-current text-ink-gray-8' : ''" />
             </template>
           </Button>
         </Tooltip>
-        <Button variant="subtle" label="Contact">
+        <!-- ⚠️ Still inert in the sense that matters — the messages screen
+             doesn't exist — but no longer silent: `contactToast` names the
+             destination rather than letting the click vanish. Ungated on
+             purpose, same as before: there is nothing behind it to gate. -->
+        <Button variant="subtle" label="Contact" @click="contactToast(partner)">
           <!-- A message bubble, not an envelope: contact runs through in-app
              messages, and an envelope would promise email. -->
           <template #prefix><LucideMessageSquare class="size-4" /></template>

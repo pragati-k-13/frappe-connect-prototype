@@ -884,7 +884,7 @@ hand-rolled:
 | Region and app tags               | `components/FilterChip.vue` — `Button` (outline ⇄ subtle), count as plain text                                |
 | Region filter                     | `MultiSelect` — region is a multi-answer question                                                             |
 | Partner tiers                     | `components/TierIcon.vue` — the real Frappe badge seal                                                        |
-| Demo switcher                     | `components/DemoSwitch.vue` — `Dropdown` + `Button`, bottom-right                                             |
+| Demo switcher                     | `components/DemoSwitch.vue` — `Dropdown` + `Button`, bottom-right (toasts cover it while visible)             |
 | Everything pressable              | `Button`                                                                                                      |
 
 `Sidebar` owns its own collapse, including the auto-collapse below `sm`, so
@@ -1289,6 +1289,21 @@ selected.
 same bottom-right switch as `frappe-cloud-v2`, so reviewers already know where
 to look. It uses Frappe Cloud's check/minus convention for the active option in
 each group.
+
+**It shares that corner with the toasts, and a toast simply covers it.**
+frappe-ui's `ToastProvider` hardcodes `position="bottom-right"` with no prop to
+move it, so the two overlap by construction — and that's fine, because
+vue-sonner's toaster is `position: fixed` at `z-index: 999999999` against this
+switch's `z-50`. The toast paints on top and its action button stays the hit
+target: verified with `elementFromPoint` at the Undo button's centre (returns the
+Undo `BUTTON`) and at the switch's own centre (returns the toast), then by
+clicking Undo through the overlap and watching the filters come back.
+
+The alternative was worse. Offsetting the toast stack up to clear the switch cost
+56px of dead space under every toast on every screen — permanent product-side
+ugliness to accommodate a control that isn't part of the product — and it was
+solving a problem that didn't exist. Hiding for a few seconds is the right thing
+for demo furniture to do.
 
 **It has two axes, and they behave differently.**
 

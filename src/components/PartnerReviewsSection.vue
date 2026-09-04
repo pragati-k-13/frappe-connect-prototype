@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Avatar, Button } from 'frappe-ui'
+import { Avatar, Button, toast } from 'frappe-ui'
 import IconPositive from '~icons/lucide/check'
 import IconCaution from '~icons/lucide/info'
 import FilterChip from './FilterChip.vue'
@@ -46,6 +46,12 @@ const openAt = (i) => {
   lightboxOpen.value = true
 }
 
+// Single-use copy, so it lives here rather than in `feedback.js`.
+const reviewToast = () =>
+  toast.info('Writing a review is not built yet', {
+    description: 'Reviews come from customers with a completed implementation.',
+  })
+
 const ago = (months) => (months < 12 ? `${months} months ago` : `${Math.floor(months / 12)}y ago`)
 </script>
 
@@ -65,10 +71,13 @@ const ago = (months) => (months < 12 ? `${months} months ago` : `${Math.floor(mo
           {{ partner.reviews }} {{ partner.reviews === 1 ? 'review' : 'reviews' }}
         </p>
       </div>
-      <!-- ⚠️ Inert. Writing a review needs an account and a completed project,
-           both of which are `store.account` questions this section doesn't ask
-           yet — see the demo switcher notes in the README. -->
-      <Button variant="subtle" label="Write a review">
+      <!-- ⚠️ Still no review form — writing one needs an account AND a
+           completed project, both `store.account` questions this section
+           doesn't ask yet (see the demo switcher notes in the README). The
+           toast names that precondition, which is more useful than the click
+           doing nothing: it says why the button won't help you rather than
+           leaving you to press it twice. -->
+      <Button variant="subtle" label="Write a review" @click="reviewToast">
         <template #prefix><LucidePlus class="size-4" /></template>
       </Button>
     </div>

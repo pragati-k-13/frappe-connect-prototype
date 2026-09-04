@@ -7,7 +7,7 @@
 // an unset filter rather than a silent constraint.
 
 import { computed } from 'vue'
-import { Button, MultiSelect, Select, TextInput } from 'frappe-ui'
+import { Button, MultiSelect, Select, TextInput, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import PartnerRow from '../components/PartnerRow.vue'
 import FilterChip from '../components/FilterChip.vue'
@@ -18,6 +18,51 @@ import { IMPLEMENTATION_TYPES, INDUSTRIES, REGIONS } from '../data/quiz'
 const store = useConnectStore()
 
 const results = computed(() => store.results)
+const suggestions = computed(() => store.suggestions)
+
+// Copy for the suggestion groups. The store says which filter was lifted; this
+// says what that means to a reader.
+//
+// Every title leads with what these partners DO have and leaves the gap to the
+// note underneath, because the group's job is to widen a search that dead-ended,
+// not to explain a rejection.
+//
+// ⚠️ The industry title is deliberately NOT "partners in other industries". A
+// partner's `industries` are the segments they have published success stories
+// in — the row renders them as exactly that — and not a declaration of what work
+// they will take on. Saying they belong to other industries asserts a limit the
+// data doesn't record, about real, named companies. "Proven in other industries"
+// claims only the thing that is true, and the note carries the rest.
+const suggestionCopy = (key) => {
+  const { segments } = store.answers
+  const appLabel = APPS.find((a) => a.value === store.filters.app)?.label
+  switch (key) {
+    case 'region':
+      // No note: the title is already the whole fact, and every row names its
+      // own city underneath.
+      return { title: 'Partners outside your region' }
+    case 'segments':
+      return {
+        title: 'Proven in other industries',
+        note:
+          segments.length === 1
+            ? `No published ${segments[0]} work yet.`
+            : 'No published work in your selected industries yet.',
+      }
+    case 'implementation':
+      return {
+        title: 'Partners who quote custom work',
+        note: 'They scope each project rather than selling fixed-scope starter packs.',
+      }
+    case 'app':
+      return {
+        title: 'Working with other Frappe apps',
+        note: appLabel ? `No ${appLabel} work listed yet.` : undefined,
+      }
+    default:
+      return { title: 'Also worth considering' }
+  }
+}
 
 // `undefined` clears a Select; the store wants `null` for "no constraint".
 const setFilter = (key, value) => {
@@ -84,6 +129,35 @@ const anyFilterActive = computed(() => {
   const { search, app } = store.filters
   return Boolean(segments.length || region.length || implementation || app || search.trim())
 })
+
+// Clearing is the one destructive action on this screen: `store.reset()` drops
+// all three quiz answers along with the filters, and before this there was no
+// way back short of redoing the quiz. Two call sites — the funnel in the bar and
+// the ghost button beside the count when nothing matched — so it's one function,
+// and Undo restores the snapshot `reset()` takes.
+//
+// The store's stash is one-shot, so a stale Undo (a second clear since, or one
+// already used) says so rather than appearing to work.
+const clearFilters = () => {
+  store.reset()
+  toast('Filters cleared', {
+    id: 'filters-cleared',
+    description: 'The quiz answers went with them.',
+    action: {
+      label: 'Undo',
+      onClick: () => {
+        if (!store.restoreCleared()) toast.info('Those filters are no longer available to restore')
+      },
+    },
+  })
+}
+
+// ⚠️ Inert. There is no feedback form, and a text field in a toast isn't one —
+// this says where the answer would go rather than swallowing the click.
+const feedbackToast = () =>
+  toast.info('The feedback form is not built yet', {
+    description: 'It would ask about the search you just ran.',
+  })
 
 const clearTooltip = computed(() => {
   if (!anyFilterActive.value) return 'No filters active'
@@ -163,7 +237,7 @@ const clearTooltip = computed(() => {
           :label="extraFilterCount ? String(extraFilterCount) : undefined"
           :tooltip="clearTooltip"
           :disabled="!anyFilterActive"
-          @click="store.reset()"
+          @click="clearFilters"
         >
           <!-- `#icon` when there's no count, `#prefix` when there is. With
                `#prefix` and no label frappe-ui's Button still renders its
@@ -183,10 +257,42 @@ const clearTooltip = computed(() => {
            controls that belong to it — so they sit close (`mt-3`), and the gap
            that matters is this one, between that group and the results it
            produced. The count belongs to the list, not the bar: it's the list's
-           label, so it takes the space with it. -->
-      <p class="mt-9 text-p-base text-ink-gray-6">
-        {{ results.length }} {{ results.length === 1 ? 'partner' : 'partners' }}
-      </p>
+           label, so it takes the space with it.
+
+           At zero it becomes the empty state. This used to be a centre-aligned
+           block below — headline, hint and a button — which stopped working once
+           suggestions landed underneath it: a tall centred panel sat between the
+           count and the partners it was telling you about, so the screen read as
+           finished when the useful part was below the fold. A label already
+           saying how many matched is the honest place for "none did", and it
+           costs no vertical space.
+
+           `ghost` for Clear filters because the suggestions below are now the
+           real way forward — this is the escape hatch, not the recommendation,
+           and a `subtle` button here would outrank the partners.
+
+           The Button is 28px against the text's 21px line box, so it sets the
+           row height and `items-center` centres the text against it — the
+           `text-p-base`-in-a-flex-row trap in FRAPPE-UI-NOTES needs the text to
+           be the tallest item to bite, and it isn't. -->
+      <div class="mt-9 flex flex-wrap items-center gap-x-1 gap-y-1">
+        <p class="text-p-base text-ink-gray-6">
+          <template v-if="results.length">
+            {{ results.length }} {{ results.length === 1 ? 'partner' : 'partners' }}
+          </template>
+          <template v-else>No partners match every filter</template>
+        </p>
+        <!-- `gap-x-1` rather than the `gap-x-2` this bar uses elsewhere: the
+             ghost Button carries 8px of internal padding of its own, so 4px of
+             gap reads as 12px between the two pieces of text, which is the
+             spacing that was wanted. Measure to the label, not the box. -->
+        <Button
+          v-if="!results.length && anyFilterActive"
+          variant="ghost"
+          label="Clear filters"
+          @click="clearFilters"
+        />
+      </div>
 
       <!-- First page of results -->
       <div class="mt-1">
@@ -218,28 +324,62 @@ const clearTooltip = computed(() => {
         <PartnerRow v-for="p in results.slice(5)" :key="p.id" :partner="p" />
       </div>
 
-      <!-- Empty state: over-filtering is easy here, so the way out is a button,
-           not a suggestion. -->
-      <div v-if="!results.length" class="py-14 text-center">
-        <p class="text-p-lg font-medium text-ink-gray-8">No partners match every filter</p>
-        <p class="mx-auto mt-1.5 max-w-sm text-p-base text-ink-gray-6">
-          Try dropping the narrowest one — region and starter pack rule out the most partners.
-        </p>
-        <div class="mt-4">
-          <Button variant="subtle" label="Clear all filters" @click="store.reset()" />
+      <!-- ── Suggestions ─────────────────────────────────────────────────
+           Shown when the filters have narrowed to two partners or fewer, which
+           is few enough that the list has stopped being a choice.
+
+           Below the results AND below the empty state, deliberately: it answers
+           "what now?", which is only a question once you've seen how little
+           came back. The empty-state screen is the one that needs it most — its
+           only way out used to be discarding the whole quiz.
+
+           Each group is one lifted filter, so its title can say why these
+           partners are here. No rule above the block: the group titles already
+           say these aren't results, and a stroke here would be structure rather
+           than meaning. Same reason the mid-list app interstitial has none. -->
+      <div v-if="suggestions.length" class="mt-12">
+        <div v-for="g in suggestions" :key="g.key" class="mt-8 first:mt-0">
+          <p class="text-p-base font-medium text-ink-gray-8">{{ suggestionCopy(g.key).title }}</p>
+          <p v-if="suggestionCopy(g.key).note" class="mt-0.5 text-p-sm text-ink-gray-6">
+            {{ suggestionCopy(g.key).note }}
+          </p>
+          <!-- Real `PartnerRow`s, not a reduced card: Save and Contact have to
+               behave here exactly as they do in the list, and a suggested
+               partner is still a partner you might click through to. `mt-1`
+               matches the results list's own leading gap. -->
+          <div class="mt-1">
+            <PartnerRow v-for="p in g.partners" :key="p.id" :partner="p" />
+          </div>
         </div>
       </div>
 
       <!-- Feedback. Kept inline at the end of the list rather than as a floating
            widget: it asks about the search you just did, so it belongs where
-           that search ended. -->
-      <div class="mt-10 pt-6">
+           that search ended.
+
+           The prompt and its button sit on ONE line, with the button pushed to
+           the right edge of the content column — which is the same edge every
+           row's Contact button sits on, so it joins that vertical rather than
+           floating mid-column. The rows bleed their hover fill 12px past this
+           column (`-mx-3 px-3`) but their content is measured to it, so
+           `justify-between` here lands flush with them.
+
+           `text-p-base` stays, even though FRAPPE-UI-NOTES warns the paragraph
+           scale stretches a flex row to its own 21px line box. That only bites
+           when the text is the TALLEST item in the row; here the 28px Button is,
+           so the row is 28px either way and `items-center` lands both dead
+           centre. Keeping the paragraph scale is what makes the wrapped case
+           read — narrow enough and this is two lines, where 21px leading is
+           right and `text-base`'s 16px is cramped.
+
+           `flex-wrap` + `gap-y-3` so a narrow viewport drops the button onto its
+           own line at the same spacing it used to have, rather than crushing the
+           text. -->
+      <div class="mt-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-3 pt-6">
         <p class="text-p-base text-ink-gray-7">
           Help us improve by providing feedback on your search experience
         </p>
-        <div class="mt-3">
-          <Button variant="subtle" label="Share feedback" />
-        </div>
+        <Button variant="subtle" label="Share feedback" @click="feedbackToast" />
       </div>
     </div>
   </ConnectShell>

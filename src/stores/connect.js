@@ -44,6 +44,12 @@ const ACCOUNT_STATES = ['visitor', 'client']
 // pointless to track and awkward to serialise.
 let pendingAction = null
 
+// The answers and filters as they were immediately before the last `reset()`,
+// so Undo on the cleared-filters toast can put them back. Module scope for the
+// same reason as `pendingAction`: a one-shot stash the toast reads once, not
+// state any screen renders.
+let lastCleared = null
+
 // The listing's primary order, always. Tier is the one ranking the partner
 // programme itself publishes, so it outranks whatever order the filters happen
 // to leave behind — a gold partner never sits below a bronze one.
@@ -52,6 +58,68 @@ let pendingAction = null
 // the programme, no badge in the row (see `TierIcon`). Those sort last.
 const TIER_RANK = { gold: 0, silver: 1, bronze: 2 }
 const tierRank = (p) => TIER_RANK[p.tier] ?? 3
+const byTier = (a, b) => tierRank(a) - tierRank(b)
+
+// The whole filter set as one object. Built rather than read straight off state
+// so the search term is normalised in exactly one place, and so `results` and
+// the suggestion groups are demonstrably asking about the same thing.
+const criteriaFrom = (state) => ({
+  segments: state.answers.segments,
+  region: state.answers.region,
+  implementation: state.answers.implementation,
+  app: state.filters.app,
+  q: state.filters.search.trim().toLowerCase(),
+})
+
+// Does this partner survive the filters?
+//
+// `skip` lifts ONE constraint, which is the entire idea behind a suggestion
+// group: the same filter set with a single dimension dropped. Keeping both in
+// one function is what stops a group and the list above it from disagreeing
+// about what the other filters mean — the bug you get the moment the filter
+// logic is written out twice.
+const matches = (p, c, skip = null) => {
+  if (skip !== 'region' && c.region.length && !c.region.includes(p.region)) return false
+  if (skip !== 'app' && c.app && !p.apps.includes(c.app)) return false
+  // Union, not intersection: several segments read as "any of these", the same
+  // way several regions do. Partners are tagged with the directory's own segment
+  // names, so this is a direct match — no mapping up to the group, because the
+  // group isn't a filter of its own any more.
+  if (skip !== 'segments' && c.segments.length && !p.industries.some((i) => c.segments.includes(i)))
+    return false
+  // A standard implementation is only useful from a partner who actually sells
+  // starter packs.
+  if (skip !== 'implementation' && c.implementation === 'standard' && p.packs.length === 0)
+    return false
+  // Never skipped — see SUGGESTABLE.
+  if (c.q) {
+    const haystack = [p.name, p.city, ...p.industries, ...p.apps].join(' ').toLowerCase()
+    if (!haystack.includes(c.q)) return false
+  }
+  return true
+}
+
+// The dimensions a suggestion group may lift, and how to tell whether each is
+// constraining anything right now.
+//
+// Search is deliberately absent. A typed term is a request for one specific
+// thing — often a partner by name — so answering it with partners that don't
+// match the text reads as the app ignoring what you typed.
+const SUGGESTABLE = [
+  { key: 'region', active: (c) => c.region.length > 0 },
+  { key: 'segments', active: (c) => c.segments.length > 0 },
+  // Only 'standard' constrains. Custom work rules nobody out, so lifting it
+  // would produce an empty group.
+  { key: 'implementation', active: (c) => c.implementation === 'standard' },
+  { key: 'app', active: (c) => Boolean(c.app) },
+]
+
+// Suggest at or below this many results. Two is still a thin slice of a
+// thirteen-partner directory — few enough that "these are your options" isn't
+// yet true.
+const SUGGEST_AT_OR_BELOW = 2
+// Per group, so four lifted dimensions can't out-length the results themselves.
+const SUGGEST_PER_GROUP = 3
 
 export const useConnectStore = defineStore('connect', {
   state: () => ({
@@ -77,6 +145,16 @@ export const useConnectStore = defineStore('connect', {
       email: 'meera@northwind.example',
       company: 'Northwind',
     },
+    // Partner ids the viewer has saved. ONE list for the whole app: the listing
+    // row and the profile header are two views of the same bookmark, and as two
+    // component-local `ref`s they disagreed the moment you used both — save
+    // from the row, open that partner, and it showed unsaved.
+    //
+    // Cleared on log out, because a saved list belongs to an account.
+    //
+    // ⚠️ In memory only. A real build writes this to the visitor's account;
+    // a reload still loses it.
+    saved: [],
     answers: emptyAnswers(),
     // Set when the region was inferred rather than chosen. Nothing renders it
     // now — the "Guessed from your connection" line came out — but the seed
@@ -113,40 +191,52 @@ export const useConnectStore = defineStore('connect', {
     signedIn: (state) => state.account !== 'visitor',
     hasProject: (state) => state.account === 'client',
 
+    // A function getter rather than a derived list: every caller asks about one
+    // partner, and `saved` is a plain array of ids so `includes` is the whole
+    // check.
+    isSaved: (state) => (id) => state.saved.includes(id),
+
     // A stand-in for GeoIP. Real implementations resolve this server-side on
     // first paint; the mock hardcodes the common case so the interaction (a
     // pre-filled answer you can override) is reviewable.
     inferredRegion: () => 'india',
 
     results(state) {
-      const { segments, region, implementation } = state.answers
-      const { search, app } = state.filters
-      const q = search.trim().toLowerCase()
-
+      const c = criteriaFrom(state)
       return (
-        PARTNERS.filter((p) => {
-          if (region.length && !region.includes(p.region)) return false
-          if (app && !p.apps.includes(app)) return false
-          // Union, not intersection: several segments read as "any of these", the
-          // same way several regions do. Partners are tagged with the directory's
-          // own segment names, so this is a direct match — no mapping up to the
-          // group, because the group isn't a filter of its own any more.
-          if (segments.length && !p.industries.some((i) => segments.includes(i))) return false
-          // A standard implementation is only useful from a partner who actually
-          // sells starter packs.
-          if (implementation === 'standard' && p.packs.length === 0) return false
-          if (q) {
-            const haystack = [p.name, p.city, ...p.industries, ...p.apps].join(' ').toLowerCase()
-            if (!haystack.includes(q)) return false
-          }
-          return true
-        })
+        PARTNERS.filter((p) => matches(p, c))
           // `.filter()` already handed back a fresh array, so this sorts a copy,
           // not PARTNERS. Sort is stable in every engine this runs on, which is
           // what keeps the order inside a tier equal to the order in
           // `data/partners.js` — the seed list's order is the tiebreak.
-          .sort((a, b) => tierRank(a) - tierRank(b))
+          .sort(byTier)
       )
+    },
+
+    // Partners that are ONE lifted filter away from qualifying, grouped by which
+    // filter that is. For when the current set has narrowed so far that the list
+    // isn't a choice any more.
+    //
+    // The groups are mutually exclusive by construction, and that's the point: a
+    // partner is only listed under `region` if it satisfies every OTHER filter,
+    // so one that misses both region and industry appears in neither group. A
+    // suggestion you'd have to change two things to reach isn't a suggestion.
+    //
+    // Returns dimension keys, not prose — which filter was lifted is a fact
+    // about the data, and how to word it is the results page's business.
+    suggestions(state) {
+      if (this.results.length > SUGGEST_AT_OR_BELOW) return []
+      const c = criteriaFrom(state)
+      return SUGGESTABLE.filter((d) => d.active(c))
+        .map((d) => ({
+          key: d.key,
+          // `matches(…, d.key)` is "would qualify without this filter";
+          // `!matches(…)` drops the ones already in the list above.
+          partners: PARTNERS.filter((p) => matches(p, c, d.key) && !matches(p, c))
+            .sort(byTier)
+            .slice(0, SUGGEST_PER_GROUP),
+        }))
+        .filter((g) => g.partners.length)
     },
   },
 
@@ -165,6 +255,25 @@ export const useConnectStore = defineStore('connect', {
     setAccount(account) {
       if (!ACCOUNT_STATES.includes(account)) return
       this.account = account
+    },
+
+    // Returns the state it moved TO, so the caller can name which way it went
+    // without re-reading the store to find out.
+    toggleSaved(id) {
+      const next = !this.saved.includes(id)
+      this.saved = next ? [...this.saved, id] : this.saved.filter((s) => s !== id)
+      return next
+    },
+
+    // Logging out is `setAccount('visitor')` plus dropping what the account
+    // held. Without the second half the bookmarks stayed filled afterwards —
+    // the row was reading a list that no longer belonged to anyone. Returns how
+    // many were dropped so the confirmation can say.
+    logOut() {
+      const cleared = this.saved.length
+      this.saved = []
+      this.setAccount('visitor')
+      return cleared
     },
 
     // The gate. Wrap any action that needs an account:
@@ -229,9 +338,36 @@ export const useConnectStore = defineStore('connect', {
       this.regionInferred = true
     },
     reset() {
+      // Snapshot first. This is the app's one destructive action — it discards
+      // all three quiz answers along with the filters — and the only way back
+      // used to be redoing the quiz. Copied field by field rather than cloned
+      // wholesale because `region` and `segments` are arrays, and a spread
+      // alone would hand back the same array the store is about to replace.
+      lastCleared = {
+        answers: {
+          ...this.answers,
+          region: [...this.answers.region],
+          segments: [...this.answers.segments],
+        },
+        regionInferred: this.regionInferred,
+        filters: { ...this.filters },
+      }
       this.answers = emptyAnswers()
       this.regionInferred = false
       this.filters = { search: '', app: null }
+    },
+
+    // Undo for the toast `reset()` raises. Returns whether there was anything
+    // to put back: the stash is one-shot, so an Undo pressed on a stale toast
+    // (a second clear has happened since, or it was already used) reports that
+    // rather than silently doing nothing.
+    restoreCleared() {
+      if (!lastCleared) return false
+      this.answers = lastCleared.answers
+      this.regionInferred = lastCleared.regionInferred
+      this.filters = lastCleared.filters
+      lastCleared = null
+      return true
     },
   },
 })

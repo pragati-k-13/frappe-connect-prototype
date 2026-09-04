@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Button, Dialog } from 'frappe-ui'
+import { Button, Dialog, toast } from 'frappe-ui'
 // Reached for directly because frappe-ui's `Dialog` renders `message` only as
 // the FALLBACK content of its default slot — so any dialog with a body of its
 // own loses the description, and the underlying primitive then warns that
@@ -51,6 +51,27 @@ const close = () => {
     day.value = null
     time.value = null
   }, 200)
+}
+
+// Confirming used to call the identical `close()` as Cancel, which made the two
+// paths byte-identical: the panel shut either way and nothing told you which
+// one had happened. `:disabled` distinguished them BEFORE the click and nothing
+// distinguished them after.
+//
+// ⚠️ Nothing is submitted — real availability and a real request both need the
+// partner's calendar. The toast is what a completed request would say, and it's
+// the only thing separating confirm from abandon, so it names the slot back:
+// a confirmation that repeats your choice is checkable, one that says "Done"
+// isn't.
+const confirm = () => {
+  // Read the slot before `close()` schedules the reset, or the description is
+  // built from state that's about to be nulled.
+  const d = days.value[day.value]
+  const when = `${fmtDay(d)} ${fmtDate(d)} at ${time.value}`
+  close()
+  toast.success('Slot requested', {
+    description: `${props.partner.name} will confirm ${when} by email.`,
+  })
 }
 </script>
 
@@ -114,7 +135,7 @@ const close = () => {
     <template #actions>
       <div class="flex justify-end gap-2">
         <Button variant="ghost" label="Cancel" @click="close" />
-        <Button variant="solid" label="Request slot" :disabled="!canConfirm" @click="close" />
+        <Button variant="solid" label="Request slot" :disabled="!canConfirm" @click="confirm" />
       </div>
     </template>
   </Dialog>

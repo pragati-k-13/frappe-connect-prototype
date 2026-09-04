@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { Button, ScrollArea, Sidebar, SidebarHeader, SidebarItem, SidebarLabel } from 'frappe-ui'
+import { Button, ScrollArea, Sidebar, SidebarHeader, SidebarItem, SidebarLabel, toast } from 'frappe-ui'
 import LoginDialog from './LoginDialog.vue'
 import { useConnectStore } from '../stores/connect'
 
@@ -32,9 +32,27 @@ const inDirectory = computed(() => route.path.startsWith('/connect'))
 // menu is empty and the chevron doesn't appear.
 const logoMenu = computed(() =>
   store.signedIn
-    ? [{ label: 'Log out', icon: 'lucide-log-out', onClick: () => store.setAccount('visitor') }]
+    ? [{ label: 'Log out', icon: 'lucide-log-out', onClick: logOut }]
     : [],
 )
+
+// `store.logOut()` rather than `setAccount('visitor')`: logging out has to drop
+// the saved list too. It didn't before, so every bookmark you'd filled stayed
+// filled after signing out — the row was reading a list that no longer belonged
+// to anyone.
+//
+// The only signal used to be the dropdown closing and the sidebar's subtitle
+// disappearing, neither of which you're looking at when you press it. The count
+// is in the description because that's the part you can't see happen.
+const logOut = () => {
+  const cleared = store.logOut()
+  toast('Logged out', {
+    id: 'auth',
+    description: cleared
+      ? `${cleared} saved ${cleared === 1 ? 'partner' : 'partners'} cleared with the session.`
+      : undefined,
+  })
+}
 
 // The seam handle. `railY` follows the pointer down the sidebar's right edge so
 // the chevron appears where the hand already is, rather than at a fixed spot
