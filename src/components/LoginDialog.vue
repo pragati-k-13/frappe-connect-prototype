@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue'
-import { Button, Dialog } from 'frappe-ui'
+import { Button, Dialog, toast } from 'frappe-ui'
 // Reached for directly because frappe-ui's `Dialog` renders `message` only as
 // the FALLBACK content of its default slot — so any dialog with a body of its
 // own loses the description, and the underlying primitive then warns that
@@ -34,6 +34,15 @@ const signIn = () => {
   loading.value = true
   timer = setTimeout(() => {
     loading.value = false
+    // Order matters: toast first, then `completeLogin()`. That runs the held
+    // pending action, which raises a toast of its own (Save and Contact both
+    // do), and the two read in the right order only if the sign-in lands
+    // first — "logged in", then "partner saved".
+    //
+    // Named rather than "Logged in": the demo signs you in as a specific
+    // viewer, and which account you're in is the thing the sidebar subtitle
+    // was the only place to check.
+    toast.success(`Logged in as ${store.viewer.name}`, { id: 'auth' })
     store.completeLogin()
   }, SIGN_IN_MS)
 }

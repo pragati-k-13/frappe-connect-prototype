@@ -81,6 +81,36 @@ of its own therefore has no accessible description, and reka-ui warns that
 `aria-describedby` is unset. Import `DialogDescription` from reka-ui and render it
 `as-child`.
 
+**Toasts need a provider, and it has to be mounted FIRST.** The component is
+`ToastProvider` — `Toasts` and `createToast` are the pre-1.0 API and are gone, so a
+`<Toasts />` tag renders nothing and reports nothing. It doesn't self-mount either, so
+`toast()` without it is a silent no-op. Worse, it's a pure subscriber: it only sees
+toasts published *after* it subscribes and never seeds from the queue, so mounted
+*after* `<RouterView />` it swallows anything a child toasts from `setup()` or
+`onMounted()`. Mount exactly one, above the app content — a second copy has no dedup
+guard and renders every toast twice.
+
+**`ToastProvider` takes no props, and vue-sonner's offsets are inline styles.**
+Position is hardcoded `bottom-right`, along with the close button and a 3-toast cap, so
+anything else means dropping to `<Toaster>` from vue-sonner directly. The offsets look
+like CSS variables you can override — `--offset-bottom` and friends — but vue-sonner
+writes all four onto the element as an *inline* `style` attribute, so a stylesheet rule
+loses no matter how specific it is, silently. An `!important` author declaration beats a
+non-important inline one, which is the only way to shift the stack.
+
+Usually you don't need to. The toaster is `position: fixed` at `z-index: 999999999`, so
+it paints over anything the app has parked in that corner and its action button stays the
+hit target — a floating control down there gets covered for a few seconds rather than
+blocking the toast. Check with `elementFromPoint` before assuming a clash: this mock's
+demo switch (`z-50`) *looks* like it sits on top in a scaled screenshot and does not.
+
+**`toast()`'s old object form still works, and its units differ.**
+`toast({ title, text, timeout })` is accepted but logs a deprecation warning, and its
+`timeout` is in **seconds** while the new `toast(msg, { duration })` is in
+**milliseconds** — so the same number means two different things depending on which form
+you used. `0` (legacy) and `Infinity` (new) are the persistent values. `position` in the
+object form is ignored outright, because position is the provider's.
+
 **`Dialog`'s `size` is an enum of `max-w-*` steps.** If the width you want isn't one of
 them, the panel takes no class of yours — hook it from inside with
 `.dialog-content:has(.your-marker)`. Its padding is hardcoded the same way.

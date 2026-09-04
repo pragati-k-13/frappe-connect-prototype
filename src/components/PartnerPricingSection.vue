@@ -5,6 +5,7 @@ import IconPacks from '~icons/lucide/package'
 import IconCustom from '~icons/lucide/pencil-ruler'
 import EstimateQuoteDialog from './EstimateQuoteDialog.vue'
 import { STARTER_PACKS } from '../data/partners'
+import { contactToast } from '../feedback'
 
 // SCREEN 6, fourth section — "Pricing".
 //
@@ -104,9 +105,15 @@ const estimating = ref(false)
         <div class="min-w-0">
           <p class="text-base font-medium text-ink-gray-7">Custom solutions</p>
           <p class="mt-0.5 text-p-base text-ink-gray-6">Please contact us for a detailed quote</p>
-          <!-- ⚠️ Also inert, and the same destination as the header's Contact
-               button: the in-app messages screen, which doesn't exist yet. -->
-          <Button variant="ghost" label="Contact us" class="-ml-2 mt-2">
+          <!-- ⚠️ Same destination as the header's Contact button — the in-app
+               messages screen, which doesn't exist yet — so it raises the same
+               toast rather than swallowing the click. -->
+          <Button
+            variant="ghost"
+            label="Contact us"
+            class="-ml-2 mt-2"
+            @click="contactToast(partner)"
+          >
             <template #suffix><LucideChevronRight class="size-4" /></template>
           </Button>
         </div>

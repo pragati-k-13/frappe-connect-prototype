@@ -16,6 +16,21 @@
 // The prototype's own control, not part of the product — same bottom-right
 // demo switch as frappe-cloud-v2, so reviewers already know where to look.
 //
+// ⚠️ It shares that corner with the toasts, which is deliberate. frappe-ui's
+// `ToastProvider` hardcodes `position="bottom-right"` and exposes no prop to
+// move it, so something has to give, and the answer is that a toast simply
+// covers this button for the few seconds it's on screen. The alternatives were
+// both worse: offsetting the toast stack upward spent dead space under every
+// toast on every screen to accommodate a control that isn't part of the
+// product, and moving this to bottom-left broke the convention reviewers
+// arrive with.
+//
+// Covering works because vue-sonner's toaster is `position: fixed` at
+// `z-index: 999999999` — orders of magnitude above this `z-50` — so the toast
+// paints over the button and its action stays clickable. Nothing here enforces
+// that; it's the toaster's own stylesheet. If a toast ever renders BEHIND this
+// button, that ordering is what changed.
+//
 // It lives in App.vue rather than in ConnectShell because the marketing page
 // (screen 1) has no app chrome at all, and the switch has to be reachable from
 // every screen in the flow.

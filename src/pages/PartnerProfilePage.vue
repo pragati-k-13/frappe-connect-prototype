@@ -24,6 +24,7 @@ import BookSlotDialog from '../components/BookSlotDialog.vue'
 import { PARTNERS } from '../data/partners'
 import { logoFor } from '../data/logos'
 import { clientsFor, mediaFor } from '../data/media'
+import { contactToast, savedToast } from '../feedback'
 
 const route = useRoute()
 const router = useRouter()
@@ -44,11 +45,22 @@ const subtitle = computed(() => {
   return partner.value.tagline ?? partner.value.city
 })
 
-// Local to the mock, same as the row's bookmark — a real build writes to the
-// visitor's saved partners. Not shared with the row's state on purpose: wiring one
-// boolean across two screens would imply persistence this mock doesn't have.
-const saved = ref(false)
 const store = useConnectStore()
+
+// The same list the listing row reads, not a second copy. These two used to be
+// independent `ref(false)`s — the comment here said sharing them would imply
+// persistence the mock doesn't have — but the cost was that saving from the row
+// and then opening the partner showed it unsaved, which is worse than implying
+// too much: it's the app contradicting itself. The store holds one list and
+// says plainly that it's in memory only.
+const saved = computed(() => Boolean(partner.value && store.isSaved(partner.value.id)))
+
+// Same gesture as the row's, same copy — see `feedback.js`.
+const toggleSave = () =>
+  store.requireLogin(() => {
+    const id = partner.value.id
+    savedToast(partner.value, store.toggleSaved(id), () => store.toggleSaved(id))
+  })
 
 const booking = ref(false)
 </script>
@@ -122,18 +134,25 @@ const booking = ref(false)
               variant="subtle"
               :aria-pressed="saved"
               :aria-label="saved ? `Remove ${partner.name} from saved` : `Save ${partner.name}`"
-              @click="store.requireLogin(() => (saved = !saved))"
+              @click="toggleSave"
             >
               <template #icon>
                 <LucideBookmark class="size-4" :class="saved ? 'fill-current' : ''" />
               </template>
             </Button>
           </Tooltip>
-          <!-- Signed out, this opens the login prompt; signed in it is still
-               ⚠️ inert, because it goes to the in-app messages screen, which
-               doesn't exist yet — deliberately not routed to a stub, so the gap
-               stays visible instead of looking finished. -->
-          <Button variant="solid" label="Contact" @click="store.requireLogin()">
+          <!-- Signed out, this opens the login prompt; signed in, the messages
+               screen it wants still ⚠️ doesn't exist and is deliberately not
+               stubbed, so the gap stays visible instead of looking finished.
+               What changed is that it no longer does NOTHING once you're in —
+               the page's one solid button was a no-op for signed-in visitors.
+               Passing the toast as the gated action also means it fires after a
+               sign-in that was triggered from this button. -->
+          <Button
+            variant="solid"
+            label="Contact"
+            @click="store.requireLogin(() => contactToast(partner))"
+          >
             <template #prefix><LucideSend class="size-4" /></template>
           </Button>
         </div>

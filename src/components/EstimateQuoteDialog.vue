@@ -10,6 +10,7 @@ import { DialogDescription } from 'reka-ui'
 import AppLogo from './AppLogo.vue'
 import { APPS } from '../data/partners'
 import { modulesFor } from '../data/modules'
+import { contactToast } from '../feedback'
 import { useConnectStore } from '../stores/connect'
 
 // "Estimate quote" — the action on the Pricing section's starter-pack card.
@@ -410,9 +411,16 @@ const close = () => {
         <!-- The label carries what the removed disclaimer used to: this figure
            isn't the quote, it's the reason to ask for one — and asking means
            sending them a message, which the icon and the verb both say.
-           ⚠️ Inert, same destination as every other Contact on this page: the
-           in-app messages screen, which doesn't exist yet. -->
-        <Button variant="solid" class="mt-5 w-full" label="Message partner for a final quote">
+           ⚠️ Same destination as every other Contact on this page — the in-app
+           messages screen, which doesn't exist yet — so it raises the same
+           toast. This is the terminal action of the whole quote flow; it was
+           the one button in the modal that did nothing at all. -->
+        <Button
+          variant="solid"
+          class="mt-5 w-full"
+          label="Message partner for a final quote"
+          @click="contactToast(partner)"
+        >
           <template #prefix><LucideMessageSquare class="size-4" /></template>
         </Button>
       </div>
