@@ -314,6 +314,35 @@ const close = () => {
                         @update:model-value="toggleAll"
                       />
                       <span>Modules in your project</span>
+                      <!-- The count of what's ticked, beside the control that
+                           ticks it. Both of its numbers are also visible in the
+                           list below, so it asserts nothing the reader can't
+                           check — which is what separates it from the count
+                           this header deliberately doesn't carry (see the
+                           heading text's own note). That one would have been a
+                           claim about scope; this is feedback on your own last
+                           click.
+
+                           It costs no height, and height is the scarce thing
+                           here — the list's `max-h` is what keeps the footer on
+                           screen. And it stays out of the totals block below,
+                           where hours × rate = quote is a chain of arithmetic
+                           that a fourth, unrelated figure would interrupt.
+
+                           `tabular-nums` so the digits don't jitter as they
+                           change, and a step darker than the heading beside it:
+                           the heading is a label, this is live.
+
+                           Shown even at 6 of 6, when it's telling you nothing
+                           you didn't assume. A count that appeared only once
+                           you'd unticked something would move the heading on
+                           the first click, in a sticky header, which is a worse
+                           trade than a quiet line that's occasionally
+                           redundant. -->
+                      <span class="tabular-nums text-ink-gray-6">
+                        {{ selected.length }}/{{ rows.length }}
+                        <span class="sr-only">modules selected</span>
+                      </span>
                     </span>
                   </th>
                   <th :class="[HEAD, 'text-right']">Estimated hrs</th>

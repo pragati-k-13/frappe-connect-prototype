@@ -527,13 +527,30 @@ reads far more like one of the partner's packages than like their own thing. The
 rule: don't surface a generated name anywhere it could be mistaken for something the user
 picked.
 
-⚠️ And deliberately **no count**. A number in the header would sit above a list that is
-often visibly shorter than it, which resurrects the audit question in a worse form — now
-with arithmetic attached. ⚠️ It doesn't today, and only by accident: the seeded project is
-six ERPNext modules and all thirteen partners implement ERPNext, so nothing is currently
-filtered out for anybody. The filter is still right and still live — a project with
-Helpdesk in it would drop rows for the partners who don't do Helpdesk — but every row in
-the panel as it stands is shown to every partner.
+⚠️ And deliberately **no count _of the project_**. A number claiming how many modules the
+project holds would sit above a list that is often visibly shorter than it, which
+resurrects the audit question in a worse form — now with arithmetic attached. ⚠️ It doesn't
+today, and only by accident: the seeded project is six ERPNext modules and all thirteen
+partners implement ERPNext, so nothing is currently filtered out for anybody. The filter is
+still right and still live — a project with Helpdesk in it would drop rows for the partners
+who don't do Helpdesk — but every row in the panel as it stands is shown to every partner.
+
+**There _is_ a count in the header, and it's a different animal: `4/6`, beside the
+select-all.** Both of its numbers are visible in the list right below it, so it asserts
+nothing the reader can't check — where the rejected count would have been a claim about
+scope, this is feedback on your own last click. `tabular-nums` so the digits don't jitter,
+and a step darker than the heading beside it: the heading is a label, this is live.
+
+Two things settled the placement. It costs **no height**, and height is the scarce thing in
+this panel — the list's `max-h` is the only reason the footer stays on screen. And it keeps
+out of the totals block, where hours × rate = quote is a chain of arithmetic that a fourth,
+unrelated figure would interrupt. (The totals block was the other candidate, and it's the
+better one if the count ever needs to be more prominent than this — it's where the eye goes
+after a click, because that's where the consequence lands.)
+
+It shows even at `6/6`, when it's telling you nothing you hadn't assumed. A count that
+appeared only once you'd unticked something would move the heading on the first click, in a
+sticky header — a worse trade than a quiet line that's occasionally redundant.
 
 This was the third answer to the same problem. The first two were a line under the list
 ("also implements 4 more modules outside your project") and a line under the title naming
