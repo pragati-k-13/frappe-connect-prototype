@@ -1,5 +1,6 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { Button, Checkbox, Dialog, ScrollArea } from 'frappe-ui'
 // Reached for directly because frappe-ui's `Dialog` renders `message` only as
 // the FALLBACK content of its default slot — so any dialog with a body of its
@@ -43,6 +44,13 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const store = useConnectStore()
+
+// Resolved through the router rather than written as a literal, so the href
+// carries `BASE_URL` — under GitHub Pages the app lives at
+// /frappe-connect-prototype/, and a hand-written "/connect#starter-packs"
+// would 404 there. Computed once: neither the route nor the base moves.
+const router = useRouter()
+const packsHref = router.resolve({ name: 'connect', hash: '#starter-packs' }).href
 
 // Table metrics, spelled out once because they're a spec rather than a taste.
 //
@@ -126,6 +134,20 @@ const toggle = (row, on) => {
 }
 
 const selected = computed(() => rows.value.filter(isOn))
+
+// The header's tick, in the three states a select-all has. `indeterminate` is
+// the middle one — frappe-ui exposes it as a prop because the native
+// `indeterminate` is a DOM property with no HTML attribute behind it, so it
+// can't be set from markup.
+const allOn = computed(() => rows.value.length > 0 && excluded.value.size === 0)
+const someOn = computed(() => selected.value.length > 0 && !allOn.value)
+// The `on` the control hands back is the native one, and native is what we
+// want: a click on an indeterminate box reports `true`, so half-selected goes
+// to all rather than to none — which is the direction someone reaching for a
+// half-filled box means. Clearing is then the one case that starts from all.
+const toggleAll = (on) => {
+  excluded.value = on ? new Set() : new Set(rows.value.map((r) => r.key))
+}
 
 const totalHours = computed(() => selected.value.reduce((n, r) => n + r.module.hours, 0))
 
@@ -272,7 +294,28 @@ const close = () => {
                        this; the table shows the ones whose apps this partner
                        implements. A number here would sit above a visibly
                        shorter list. -->
-                  <th :class="HEAD">Modules in your project</th>
+                  <!-- The select-all sits in the header cell rather than in a
+                       column of its own, for the same reason the row ticks do:
+                       a third column would be 14px of content and a lifetime of
+                       alignment. It lines up with every row's tick beneath it.
+
+                       `aria-label` rather than wiring the column title up as
+                       its label — the title names what the column holds, and a
+                       heading that toggles seven rows when you click it is a
+                       surprise nobody asked for. The label says what the
+                       control does; the heading goes on saying what the column
+                       is. -->
+                  <th :class="HEAD">
+                    <span class="flex items-center gap-2">
+                      <Checkbox
+                        :model-value="allOn"
+                        :indeterminate="someOn"
+                        aria-label="Include every module in the estimate"
+                        @update:model-value="toggleAll"
+                      />
+                      <span>Modules in your project</span>
+                    </span>
+                  </th>
                   <th :class="[HEAD, 'text-right']">Estimated hrs</th>
                 </tr>
               </thead>
@@ -439,6 +482,36 @@ const close = () => {
         >
           <template #prefix><LucideMessageSquare class="size-4" /></template>
         </Button>
+
+        <!-- The one question the panel provokes and doesn't answer: what a
+             starter pack actually contains. The rows above are the visitor's
+             project; a pack is a fixed scope the partner sells, and the two are
+             compared constantly on this screen without the second ever being
+             spelled out. The comparison table on `/connect` spells it out, so
+             this points there rather than restating it in a modal.
+
+             Ghost and narrower than the action above it — it's a way out to
+             reference material, not a second thing to decide. Centred under the
+             full-width primary so the pair reads as one stack; left-aligned it
+             looks like an afterthought that got left behind.
+
+             ⚠️ The centring goes on a wrapper, not on the Button. `mx-auto`
+             does nothing to a `display: flex` element, which is block-level and
+             already fills the row — the label just sits at its left edge, which
+             is the bug this replaced.
+
+             ⚠️ NEW TAB, via `link` (frappe-ui's Button renders `link` as an
+             `<a target="_blank" rel="noreferrer noopener">`; `route` would be
+             the same-tab RouterLink). Deliberate: the ticks above are a tuned
+             estimate that closing this panel throws away by design, and losing
+             it to a definition lookup is a different thing from losing it to
+             "I'm done". Reading what a pack contains is exactly the question
+             you ask WHILE deciding. -->
+        <div class="mt-2 flex justify-center">
+          <Button variant="ghost" size="sm" :link="packsHref" label="What's in a starter pack?">
+            <template #suffix><LucideArrowUpRight class="size-3.5" /></template>
+          </Button>
+        </div>
       </div>
     </template>
   </Dialog>

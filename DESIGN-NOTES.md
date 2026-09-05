@@ -408,13 +408,71 @@ the action's own 260px label; and only then the widest row, at 245 (tick 14 + ma
 8px gaps + "Manufacturing" at 99, then 16 of gutter and "Estimated hrs" at 84).
 
 The row used to be the binding constraint, at 292, on the strength of "Attendance and
-leave" — a Frappe HR module, and Frappe HR is no longer broken out separately. So there is
-now real headroom below 440 if it's wanted; ~365 is where the title starts to crowd the ×.
+leave" — a module of the former separate Frappe HR catalogue, which the estimator no longer
+carries. So there is now real headroom below 440 if it's wanted; ~365 is where the title
+starts to crowd the ×.
+
+#### ⚠️⚠️ Frappe HR and ERPNext's HR module are two different things
+
+Frappe HR is a separate app: its own entry in `APPS`, listed by nine of the thirteen
+partners, with its own 30-hour starter pack in `STARTER_PACKS`. ERPNext also has an HR
+module, and that is the `hr` row the estimator shows. **They are not two names for one
+thing and neither substitutes for the other.** Any copy, filter or estimate that treats
+them as interchangeable is wrong.
+
+What the estimator's catalogue holds is ERPNext's HR module. It does **not** break Frappe
+HR down into modules of its own — a deliberate scope decision about this panel, not a claim
+that the app is covered by the ERPNext module. A partner selling a Frappe HR implementation
+is selling something this panel currently doesn't price, and the pack table on `/connect`
+still sells it.
+
+⚠️ **The `hr` task list is inherited and shouldn't stay that way.** Its eight tasks are the
+whole of what used to be the separate `frappe-hr` catalogue, moved across unchanged, so the
+move invented no numbers and dropped none — but they were written for the _app_. A first
+parallel payroll run and a biometric device import are full-HRMS work, not what ERPNext's
+HR module asks for. Rewrite them to that module's scope before anyone treats the 25 hours
+as real. Nothing renders them today — they only derive `hours` — which is why this is a
+warning and not a bug.
+
+⚠️ One consequence of HR living under ERPNext: **it reaches every partner.** The panel only
+shows modules whose app the partner implements; all thirteen do ERPNext, where four don't
+do Frappe HR. Those four now quote ERPNext HR work, which is right — it's ERPNext, and they
+do ERPNext — but it is a change in who sees an HR line.
 
 The title is the **`title` prop**, not the `#title` slot. The slot existed only to push the
 heading to 3xl; at 2xl that is exactly what the prop already renders (`text-2xl-semibold`),
 so the override earned nothing and is gone. The panel's × is the only close affordance,
 which is why the footer holds one full-width action instead of a Close beside it.
+
+**Below that action, one subtle way out: "What's in a starter pack?"** It's the question
+the panel provokes and never answers — the rows are the visitor's project, a pack is a
+fixed scope the partner sells, and the two get compared on this screen constantly without
+the second ever being spelled out. The comparison table on `/connect` spells it out, so the
+link points there rather than restating it inside a modal. Ghost, `sm`, and centred under
+the full-width primary so the pair reads as one stack. ⚠️ The centring is on a wrapper, not
+the Button: `mx-auto` does nothing to a `display: flex` element, which is block-level and
+already fills the row — the label just sits at its left edge.
+
+⚠️ **It opens in a new tab**, via frappe-ui's `link` prop (which renders an
+`<a target="_blank" rel="noreferrer noopener">`; `route` would be the same-tab RouterLink).
+Deliberate: the ticks above are a tuned estimate that closing the panel throws away by
+design, and losing it to a definition lookup is a different thing from losing it to "I'm
+done" — reading what a pack contains is the question you ask _while_ deciding. The href is
+`router.resolve(...)`d rather than written out, so it carries `BASE_URL`; under GitHub
+Pages the app lives at /frappe-connect-prototype/ and a literal `/connect#starter-packs`
+would 404.
+
+⚠️ **The hash needed a router fix, and not the obvious one.** `scrollBehavior` returning
+`{ el: to.hash }` is a **no-op in this app**: Vue Router resolves that to a position and
+applies it with `window.scrollTo`, and the window doesn't scroll here — `ConnectShell` puts
+the page inside a `ScrollArea`, so the document is exactly viewport-height and every pixel
+of scrolling belongs to a div. Measured: `documentElement.scrollHeight === clientHeight`.
+It now calls `scrollIntoView()` on the element instead, which walks up and moves whichever
+ancestor actually holds the overflow, and resolves `false` so the router doesn't also try.
+Two `requestAnimationFrame`s deep, because a cold load — which is what a new tab is — has
+to wait for the lazily-imported route component to be in the DOM. The target is
+`#starter-packs` on the landing page's packs section; renaming that id breaks the link
+silently, since the page still loads, just at the top.
 
 **A total above the partner's own pack range is not a bug.** Greycube's card advertises
 "40 hrs" because it sells one 40-hour pack; the estimate says 63 because that's the
@@ -491,6 +549,20 @@ no owner.
 visitor's whole project, so the useful edit is "we're not doing that yet", made row by row
 with the total moving underneath. frappe-ui's `Checkbox` at its own `sm` (14px), not a
 14px box of ours.
+
+**A select-all sits in the header cell**, aligned with the ticks beneath it — in the cell,
+not in a column of its own, for the same reason the row ticks aren't: a third column would
+be 14px of content and a lifetime of alignment. It has all three states, with
+`indeterminate` driven by the prop rather than markup, because the native one is a DOM
+property with no HTML attribute behind it.
+
+⚠️ Clicking it half-selected goes to **all**, not to none, and that falls out of using the
+native `checked` the control hands back: a click on an indeterminate box reports `true`.
+That's also the right direction — someone reaching for a half-filled box means "give me
+everything" far more often than "clear it". Clearing is then the one move that starts from
+all-ticked. `aria-label` on the control rather than wiring the column title up as its
+label: the title says what the column holds, and a heading that toggles every row when
+clicked is a surprise nobody asked for.
 
 ⚠️ The state is a set of **excluded** keys, not included ones, and the inversion is what
 makes "on by default" hold. `rows` is derived — the project crossed with the apps this

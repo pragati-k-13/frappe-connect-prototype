@@ -34,21 +34,36 @@
 // removal: `modulesFor` returns nothing for an app with no entry, so a project
 // that still lists CRM modules contributes zero hours rather than erroring.
 //
-// ⚠️ NO SEPARATE FRAPPE HR EITHER, and for a different reason: HR is a module
-// OF ERPNext. It used to sit here as its own app broken into Payroll,
-// Attendance and Onboarding, which quietly claimed HR was a parallel body of
-// work you'd buy alongside an ERP rollout rather than a part of one. It's now
-// a single `hr` module in the ERPNext list.
+// ⚠️⚠️ FRAPPE HR AND ERPNEXT'S HR MODULE ARE TWO DIFFERENT THINGS. Frappe HR
+// is a separate app — its own entry in `APPS`, listed by nine of the thirteen
+// partners, with its own starter pack in `STARTER_PACKS`. ERPNext also has an
+// HR module, which is the `hr` entry in the ERPNext list below. They are not
+// two names for one thing and neither one substitutes for the other. Any
+// future copy, filter or estimate that treats them as interchangeable is
+// wrong, and this file is exactly where that mistake would get made, because
+// it is the one place both could appear as top-level keys.
 //
-// ⚠️ This is a statement about the CATALOGUE, not about the directory. Frappe
-// HR is still a real app in `APPS`, partners still list it, and there is still
-// a "Frappe HR" starter pack in `STARTER_PACKS` — none of that changed. What
-// changed is that the estimator no longer breaks that app down separately.
+// What this catalogue holds is ERPNext's HR module. It does NOT break Frappe
+// HR down into modules of its own — a deliberate scope decision about the
+// estimator, not a claim that the app is covered by the ERPNext module. A
+// partner who sells a Frappe HR implementation is selling something this panel
+// currently doesn't price.
 //
-// ⚠️ One consequence worth knowing: HR now reaches every partner. The panel
-// only shows modules whose app the partner implements, and all thirteen do
-// ERPNext, where four of them don't do Frappe HR. Those four now quote HR work
-// — correctly, if HR is an ERPNext module, but it IS a change in who sees it.
+// ⚠️ TASK LIST INHERITED, AND IT SHOULDN'T STAY THAT WAY. The eight tasks on
+// `hr` below are the whole of what used to be the separate `frappe-hr`
+// catalogue (Payroll, Attendance and leave, Onboarding), moved across
+// unchanged — same labels, same hours, same 25-hour sum, so the move invented
+// no numbers and dropped none. But they were written for the APP: a first
+// parallel payroll run and a biometric device import are full-HRMS work, not
+// what ERPNext's HR module asks for. Rewrite them to that module's actual
+// scope before anyone treats the 25 as real. Nothing renders them today — they
+// only derive `hours` — which is why this is a warning and not a bug.
+//
+// ⚠️ One consequence of HR living under ERPNext: it now reaches every partner.
+// The panel only shows modules whose app the partner implements, and all
+// thirteen do ERPNext, where four of them don't do Frappe HR. Those four now
+// quote ERPNext HR work, which is right — it's ERPNext, and they do ERPNext —
+// but it IS a change in who sees an HR line.
 
 // Keys match `APPS[].value` in `data/partners.js`. An app absent here simply
 // contributes nothing to an estimate.
@@ -100,12 +115,10 @@ export const MODULES = {
         { label: 'Capacity and shop floor planning', hours: 8 },
       ],
     },
-    // HR is a module of ERPNext, not an app of its own to be broken down —
-    // see the ⚠️ at the top of this file. These eight tasks were the whole of
-    // the former `frappe-hr` catalogue (Payroll, Attendance and leave,
-    // Onboarding), regrouped under one module and otherwise untouched: same
-    // labels, same hours, same 25-hour sum. Nothing was invented to make the
-    // move and nothing was dropped.
+    // ⚠️ ERPNext's HR module — NOT the Frappe HR app, which is a separate and
+    // different product that this catalogue doesn't break down at all. See the
+    // ⚠️⚠️ at the top of the file, including why these eight tasks are on
+    // borrowed time: they were written for the app, not for this module.
     {
       key: 'hr',
       label: 'HR',

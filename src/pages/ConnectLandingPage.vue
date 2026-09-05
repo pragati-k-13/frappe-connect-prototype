@@ -287,8 +287,13 @@ const restartQuiz = () => {
          results screen uses — so the reading width is constant from here to the
          partner list. Only the hero opts out (1600px), because the map needs
          the width and is the reason this screen is wide at all.
-         No dividers between them either — vertical space does the separating. -->
-    <section class="px-5 py-12 lg:px-10">
+         No dividers between them either — vertical space does the separating.
+
+         ⚠️ `id` is a link target, not decoration: the estimate modal's "What's
+         in a starter pack?" links to `/connect#starter-packs`, and the router's
+         `scrollBehavior` resolves the hash to this element. Renaming it breaks
+         that link silently — the page still loads, just at the top. -->
+    <section id="starter-packs" class="scroll-mt-8 px-5 py-12 lg:px-10">
       <div class="mx-auto w-full max-w-[800px]">
         <h2 class="text-p-lg font-semibold text-ink-gray-9">
           Starter packs are your fastest way to get started

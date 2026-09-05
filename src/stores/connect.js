@@ -170,11 +170,15 @@ export const useConnectStore = defineStore('connect', {
     // `data/modules.js`.
     //
     // ⚠️ ERPNext only, and that isn't a shortcut. `data/modules.js` carries no
-    // CRM catalogue (starter packs are ERP work) and no separate Frappe HR one
-    // (HR is a module OF ERPNext, and sits in the ERPNext list as `hr`). An
-    // entry for either would sit here contributing nothing — `modulesFor`
-    // returns an empty list for an app with no catalogue — which reads as a bug
-    // rather than as scope.
+    // CRM catalogue (starter packs are ERP work) and doesn't break the Frappe
+    // HR app into modules either. An entry for either app would sit here
+    // contributing nothing — `modulesFor` returns an empty list for an app with
+    // no catalogue — which reads as a bug rather than as scope.
+    //
+    // ⚠️ The `hr` below is ERPNext's HR module. It is NOT the Frappe HR app:
+    // the two are separate, different products, and a project wanting Frappe HR
+    // is not covered by ticking this. See the ⚠️⚠️ at the top of
+    // `data/modules.js`.
     //
     // Six modules spanning 8 to 25 hours: the estimator has to show rows
     // carrying very different amounts, which is what the old five-plus-two
