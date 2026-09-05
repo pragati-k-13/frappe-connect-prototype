@@ -242,8 +242,13 @@ const close = () => {
 
              ⚠️ The `max-h` is what keeps the footer on screen. It caps the list
              at 340px, and below a certain window height it caps it at whatever
-             is left after the dialog's own chrome (~440px of title, totals,
-             action and margins) so the panel never outgrows the viewport. The
+             is left after the dialog's own chrome (440px of title, totals,
+             action and margins) so the panel never outgrows the viewport.
+             ⚠️ Re-measured after "Modules selected" was added to the totals —
+             the block is a row taller, and 440 is now exact rather than the
+             ~27px conservative it had been: 296 of panel chrome plus 72 of
+             margin top and bottom, checked at 560 and 660 viewport heights.
+             Adding another line down there means re-checking this. The
              120px floor stops it collapsing to nothing on a very short window —
              past that point the page scrolls, which is the lesser evil.
 
@@ -314,35 +319,6 @@ const close = () => {
                         @update:model-value="toggleAll"
                       />
                       <span>Modules in your project</span>
-                      <!-- The count of what's ticked, beside the control that
-                           ticks it. Both of its numbers are also visible in the
-                           list below, so it asserts nothing the reader can't
-                           check — which is what separates it from the count
-                           this header deliberately doesn't carry (see the
-                           heading text's own note). That one would have been a
-                           claim about scope; this is feedback on your own last
-                           click.
-
-                           It costs no height, and height is the scarce thing
-                           here — the list's `max-h` is what keeps the footer on
-                           screen. And it stays out of the totals block below,
-                           where hours × rate = quote is a chain of arithmetic
-                           that a fourth, unrelated figure would interrupt.
-
-                           `tabular-nums` so the digits don't jitter as they
-                           change, and a step darker than the heading beside it:
-                           the heading is a label, this is live.
-
-                           Shown even at 6 of 6, when it's telling you nothing
-                           you didn't assume. A count that appeared only once
-                           you'd unticked something would move the heading on
-                           the first click, in a sticky header, which is a worse
-                           trade than a quiet line that's occasionally
-                           redundant. -->
-                      <span class="tabular-nums text-ink-gray-6">
-                        {{ selected.length }}/{{ rows.length }}
-                        <span class="sr-only">modules selected</span>
-                      </span>
                     </span>
                   </th>
                   <th :class="[HEAD, 'text-right']">Estimated hrs</th>
@@ -459,9 +435,36 @@ const close = () => {
         <dl
           class="mt-4 bg-[repeating-linear-gradient(to_right,var(--outline-gray-3)_0_3px,transparent_3px_9px)] bg-[length:100%_1px] bg-top bg-no-repeat pt-3"
         >
-          <!-- Medium, not regular: these two are the inputs the total is made of,
-             and they were reading as a caption under it. -->
+          <!-- What's in scope, then how many hours that is, then at what rate,
+             then the price. The count goes FIRST rather than anywhere else in
+             the block, and that ordering is the whole reason it can sit here at
+             all: hours × rate = quote is a chain of arithmetic, and a module
+             count is not a term in it. In front of the chain it's the premise;
+             anywhere inside it, it's an interruption.
+
+             It's here rather than in the table header — the other candidate,
+             and the cheaper one, since the header costs no height and height is
+             what keeps the footer on screen. But this is where the eye goes
+             after a tick, because this is where the consequence lands, and a
+             count that reports on your last click belongs with the other
+             figures that move when you make it.
+
+             ⚠️ Both numbers are also visible in the list above, so this asserts
+             nothing the reader can't check. That's what separates it from the
+             count the table header deliberately doesn't carry — that one would
+             have been a claim about scope. This is feedback on your own click.
+
+             `tabular-nums`, like every other figure here, so the digits don't
+             jitter as they change. -->
           <div class="flex items-center justify-between">
+            <dt class="text-p-base font-medium text-ink-gray-6">Modules selected</dt>
+            <dd class="text-p-base font-medium tabular-nums text-ink-gray-7">
+              {{ selected.length }} of {{ rows.length }}
+            </dd>
+          </div>
+          <!-- Medium, not regular: these are the inputs the total is made of,
+             and they were reading as a caption under it. -->
+          <div class="mt-1.5 flex items-center justify-between">
             <!-- "Total estimated hours", matching the column it sums. "Total
                  hours" read as a fact about the project; every figure in this
                  panel is an estimate, and the one that adds the others up

@@ -535,22 +535,11 @@ partners implement ERPNext, so nothing is currently filtered out for anybody. Th
 still right and still live — a project with Helpdesk in it would drop rows for the partners
 who don't do Helpdesk — but every row in the panel as it stands is shown to every partner.
 
-**There _is_ a count in the header, and it's a different animal: `4/6`, beside the
-select-all.** Both of its numbers are visible in the list right below it, so it asserts
-nothing the reader can't check — where the rejected count would have been a claim about
-scope, this is feedback on your own last click. `tabular-nums` so the digits don't jitter,
-and a step darker than the heading beside it: the heading is a label, this is live.
-
-Two things settled the placement. It costs **no height**, and height is the scarce thing in
-this panel — the list's `max-h` is the only reason the footer stays on screen. And it keeps
-out of the totals block, where hours × rate = quote is a chain of arithmetic that a fourth,
-unrelated figure would interrupt. (The totals block was the other candidate, and it's the
-better one if the count ever needs to be more prominent than this — it's where the eye goes
-after a click, because that's where the consequence lands.)
-
-It shows even at `6/6`, when it's telling you nothing you hadn't assumed. A count that
-appeared only once you'd unticked something would move the heading on the first click, in a
-sticky header — a worse trade than a quiet line that's occasionally redundant.
+**There _is_ a count of what's ticked — `Modules selected · 4 of 6` — but it lives in the
+totals block, not up here.** It's a different animal from the rejected one: both its
+numbers are visible in the list right above it, so it asserts nothing the reader can't
+check. The rejected count would have been a claim about scope; this is feedback on your own
+last click. See _The pinned footer_ below.
 
 This was the third answer to the same problem. The first two were a line under the list
 ("also implements 4 more modules outside your project") and a line under the title naming
@@ -732,6 +721,21 @@ quote. Even spacing in a list of mixed type sizes is even baselines, not even ma
 ⚠️ The quote row is `items-baseline`, not `items-center`. Its label is 14px and its figure
 17px, so centring them sits the two on different baselines by about a pixel. The rows above
 have one type size and don't care.
+
+**"Modules selected" is the block's first line**, and going first is the whole reason it
+can sit here at all: hours × rate = quote is a chain of arithmetic, and a module count is
+not a term in it. In front of the chain it reads as the premise — what's in scope, then how
+many hours that is, then at what rate, then the price. Anywhere inside it, it's an
+interruption.
+
+The table header was the other candidate and the cheaper one, since a header costs no
+height and height is what keeps this footer on screen. This won anyway: the totals are
+where the eye goes after a tick, because they're where the consequence lands, and a figure
+that reports on your last click belongs beside the other figures that move when you make
+it. ⚠️ The block is a row taller as a result, so the list's `100vh - 440px` was re-measured
+— 440 is now exact rather than ~27px conservative (296 of panel chrome, 72 of margin top
+and bottom, at 560 and 660 viewport heights). Another line down here means checking it
+again.
 
 **"Total estimated hours"**, matching the column it sums. "Total hours" read as a fact
 about the project; every figure in the panel is an estimate, and the line that adds the
