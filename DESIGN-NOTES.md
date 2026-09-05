@@ -590,6 +590,23 @@ the thing the click is about to change rather than at the row in general.
 name and the hours). Removing the number would make the row look broken; leaving it at full
 strength states that it's part of the sum directly underneath, which it isn't.
 
+**The app mark dims with it** — `AppLogo`'s `muted` prop, `grayscale` plus `opacity-45`.
+Dimming only the text left a saturated 16px mark as the loudest thing in the row, which is
+precisely backwards: that row is the one that no longer counts. It takes both treatments
+because they answer different halves of it — the filter removes the colour so the mark
+stops being the only saturated thing in a grey row, the opacity drops the contrast so what
+remains sits at about the weight of the ink-4 text. Either alone is still loud: a faded
+blue, or a solid grey block.
+
+⚠️ **The treatment goes on the `Avatar`, never on a wrapper around it**, and that's a
+stacking-context problem rather than a styling preference. `filter` makes an element a
+stacking context painted as if `z-index: 0`, so a filtered wrapper traps the mark's `z-10`
+inside it — and the row's stretched `after` overlay, a positioned sibling later in tree
+order, then paints back over the mark. The tooltip would stop opening on exactly the
+unchecked rows. On the Avatar itself the filter's context sits at z-10 and clears the
+overlay as before. Verified with `elementFromPoint` on checked and unchecked rows, and by
+hovering one: the mark is still the hit target, and the tooltip still opens.
+
 **Reopening gives a whole estimate again.** Unticking is a "what if", not a saved
 preference — nothing here persists — and a panel that came back holding a smaller number
 than the card that opened it, for a reason set minutes ago, is a figure the visitor would

@@ -357,7 +357,7 @@ const close = () => {
                         :model-value="isOn(r)"
                         @update:model-value="toggle(r, $event)"
                       />
-                      <AppLogo :app="r.app" :label="r.appLabel" />
+                      <AppLogo :app="r.app" :label="r.appLabel" :muted="!isOn(r)" />
                       <!-- The label stretches over the whole row via
                            `after:absolute after:inset-0` against the `relative`
                            row — so the hours cell and the empty space toggle
