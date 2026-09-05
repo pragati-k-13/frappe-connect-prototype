@@ -405,30 +405,33 @@ visitor's scope. A pack is a fixed-scope product; an estimate is your actual pro
 
 **Module hours are derived, never stored** — `moduleHours()` sums a module's tasks. A
 module carrying its own `hours` beside a task list is two numbers claiming the same thing,
-and the drill-down is exactly where they'd be seen disagreeing. Verified: zero mismatches
+and nothing would keep the stored one honest as the list changed. Verified: zero mismatches
 across every module in every app, and the printed total equals the sum of the printed rows.
 
-**The drill-down is a second step, not an expander** — clicking a module swaps the body for
-a real `<table>` of its tasks. The header of that step is a back button, the app mark and
-the module name on one line: going back, which app you're in and which module you're
-looking at are one thought. The back button is icon-only — beside the name it reads as
-"back from this", and a label would push the name off the line at this width. `-ml-1.5` on
-the row puts the chevron's own ink, not its 28px hit area, on the column edge the table
-below starts from, and `gap-1` closes the rest of the distance to the title — measured, the
-glyph's left edge sits exactly on the panel's 20px content edge.
-Not frappe-ui's `list` family: that's a separate import subpath with its own stylesheet, a
-lot of ceremony for four rows, and nothing else in `src/` uses it. frappe-ui has no
-Accordion or Collapsible at all; reka-ui does, but a second step was the chosen
-interaction.
+⚠️ **The panel is ONE LEVEL.** It used to drill from a module into a second step listing
+that module's tasks, with a back button, and the row carried a `# of tasks` count whose job
+was to advertise that there was something underneath. Both are gone. What the panel is for
+is the figure at the foot of it and the message that follows: a task list is the partner's
+to write, and a count of tasks is not a number anyone compares rows on — it says how the
+estimator is assembled, not what the work is. The module breakdown stays, because that says
+what the hours are _for_.
 
-The module's own figure there is labelled **"Module total"**, not "Total" — the persistent
-footer below is showing a total too, of the whole estimate, and two unlabelled totals on
-one screen is the confusion worth spending a word on.
+⚠️ `tasks` still exists in `data/modules.js` and is **no longer rendered anywhere**. It
+stays because it is what derives `hours` — swapping each list for a hand-written
+`hours: 12` would turn a figure with a rationale into a magic number, and the rationale is
+what a real catalogue gets reviewed against.
+
+⚠️ **No CRM modules.** Starter packs — the standard, fixed-scope implementation this panel
+prices — are ERP work, so a CRM row here was quoting something the packs don't sell. The
+removal is entirely in `data/modules.js`; `modulesFor()` returns nothing for an app with no
+catalogue entry, so a project still listing CRM modules contributes zero hours rather than
+erroring. The seeded project in `stores/connect.js` dropped its CRM entry too, since a seed
+that contributes nothing reads as a bug rather than as scope.
 
 #### The table, the marks and the pinned footer
 
-**Step one is a table, not a list.** Module, `# of tasks`, `Estimated hrs` — three aligned
-figures per row, which is the comparison someone scanning an estimate is actually making.
+**A table, not a list.** Module and `Estimated hrs` — the figures align down the column,
+which is the comparison someone scanning an estimate is actually making.
 The app is a 16px mark in the first column rather than a subhead above a group: grouping
 spent a whole row saying what the mark now says inline, and the list is flat and sortable
 by eye.
@@ -445,8 +448,8 @@ reads far more like one of the partner's packages than like their own thing. The
 rule: don't surface a generated name anywhere it could be mistaken for something the user
 picked.
 
-⚠️ And deliberately **no count**. The project holds nine modules; Tridots' table shows the
-seven whose apps they implement. A number in the header would sit above a visibly shorter
+⚠️ And deliberately **no count**. The project holds seven modules; Tridots' table shows the
+five whose apps they implement. A number in the header would sit above a visibly shorter
 list, which resurrects the audit question in a worse form — now with arithmetic attached.
 
 This was the third answer to the same problem. The first two were a line under the list
@@ -457,21 +460,17 @@ no Helpdesk in it at all. The second surfaces a name the user was given rather t
 Both were trying to add information; the actual defect was that the existing information had
 no owner.
 
-**No chevron on the rows.** The fill and the pointer are the affordance; a caret appearing
-on hover was a second one saying the same thing, and it shifted the module name every time
-the cursor crossed a row.
+**The rows are inert, and visibly so** — no chevron, no hover fill, no pointer. There is no
+level below a module any more, so each of those would be an affordance promising something
+that doesn't happen. The rules are plain `divide-y` on the tbody.
 
-**A hovered row swallows the rules either side of it**, so the fill reads as one block
-rather than a tinted band between two lines — the same effect as the partner listing. The
-rule sits on each row's _top_ edge, so "the rule below row N" is row N+1's, which is what
-`[&:hover+tr]` reaches. The header's own rule stays: it marks where the header ends, not
-where a row does.
-
-⚠️ Those rules are per-row `border-t`, **not `divide-y` on the tbody**, and the difference is
-specificity. `divide-y`'s colour lands via `.divide-… > :not([hidden]) ~ :not([hidden])`,
-which carries three class-level components — enough to outrank any reasonable hover
-selector, so an `index.css` rule for this changed nothing at all. Measured: `borderTopColor`
-identical hovered and not. On the row itself the hover variant outranks the base.
+⚠️ That `divide-y` was previously per-row `border-t`, and the reason is worth keeping in
+case a hover state ever comes back: a hovered row has to swallow the rules either side of
+it so the fill reads as one block rather than a tinted band between two lines, and
+`divide-y`'s colour lands via `.divide-… > :not([hidden]) ~ :not([hidden])` — three
+class-level components, enough to outrank any reasonable hover variant, so the borders
+simply never changed. Measured at the time: `borderTopColor` identical hovered and not. A
+non-interactive row doesn't need to have that fight, so it uses the simpler thing.
 
 **The app marks are the real ones**, taken from the product cards on frappe.io/products and
 committed to `src/assets/apps/` — see the table in that folder's README for the four files
@@ -487,13 +486,13 @@ nothing.
 
 ⚠️ **`AppLogo` carries `relative z-10`, and it's load-bearing twice over.**
 
-- The rows are made clickable by a stretched `after:absolute after:inset-0` on the module
-  button, which otherwise covers the mark completely — the cursor never reaches it, so the
+- Wherever a row is made clickable by a stretched `after:absolute after:inset-0`, that
+  overlay otherwise covers the mark completely — the cursor never reaches it, so the
   tooltip never opens. This was silently broken until it was measured with
-  `elementFromPoint`. Raising the mark costs it its share of the row's click target, which
-  is the right trade: the mark is a label, the module name beside it is the thing to click.
-- Because the mark is now a positioned, stacked element, the sticky header has to out-rank
-  it. Hence `z-20` on the `th`.
+  `elementFromPoint`. (The estimator's rows no longer stretch anything over themselves, but
+  the partner listing's do, and the mark is shared.)
+- Because the mark is a positioned, stacked element, the sticky header has to out-rank it.
+  Hence `z-20` on the `th`.
 
 ⚠️ **Three separate things a sticky table header needs**, each found by watching a row
 scroll straight through it:
@@ -551,14 +550,15 @@ quote. Even spacing in a list of mixed type sizes is even baselines, not even ma
 17px, so centring them sits the two on different baselines by about a pixel. The rows above
 have one type size and don't care.
 
-**The totals block is step one only.** In the drill-down those figures are about the whole
-estimate while everything above them is about one module, and the module's own total is
-right there. The action stays on both steps.
+**The totals block is always shown**, now that there is only one view for it to be shown
+in. It used to be suppressed in the drill-down, where its figures were about the whole
+estimate while everything above them was about a single module.
 
 **A fade over the bottom of the list**, because a capped list clips a row through the middle
 of a line. It's `v-show` state driven by a `@scroll.capture` handler and re-measured after
 open and after a drill-down, not a permanent gradient: a fade still sitting over the last
-row once you've scrolled to the end is dimming content that has nothing after it.
+row once you've scrolled to the end is dimming content that has nothing after it. The
+re-measure runs on open, which is the only point the body is (re)built now.
 
 ⚠️ `to-surface-elevation-1` **is a dead class** — the `surface-*` tokens aren't in the
 gradient palette, so `bg-gradient-to-b from-transparent to-surface-elevation-1` compiles to

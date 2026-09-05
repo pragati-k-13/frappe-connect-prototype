@@ -11,16 +11,28 @@
 // It's invented but not arbitrary. Two constraints hold it together:
 //
 //   1. A module has no `hours` of its own. Its hours are the sum of its tasks
-//      (`moduleHours`), so the drill-down can never disagree with the row that
-//      opened it. That is the one invariant worth testing.
+//      (`moduleHours`), so no figure in the file is a bare assertion — every
+//      one of them is answerable with "made of what?". That is the one
+//      invariant worth testing.
 //   2. ERPNext's modules sum to 63 hours, and its core four (Finance, Sales,
 //      Purchase, Inventory) to 39 — near the 40 that `core-erpnext` already
 //      advertises in `STARTER_PACKS`. The estimator and the pack table read as
 //      the same universe rather than two unrelated inventions.
 //
-// Task names are the shape of real implementation work — "Opening balances",
-// "Statutory setup" — rather than filler, because the point of the drill-down
-// is to show that the number has something under it.
+// ⚠️ `tasks` IS NO LONGER RENDERED. The estimator used to drill from a module
+// into its task list; it is one level now, so the only thing tasks do today is
+// derive `hours`. They stay because that derivation is the point of constraint
+// 1 — replacing each list with a hand-written `hours: 12` would turn a figure
+// with a rationale into a magic number, and the rationale is what a real
+// catalogue would be reviewed against. Task names are the shape of real
+// implementation work — "Opening balances", "Statutory setup" — for the same
+// reason.
+//
+// ⚠️ NO CRM. Starter packs — the standard, fixed-scope implementation this
+// modal prices — are ERP work, so the CRM modules that used to sit here were
+// quoting something the packs don't sell. Removing them here is the whole
+// removal: `modulesFor` returns nothing for an app with no entry, so a project
+// that still lists CRM modules contributes zero hours rather than erroring.
 
 // Keys match `APPS[].value` in `data/partners.js`. An app absent here simply
 // contributes nothing to an estimate.
@@ -70,33 +82,6 @@ export const MODULES = {
         { label: 'BOM setup', hours: 6 },
         { label: 'Work order workflow', hours: 10 },
         { label: 'Capacity and shop floor planning', hours: 8 },
-      ],
-    },
-  ],
-
-  crm: [
-    {
-      key: 'deals',
-      label: 'Deals',
-      tasks: [
-        { label: 'Pipeline stages and probabilities', hours: 3 },
-        { label: 'Lead sources and assignment rules', hours: 3 },
-      ],
-    },
-    {
-      key: 'contacts',
-      label: 'Contacts',
-      tasks: [
-        { label: 'Import and de-duplication', hours: 2 },
-        { label: 'Organisation linking', hours: 2 },
-      ],
-    },
-    {
-      key: 'email',
-      label: 'Email and templates',
-      tasks: [
-        { label: 'Mailbox connection', hours: 2 },
-        { label: 'Outbound templates', hours: 3 },
       ],
     },
   ],
@@ -159,8 +144,8 @@ export const MODULES = {
 }
 
 // Derived, never stored. A module carrying its own `hours` alongside a task
-// list is two numbers claiming the same thing, and the drill-down is exactly
-// where they'd be seen disagreeing.
+// list is two numbers claiming the same thing, and nothing would keep the
+// stored one honest as the list changed.
 export const moduleHours = (module) => module.tasks.reduce((n, t) => n + t.hours, 0)
 
 // The selected modules for one app, in catalogue order rather than selection
