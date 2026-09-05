@@ -149,12 +149,36 @@
 }
 
 /* `Dialog`'s `size` prop is an enum of Tailwind `max-w-*` steps — `xl` is
-   576px, `2xl` is 672px, and neither is the 500px this modal wants. The panel
+   576px, `2xl` is 672px, and neither is the width this modal wants. The panel
    carries frappe-ui's own `dialog-content` class but takes no class of ours,
    so the hook is a marker INSIDE the panel: only a dialog containing
-   `.fc-estimate` is widened, and every other dialog keeps its `size` prop. */
+   `.fc-estimate` is sized here, and every other dialog keeps its `size` prop.
+
+   440px, down from 500. The panel is two columns of short text and a stack of
+   label/figure pairs; at 500 the extra 60px landed entirely in the gap down
+   the middle of each row, which is the one place in a two-column table where
+   space does no work — it pushes the figure away from the thing it belongs to.
+
+   ⚠️ 440 is not far above the floor, so the four things that set it are worth
+   naming before anyone takes it lower. Content is width minus the 20px padding
+   each side:
+
+     - the title, 297px, plus the close button's 28 — the widest single line in
+       the panel, and it must not wrap: the two-line title is the problem the
+       current wording was written to solve
+     - the widest row: tick 14 + mark 16 + two 8px gaps + "Attendance and
+       leave" at 146, then 16px of cell gutter and "Estimated hrs" at 84 — 292
+       before any breathing room, and the module name truncates rather than
+       wraps, so it goes quietly
+     - the widest totals line, which is the partner's name in a possessive:
+       "Greycube Technologies' hourly rate" is ~250px, and the figure beside it
+       up to 40
+     - the action's own label at 260px, which it can't shrink below
+
+   400px of content clears all four. Materially less than 440 starts truncating
+   module names on the partners with the longest names. */
 .dialog-content:has(.fc-estimate) {
-  max-width: 500px;
+  max-width: 440px;
 }
 
 /* The panel's own padding, for the same reason as the width: frappe-ui's Dialog

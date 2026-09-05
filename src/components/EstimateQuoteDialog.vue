@@ -1,6 +1,6 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
-import { Button, Dialog, ScrollArea } from 'frappe-ui'
+import { Button, Checkbox, Dialog, ScrollArea } from 'frappe-ui'
 // Reached for directly because frappe-ui's `Dialog` renders `message` only as
 // the FALLBACK content of its default slot — so any dialog with a body of its
 // own loses the description, and the underlying primitive then warns that
@@ -30,6 +30,11 @@ import { useConnectStore } from '../stores/connect'
 // The module breakdown stays because it says what the hours are FOR; the level
 // below it only said how the estimator happens to be assembled.
 //
+// Every row carries a checkbox and every row starts on. The estimate is a
+// figure someone is about to take to a partner, and the scope it prices is the
+// visitor's whole project — so the useful edit is "we're not doing that yet",
+// made row by row, with the total moving as they go.
+//
 // ⚠️ The module and hour breakdown is invented — see `data/modules.js`.
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -41,13 +46,19 @@ const store = useConnectStore()
 
 // Table metrics, spelled out once because they're a spec rather than a taste.
 //
-// A cell carries 8px left/right and 6px top/bottom. A row carries a further 4px
-// left/right and 2px top/bottom — and since a `<tr>` can't take padding (CSS
-// tables ignore it), the row's share is folded into the cells: every cell gets
-// the extra 2px vertically, and the outermost cell on each side gets the extra
-// 4px horizontally. The rendered result is what the spec describes; the
-// arithmetic just lives somewhere it can be checked.
-const CELL = 'px-2 py-2 first:pl-3 last:pr-3'
+// A cell carries 8px left/right and 6px top/bottom, plus the 2px per side that
+// a `<tr>` would carry if CSS tables didn't ignore padding on a row.
+//
+// ⚠️ The OUTERMOST edges are zeroed, and the table no longer bleeds out of the
+// panel's 20px padding. Those two facts are one decision: the row rules have to
+// stop where every other element on the panel starts, and a divider can only do
+// that if the table it belongs to ends there too. Previously the table bled
+// 12px each way and the outer cells paid it back as padding — the text landed
+// in the right place, but the rules ran 12px past it into the panel's margin.
+//
+// What the bleed bought was room for a hover fill to sit around the text rather
+// than against it. There is no row fill any more, so it bought nothing.
+const CELL = 'px-2 py-2 first:pl-0 last:pr-0'
 
 // `sticky` and the background go on the `th` cells, not on `thead` or its `tr`:
 // a sticky `thead` positions, but its background doesn't paint, and the rows
@@ -84,11 +95,39 @@ const rows = computed(() =>
   Object.entries(store.project.modules)
     .filter(([app]) => props.partner.apps.includes(app))
     .flatMap(([app, keys]) =>
-      modulesFor(app, keys).map((module) => ({ app, appLabel: appLabel(app), module })),
+      modulesFor(app, keys).map((module) => ({
+        // One key, defined once: it identifies the row to `v-for`, to the
+        // exclusion set and to the checkbox's `id`, and those three going out
+        // of step would each be a different, quiet bug.
+        key: `${app}-${module.key}`,
+        app,
+        appLabel: appLabel(app),
+        module,
+      })),
     ),
 )
 
-const totalHours = computed(() => rows.value.reduce((n, r) => n + r.module.hours, 0))
+// ⚠️ EXCLUDED, not included — the inversion is the whole reason "on by default"
+// holds. `rows` is derived from the project crossed with what this partner
+// implements, so it isn't a fixed list; an included-set would have to be seeded
+// and then re-seeded every time that derivation changed, and any row it hadn't
+// heard of yet would silently price at zero. An excluded-set defaults to empty,
+// which means everything counts until someone says otherwise.
+const excluded = ref(new Set())
+const isOn = (row) => !excluded.value.has(row.key)
+// A fresh Set rather than mutating in place: Vue 3 does track Set mutations,
+// but only through its reactive proxy, and a `new Set(...)` copy can't be got
+// wrong by a later refactor that unwraps this.
+const toggle = (row, on) => {
+  const next = new Set(excluded.value)
+  if (on) next.delete(row.key)
+  else next.add(row.key)
+  excluded.value = next
+}
+
+const selected = computed(() => rows.value.filter(isOn))
+
+const totalHours = computed(() => selected.value.reduce((n, r) => n + r.module.hours, 0))
 
 // frappe-ui exports no currency formatter — its chart formatters are
 // deliberately unexported because they hardcode a locale. One local instance,
@@ -122,6 +161,20 @@ watch(
   },
   { immediate: true },
 )
+
+const close = () => {
+  emit('close')
+  // Reopening gives a whole estimate again. Unticking a module is a "what if",
+  // not a saved preference — nothing here is persisted, and a panel that came
+  // back holding a smaller number than the card that opened it, for a reason
+  // the visitor set minutes ago, is a figure they'd have to reconstruct.
+  //
+  // After the close transition, so the ticks don't visibly repopulate on the
+  // way out. Same 200ms the drill-down reset used.
+  setTimeout(() => {
+    excluded.value = new Set()
+  }, 200)
+}
 </script>
 
 <template>
@@ -141,7 +194,7 @@ watch(
     :model-value="open"
     size="xl"
     title="Standard implementation estimate"
-    @update:model-value="!$event && $emit('close')"
+    @update:model-value="!$event && close()"
   >
     <!-- Default slot, not `#body-content`: this version of frappe-ui's Dialog
          exposes only `default`, `title` and `actions`. `#body-content` is the
@@ -175,10 +228,28 @@ watch(
              `ScrollArea` rather than `overflow-y-auto`: frappe-ui's own overlay
              scrollbar, which fades in on activity and reserves no gutter,
              instead of the platform bar sitting permanently down the side of a
-             500px panel. `-mx-3` cancels the row padding so the text still
-             lines up with the totals. -->
-        <div ref="listWrap" class="relative -mx-3" @scroll.capture="measureFade">
-          <ScrollArea viewport-class="max-h-[max(120px,min(340px,100vh_-_440px))]">
+             narrow panel.
+
+             ⚠️ No negative margin. The table sits inside the panel's content
+             box, so its rules start and end exactly where the totals, the
+             action and the header text do. See `CELL` for what that cost. -->
+        <div ref="listWrap" class="relative" @scroll.capture="measureFade">
+          <!-- ⚠️ `-mr-2.5` on the root against `pr-2.5` on the viewport moves
+               the SCROLLBAR out of the content box without moving the table.
+               The root grows 10px to the right — the overlay bar's own width,
+               measured — and the viewport gives that 10px straight back as
+               padding, so the table, and therefore every rule, still ends
+               exactly on the panel's content edge while the bar rides in the
+               panel's 20px margin.
+
+               Without it the bar lands on top of the last 10px of every hours
+               figure while you scroll. It didn't before, because the table used
+               to bleed 12px past the content edge and the bar rode out there
+               with it. Removing the bleed is what brought it inboard. -->
+          <ScrollArea
+            class="-mr-2.5"
+            viewport-class="max-h-[max(120px,min(340px,100vh_-_440px))] pr-2.5"
+          >
             <table class="w-full text-left">
               <thead>
                 <tr>
@@ -205,28 +276,82 @@ watch(
                   <th :class="[HEAD, 'text-right']">Estimated hrs</th>
                 </tr>
               </thead>
-              <!-- `divide-y` is back on the tbody now that nothing hovers. It
-                   was per-row `border-t` only so a hover fill could swallow the
-                   rules either side of it — a specificity fight (`divide-y`'s
-                   colour lands via a three-class selector and outranks any
-                   reasonable hover variant) that a non-interactive row doesn't
-                   need to have.
+              <!-- `divide-y` on the tbody rather than per-row `border-t`. The
+                   old per-row version existed only so a hover fill could
+                   swallow the rules either side of it — `divide-y`'s colour
+                   lands via `.divide-… > :not([hidden]) ~ :not([hidden])`,
+                   three class-level components, which outranks any reasonable
+                   hover variant. Worth keeping written down in case a fill ever
+                   comes back; there isn't one now, so this uses the plain
+                   thing.
 
-                   And the rows are non-interactive on purpose: there is no
-                   level below a module any more, so a pointer, a fill or a
-                   caret would each be an affordance promising something that
-                   doesn't happen. -->
+                   ⚠️ And there is deliberately no row fill, even though the
+                   whole row is now a click target again. A fill would want to
+                   sit clear of the text, which is what the table's old 12px
+                   bleed was for — and the bleed is exactly what had to go for
+                   the rules to line up with everything else on the panel. The
+                   feedback is on the control instead: `[&:hover_input]` darkens
+                   the tick box from anywhere in the row, which points at the
+                   thing the click is about to change rather than at the row in
+                   general. -->
               <tbody class="divide-y divide-outline-gray-1">
-                <tr v-for="r in rows" :key="`${r.app}-${r.module.key}`">
+                <tr
+                  v-for="r in rows"
+                  :key="r.key"
+                  class="relative cursor-pointer [&:hover_input]:border-outline-gray-5"
+                >
                   <td :class="CELL">
                     <span class="flex min-w-0 items-center gap-2">
+                      <!-- frappe-ui's own control at its own `sm` (14px), not a
+                           14px box of ours. No `label` prop: the app mark sits
+                           between the tick and the module name, and `Checkbox`
+                           renders its label immediately after the input with a
+                           fixed gap — nothing goes in between. The name is
+                           wired up as a real `<label for>` below instead, which
+                           is the same accessible pairing by another route. -->
+                      <Checkbox
+                        :id="`estimate-${r.key}`"
+                        :model-value="isOn(r)"
+                        @update:model-value="toggle(r, $event)"
+                      />
                       <AppLogo :app="r.app" :label="r.appLabel" />
-                      <span class="truncate text-p-base font-medium text-ink-gray-7">
-                        {{ r.module.label }}
-                      </span>
+                      <!-- The label stretches over the whole row via
+                           `after:absolute after:inset-0` against the `relative`
+                           row — so the hours cell and the empty space toggle
+                           the row too, not just fourteen pixels of tick box.
+                           Same pattern as the partner listing's stretched name
+                           link, and the reason `AppLogo` carries `z-10`: the
+                           overlay would otherwise bury the mark and its tooltip
+                           would never open.
+
+                           ⚠️ `truncate` can't go on the label itself —
+                           `overflow: hidden` would clip the very pseudo-element
+                           doing the stretching. It goes on the span inside,
+                           which is why there are two. -->
+                      <label
+                        :for="`estimate-${r.key}`"
+                        class="flex min-w-0 cursor-pointer after:absolute after:inset-0"
+                      >
+                        <span
+                          class="truncate text-p-base font-medium transition-colors"
+                          :class="isOn(r) ? 'text-ink-gray-7' : 'text-ink-gray-4'"
+                        >
+                          {{ r.module.label }}
+                        </span>
+                      </label>
                     </span>
                   </td>
-                  <td :class="[CELL, 'text-right text-p-base tabular-nums text-ink-gray-7']">
+                  <!-- An excluded row keeps its figure but drops two steps of
+                       ink. Removing the number would make the row look broken,
+                       and leaving it at full strength states that it is part of
+                       the sum directly underneath — which it isn't. -->
+                  <td
+                    :class="[
+                      CELL,
+                      'text-right text-p-base tabular-nums transition-colors',
+                      isOn(r) ? 'text-ink-gray-7' : 'text-ink-gray-4',
+                    ]"
+                  >
                     {{ r.module.hours }} hrs
                   </td>
                 </tr>
@@ -265,7 +390,11 @@ watch(
           <!-- Medium, not regular: these two are the inputs the total is made of,
              and they were reading as a caption under it. -->
           <div class="flex items-center justify-between">
-            <dt class="text-p-base font-medium text-ink-gray-6">Total hours</dt>
+            <!-- "Total estimated hours", matching the column it sums. "Total
+                 hours" read as a fact about the project; every figure in this
+                 panel is an estimate, and the one that adds the others up
+                 shouldn't be the one that drops the word. -->
+            <dt class="text-p-base font-medium text-ink-gray-6">Total estimated hours</dt>
             <dd class="text-p-base font-medium tabular-nums text-ink-gray-7">
               {{ totalHours }} hrs
             </dd>

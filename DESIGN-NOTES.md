@@ -389,10 +389,22 @@ ink. The gap under the title is `margin-bottom: 16px` on frappe-ui's own header 
 reached as `div:has(+ .fc-estimate)` — the previous-sibling selector CSS otherwise doesn't
 have, the same trick the partner row's divider suppression uses.
 
-⚠️ **500px isn't a `size` step.** `Dialog`'s `size` is an enum of Tailwind `max-w-*`
+⚠️ **440px isn't a `size` step.** `Dialog`'s `size` is an enum of Tailwind `max-w-*`
 values — `lg` is 512px, `xl` is 576px — and the panel takes no class of ours. So the hook
 is a marker _inside_ the panel: `.dialog-content:has(.fc-estimate)` in `index.css` sets the
 width of only this dialog, and every other one keeps its `size` prop.
+
+**440, down from 500.** The panel is two columns of short text over a stack of
+label/figure pairs; the extra 60px was landing entirely in the gap down the middle of each
+row, which is the one place in a two-column table where space does no work — it pushes the
+figure away from the thing it belongs to. ⚠️ 440 is not far above the floor, and four
+things set it, measured against 400px of content: the title at 297px plus the close
+button's 28, which **must not wrap** — the two-line title is the problem the current
+wording was written to solve; the widest row at 292 (tick 14 + mark 16 + two 8px gaps +
+"Attendance and leave" at 146, then 16 of gutter and "Estimated hrs" at 84); the widest
+totals line, always a partner's name in a possessive — "Greycube Technologies' hourly rate"
+at ~250 plus up to 40 for the figure; and the action's own 260px label. Materially below
+440 and module names start truncating on the longest-named partners, quietly.
 
 The title is the **`title` prop**, not the `#title` slot. The slot existed only to push the
 heading to 3xl; at 2xl that is exactly what the prop already renders (`text-2xl-semibold`),
@@ -460,17 +472,68 @@ no Helpdesk in it at all. The second surfaces a name the user was given rather t
 Both were trying to add information; the actual defect was that the existing information had
 no owner.
 
-**The rows are inert, and visibly so** — no chevron, no hover fill, no pointer. There is no
-level below a module any more, so each of those would be an affordance promising something
-that doesn't happen. The rules are plain `divide-y` on the tbody.
+#### Including and excluding rows
 
-⚠️ That `divide-y` was previously per-row `border-t`, and the reason is worth keeping in
-case a hover state ever comes back: a hovered row has to swallow the rules either side of
-it so the fill reads as one block rather than a tinted band between two lines, and
-`divide-y`'s colour lands via `.divide-… > :not([hidden]) ~ :not([hidden])` — three
-class-level components, enough to outrank any reasonable hover variant, so the borders
-simply never changed. Measured at the time: `borderTopColor` identical hovered and not. A
-non-interactive row doesn't need to have that fight, so it uses the simpler thing.
+**Every row carries a tick and every row starts ticked.** The scope being priced is the
+visitor's whole project, so the useful edit is "we're not doing that yet", made row by row
+with the total moving underneath. frappe-ui's `Checkbox` at its own `sm` (14px), not a
+14px box of ours.
+
+⚠️ The state is a set of **excluded** keys, not included ones, and the inversion is what
+makes "on by default" hold. `rows` is derived — the project crossed with the apps this
+partner implements — so it isn't a fixed list. An included-set would need seeding, then
+re-seeding whenever that derivation changed, and any row it hadn't heard of would price at
+zero without saying so. An excluded-set starts empty, so anything new counts.
+
+**The row key is defined once**, on the row itself, and does three jobs: `v-for`'s key,
+the exclusion set's member, and the checkbox's `id`. Three separately-built strings that
+had to agree would be three quiet bugs.
+
+**The whole row toggles**, via `after:absolute after:inset-0` on the module name's
+`<label>` against a `relative` row — the same stretched-target pattern as the partner
+listing, and the reason `AppLogo` carries `z-10` (see below). ⚠️ `truncate` can't go on
+that label: `overflow: hidden` clips the very pseudo-element doing the stretching. It goes
+on a span inside, which is why there are two elements where one would do.
+
+**No row fill, though**, even now that the row is a target. A fill wants to sit clear of
+the text, which is exactly what the table's old 12px bleed paid for — and the bleed is
+what had to go for the rules to line up with the rest of the panel. So the feedback is on
+the control: `[&:hover_input]` darkens the tick box from anywhere in the row, pointing at
+the thing the click is about to change rather than at the row in general.
+
+**An excluded row keeps its figure and drops two steps of ink** (ink-7 → ink-4, on both the
+name and the hours). Removing the number would make the row look broken; leaving it at full
+strength states that it's part of the sum directly underneath, which it isn't.
+
+**Reopening gives a whole estimate again.** Unticking is a "what if", not a saved
+preference — nothing here persists — and a panel that came back holding a smaller number
+than the card that opened it, for a reason set minutes ago, is a figure the visitor would
+have to reconstruct. The reset runs 200ms after close so the ticks don't visibly repopulate
+on the way out.
+
+#### The rules, and where they stop
+
+⚠️ **The table sits inside the panel's content box**, and the row rules therefore start and
+end exactly where the totals, the action and the header text do. This is a change: the
+table used to bleed `-mx-3` and the outer cells paid it back as `first:pl-3 last:pr-3`, so
+the text landed correctly but every rule ran 12px past it into the panel's 20px margin. The
+outermost cell padding is now zeroed (`first:pl-0 last:pr-0`) and the bleed is gone. What
+the bleed bought was room for a hover fill; there is no fill, so it bought nothing.
+
+⚠️ **The scrollbar had to be moved out by hand.** frappe-ui's `ScrollArea` overlays a 10px
+bar at the viewport's right edge, and with the bleed gone that edge is the content edge —
+measured, the bar sat on top of the last 10px of every hours figure while scrolling.
+`-mr-2.5` on the root against `pr-2.5` on the viewport grows the scroller 10px to the right
+and gives the 10px straight back as padding: the table still ends on the content edge, the
+bar rides in the panel's margin.
+
+The rules are plain `divide-y` on the tbody. ⚠️ They were previously per-row `border-t`,
+and the reason is worth keeping in case a fill ever comes back: a hovered row has to
+swallow the rules either side of it so the fill reads as one block rather than a tinted
+band between two lines, and `divide-y`'s colour lands via
+`.divide-… > :not([hidden]) ~ :not([hidden])` — three class-level components, enough to
+outrank any reasonable hover variant, so the borders simply never changed. Measured at the
+time: `borderTopColor` identical hovered and not.
 
 **The app marks are the real ones**, taken from the product cards on frappe.io/products and
 committed to `src/assets/apps/` — see the table in that folder's README for the four files
@@ -486,11 +549,12 @@ nothing.
 
 ⚠️ **`AppLogo` carries `relative z-10`, and it's load-bearing twice over.**
 
-- Wherever a row is made clickable by a stretched `after:absolute after:inset-0`, that
-  overlay otherwise covers the mark completely — the cursor never reaches it, so the
-  tooltip never opens. This was silently broken until it was measured with
-  `elementFromPoint`. (The estimator's rows no longer stretch anything over themselves, but
-  the partner listing's do, and the mark is shared.)
+- Wherever a row is made clickable by a stretched `after:absolute after:inset-0` — the
+  partner listing's name link, and the estimator's module label — that overlay otherwise
+  covers the mark completely: the cursor never reaches it, so the tooltip never opens. This
+  was silently broken until it was measured with `elementFromPoint`. Raising the mark costs
+  it its share of the row's target, which is the right trade: the mark is a label, the name
+  beside it is the thing to click.
 - Because the mark is a positioned, stacked element, the sticky header has to out-rank it.
   Hence `z-20` on the `th`.
 
@@ -550,6 +614,12 @@ quote. Even spacing in a list of mixed type sizes is even baselines, not even ma
 17px, so centring them sits the two on different baselines by about a pixel. The rows above
 have one type size and don't care.
 
+**"Total estimated hours"**, matching the column it sums. "Total hours" read as a fact
+about the project; every figure in the panel is an estimate, and the line that adds the
+others up shouldn't be the one that drops the word. It counts ticked rows only, so with
+everything unticked the panel reads 0 hrs / $0 — which is honest, and the action stays live
+because messaging a partner is still a reasonable thing to do from there.
+
 **The totals block is always shown**, now that there is only one view for it to be shown
 in. It used to be suppressed in the drill-down, where its figures were about the whole
 estimate while everything above them was about a single module.
@@ -566,10 +636,9 @@ gradient palette, so `bg-gradient-to-b from-transparent to-surface-elevation-1` 
 `bg-[linear-gradient(to_bottom,transparent,var(--surface-elevation-1))]`.
 
 **Table metrics** are a spec, so they're named once in the component: a cell carries 8px
-left/right and 6px top/bottom, a row a further 4px left/right and 2px top/bottom. A `<tr>`
-can't take padding — CSS tables ignore it — so the row's share is folded into the cells:
-every cell gets the extra 2px vertically, the outermost cell on each side the extra 4px
-horizontally. Headers are `sm` regular in ink-5; module names are medium in ink-7; the two
+left/right and 6px top/bottom, plus the 2px per side a `<tr>` would carry if CSS tables
+didn't ignore padding on a row. The outermost edges are zeroed — see _The rules, and where
+they stop_ above for why. Headers are `sm` regular in ink-5; module names are medium in ink-7; the two
 inputs the total is made of (hours, rate) are medium, so they stop reading as a caption
 under it.
 
