@@ -334,19 +334,37 @@ const close = () => {
                    thing.
 
                    ⚠️ And there is deliberately no row fill, even though the
-                   whole row is now a click target again. A fill would want to
-                   sit clear of the text, which is what the table's old 12px
-                   bleed was for — and the bleed is exactly what had to go for
-                   the rules to line up with everything else on the panel. The
-                   feedback is on the control instead: `[&:hover_input]` darkens
-                   the tick box from anywhere in the row, which points at the
-                   thing the click is about to change rather than at the row in
-                   general. -->
+                   whole row is a click target. A fill would want to sit clear
+                   of the text, which is what the table's old 12px bleed was for
+                   — and the bleed is exactly what had to go for the rules to
+                   line up with everything else on the panel.
+
+                   ⚠️ Nor is there a hover state reaching into the tick box.
+                   There was one — a row-level arbitrary variant that selected
+                   the descendant input and recoloured its border — and it's
+                   gone on purpose: a class of ours styling an element INSIDE a
+                   frappe-ui component is a contract the component never
+                   offered, and it breaks silently the day that element stops
+                   being an input. Reach a component through its props or don't
+                   reach it. `Checkbox` is used exactly as shipped.
+
+                   ⚠️⚠️ And the class name is deliberately not written out here.
+                   Tailwind's content scanner is a regex over raw file text — it
+                   does not parse, so it cannot tell markup from a comment. The
+                   variant was named in this comment after being deleted from
+                   the row, and it kept emitting its rule into the production
+                   stylesheet: dead CSS with nothing left to match it. Never
+                   quote a removed utility in a scanned file. DESIGN-NOTES.md
+                   isn't in `content`, so the specifics live there.
+
+                   The pointer is the hover affordance; the state itself is
+                   carried three times over once you click, by the tick, the
+                   greyed label and the muted app mark. -->
               <tbody class="divide-y divide-outline-gray-1">
                 <tr
                   v-for="r in rows"
                   :key="r.key"
-                  class="relative cursor-pointer [&:hover_input]:border-outline-gray-5"
+                  class="relative cursor-pointer"
                 >
                   <td :class="CELL">
                     <span class="flex min-w-0 items-center gap-2">

@@ -590,11 +590,29 @@ listing, and the reason `AppLogo` carries `z-10` (see below). ⚠️ `truncate` 
 that label: `overflow: hidden` clips the very pseudo-element doing the stretching. It goes
 on a span inside, which is why there are two elements where one would do.
 
-**No row fill, though**, even now that the row is a target. A fill wants to sit clear of
-the text, which is exactly what the table's old 12px bleed paid for — and the bleed is
-what had to go for the rules to line up with the rest of the panel. So the feedback is on
-the control: `[&:hover_input]` darkens the tick box from anywhere in the row, pointing at
-the thing the click is about to change rather than at the row in general.
+**No row fill, though**, even though the row is a target. A fill wants to sit clear of the
+text, which is exactly what the table's old 12px bleed paid for — and the bleed is what had
+to go for the rules to line up with the rest of the panel.
+
+⚠️ **And no hover state reaching into the tick box either.** There was one —
+`[&:hover_input]:border-outline-gray-5`, the same token frappe-ui's own `hover:` uses, just
+fired from the row rather than the control. It's gone deliberately: a class of ours
+selecting an element _inside_ a frappe-ui component is a styling contract the component
+never offered, and it breaks silently the day that input stops being an `input`. The
+general rule — reach a component through its props, or don't reach it. `Checkbox` is used
+exactly as shipped, at its default `sm`, with `indeterminate` for the header's tri-state.
+
+⚠️⚠️ **Deleting it took two goes, and the second one generalises.** Removing the class from
+the row left the rule in the production stylesheet, because the commit had also written the
+class name into a comment _explaining_ the removal — and **Tailwind's content scanner is a
+regex over raw file text.** It doesn't parse, so it can't tell markup from a comment, a
+string, or a variable name. A utility quoted anywhere in a scanned file is a utility that
+gets emitted. Never name a removed class inside `content` (here: `index.html`,
+`src/**/*.{vue,js,ts}`, and frappe-ui's own `src`). This file isn't scanned, which is why
+the name can be written out above. Verified by grepping the built CSS, not the source.
+
+The pointer is the hover affordance, and it's enough: the state itself is carried three
+times over the moment you click, by the tick, the greyed label and the muted app mark.
 
 **An excluded row keeps its figure and drops two steps of ink** (ink-7 → ink-4, on both the
 name and the hours). Removing the number would make the row look broken; leaving it at full
