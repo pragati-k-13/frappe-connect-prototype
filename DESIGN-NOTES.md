@@ -397,14 +397,19 @@ width of only this dialog, and every other one keeps its `size` prop.
 **440, down from 500.** The panel is two columns of short text over a stack of
 label/figure pairs; the extra 60px was landing entirely in the gap down the middle of each
 row, which is the one place in a two-column table where space does no work — it pushes the
-figure away from the thing it belongs to. ⚠️ 440 is not far above the floor, and four
-things set it, measured against 400px of content: the title at 297px plus the close
-button's 28, which **must not wrap** — the two-line title is the problem the current
-wording was written to solve; the widest row at 292 (tick 14 + mark 16 + two 8px gaps +
-"Attendance and leave" at 146, then 16 of gutter and "Estimated hrs" at 84); the widest
-totals line, always a partner's name in a possessive — "Greycube Technologies' hourly rate"
-at ~250 plus up to 40 for the figure; and the action's own 260px label. Materially below
-440 and module names start truncating on the longest-named partners, quietly.
+figure away from the thing it belongs to.
+
+⚠️ Four things set the floor, measured against 400px of content, and the **title is the
+binding one**: 297px plus the close button's 28. It must not wrap — the two-line title is
+the problem the current wording was written to solve, and unlike everything below it there
+is no truncation to fall back on. Then: the widest totals line, always a partner's name in
+a possessive — "Greycube Technologies' hourly rate" at ~250 plus up to 40 for the figure;
+the action's own 260px label; and only then the widest row, at 245 (tick 14 + mark 16 + two
+8px gaps + "Manufacturing" at 99, then 16 of gutter and "Estimated hrs" at 84).
+
+The row used to be the binding constraint, at 292, on the strength of "Attendance and
+leave" — a Frappe HR module, and Frappe HR is no longer broken out separately. So there is
+now real headroom below 440 if it's wanted; ~365 is where the title starts to crowd the ×.
 
 The title is the **`title` prop**, not the `#title` slot. The slot existed only to push the
 heading to 3xl; at 2xl that is exactly what the prop already renders (`text-2xl-semibold`),
@@ -446,7 +451,11 @@ that contributes nothing reads as a bug rather than as scope.
 which is the comparison someone scanning an estimate is actually making.
 The app is a 16px mark in the first column rather than a subhead above a group: grouping
 spent a whole row saying what the mark now says inline, and the list is flat and sortable
-by eye.
+by eye. ⚠️ With the seeded project down to a single app, every mark in the panel is
+currently the same ERPNext glyph, so the column carries no information at all right now.
+It stays because the seed is explicitly a placeholder — the mark earns its keep the moment
+a project spans two apps, which is the case a module picker will produce — but if the
+estimator ships against single-app projects only, this column is the first thing to cut.
 
 **The first column is headed "Modules in your project", not "Module".** Without an owner
 the column reads equally well as _the modules this partner implements_, which makes "so
@@ -460,9 +469,13 @@ reads far more like one of the partner's packages than like their own thing. The
 rule: don't surface a generated name anywhere it could be mistaken for something the user
 picked.
 
-⚠️ And deliberately **no count**. The project holds seven modules; Tridots' table shows the
-five whose apps they implement. A number in the header would sit above a visibly shorter
-list, which resurrects the audit question in a worse form — now with arithmetic attached.
+⚠️ And deliberately **no count**. A number in the header would sit above a list that is
+often visibly shorter than it, which resurrects the audit question in a worse form — now
+with arithmetic attached. ⚠️ It doesn't today, and only by accident: the seeded project is
+six ERPNext modules and all thirteen partners implement ERPNext, so nothing is currently
+filtered out for anybody. The filter is still right and still live — a project with
+Helpdesk in it would drop rows for the partners who don't do Helpdesk — but every row in
+the panel as it stands is shown to every partner.
 
 This was the third answer to the same problem. The first two were a line under the list
 ("also implements 4 more modules outside your project") and a line under the title naming

@@ -159,24 +159,25 @@
    the middle of each row, which is the one place in a two-column table where
    space does no work — it pushes the figure away from the thing it belongs to.
 
-   ⚠️ 440 is not far above the floor, so the four things that set it are worth
-   naming before anyone takes it lower. Content is width minus the 20px padding
-   each side:
+   ⚠️ Four things set the floor, and they're worth naming before anyone takes
+   this lower. Content is width minus the 20px padding each side, so 440 gives
+   400 to work with:
 
-     - the title, 297px, plus the close button's 28 — the widest single line in
-       the panel, and it must not wrap: the two-line title is the problem the
-       current wording was written to solve
-     - the widest row: tick 14 + mark 16 + two 8px gaps + "Attendance and
-       leave" at 146, then 16px of cell gutter and "Estimated hrs" at 84 — 292
-       before any breathing room, and the module name truncates rather than
-       wraps, so it goes quietly
+     - the title, 297px, plus the close button's 28. This is the BINDING one,
+       and the only one with no fallback: it must not wrap — the two-line title
+       is the problem the current wording was written to solve — where every
+       other line here either truncates or has slack
      - the widest totals line, which is the partner's name in a possessive:
        "Greycube Technologies' hourly rate" is ~250px, and the figure beside it
        up to 40
      - the action's own label at 260px, which it can't shrink below
+     - the widest row: tick 14 + mark 16 + two 8px gaps + "Manufacturing" at
+       99, then 16px of cell gutter and "Estimated hrs" at 84 — 245
 
-   400px of content clears all four. Materially less than 440 starts truncating
-   module names on the partners with the longest names. */
+   The row used to be the binding constraint at 292, on the strength of
+   "Attendance and leave"; that's a Frappe HR module, and Frappe HR is no
+   longer broken out separately (see `data/modules.js`). So 440 now has real
+   headroom — around 365 is where the title starts to crowd the ×. */
 .dialog-content:has(.fc-estimate) {
   max-width: 440px;
 }
