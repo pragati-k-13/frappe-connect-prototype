@@ -79,16 +79,100 @@ export const INDUSTRIES = [
 // that region's 90 — the wireframe made the same call by eye, and the real
 // numbers back it up. Africa is a chip here (the wireframe left it to the map)
 // because at 14 partners it outranks Europe; hiding it would be arbitrary.
+//
+// `countries` is the real per-region country list from the same page, re-lifted
+// later than the `count` figures above — which is why three of them no longer
+// add up: the directory now reads India 73, Middle East 35 and Americas 10.
+// The counts are left as they were on purpose, because `MAP_REGIONS` totals
+// them to the "155+ Partners" the marketing page claims; re-lift all of it
+// together or not at all.
+//
+// ⚠️ Alphabetical, not by partner count like the source page. The results
+// filter renders a computed count beside each country that moves with the other
+// filters, so ordering by count would reshuffle the list as you filter — the
+// one ordering a reader can't follow. Alphabetical holds still.
+//
+// ⚠️ "United Arab Emirates", not the directory's "UAE". These strings are
+// matched against a partner's own country, which is derived from the last comma
+// field of its city ('Dubai, United Arab Emirates' — see `data/partners.js`),
+// so the long form is the one that can match. A country here that matches no
+// partner simply reads 0; that is most of them, since only 13 partners are
+// seeded against a directory of 155.
 export const REGIONS = [
-  { value: 'india', label: 'India', count: 71 },
+  { value: 'india', label: 'India', count: 71, countries: ['India'] },
   // "Asia", not the directory's "Asia Pacific": with India split out above, the
   // long form promises a breadth this row no longer covers, and it was the
   // widest label in a set that has to line up.
-  { value: 'asia', label: 'Asia', count: 19 },
-  { value: 'middle-east', label: 'Middle East', count: 32 },
-  { value: 'africa', label: 'Africa', count: 14 },
-  { value: 'europe', label: 'Europe', count: 11 },
-  { value: 'americas', label: 'Americas', count: 9 },
+  //
+  // India is likewise absent from this region's countries — the directory files
+  // it under Asia Pacific, and it is its own region here.
+  {
+    value: 'asia',
+    label: 'Asia',
+    count: 19,
+    countries: [
+      'Australia',
+      'Bangladesh',
+      'China',
+      'Indonesia',
+      'Myanmar',
+      'Pakistan',
+      'Philippines',
+      'Singapore',
+      'Sri Lanka',
+      'Thailand',
+      'Vietnam',
+    ],
+  },
+  {
+    value: 'middle-east',
+    label: 'Middle East',
+    count: 32,
+    countries: [
+      'Bahrain',
+      'Egypt',
+      'Iraq',
+      'Jordan',
+      'Kuwait',
+      'Libya',
+      'Oman',
+      'Qatar',
+      'Saudi Arabia',
+      'United Arab Emirates',
+      'Yemen',
+    ],
+  },
+  {
+    value: 'africa',
+    label: 'Africa',
+    count: 14,
+    countries: [
+      'Congo - Kinshasa',
+      'Ghana',
+      'Kenya',
+      'Mauritius',
+      'Nigeria',
+      'South Africa',
+      'Tanzania',
+      'Uganda',
+    ],
+  },
+  {
+    value: 'europe',
+    label: 'Europe',
+    count: 11,
+    countries: [
+      'France',
+      'Germany',
+      'Italy',
+      'Malta',
+      'Netherlands',
+      'Spain',
+      'Switzerland',
+      'United Kingdom',
+    ],
+  },
+  { value: 'americas', label: 'Americas', count: 9, countries: ['Canada', 'United States'] },
 ]
 
 // Label only — the two options carried a sublabel each ("Fixed-scope starter

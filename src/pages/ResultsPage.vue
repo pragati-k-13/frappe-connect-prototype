@@ -37,10 +37,27 @@ const suggestionCopy = (key) => {
   const { segments } = store.answers
   const appLabel = APPS.find((a) => a.value === store.filters.app)?.label
   switch (key) {
-    case 'region':
-      // No note: the title is already the whole fact, and every row names its
-      // own city underneath.
-      return { title: 'Partners outside your region' }
+    case 'geo': {
+      // Region and country lift together, so the title has to fit whichever
+      // was actually picked rather than assuming one of them.
+      const regions = store.answers.region
+      const picked = store.filters.countries
+      if (!regions.length && picked.length === 1) {
+        return {
+          title: 'Partners in other countries',
+          note: `Outside ${picked[0]}, but matching everything else.`,
+        }
+      }
+      if (!picked.length) {
+        // No note: the title is already the whole fact, and every row names its
+        // own city underneath.
+        return { title: 'Partners outside your region' }
+      }
+      return {
+        title: 'Partners in other locations',
+        note: 'Outside the places you picked, but matching everything else.',
+      }
+    }
     case 'segments':
       return {
         title: 'Proven in other industries',
@@ -71,18 +88,87 @@ const setFilter = (key, value) => {
 const setAnswer = (key, value) => {
   store.answer(key, value ?? null)
 }
-// Region and segments take several answers, so their empty state is an empty
-// array rather than `null` — see the store.
-const setRegions = (value) => {
-  store.answer('region', value ?? [])
-}
+// Segments takes several answers, so its empty state is an empty array rather
+// than `null` — see the store. Region is handled by `setGeo` below, which owns
+// both halves of that dimension.
 const setSegments = (value) => {
   store.answers.segments = value ?? []
 }
 
-const regionOptions = computed(() =>
-  REGIONS.map((r) => ({ label: r.label, value: r.value })),
+// ONE control for where a partner is, at two levels of granularity: every
+// country the programme lists, grouped under its region, with the region itself
+// selectable as the first row of its own group.
+//
+// Region and country as two separate dropdowns was worse in the way the
+// industry/segment rework already established — two controls for one dimension
+// and two chances for them to disagree. `MultiSelect` renders a group LABEL
+// rather than a group option, so the region can't be ticked from the heading;
+// it rides in as a real option instead, distinguished by a prefixed value.
+//
+// The store keeps its two fields regardless: `answers.region` is what the quiz
+// collects and what the landing page's map is drawn from, and `filters.countries`
+// is the granular half. Only this control's model merges them, which is what
+// lets one dropdown drive both without changing the store's contract.
+const REGION_PREFIX = 'region:'
+const isRegionValue = (v) => String(v).startsWith(REGION_PREFIX)
+
+// Counts come from `store.countryCounts`, which ignores the whole geo dimension
+// so each number says how many picking that row would ADD. A country with no
+// partners is simply absent from that map and reads 0.
+//
+// ⚠️ Every country stays listed and selectable at 0. Hiding them reflows the
+// list on every keystroke elsewhere in the bar and can empty a whole region
+// group, so you could no longer tell a country the programme doesn't cover from
+// one your other filters ruled out.
+//
+// The group label carries the region's total, so regions stay comparable
+// without adding up their countries. It's interpolated into the string because
+// `MultiSelectGroupedOption` takes a plain `group` label and no slot.
+const geoOptions = computed(() =>
+  REGIONS.map((r) => {
+    const countries = r.countries.map((name) => ({
+      label: name,
+      value: name,
+      // Read back by `#item-suffix`. `MultiSelectOption` allows arbitrary keys,
+      // which is what lets the count ride along on the option itself instead of
+      // being looked up again during render.
+      count: store.countryCounts[name] ?? 0,
+    }))
+    const total = countries.reduce((n, o) => n + o.count, 0)
+    return {
+      key: r.value,
+      group: `${r.label} · ${total}`,
+      options:
+        countries.length === 1
+          ? // A region with one country selects exactly the same partners either
+            // way, so it gets ONE row rather than an "All of India" sitting above
+            // an identical "India". It carries the REGION value, so a region
+            // answered in the quiz still finds an option to tick here.
+            [{ ...countries[0], value: `${REGION_PREFIX}${r.value}` }]
+          : [
+              { label: `All of ${r.label}`, value: `${REGION_PREFIX}${r.value}`, count: total },
+              ...countries,
+            ],
+    }
+  }),
 )
+
+// The merge, both ways. Region values are prefixed on the way out and stripped
+// on the way back in, so the two store fields stay exactly as they were.
+const geoSelection = computed(() => [
+  ...store.answers.region.map((v) => `${REGION_PREFIX}${v}`),
+  ...store.filters.countries,
+])
+const setGeo = (value) => {
+  const next = value ?? []
+  // Through `answer()` rather than assigned, so picking a region here clears
+  // the inferred-region flag the same way the quiz's own chips do.
+  store.answer(
+    'region',
+    next.filter(isRegionValue).map((v) => v.slice(REGION_PREFIX.length)),
+  )
+  store.filters.countries = next.filter((v) => !isRegionValue(v))
+}
 // ONE control for the industry dimension, not two. Industry and segment used to
 // be separate Selects — pick a group, then a second control appears to narrow
 // inside it — which meant two controls for one question, an option list you
@@ -126,8 +212,10 @@ const extraFilterCount = computed(() => (store.filters.app ? 1 : 0))
 // not only when there's a number to show.
 const anyFilterActive = computed(() => {
   const { segments, region, implementation } = store.answers
-  const { search, app } = store.filters
-  return Boolean(segments.length || region.length || implementation || app || search.trim())
+  const { search, app, countries } = store.filters
+  return Boolean(
+    segments.length || region.length || countries.length || implementation || app || search.trim(),
+  )
 })
 
 // Clearing is the one destructive action on this screen: `store.reset()` drops
@@ -194,17 +282,25 @@ const clearTooltip = computed(() => {
           </template>
         </TextInput>
 
-        <!-- MultiSelect, not Select: the quiz asks region as a multi-answer
-             question, so the filter that mirrors it has to hold more than one
-             too — otherwise arriving here would silently drop all but one of
-             the regions you just picked. -->
+        <!-- Where the partner is — region AND country, one control. MultiSelect
+             because the quiz asks region as a multi-answer question, so the
+             filter mirroring it has to hold more than one; otherwise arriving
+             here would silently drop all but one of the regions you picked. -->
         <MultiSelect
           class="w-40"
-          :model-value="store.answers.region"
-          :options="regionOptions"
+          :model-value="geoSelection"
+          :options="geoOptions"
           placeholder="All regions"
-          @update:model-value="setRegions"
-        />
+          @update:model-value="setGeo"
+        >
+          <!-- One slot covers every row: `slotFns` on `MultiSelectResults` is
+               the parent's own `useSlots()`, forwarded. `tabular-nums` so the
+               column of counts doesn't jitter between 1 and 8. -->
+          <template #item-suffix="{ item }">
+            <span class="tabular-nums text-ink-gray-5">{{ item.count }}</span>
+          </template>
+        </MultiSelect>
+
         <!-- Industry AND segment, in one control. The group label is the
              industry and the options are its segments — nothing is selectable
              at the group level, because nothing in the data is tagged there.
