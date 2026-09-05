@@ -499,17 +499,20 @@ const close = () => {
           </div>
         </dl>
 
-        <!-- The label carries what the removed disclaimer used to: this figure
-           isn't the quote, it's the reason to ask for one — and asking means
-           sending them a message, which the icon and the verb both say.
+        <!-- The label is about the ESTIMATE, not about a quote to come. It
+           used to read "Message partner for a final quote", which framed
+           everything above it as a placeholder for a real number arriving
+           later — so the panel's own work read as provisional, and the reason
+           to click was to go and get the actual answer somewhere else.
+           Wrong way round. The figure above IS the thing; the button carries it
+           into a conversation with the partner who'd deliver it.
            ⚠️ Same destination as every other Contact on this page — the in-app
            messages screen, which doesn't exist yet — so it raises the same
-           toast. This is the terminal action of the whole quote flow; it was
-           the one button in the modal that did nothing at all. -->
+           toast. -->
         <Button
           variant="solid"
           class="mt-5 w-full"
-          label="Message partner for a final quote"
+          label="Contact partner with this estimate"
           @click="contactToast(partner)"
         >
           <template #prefix><LucideMessageSquare class="size-4" /></template>
@@ -522,15 +525,13 @@ const close = () => {
              spelled out. The comparison table on `/connect` spells it out, so
              this points there rather than restating it in a modal.
 
-             Ghost and narrower than the action above it — it's a way out to
-             reference material, not a second thing to decide. Centred under the
-             full-width primary so the pair reads as one stack; left-aligned it
-             looks like an afterthought that got left behind.
-
-             ⚠️ The centring goes on a wrapper, not on the Button. `mx-auto`
-             does nothing to a `display: flex` element, which is block-level and
-             already fills the row — the label just sits at its left edge, which
-             is the bug this replaced.
+             Full width and `subtle`, matching the primary's footprint exactly
+             so the two read as a stacked pair rather than a button with a
+             footnote. The variant is what separates them now that the width
+             doesn't: solid carries the action, subtle carries the aside. Ghost
+             was too quiet at this width — a full-width control with no fill is
+             a large area of nothing, and the label floated in the middle of it
+             unattached to anything.
 
              ⚠️ NEW TAB, via `link` (frappe-ui's Button renders `link` as an
              `<a target="_blank" rel="noreferrer noopener">`; `route` would be
@@ -539,11 +540,14 @@ const close = () => {
              it to a definition lookup is a different thing from losing it to
              "I'm done". Reading what a pack contains is exactly the question
              you ask WHILE deciding. -->
-        <div class="mt-2 flex justify-center">
-          <Button variant="ghost" size="sm" :link="packsHref" label="What's in a starter pack?">
-            <template #suffix><LucideArrowUpRight class="size-3.5" /></template>
-          </Button>
-        </div>
+        <Button
+          variant="subtle"
+          class="mt-2 w-full"
+          :link="packsHref"
+          label="What's in a starter pack?"
+        >
+          <template #suffix><LucideArrowUpRight class="size-4" /></template>
+        </Button>
       </div>
     </template>
   </Dialog>

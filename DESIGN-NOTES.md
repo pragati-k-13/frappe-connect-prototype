@@ -444,14 +444,18 @@ heading to 3xl; at 2xl that is exactly what the prop already renders (`text-2xl-
 so the override earned nothing and is gone. The panel's × is the only close affordance,
 which is why the footer holds one full-width action instead of a Close beside it.
 
-**Below that action, one subtle way out: "What's in a starter pack?"** It's the question
-the panel provokes and never answers — the rows are the visitor's project, a pack is a
-fixed scope the partner sells, and the two get compared on this screen constantly without
-the second ever being spelled out. The comparison table on `/connect` spells it out, so the
-link points there rather than restating it inside a modal. Ghost, `sm`, and centred under
-the full-width primary so the pair reads as one stack. ⚠️ The centring is on a wrapper, not
-the Button: `mx-auto` does nothing to a `display: flex` element, which is block-level and
-already fills the row — the label just sits at its left edge.
+**Below that action, a second one: "What's in a starter pack?"** It's the question the
+panel provokes and never answers — the rows are the visitor's project, a pack is a fixed
+scope the partner sells, and the two get compared on this screen constantly without the
+second ever being spelled out. The comparison table on `/connect` spells it out, so the
+link points there rather than restating it inside a modal.
+
+**Full width and `subtle`**, matching the primary's footprint exactly (both 400 × 28) so
+the two read as a stacked pair rather than an action with a footnote. With the width no
+longer separating them, the variant is what does: solid carries the action, subtle carries
+the aside. It was a centred ghost first, and ghost is too quiet at full width — a
+full-width control with no fill is a large area of nothing, and the label floats in the
+middle of it attached to nothing.
 
 ⚠️ **It opens in a new tab**, via frappe-ui's `link` prop (which renders an
 `<a target="_blank" rel="noreferrer noopener">`; `route` would be the same-tab RouterLink).
@@ -765,14 +769,15 @@ they stop_ above for why. Headers are `sm` regular in ink-5; module names are me
 inputs the total is made of (hours, rate) are medium, so they stop reading as a caption
 under it.
 
-The count column carries an extra `pr-6`. With an auto table it hugs the hours column, and
-two right-aligned numerals 40px apart read as one field. The space goes on the count rather
-than as a column width so the hours stay pinned to the table's edge.
+**The action is about the estimate, not about a quote still to come** — "Contact partner
+with this estimate", with a message glyph. It says what pressing it does (opens a message),
+who it reaches (the partner), and what you're bringing (the thing you just built).
 
-**The action names its own mechanism** — "Message partner for a final quote", with a
-message glyph. It says what pressing it does (sends a message), who it reaches (the
-partner), and why (to get the real quote) — which is also where the removed disclaimer's
-information ended up, at the moment it matters rather than as a banner at the top.
+⚠️ It read "Message partner for a final quote" first, and that framing was backwards. It
+made everything above it a placeholder for a real number arriving later — the panel's own
+work provisional, and the reason to press the button being to go and get the actual answer
+somewhere else. The figure above **is** the thing. The button carries it into a
+conversation with the partner who'd deliver it.
 
 ⚠️ **Gated later.** The estimator is meant for people who have created a project, since
 that's where the scope comes from. `store.hasProject` is live and already true for the demo
@@ -954,7 +959,7 @@ left to explain why.
 **Gated today:** the top bar's own "Log in or create account", Contact and Save
 on the profile, and Save on every listing row. **Not gated:** "Write a review",
 which needs a _completed project_ rather than an account — a different gate,
-noted below — and the estimate modal's "Message partner", which sits behind a
+noted below — and the estimate modal's "Contact partner", which sits behind a
 modal that is itself meant to be gated on `store.hasProject`, so you can't reach
 it signed out in the first place.
 
