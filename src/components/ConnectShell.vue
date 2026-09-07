@@ -1,7 +1,15 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { Button, ScrollArea, Sidebar, SidebarHeader, SidebarItem, SidebarLabel, toast } from 'frappe-ui'
+import {
+  Button,
+  ScrollArea,
+  Sidebar,
+  SidebarHeader,
+  SidebarItem,
+  SidebarLabel,
+  toast,
+} from 'frappe-ui'
 import LoginDialog from './LoginDialog.vue'
 import { useConnectStore } from '../stores/connect'
 
@@ -17,10 +25,13 @@ const store = useConnectStore()
 // (`current.path === target.path`), so a child route lights nothing at all.
 // "Find partners" points at /connect, which meant the rail showed no location
 // on the partner list and on every profile — two of the three in-app screens,
-// and the two you spend the most time on. Every route under /connect is the
-// partner directory, so the match is a prefix.
+// and the two you spend the most time on. So the match is a prefix.
+//
+// ⚠️ /connect/packs is the exception: it sits under the same prefix but it is
+// its own rail item, and without this exclusion BOTH rows light at once.
 const route = useRoute()
-const inDirectory = computed(() => route.path.startsWith('/connect'))
+const inPacks = computed(() => route.path.startsWith('/connect/packs'))
+const inDirectory = computed(() => route.path.startsWith('/connect') && !inPacks.value)
 
 // The header is already a Dropdown trigger — `SidebarHeader` takes `menuItems`
 // and renders the chevron itself, so clicking the logo opens this rather than
@@ -31,9 +42,7 @@ const inDirectory = computed(() => route.path.startsWith('/connect'))
 // demo control in the corner. Nothing to offer a signed-out visitor, so the
 // menu is empty and the chevron doesn't appear.
 const logoMenu = computed(() =>
-  store.signedIn
-    ? [{ label: 'Log out', icon: 'lucide-log-out', onClick: logOut }]
-    : [],
+  store.signedIn ? [{ label: 'Log out', icon: 'lucide-log-out', onClick: logOut }] : [],
 )
 
 // `store.logOut()` rather than `setAccount('visitor')`: logging out has to drop
@@ -68,9 +77,14 @@ const onRailMove = (e) => {
 // Sidebar owns its own collapse behaviour (auto-collapses below `sm`), so
 // there's no responsive handling to write here.
 defineProps({
-  // Trailing breadcrumb label. Unset on the list screens, where the bar just
-  // reads "Partners".
+  // Trailing breadcrumb label. Unset on the list screens, where the bar reads
+  // the root label alone.
   crumb: { type: String, default: null },
+  // The bar's root: the label shown when there's no `crumb`, and the link back
+  // when there is. Defaults to the partner directory, which is where three of
+  // the four in-app screens live.
+  rootLabel: { type: String, default: 'Partners' },
+  rootTo: { type: String, default: '/connect/partners' },
 })
 </script>
 
@@ -117,7 +131,7 @@ defineProps({
           <SidebarItem label="Saved partners">
             <template #prefix><LucideBookmark class="size-4 text-ink-gray-6" /></template>
           </SidebarItem>
-          <SidebarItem label="Starter packs">
+          <SidebarItem label="Starter packs" to="/connect/packs" :active="inPacks">
             <template #prefix><LucidePackage class="size-4 text-ink-gray-6" /></template>
           </SidebarItem>
         </nav>
@@ -182,17 +196,19 @@ defineProps({
              that depth is shown rather than adding a Back button to the page. -->
         <nav v-if="crumb" class="flex min-w-0 items-center gap-1.5" aria-label="Breadcrumb">
           <RouterLink
-            to="/connect/partners"
+            :to="rootTo"
             class="shrink-0 text-base text-ink-gray-6 transition-colors hover:text-ink-gray-8"
           >
-            Partners
+            {{ rootLabel }}
           </RouterLink>
           <LucideChevronRight class="size-4 shrink-0 text-ink-gray-6" aria-hidden="true" />
           <span class="truncate text-base font-medium text-ink-gray-8" aria-current="page">
             {{ crumb }}
           </span>
         </nav>
-        <span v-else class="text-base font-medium text-ink-gray-8">Partners</span>
+        <span v-else class="whitespace-nowrap text-base font-medium text-ink-gray-8">
+          {{ rootLabel }}
+        </span>
 
         <!-- Signed out: one auth CTA on every screen, the ghost "Log in or
              create account". This used to promote to a solid "Create account"

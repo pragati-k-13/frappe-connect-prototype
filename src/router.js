@@ -14,6 +14,11 @@ const routes = [
     name: 'results',
     component: () => import('./pages/ResultsPage.vue'),
   },
+  // The pack catalogue. A pack's detail opens as a dialog OVER this screen and
+  // carries its id in `?pack=`, so a detail view is linkable, Back closes it,
+  // and a shared link opens the right pack — none of which a dialog with no
+  // route can do.
+  { path: '/connect/packs', name: 'packs', component: () => import('./pages/PacksPage.vue') },
   // Nested under the listing so the URL carries the depth the breadcrumb shows.
   // `:id` is the partner slug — the same id that resolves their logo file.
   {
