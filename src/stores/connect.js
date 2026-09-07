@@ -167,17 +167,29 @@ export const useConnectStore = defineStore('connect', {
     //
     // ⚠️ Seeded placeholder. Nothing writes to it yet — a module picker does,
     // later. Keys match `APPS[].value`, values match `MODULES[app][].key` in
-    // `data/modules.js`. Five ERPNext modules against two CRM ones on purpose:
-    // the section has to show apps carrying very different amounts.
+    // `data/modules.js`.
+    //
+    // ⚠️ ERPNext only, and that isn't a shortcut. `data/modules.js` carries no
+    // CRM catalogue (starter packs are ERP work) and doesn't break the Frappe
+    // HR app into modules either. An entry for either app would sit here
+    // contributing nothing — `modulesFor` returns an empty list for an app with
+    // no catalogue — which reads as a bug rather than as scope.
+    //
+    // ⚠️ The `hr` below is ERPNext's HR module. It is NOT the Frappe HR app:
+    // the two are separate, different products, and a project wanting Frappe HR
+    // is not covered by ticking this. See the ⚠️⚠️ at the top of
+    // `data/modules.js`.
+    //
+    // Six modules spanning 8 to 25 hours: the estimator has to show rows
+    // carrying very different amounts, which is what the old five-plus-two
+    // split across two apps was for before HR moved.
     //
     // Not cleared by `reset()`, same as `account` and `role` — it's the demo
     // you're in, not something the quiz collected.
     project: {
       name: 'ERP rollout',
       modules: {
-        erpnext: ['finance', 'sales', 'purchase', 'inventory', 'manufacturing'],
-        crm: ['deals', 'contacts'],
-        'frappe-hr': ['payroll', 'attendance'],
+        erpnext: ['finance', 'sales', 'purchase', 'inventory', 'manufacturing', 'hr'],
       },
     },
     // Post-quiz filters on the results page. `app` starts unset — it's a

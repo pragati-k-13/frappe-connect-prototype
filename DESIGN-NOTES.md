@@ -389,15 +389,94 @@ ink. The gap under the title is `margin-bottom: 16px` on frappe-ui's own header 
 reached as `div:has(+ .fc-estimate)` — the previous-sibling selector CSS otherwise doesn't
 have, the same trick the partner row's divider suppression uses.
 
-⚠️ **500px isn't a `size` step.** `Dialog`'s `size` is an enum of Tailwind `max-w-*`
+⚠️ **440px isn't a `size` step.** `Dialog`'s `size` is an enum of Tailwind `max-w-*`
 values — `lg` is 512px, `xl` is 576px — and the panel takes no class of ours. So the hook
 is a marker _inside_ the panel: `.dialog-content:has(.fc-estimate)` in `index.css` sets the
 width of only this dialog, and every other one keeps its `size` prop.
+
+**440, down from 500.** The panel is two columns of short text over a stack of
+label/figure pairs; the extra 60px was landing entirely in the gap down the middle of each
+row, which is the one place in a two-column table where space does no work — it pushes the
+figure away from the thing it belongs to.
+
+⚠️ Four things set the floor, measured against 400px of content, and the **title is the
+binding one**: 297px plus the close button's 28. It must not wrap — the two-line title is
+the problem the current wording was written to solve, and unlike everything below it there
+is no truncation to fall back on. Then: the widest totals line, always a partner's name in
+a possessive — "Greycube Technologies' hourly rate" at ~250 plus up to 40 for the figure;
+the action's own 260px label; and only then the widest row, at 245 (tick 14 + mark 16 + two
+8px gaps + "Manufacturing" at 99, then 16 of gutter and "Estimated hrs" at 84).
+
+The row used to be the binding constraint, at 292, on the strength of "Attendance and
+leave" — a module of the former separate Frappe HR catalogue, which the estimator no longer
+carries. So there is now real headroom below 440 if it's wanted; ~365 is where the title
+starts to crowd the ×.
+
+#### ⚠️⚠️ Frappe HR and ERPNext's HR module are two different things
+
+Frappe HR is a separate app: its own entry in `APPS`, listed by nine of the thirteen
+partners, with its own 30-hour starter pack in `STARTER_PACKS`. ERPNext also has an HR
+module, and that is the `hr` row the estimator shows. **They are not two names for one
+thing and neither substitutes for the other.** Any copy, filter or estimate that treats
+them as interchangeable is wrong.
+
+What the estimator's catalogue holds is ERPNext's HR module. It does **not** break Frappe
+HR down into modules of its own — a deliberate scope decision about this panel, not a claim
+that the app is covered by the ERPNext module. A partner selling a Frappe HR implementation
+is selling something this panel currently doesn't price, and the pack table on `/connect`
+still sells it.
+
+⚠️ **The `hr` task list is inherited and shouldn't stay that way.** Its eight tasks are the
+whole of what used to be the separate `frappe-hr` catalogue, moved across unchanged, so the
+move invented no numbers and dropped none — but they were written for the _app_. A first
+parallel payroll run and a biometric device import are full-HRMS work, not what ERPNext's
+HR module asks for. Rewrite them to that module's scope before anyone treats the 25 hours
+as real. Nothing renders them today — they only derive `hours` — which is why this is a
+warning and not a bug.
+
+⚠️ One consequence of HR living under ERPNext: **it reaches every partner.** The panel only
+shows modules whose app the partner implements; all thirteen do ERPNext, where four don't
+do Frappe HR. Those four now quote ERPNext HR work, which is right — it's ERPNext, and they
+do ERPNext — but it is a change in who sees an HR line.
 
 The title is the **`title` prop**, not the `#title` slot. The slot existed only to push the
 heading to 3xl; at 2xl that is exactly what the prop already renders (`text-2xl-semibold`),
 so the override earned nothing and is gone. The panel's × is the only close affordance,
 which is why the footer holds one full-width action instead of a Close beside it.
+
+**Below that action, a second one: "What's in a starter pack?"** It's the question the
+panel provokes and never answers — the rows are the visitor's project, a pack is a fixed
+scope the partner sells, and the two get compared on this screen constantly without the
+second ever being spelled out. The comparison table on `/connect` spells it out, so the
+link points there rather than restating it inside a modal.
+
+**Full width and `subtle`**, matching the primary's footprint exactly (both 400 × 28) so
+the two read as a stacked pair rather than an action with a footnote. With the width no
+longer separating them, the variant is what does: solid carries the action, subtle carries
+the aside. It was a centred ghost first, and ghost is too quiet at full width — a
+full-width control with no fill is a large area of nothing, and the label floats in the
+middle of it attached to nothing.
+
+⚠️ **It opens in a new tab**, via frappe-ui's `link` prop (which renders an
+`<a target="_blank" rel="noreferrer noopener">`; `route` would be the same-tab RouterLink).
+Deliberate: the ticks above are a tuned estimate that closing the panel throws away by
+design, and losing it to a definition lookup is a different thing from losing it to "I'm
+done" — reading what a pack contains is the question you ask _while_ deciding. The href is
+`router.resolve(...)`d rather than written out, so it carries `BASE_URL`; under GitHub
+Pages the app lives at /frappe-connect-prototype/ and a literal `/connect#starter-packs`
+would 404.
+
+⚠️ **The hash needed a router fix, and not the obvious one.** `scrollBehavior` returning
+`{ el: to.hash }` is a **no-op in this app**: Vue Router resolves that to a position and
+applies it with `window.scrollTo`, and the window doesn't scroll here — `ConnectShell` puts
+the page inside a `ScrollArea`, so the document is exactly viewport-height and every pixel
+of scrolling belongs to a div. Measured: `documentElement.scrollHeight === clientHeight`.
+It now calls `scrollIntoView()` on the element instead, which walks up and moves whichever
+ancestor actually holds the overflow, and resolves `false` so the router doesn't also try.
+Two `requestAnimationFrame`s deep, because a cold load — which is what a new tab is — has
+to wait for the lazily-imported route component to be in the DOM. The target is
+`#starter-packs` on the landing page's packs section; renaming that id breaks the link
+silently, since the page still loads, just at the top.
 
 **A total above the partner's own pack range is not a bug.** Greycube's card advertises
 "40 hrs" because it sells one 40-hour pack; the estimate says 63 because that's the
@@ -405,33 +484,40 @@ visitor's scope. A pack is a fixed-scope product; an estimate is your actual pro
 
 **Module hours are derived, never stored** — `moduleHours()` sums a module's tasks. A
 module carrying its own `hours` beside a task list is two numbers claiming the same thing,
-and the drill-down is exactly where they'd be seen disagreeing. Verified: zero mismatches
+and nothing would keep the stored one honest as the list changed. Verified: zero mismatches
 across every module in every app, and the printed total equals the sum of the printed rows.
 
-**The drill-down is a second step, not an expander** — clicking a module swaps the body for
-a real `<table>` of its tasks. The header of that step is a back button, the app mark and
-the module name on one line: going back, which app you're in and which module you're
-looking at are one thought. The back button is icon-only — beside the name it reads as
-"back from this", and a label would push the name off the line at this width. `-ml-1.5` on
-the row puts the chevron's own ink, not its 28px hit area, on the column edge the table
-below starts from, and `gap-1` closes the rest of the distance to the title — measured, the
-glyph's left edge sits exactly on the panel's 20px content edge.
-Not frappe-ui's `list` family: that's a separate import subpath with its own stylesheet, a
-lot of ceremony for four rows, and nothing else in `src/` uses it. frappe-ui has no
-Accordion or Collapsible at all; reka-ui does, but a second step was the chosen
-interaction.
+⚠️ **The panel is ONE LEVEL.** It used to drill from a module into a second step listing
+that module's tasks, with a back button, and the row carried a `# of tasks` count whose job
+was to advertise that there was something underneath. Both are gone. What the panel is for
+is the figure at the foot of it and the message that follows: a task list is the partner's
+to write, and a count of tasks is not a number anyone compares rows on — it says how the
+estimator is assembled, not what the work is. The module breakdown stays, because that says
+what the hours are _for_.
 
-The module's own figure there is labelled **"Module total"**, not "Total" — the persistent
-footer below is showing a total too, of the whole estimate, and two unlabelled totals on
-one screen is the confusion worth spending a word on.
+⚠️ `tasks` still exists in `data/modules.js` and is **no longer rendered anywhere**. It
+stays because it is what derives `hours` — swapping each list for a hand-written
+`hours: 12` would turn a figure with a rationale into a magic number, and the rationale is
+what a real catalogue gets reviewed against.
+
+⚠️ **No CRM modules.** Starter packs — the standard, fixed-scope implementation this panel
+prices — are ERP work, so a CRM row here was quoting something the packs don't sell. The
+removal is entirely in `data/modules.js`; `modulesFor()` returns nothing for an app with no
+catalogue entry, so a project still listing CRM modules contributes zero hours rather than
+erroring. The seeded project in `stores/connect.js` dropped its CRM entry too, since a seed
+that contributes nothing reads as a bug rather than as scope.
 
 #### The table, the marks and the pinned footer
 
-**Step one is a table, not a list.** Module, `# of tasks`, `Estimated hrs` — three aligned
-figures per row, which is the comparison someone scanning an estimate is actually making.
+**A table, not a list.** Module and `Estimated hrs` — the figures align down the column,
+which is the comparison someone scanning an estimate is actually making.
 The app is a 16px mark in the first column rather than a subhead above a group: grouping
 spent a whole row saying what the mark now says inline, and the list is flat and sortable
-by eye.
+by eye. ⚠️ With the seeded project down to a single app, every mark in the panel is
+currently the same ERPNext glyph, so the column carries no information at all right now.
+It stays because the seed is explicitly a placeholder — the mark earns its keep the moment
+a project spans two apps, which is the case a module picker will produce — but if the
+estimator ships against single-app projects only, this column is the first thing to cut.
 
 **The first column is headed "Modules in your project", not "Module".** Without an owner
 the column reads equally well as _the modules this partner implements_, which makes "so
@@ -445,9 +531,19 @@ reads far more like one of the partner's packages than like their own thing. The
 rule: don't surface a generated name anywhere it could be mistaken for something the user
 picked.
 
-⚠️ And deliberately **no count**. The project holds nine modules; Tridots' table shows the
-seven whose apps they implement. A number in the header would sit above a visibly shorter
-list, which resurrects the audit question in a worse form — now with arithmetic attached.
+⚠️ And deliberately **no count _of the project_**. A number claiming how many modules the
+project holds would sit above a list that is often visibly shorter than it, which
+resurrects the audit question in a worse form — now with arithmetic attached. ⚠️ It doesn't
+today, and only by accident: the seeded project is six ERPNext modules and all thirteen
+partners implement ERPNext, so nothing is currently filtered out for anybody. The filter is
+still right and still live — a project with Helpdesk in it would drop rows for the partners
+who don't do Helpdesk — but every row in the panel as it stands is shown to every partner.
+
+**There _is_ a count of what's ticked — `Modules selected · 4 of 6` — but it lives in the
+totals block, not up here.** It's a different animal from the rejected one: both its
+numbers are visible in the list right above it, so it asserts nothing the reader can't
+check. The rejected count would have been a claim about scope; this is feedback on your own
+last click. See _The pinned footer_ below.
 
 This was the third answer to the same problem. The first two were a line under the list
 ("also implements 4 more modules outside your project") and a line under the title naming
@@ -457,21 +553,117 @@ no Helpdesk in it at all. The second surfaces a name the user was given rather t
 Both were trying to add information; the actual defect was that the existing information had
 no owner.
 
-**No chevron on the rows.** The fill and the pointer are the affordance; a caret appearing
-on hover was a second one saying the same thing, and it shifted the module name every time
-the cursor crossed a row.
+#### Including and excluding rows
 
-**A hovered row swallows the rules either side of it**, so the fill reads as one block
-rather than a tinted band between two lines — the same effect as the partner listing. The
-rule sits on each row's _top_ edge, so "the rule below row N" is row N+1's, which is what
-`[&:hover+tr]` reaches. The header's own rule stays: it marks where the header ends, not
-where a row does.
+**Every row carries a tick and every row starts ticked.** The scope being priced is the
+visitor's whole project, so the useful edit is "we're not doing that yet", made row by row
+with the total moving underneath. frappe-ui's `Checkbox` at its own `sm` (14px), not a
+14px box of ours.
 
-⚠️ Those rules are per-row `border-t`, **not `divide-y` on the tbody**, and the difference is
-specificity. `divide-y`'s colour lands via `.divide-… > :not([hidden]) ~ :not([hidden])`,
-which carries three class-level components — enough to outrank any reasonable hover
-selector, so an `index.css` rule for this changed nothing at all. Measured: `borderTopColor`
-identical hovered and not. On the row itself the hover variant outranks the base.
+**A select-all sits in the header cell**, aligned with the ticks beneath it — in the cell,
+not in a column of its own, for the same reason the row ticks aren't: a third column would
+be 14px of content and a lifetime of alignment. It has all three states, with
+`indeterminate` driven by the prop rather than markup, because the native one is a DOM
+property with no HTML attribute behind it.
+
+⚠️ Clicking it half-selected goes to **all**, not to none, and that falls out of using the
+native `checked` the control hands back: a click on an indeterminate box reports `true`.
+That's also the right direction — someone reaching for a half-filled box means "give me
+everything" far more often than "clear it". Clearing is then the one move that starts from
+all-ticked. `aria-label` on the control rather than wiring the column title up as its
+label: the title says what the column holds, and a heading that toggles every row when
+clicked is a surprise nobody asked for.
+
+⚠️ The state is a set of **excluded** keys, not included ones, and the inversion is what
+makes "on by default" hold. `rows` is derived — the project crossed with the apps this
+partner implements — so it isn't a fixed list. An included-set would need seeding, then
+re-seeding whenever that derivation changed, and any row it hadn't heard of would price at
+zero without saying so. An excluded-set starts empty, so anything new counts.
+
+**The row key is defined once**, on the row itself, and does three jobs: `v-for`'s key,
+the exclusion set's member, and the checkbox's `id`. Three separately-built strings that
+had to agree would be three quiet bugs.
+
+**The whole row toggles**, via `after:absolute after:inset-0` on the module name's
+`<label>` against a `relative` row — the same stretched-target pattern as the partner
+listing, and the reason `AppLogo` carries `z-10` (see below). ⚠️ `truncate` can't go on
+that label: `overflow: hidden` clips the very pseudo-element doing the stretching. It goes
+on a span inside, which is why there are two elements where one would do.
+
+**No row fill, though**, even though the row is a target. A fill wants to sit clear of the
+text, which is exactly what the table's old 12px bleed paid for — and the bleed is what had
+to go for the rules to line up with the rest of the panel.
+
+⚠️ **And no hover state reaching into the tick box either.** There was one —
+`[&:hover_input]:border-outline-gray-5`, the same token frappe-ui's own `hover:` uses, just
+fired from the row rather than the control. It's gone deliberately: a class of ours
+selecting an element _inside_ a frappe-ui component is a styling contract the component
+never offered, and it breaks silently the day that input stops being an `input`. The
+general rule — reach a component through its props, or don't reach it. `Checkbox` is used
+exactly as shipped, at its default `sm`, with `indeterminate` for the header's tri-state.
+
+⚠️⚠️ **Deleting it took two goes, and the second one generalises.** Removing the class from
+the row left the rule in the production stylesheet, because the commit had also written the
+class name into a comment _explaining_ the removal — and **Tailwind's content scanner is a
+regex over raw file text.** It doesn't parse, so it can't tell markup from a comment, a
+string, or a variable name. A utility quoted anywhere in a scanned file is a utility that
+gets emitted. Never name a removed class inside `content` (here: `index.html`,
+`src/**/*.{vue,js,ts}`, and frappe-ui's own `src`). This file isn't scanned, which is why
+the name can be written out above. Verified by grepping the built CSS, not the source.
+
+The pointer is the hover affordance, and it's enough: the state itself is carried three
+times over the moment you click, by the tick, the greyed label and the muted app mark.
+
+**An excluded row keeps its figure and drops two steps of ink** (ink-7 → ink-4, on both the
+name and the hours). Removing the number would make the row look broken; leaving it at full
+strength states that it's part of the sum directly underneath, which it isn't.
+
+**The app mark dims with it** — `AppLogo`'s `muted` prop, `grayscale` plus `opacity-45`.
+Dimming only the text left a saturated 16px mark as the loudest thing in the row, which is
+precisely backwards: that row is the one that no longer counts. It takes both treatments
+because they answer different halves of it — the filter removes the colour so the mark
+stops being the only saturated thing in a grey row, the opacity drops the contrast so what
+remains sits at about the weight of the ink-4 text. Either alone is still loud: a faded
+blue, or a solid grey block.
+
+⚠️ **The treatment goes on the `Avatar`, never on a wrapper around it**, and that's a
+stacking-context problem rather than a styling preference. `filter` makes an element a
+stacking context painted as if `z-index: 0`, so a filtered wrapper traps the mark's `z-10`
+inside it — and the row's stretched `after` overlay, a positioned sibling later in tree
+order, then paints back over the mark. The tooltip would stop opening on exactly the
+unchecked rows. On the Avatar itself the filter's context sits at z-10 and clears the
+overlay as before. Verified with `elementFromPoint` on checked and unchecked rows, and by
+hovering one: the mark is still the hit target, and the tooltip still opens.
+
+**Reopening gives a whole estimate again.** Unticking is a "what if", not a saved
+preference — nothing here persists — and a panel that came back holding a smaller number
+than the card that opened it, for a reason set minutes ago, is a figure the visitor would
+have to reconstruct. The reset runs 200ms after close so the ticks don't visibly repopulate
+on the way out.
+
+#### The rules, and where they stop
+
+⚠️ **The table sits inside the panel's content box**, and the row rules therefore start and
+end exactly where the totals, the action and the header text do. This is a change: the
+table used to bleed `-mx-3` and the outer cells paid it back as `first:pl-3 last:pr-3`, so
+the text landed correctly but every rule ran 12px past it into the panel's 20px margin. The
+outermost cell padding is now zeroed (`first:pl-0 last:pr-0`) and the bleed is gone. What
+the bleed bought was room for a hover fill; there is no fill, so it bought nothing.
+
+⚠️ **The scrollbar had to be moved out by hand.** frappe-ui's `ScrollArea` overlays a 10px
+bar at the viewport's right edge, and with the bleed gone that edge is the content edge —
+measured, the bar sat on top of the last 10px of every hours figure while scrolling.
+`-mr-2.5` on the root against `pr-2.5` on the viewport grows the scroller 10px to the right
+and gives the 10px straight back as padding: the table still ends on the content edge, the
+bar rides in the panel's margin.
+
+The rules are plain `divide-y` on the tbody. ⚠️ They were previously per-row `border-t`,
+and the reason is worth keeping in case a fill ever comes back: a hovered row has to
+swallow the rules either side of it so the fill reads as one block rather than a tinted
+band between two lines, and `divide-y`'s colour lands via
+`.divide-… > :not([hidden]) ~ :not([hidden])` — three class-level components, enough to
+outrank any reasonable hover variant, so the borders simply never changed. Measured at the
+time: `borderTopColor` identical hovered and not.
 
 **The app marks are the real ones**, taken from the product cards on frappe.io/products and
 committed to `src/assets/apps/` — see the table in that folder's README for the four files
@@ -487,13 +679,14 @@ nothing.
 
 ⚠️ **`AppLogo` carries `relative z-10`, and it's load-bearing twice over.**
 
-- The rows are made clickable by a stretched `after:absolute after:inset-0` on the module
-  button, which otherwise covers the mark completely — the cursor never reaches it, so the
-  tooltip never opens. This was silently broken until it was measured with
-  `elementFromPoint`. Raising the mark costs it its share of the row's click target, which
-  is the right trade: the mark is a label, the module name beside it is the thing to click.
-- Because the mark is now a positioned, stacked element, the sticky header has to out-rank
-  it. Hence `z-20` on the `th`.
+- Wherever a row is made clickable by a stretched `after:absolute after:inset-0` — the
+  partner listing's name link, and the estimator's module label — that overlay otherwise
+  covers the mark completely: the cursor never reaches it, so the tooltip never opens. This
+  was silently broken until it was measured with `elementFromPoint`. Raising the mark costs
+  it its share of the row's target, which is the right trade: the mark is a label, the name
+  beside it is the thing to click.
+- Because the mark is a positioned, stacked element, the sticky header has to out-rank it.
+  Hence `z-20` on the `th`.
 
 ⚠️ **Three separate things a sticky table header needs**, each found by watching a row
 scroll straight through it:
@@ -551,14 +744,36 @@ quote. Even spacing in a list of mixed type sizes is even baselines, not even ma
 17px, so centring them sits the two on different baselines by about a pixel. The rows above
 have one type size and don't care.
 
-**The totals block is step one only.** In the drill-down those figures are about the whole
-estimate while everything above them is about one module, and the module's own total is
-right there. The action stays on both steps.
+**"Modules selected" is the block's first line**, and going first is the whole reason it
+can sit here at all: hours × rate = quote is a chain of arithmetic, and a module count is
+not a term in it. In front of the chain it reads as the premise — what's in scope, then how
+many hours that is, then at what rate, then the price. Anywhere inside it, it's an
+interruption.
+
+The table header was the other candidate and the cheaper one, since a header costs no
+height and height is what keeps this footer on screen. This won anyway: the totals are
+where the eye goes after a tick, because they're where the consequence lands, and a figure
+that reports on your last click belongs beside the other figures that move when you make
+it. ⚠️ The block is a row taller as a result, so the list's `100vh - 440px` was re-measured
+— 440 is now exact rather than ~27px conservative (296 of panel chrome, 72 of margin top
+and bottom, at 560 and 660 viewport heights). Another line down here means checking it
+again.
+
+**"Total estimated hours"**, matching the column it sums. "Total hours" read as a fact
+about the project; every figure in the panel is an estimate, and the line that adds the
+others up shouldn't be the one that drops the word. It counts ticked rows only, so with
+everything unticked the panel reads 0 hrs / $0 — which is honest, and the action stays live
+because messaging a partner is still a reasonable thing to do from there.
+
+**The totals block is always shown**, now that there is only one view for it to be shown
+in. It used to be suppressed in the drill-down, where its figures were about the whole
+estimate while everything above them was about a single module.
 
 **A fade over the bottom of the list**, because a capped list clips a row through the middle
 of a line. It's `v-show` state driven by a `@scroll.capture` handler and re-measured after
 open and after a drill-down, not a permanent gradient: a fade still sitting over the last
-row once you've scrolled to the end is dimming content that has nothing after it.
+row once you've scrolled to the end is dimming content that has nothing after it. The
+re-measure runs on open, which is the only point the body is (re)built now.
 
 ⚠️ `to-surface-elevation-1` **is a dead class** — the `surface-*` tokens aren't in the
 gradient palette, so `bg-gradient-to-b from-transparent to-surface-elevation-1` compiles to
@@ -566,21 +781,21 @@ gradient palette, so `bg-gradient-to-b from-transparent to-surface-elevation-1` 
 `bg-[linear-gradient(to_bottom,transparent,var(--surface-elevation-1))]`.
 
 **Table metrics** are a spec, so they're named once in the component: a cell carries 8px
-left/right and 6px top/bottom, a row a further 4px left/right and 2px top/bottom. A `<tr>`
-can't take padding — CSS tables ignore it — so the row's share is folded into the cells:
-every cell gets the extra 2px vertically, the outermost cell on each side the extra 4px
-horizontally. Headers are `sm` regular in ink-5; module names are medium in ink-7; the two
+left/right and 6px top/bottom, plus the 2px per side a `<tr>` would carry if CSS tables
+didn't ignore padding on a row. The outermost edges are zeroed — see _The rules, and where
+they stop_ above for why. Headers are `sm` regular in ink-5; module names are medium in ink-7; the two
 inputs the total is made of (hours, rate) are medium, so they stop reading as a caption
 under it.
 
-The count column carries an extra `pr-6`. With an auto table it hugs the hours column, and
-two right-aligned numerals 40px apart read as one field. The space goes on the count rather
-than as a column width so the hours stay pinned to the table's edge.
+**The action is about the estimate, not about a quote still to come** — "Contact partner
+with this estimate", with a message glyph. It says what pressing it does (opens a message),
+who it reaches (the partner), and what you're bringing (the thing you just built).
 
-**The action names its own mechanism** — "Message partner for a final quote", with a
-message glyph. It says what pressing it does (sends a message), who it reaches (the
-partner), and why (to get the real quote) — which is also where the removed disclaimer's
-information ended up, at the moment it matters rather than as a banner at the top.
+⚠️ It read "Message partner for a final quote" first, and that framing was backwards. It
+made everything above it a placeholder for a real number arriving later — the panel's own
+work provisional, and the reason to press the button being to go and get the actual answer
+somewhere else. The figure above **is** the thing. The button carries it into a
+conversation with the partner who'd deliver it.
 
 ⚠️ **Gated later.** The estimator is meant for people who have created a project, since
 that's where the scope comes from. `store.hasProject` is live and already true for the demo
@@ -762,7 +977,7 @@ left to explain why.
 **Gated today:** the top bar's own "Log in or create account", Contact and Save
 on the profile, and Save on every listing row. **Not gated:** "Write a review",
 which needs a _completed project_ rather than an account — a different gate,
-noted below — and the estimate modal's "Message partner", which sits behind a
+noted below — and the estimate modal's "Contact partner", which sits behind a
 modal that is itself meant to be gated on `store.hasProject`, so you can't reach
 it signed out in the first place.
 

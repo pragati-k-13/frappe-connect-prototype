@@ -30,5 +30,31 @@ export default createRouter({
   // prefix as part of the route and match nothing. It resolves to '/' locally.
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
-  scrollBehavior: () => ({ top: 0 }),
+  // Top of the page on every navigation, EXCEPT one carrying a hash — the
+  // estimate modal links to `/connect#starter-packs`, and without this the
+  // router lands on the page and leaves the reader at the top of it.
+  //
+  // ⚠️ NOT `return { el: to.hash }`. Vue Router resolves that to a position and
+  // applies it with `window.scrollTo`, and the window doesn't scroll in this
+  // app: `ConnectShell` puts the page inside a `ScrollArea`, so the document is
+  // exactly viewport-height and every pixel of scrolling belongs to a div.
+  // Measured — `document.documentElement.scrollHeight === clientHeight`, and
+  // the router's own scroll was a silent no-op. `scrollIntoView` walks up and
+  // moves whichever ancestor actually holds the overflow, so it's the one that
+  // works here; resolving `false` tells the router not to try as well.
+  //
+  // Two frames, not one: on a cold load — which is what the modal's link does,
+  // since it opens a new tab — the route component is lazily imported, and its
+  // section isn't in the DOM when the first frame runs.
+  scrollBehavior: (to) => {
+    if (!to.hash) return { top: 0 }
+    return new Promise((resolve) => {
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          document.querySelector(to.hash)?.scrollIntoView()
+          resolve(false)
+        }),
+      )
+    })
+  },
 })

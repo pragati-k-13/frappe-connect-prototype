@@ -149,12 +149,37 @@
 }
 
 /* `Dialog`'s `size` prop is an enum of Tailwind `max-w-*` steps — `xl` is
-   576px, `2xl` is 672px, and neither is the 500px this modal wants. The panel
+   576px, `2xl` is 672px, and neither is the width this modal wants. The panel
    carries frappe-ui's own `dialog-content` class but takes no class of ours,
    so the hook is a marker INSIDE the panel: only a dialog containing
-   `.fc-estimate` is widened, and every other dialog keeps its `size` prop. */
+   `.fc-estimate` is sized here, and every other dialog keeps its `size` prop.
+
+   440px, down from 500. The panel is two columns of short text and a stack of
+   label/figure pairs; at 500 the extra 60px landed entirely in the gap down
+   the middle of each row, which is the one place in a two-column table where
+   space does no work — it pushes the figure away from the thing it belongs to.
+
+   ⚠️ Four things set the floor, and they're worth naming before anyone takes
+   this lower. Content is width minus the 20px padding each side, so 440 gives
+   400 to work with:
+
+     - the title, 297px, plus the close button's 28. This is the BINDING one,
+       and the only one with no fallback: it must not wrap — the two-line title
+       is the problem the current wording was written to solve — where every
+       other line here either truncates or has slack
+     - the widest totals line, which is the partner's name in a possessive:
+       "Greycube Technologies' hourly rate" is ~250px, and the figure beside it
+       up to 40
+     - the action's own label at 260px, which it can't shrink below
+     - the widest row: tick 14 + mark 16 + two 8px gaps + "Manufacturing" at
+       99, then 16px of cell gutter and "Estimated hrs" at 84 — 245
+
+   The row used to be the binding constraint at 292, on the strength of
+   "Attendance and leave"; that's a Frappe HR module, and Frappe HR is no
+   longer broken out separately (see `data/modules.js`). So 440 now has real
+   headroom — around 365 is where the title starts to crowd the ×. */
 .dialog-content:has(.fc-estimate) {
-  max-width: 500px;
+  max-width: 440px;
 }
 
 /* The panel's own padding, for the same reason as the width: frappe-ui's Dialog

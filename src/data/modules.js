@@ -11,16 +11,59 @@
 // It's invented but not arbitrary. Two constraints hold it together:
 //
 //   1. A module has no `hours` of its own. Its hours are the sum of its tasks
-//      (`moduleHours`), so the drill-down can never disagree with the row that
-//      opened it. That is the one invariant worth testing.
-//   2. ERPNext's modules sum to 63 hours, and its core four (Finance, Sales,
+//      (`moduleHours`), so no figure in the file is a bare assertion — every
+//      one of them is answerable with "made of what?". That is the one
+//      invariant worth testing.
+//   2. ERPNext's modules sum to 88 hours, and its core four (Finance, Sales,
 //      Purchase, Inventory) to 39 — near the 40 that `core-erpnext` already
 //      advertises in `STARTER_PACKS`. The estimator and the pack table read as
 //      the same universe rather than two unrelated inventions.
 //
-// Task names are the shape of real implementation work — "Opening balances",
-// "Statutory setup" — rather than filler, because the point of the drill-down
-// is to show that the number has something under it.
+// ⚠️ `tasks` IS NO LONGER RENDERED. The estimator used to drill from a module
+// into its task list; it is one level now, so the only thing tasks do today is
+// derive `hours`. They stay because that derivation is the point of constraint
+// 1 — replacing each list with a hand-written `hours: 12` would turn a figure
+// with a rationale into a magic number, and the rationale is what a real
+// catalogue would be reviewed against. Task names are the shape of real
+// implementation work — "Opening balances", "Statutory setup" — for the same
+// reason.
+//
+// ⚠️ NO CRM. Starter packs — the standard, fixed-scope implementation this
+// modal prices — are ERP work, so the CRM modules that used to sit here were
+// quoting something the packs don't sell. Removing them here is the whole
+// removal: `modulesFor` returns nothing for an app with no entry, so a project
+// that still lists CRM modules contributes zero hours rather than erroring.
+//
+// ⚠️⚠️ FRAPPE HR AND ERPNEXT'S HR MODULE ARE TWO DIFFERENT THINGS. Frappe HR
+// is a separate app — its own entry in `APPS`, listed by nine of the thirteen
+// partners, with its own starter pack in `STARTER_PACKS`. ERPNext also has an
+// HR module, which is the `hr` entry in the ERPNext list below. They are not
+// two names for one thing and neither one substitutes for the other. Any
+// future copy, filter or estimate that treats them as interchangeable is
+// wrong, and this file is exactly where that mistake would get made, because
+// it is the one place both could appear as top-level keys.
+//
+// What this catalogue holds is ERPNext's HR module. It does NOT break Frappe
+// HR down into modules of its own — a deliberate scope decision about the
+// estimator, not a claim that the app is covered by the ERPNext module. A
+// partner who sells a Frappe HR implementation is selling something this panel
+// currently doesn't price.
+//
+// ⚠️ TASK LIST INHERITED, AND IT SHOULDN'T STAY THAT WAY. The eight tasks on
+// `hr` below are the whole of what used to be the separate `frappe-hr`
+// catalogue (Payroll, Attendance and leave, Onboarding), moved across
+// unchanged — same labels, same hours, same 25-hour sum, so the move invented
+// no numbers and dropped none. But they were written for the APP: a first
+// parallel payroll run and a biometric device import are full-HRMS work, not
+// what ERPNext's HR module asks for. Rewrite them to that module's actual
+// scope before anyone treats the 25 as real. Nothing renders them today — they
+// only derive `hours` — which is why this is a warning and not a bug.
+//
+// ⚠️ One consequence of HR living under ERPNext: it now reaches every partner.
+// The panel only shows modules whose app the partner implements, and all
+// thirteen do ERPNext, where four of them don't do Frappe HR. Those four now
+// quote ERPNext HR work, which is right — it's ERPNext, and they do ERPNext —
+// but it IS a change in who sees an HR line.
 
 // Keys match `APPS[].value` in `data/partners.js`. An app absent here simply
 // contributes nothing to an estimate.
@@ -72,58 +115,20 @@ export const MODULES = {
         { label: 'Capacity and shop floor planning', hours: 8 },
       ],
     },
-  ],
-
-  crm: [
+    // ⚠️ ERPNext's HR module — NOT the Frappe HR app, which is a separate and
+    // different product that this catalogue doesn't break down at all. See the
+    // ⚠️⚠️ at the top of the file, including why these eight tasks are on
+    // borrowed time: they were written for the app, not for this module.
     {
-      key: 'deals',
-      label: 'Deals',
-      tasks: [
-        { label: 'Pipeline stages and probabilities', hours: 3 },
-        { label: 'Lead sources and assignment rules', hours: 3 },
-      ],
-    },
-    {
-      key: 'contacts',
-      label: 'Contacts',
-      tasks: [
-        { label: 'Import and de-duplication', hours: 2 },
-        { label: 'Organisation linking', hours: 2 },
-      ],
-    },
-    {
-      key: 'email',
-      label: 'Email and templates',
-      tasks: [
-        { label: 'Mailbox connection', hours: 2 },
-        { label: 'Outbound templates', hours: 3 },
-      ],
-    },
-  ],
-
-  'frappe-hr': [
-    {
-      key: 'payroll',
-      label: 'Payroll',
+      key: 'hr',
+      label: 'HR',
       tasks: [
         { label: 'Salary structures', hours: 5 },
         { label: 'Statutory setup', hours: 4 },
         { label: 'First parallel payroll run', hours: 3 },
-      ],
-    },
-    {
-      key: 'attendance',
-      label: 'Attendance and leave',
-      tasks: [
         { label: 'Shift and holiday setup', hours: 3 },
         { label: 'Leave policies and balances', hours: 3 },
         { label: 'Biometric device import', hours: 2 },
-      ],
-    },
-    {
-      key: 'onboarding',
-      label: 'Onboarding',
-      tasks: [
         { label: 'Employee lifecycle templates', hours: 3 },
         { label: 'Document checklists', hours: 2 },
       ],
@@ -159,8 +164,8 @@ export const MODULES = {
 }
 
 // Derived, never stored. A module carrying its own `hours` alongside a task
-// list is two numbers claiming the same thing, and the drill-down is exactly
-// where they'd be seen disagreeing.
+// list is two numbers claiming the same thing, and nothing would keep the
+// stored one honest as the list changed.
 export const moduleHours = (module) => module.tasks.reduce((n, t) => n + t.hours, 0)
 
 // The selected modules for one app, in catalogue order rather than selection

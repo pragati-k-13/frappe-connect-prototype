@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
-import { Button, Dialog, ScrollArea } from 'frappe-ui'
+import { useRouter } from 'vue-router'
+import { Button, Checkbox, Dialog, ScrollArea } from 'frappe-ui'
 // Reached for directly because frappe-ui's `Dialog` renders `message` only as
 // the FALLBACK content of its default slot — so any dialog with a body of its
 // own loses the description, and the underlying primitive then warns that
@@ -22,7 +23,20 @@ import { useConnectStore } from '../stores/connect'
 // "Custom solutions" card next to it, and that one goes straight to a
 // conversation with no figure attached.
 //
-// ⚠️ The module and task breakdown is invented — see `data/modules.js`.
+// ONE LEVEL, deliberately. The panel used to drill from a module into its
+// tasks, and the row carried a `# of tasks` count to advertise that there was
+// something underneath. Both are gone. What this panel is for is the figure at
+// the foot of it and the message that follows — a task list is the partner's
+// job to write, and a count of tasks is a number nobody is comparing rows on.
+// The module breakdown stays because it says what the hours are FOR; the level
+// below it only said how the estimator happens to be assembled.
+//
+// Every row carries a checkbox and every row starts on. The estimate is a
+// figure someone is about to take to a partner, and the scope it prices is the
+// visitor's whole project — so the useful edit is "we're not doing that yet",
+// made row by row, with the total moving as they go.
+//
+// ⚠️ The module and hour breakdown is invented — see `data/modules.js`.
 const props = defineProps({
   open: { type: Boolean, default: false },
   partner: { type: Object, required: true },
@@ -31,15 +45,28 @@ const emit = defineEmits(['close'])
 
 const store = useConnectStore()
 
+// Resolved through the router rather than written as a literal, so the href
+// carries `BASE_URL` — under GitHub Pages the app lives at
+// /frappe-connect-prototype/, and a hand-written "/connect#starter-packs"
+// would 404 there. Computed once: neither the route nor the base moves.
+const router = useRouter()
+const packsHref = router.resolve({ name: 'connect', hash: '#starter-packs' }).href
+
 // Table metrics, spelled out once because they're a spec rather than a taste.
 //
-// A cell carries 8px left/right and 6px top/bottom. A row carries a further 4px
-// left/right and 2px top/bottom — and since a `<tr>` can't take padding (CSS
-// tables ignore it), the row's share is folded into the cells: every cell gets
-// the extra 2px vertically, and the outermost cell on each side gets the extra
-// 4px horizontally. The rendered result is what the spec describes; the
-// arithmetic just lives somewhere it can be checked.
-const CELL = 'px-2 py-2 first:pl-3 last:pr-3'
+// A cell carries 8px left/right and 6px top/bottom, plus the 2px per side that
+// a `<tr>` would carry if CSS tables didn't ignore padding on a row.
+//
+// ⚠️ The OUTERMOST edges are zeroed, and the table no longer bleeds out of the
+// panel's 20px padding. Those two facts are one decision: the row rules have to
+// stop where every other element on the panel starts, and a divider can only do
+// that if the table it belongs to ends there too. Previously the table bled
+// 12px each way and the outer cells paid it back as padding — the text landed
+// in the right place, but the rules ran 12px past it into the panel's margin.
+//
+// What the bleed bought was room for a hover fill to sit around the text rather
+// than against it. There is no row fill any more, so it bought nothing.
+const CELL = 'px-2 py-2 first:pl-0 last:pr-0'
 
 // `sticky` and the background go on the `th` cells, not on `thead` or its `tr`:
 // a sticky `thead` positions, but its background doesn't paint, and the rows
@@ -64,7 +91,7 @@ const appLabel = (value) => APPS.find((a) => a.value === value)?.label ?? value
 // Services, Hybrowlabs — and a bare `${name}'s` gave "Greycube Technologies's".
 const possessive = (name) => (name.endsWith('s') ? `${name}'` : `${name}'s`)
 
-// One flat list rather than a group per app: the app is now a mark in the first
+// One flat list rather than a group per app: the app is a mark in the first
 // column, so grouping would spend a subhead row on a fact the row already
 // carries. Catalogue order within an app, apps in project order.
 //
@@ -76,11 +103,53 @@ const rows = computed(() =>
   Object.entries(store.project.modules)
     .filter(([app]) => props.partner.apps.includes(app))
     .flatMap(([app, keys]) =>
-      modulesFor(app, keys).map((module) => ({ app, appLabel: appLabel(app), module })),
+      modulesFor(app, keys).map((module) => ({
+        // One key, defined once: it identifies the row to `v-for`, to the
+        // exclusion set and to the checkbox's `id`, and those three going out
+        // of step would each be a different, quiet bug.
+        key: `${app}-${module.key}`,
+        app,
+        appLabel: appLabel(app),
+        module,
+      })),
     ),
 )
 
-const totalHours = computed(() => rows.value.reduce((n, r) => n + r.module.hours, 0))
+// ⚠️ EXCLUDED, not included — the inversion is the whole reason "on by default"
+// holds. `rows` is derived from the project crossed with what this partner
+// implements, so it isn't a fixed list; an included-set would have to be seeded
+// and then re-seeded every time that derivation changed, and any row it hadn't
+// heard of yet would silently price at zero. An excluded-set defaults to empty,
+// which means everything counts until someone says otherwise.
+const excluded = ref(new Set())
+const isOn = (row) => !excluded.value.has(row.key)
+// A fresh Set rather than mutating in place: Vue 3 does track Set mutations,
+// but only through its reactive proxy, and a `new Set(...)` copy can't be got
+// wrong by a later refactor that unwraps this.
+const toggle = (row, on) => {
+  const next = new Set(excluded.value)
+  if (on) next.delete(row.key)
+  else next.add(row.key)
+  excluded.value = next
+}
+
+const selected = computed(() => rows.value.filter(isOn))
+
+// The header's tick, in the three states a select-all has. `indeterminate` is
+// the middle one — frappe-ui exposes it as a prop because the native
+// `indeterminate` is a DOM property with no HTML attribute behind it, so it
+// can't be set from markup.
+const allOn = computed(() => rows.value.length > 0 && excluded.value.size === 0)
+const someOn = computed(() => selected.value.length > 0 && !allOn.value)
+// The `on` the control hands back is the native one, and native is what we
+// want: a click on an indeterminate box reports `true`, so half-selected goes
+// to all rather than to none — which is the direction someone reaching for a
+// half-filled box means. Clearing is then the one case that starts from all.
+const toggleAll = (on) => {
+  excluded.value = on ? new Set() : new Set(rows.value.map((r) => r.key))
+}
+
+const totalHours = computed(() => selected.value.reduce((n, r) => n + r.module.hours, 0))
 
 // frappe-ui exports no currency formatter — its chart formatters are
 // deliberately unexported because they hardcode a locale. One local instance,
@@ -94,10 +163,6 @@ const money = (n) => usd.format(n)
 
 const total = computed(() => totalHours.value * props.partner.rate)
 
-// `null` is step one. Holding the row itself rather than a key means step two
-// needs no lookup and can't fall out of sync with the row that opened it.
-const drilled = ref(null)
-
 // The list is capped, so on all but the shortest projects it clips a row at the
 // bottom edge — a hard crop through the middle of a line. `fading` drives an
 // overlay that softens it, and it's state rather than a permanent gradient
@@ -109,10 +174,10 @@ const measureFade = () => {
   const el = listWrap.value?.querySelector('[data-slot="scroll-area-viewport"]')
   fading.value = !!el && el.scrollHeight - el.scrollTop - el.clientHeight > 1
 }
-// The body doesn't exist until the dialog opens, and it's replaced wholesale
-// when a module is drilled into, so both need a re-measure after the render.
+// The body doesn't exist until the dialog opens, so the first measure has to
+// wait for that render.
 watch(
-  [() => props.open, drilled],
+  () => props.open,
   () => {
     nextTick(measureFade)
   },
@@ -121,10 +186,15 @@ watch(
 
 const close = () => {
   emit('close')
-  // Reset after the close transition, so the panel doesn't visibly snap back
-  // to step one on the way out.
+  // Reopening gives a whole estimate again. Unticking a module is a "what if",
+  // not a saved preference — nothing here is persisted, and a panel that came
+  // back holding a smaller number than the card that opened it, for a reason
+  // the visitor set minutes ago, is a figure they'd have to reconstruct.
+  //
+  // After the close transition, so the ticks don't visibly repopulate on the
+  // way out. Same 200ms the drill-down reset used.
   setTimeout(() => {
-    drilled.value = null
+    excluded.value = new Set()
   }, 200)
 }
 </script>
@@ -166,95 +236,47 @@ const close = () => {
           Estimated hours and cost to implement your project with {{ partner.name }}.
         </DialogDescription>
 
-        <!-- ── Step two: one module's tasks ────────────────────────────── -->
-        <div v-if="drilled">
-          <!-- Back, mark and module name on one line: going back, where you
-               are, and which app it belongs to are one thought. The button is
-               icon-only — beside the name it reads as "back from this", and a
-               label would push the name off the line at this width. -->
-          <!-- `-ml-1.5` puts the chevron's own ink, not its 28px hit area, on
-               the column edge the table below starts from; `gap-1` then closes
-               the rest of the distance to the title. -->
-          <div class="-ml-1.5 flex items-center gap-1">
-            <Button variant="ghost" aria-label="Back to estimate" @click="drilled = null">
-              <template #icon><LucideChevronLeft class="size-4" /></template>
-            </Button>
-            <AppLogo :app="drilled.app" :label="drilled.appLabel" />
-            <p class="min-w-0 truncate text-base font-medium text-ink-gray-8">
-              {{ drilled.module.label }}
-            </p>
-          </div>
-
-          <!-- A real table: this is tabular data with a header, and the
-               semantics are free. Not frappe-ui's `list` family — a separate
-               import subpath with its own stylesheet, a lot of ceremony for
-               four rows, and nothing else in `src/` uses it.
-
-               `ScrollArea` rather than `overflow-y-auto`: frappe-ui's own
-               overlay scrollbar, which fades in on activity and reserves no
-               gutter, instead of the platform bar sitting permanently down the
-               side of a 500px panel. `-mx-3` cancels the row padding below so
-               the text still lines up with the totals.
-
-               ⚠️ The cap goes on `viewport-class`, NOT on the root. The root is
-               `overflow-hidden` and the viewport is `h-full`, which against a
-               root with only a max-height resolves to auto — so a cap on the
-               root clips the list without ever scrolling it. Capping the
-               viewport is what makes it scroll. -->
-          <div ref="listWrap" class="relative -mx-3 mt-4" @scroll.capture="measureFade">
-            <ScrollArea viewport-class="max-h-[max(120px,min(320px,100vh_-_440px))]">
-              <table class="w-full text-left">
-                <thead>
-                  <tr>
-                    <th :class="HEAD">Task</th>
-                    <th :class="[HEAD, 'text-right']">Estimated hrs</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-outline-gray-1">
-                  <tr v-for="t in drilled.module.tasks" :key="t.label">
-                    <td :class="[CELL, 'text-p-base text-ink-gray-7']">{{ t.label }}</td>
-                    <td :class="[CELL, 'text-right text-p-base tabular-nums text-ink-gray-7']">
-                      {{ t.hours }} hrs
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </ScrollArea>
-            <span
-              v-show="fading"
-              class="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-[linear-gradient(to_bottom,transparent,var(--surface-elevation-1))]"
-              aria-hidden="true"
-            />
-          </div>
-
-          <!-- Named "Module total", not "Total": the persistent footer below is
-               also showing a total, of the whole estimate. Two unlabelled
-               totals on one screen is the confusion worth spending a word on.
-
-               `-mx-3 px-3` matches the table's own bleed, so this rule runs the
-               same width as the dividers above it while the text stays on the
-               same left edge. -->
-          <div
-            class="-mx-3 flex items-center justify-between border-t border-outline-gray-2 px-3 pt-3 text-p-base font-medium text-ink-gray-8"
-          >
-            <span>Module total</span>
-            <span class="tabular-nums">{{ drilled.module.hours }} hrs</span>
-          </div>
-        </div>
-
-        <!-- ── Step one: the estimate ──────────────────────────────────── -->
-        <!-- A table, not a list: three aligned figures per row read down the
+        <!-- A table, not a list: two aligned figures per row read down the
              column, which is the comparison someone scanning an estimate is
              actually making.
 
              ⚠️ The `max-h` is what keeps the footer on screen. It caps the list
              at 340px, and below a certain window height it caps it at whatever
-             is left after the dialog's own chrome (~440px of title, totals,
-             action and margins) so the panel never outgrows the viewport. The
+             is left after the dialog's own chrome (440px of title, totals,
+             action and margins) so the panel never outgrows the viewport.
+             ⚠️ Re-measured after "Modules selected" was added to the totals —
+             the block is a row taller, and 440 is now exact rather than the
+             ~27px conservative it had been: 296 of panel chrome plus 72 of
+             margin top and bottom, checked at 560 and 660 viewport heights.
+             Adding another line down there means re-checking this. The
              120px floor stops it collapsing to nothing on a very short window —
-             past that point the page scrolls, which is the lesser evil. -->
-        <div v-else ref="listWrap" class="relative -mx-3" @scroll.capture="measureFade">
-          <ScrollArea viewport-class="max-h-[max(120px,min(340px,100vh_-_440px))]">
+             past that point the page scrolls, which is the lesser evil.
+
+             `ScrollArea` rather than `overflow-y-auto`: frappe-ui's own overlay
+             scrollbar, which fades in on activity and reserves no gutter,
+             instead of the platform bar sitting permanently down the side of a
+             narrow panel.
+
+             ⚠️ No negative margin. The table sits inside the panel's content
+             box, so its rules start and end exactly where the totals, the
+             action and the header text do. See `CELL` for what that cost. -->
+        <div ref="listWrap" class="relative" @scroll.capture="measureFade">
+          <!-- ⚠️ `-mr-2.5` on the root against `pr-2.5` on the viewport moves
+               the SCROLLBAR out of the content box without moving the table.
+               The root grows 10px to the right — the overlay bar's own width,
+               measured — and the viewport gives that 10px straight back as
+               padding, so the table, and therefore every rule, still ends
+               exactly on the panel's content edge while the bar rides in the
+               panel's 20px margin.
+
+               Without it the bar lands on top of the last 10px of every hours
+               figure while you scroll. It didn't before, because the table used
+               to bleed 12px past the content edge and the bar rode out there
+               with it. Removing the bleed is what brought it inboard. -->
+          <ScrollArea
+            class="-mr-2.5"
+            viewport-class="max-h-[max(120px,min(340px,100vh_-_440px))] pr-2.5"
+          >
             <table class="w-full text-left">
               <thead>
                 <tr>
@@ -273,67 +295,129 @@ const close = () => {
                        thing. Don't surface a generated name anywhere it could be
                        mistaken for something the user picked.
 
-                       ⚠️ And no count. The project holds nine modules; this
-                       table shows the seven whose apps this partner implements.
-                       A number here would sit above a visibly shorter list. -->
-                  <th :class="HEAD">Modules in your project</th>
-                  <th :class="[HEAD, 'pr-6 text-right']"># of tasks</th>
+                       ⚠️ And no count. The project may hold more modules than
+                       this; the table shows the ones whose apps this partner
+                       implements. A number here would sit above a visibly
+                       shorter list. -->
+                  <!-- The select-all sits in the header cell rather than in a
+                       column of its own, for the same reason the row ticks do:
+                       a third column would be 14px of content and a lifetime of
+                       alignment. It lines up with every row's tick beneath it.
+
+                       `aria-label` rather than wiring the column title up as
+                       its label — the title names what the column holds, and a
+                       heading that toggles seven rows when you click it is a
+                       surprise nobody asked for. The label says what the
+                       control does; the heading goes on saying what the column
+                       is. -->
+                  <th :class="HEAD">
+                    <span class="flex items-center gap-2">
+                      <Checkbox
+                        :model-value="allOn"
+                        :indeterminate="someOn"
+                        aria-label="Include every module in the estimate"
+                        @update:model-value="toggleAll"
+                      />
+                      <span>Modules in your project</span>
+                    </span>
+                  </th>
                   <th :class="[HEAD, 'text-right']">Estimated hrs</th>
                 </tr>
               </thead>
-              <tbody>
-                <!-- `relative` on the row plus a stretched button in the first
-                   cell: a `<tr>` can't be wrapped in a `<button>` without
-                   breaking the table, and a click handler on the row alone
-                   isn't keyboard reachable. Same pattern as the partner
-                   listing's stretched name link.
+              <!-- `divide-y` on the tbody rather than per-row `border-t`. The
+                   old per-row version existed only so a hover fill could
+                   swallow the rules either side of it — `divide-y`'s colour
+                   lands via `.divide-… > :not([hidden]) ~ :not([hidden])`,
+                   three class-level components, which outranks any reasonable
+                   hover variant. Worth keeping written down in case a fill ever
+                   comes back; there isn't one now, so this uses the plain
+                   thing.
 
-                   A hovered row swallows the rules either side of it, so the
-                   fill reads as one block rather than a tinted band between two
-                   lines — the same effect as the partner listing's rows. The
-                   rule sits on each row's TOP edge, so "the rule below row N" is
-                   row N+1's, which is what `[&:hover+tr]` reaches. The header's
-                   own rule stays: it marks where the header ends, not where a
-                   row does.
+                   ⚠️ And there is deliberately no row fill, even though the
+                   whole row is a click target. A fill would want to sit clear
+                   of the text, which is what the table's old 12px bleed was for
+                   — and the bleed is exactly what had to go for the rules to
+                   line up with everything else on the panel.
 
-                   ⚠️ Per-row `border-t`, not `divide-y` on the tbody, and the
-                   difference is specificity. `divide-y`'s colour lands via
-                   `.divide-… > :not([hidden]) ~ :not([hidden])`, which carries
-                   three class-level components — enough to outrank any
-                   reasonable hover selector, so the borders simply never
-                   changed. Measured: `borderTopColor` identical hovered and not.
-                   On the row itself the hover variant outranks the base. -->
+                   ⚠️ Nor is there a hover state reaching into the tick box.
+                   There was one — a row-level arbitrary variant that selected
+                   the descendant input and recoloured its border — and it's
+                   gone on purpose: a class of ours styling an element INSIDE a
+                   frappe-ui component is a contract the component never
+                   offered, and it breaks silently the day that element stops
+                   being an input. Reach a component through its props or don't
+                   reach it. `Checkbox` is used exactly as shipped.
+
+                   ⚠️⚠️ And the class name is deliberately not written out here.
+                   Tailwind's content scanner is a regex over raw file text — it
+                   does not parse, so it cannot tell markup from a comment. The
+                   variant was named in this comment after being deleted from
+                   the row, and it kept emitting its rule into the production
+                   stylesheet: dead CSS with nothing left to match it. Never
+                   quote a removed utility in a scanned file. DESIGN-NOTES.md
+                   isn't in `content`, so the specifics live there.
+
+                   The pointer is the hover affordance; the state itself is
+                   carried three times over once you click, by the tick, the
+                   greyed label and the muted app mark. -->
+              <tbody class="divide-y divide-outline-gray-1">
                 <tr
                   v-for="r in rows"
-                  :key="`${r.app}-${r.module.key}`"
-                  class="group relative border-t border-outline-gray-1 transition-colors first:border-t-0 hover:border-t-transparent hover:bg-surface-gray-1 [&:hover+tr]:border-t-transparent"
+                  :key="r.key"
+                  class="relative cursor-pointer"
                 >
                   <td :class="CELL">
-                    <span class="flex items-center gap-2">
-                      <AppLogo :app="r.app" :label="r.appLabel" />
-                      <!-- No chevron. The row's fill and its pointer are the
-                           affordance; a caret on every row was a second one
-                           saying the same thing, and it shifted the module name
-                           every time the cursor crossed a row. -->
-                      <button
-                        class="flex min-w-0 text-left after:absolute after:inset-0"
-                        :aria-label="`${r.appLabel} ${r.module.label} — ${r.module.tasks.length} tasks, ${r.module.hours} hours. Show tasks`"
-                        @click="drilled = r"
+                    <span class="flex min-w-0 items-center gap-2">
+                      <!-- frappe-ui's own control at its own `sm` (14px), not a
+                           14px box of ours. No `label` prop: the app mark sits
+                           between the tick and the module name, and `Checkbox`
+                           renders its label immediately after the input with a
+                           fixed gap — nothing goes in between. The name is
+                           wired up as a real `<label for>` below instead, which
+                           is the same accessible pairing by another route. -->
+                      <Checkbox
+                        :id="`estimate-${r.key}`"
+                        :model-value="isOn(r)"
+                        @update:model-value="toggle(r, $event)"
+                      />
+                      <AppLogo :app="r.app" :label="r.appLabel" :muted="!isOn(r)" />
+                      <!-- The label stretches over the whole row via
+                           `after:absolute after:inset-0` against the `relative`
+                           row — so the hours cell and the empty space toggle
+                           the row too, not just fourteen pixels of tick box.
+                           Same pattern as the partner listing's stretched name
+                           link, and the reason `AppLogo` carries `z-10`: the
+                           overlay would otherwise bury the mark and its tooltip
+                           would never open.
+
+                           ⚠️ `truncate` can't go on the label itself —
+                           `overflow: hidden` would clip the very pseudo-element
+                           doing the stretching. It goes on the span inside,
+                           which is why there are two. -->
+                      <label
+                        :for="`estimate-${r.key}`"
+                        class="flex min-w-0 cursor-pointer after:absolute after:inset-0"
                       >
-                        <span class="truncate text-p-base font-medium text-ink-gray-7">
+                        <span
+                          class="truncate text-p-base font-medium transition-colors"
+                          :class="isOn(r) ? 'text-ink-gray-7' : 'text-ink-gray-4'"
+                        >
                           {{ r.module.label }}
                         </span>
-                      </button>
+                      </label>
                     </span>
                   </td>
-                  <!-- Extra right padding, not a width: with an auto table the
-                     count column hugs the hours column, and two right-aligned
-                     numerals 40px apart read as one field. The space goes on
-                     this column so the hours stay pinned to the table's edge. -->
-                  <td :class="[CELL, 'pr-6 text-right text-p-base tabular-nums text-ink-gray-6']">
-                    {{ r.module.tasks.length }}
-                  </td>
-                  <td :class="[CELL, 'text-right text-p-base tabular-nums text-ink-gray-7']">
+                  <!-- An excluded row keeps its figure but drops two steps of
+                       ink. Removing the number would make the row look broken,
+                       and leaving it at full strength states that it is part of
+                       the sum directly underneath — which it isn't. -->
+                  <td
+                    :class="[
+                      CELL,
+                      'text-right text-p-base tabular-nums transition-colors',
+                      isOn(r) ? 'text-ink-gray-7' : 'text-ink-gray-4',
+                    ]"
+                  >
                     {{ r.module.hours }} hrs
                   </td>
                 </tr>
@@ -365,20 +449,45 @@ const close = () => {
            leading of its own. Below it is 12px of padding plus the ~3.5px of
            half-leading every line of 14px/1.5 text carries above its cap — about
            15.5px to the ink. Setting both to 16 would sit the text a visible
-           3-4px lower than the space above it looks.
-
-           ⚠️ Step one only. In the drill-down these figures are about the whole
-           estimate while everything above them is about one module, and the
-           module's own total is right there — three numbers, two of which
-           answer a question the reader isn't asking. The action stays. -->
+           3-4px lower than the space above it looks. -->
         <dl
-          v-if="!drilled"
           class="mt-4 bg-[repeating-linear-gradient(to_right,var(--outline-gray-3)_0_3px,transparent_3px_9px)] bg-[length:100%_1px] bg-top bg-no-repeat pt-3"
         >
-          <!-- Medium, not regular: these two are the inputs the total is made of,
-             and they were reading as a caption under it. -->
+          <!-- What's in scope, then how many hours that is, then at what rate,
+             then the price. The count goes FIRST rather than anywhere else in
+             the block, and that ordering is the whole reason it can sit here at
+             all: hours × rate = quote is a chain of arithmetic, and a module
+             count is not a term in it. In front of the chain it's the premise;
+             anywhere inside it, it's an interruption.
+
+             It's here rather than in the table header — the other candidate,
+             and the cheaper one, since the header costs no height and height is
+             what keeps the footer on screen. But this is where the eye goes
+             after a tick, because this is where the consequence lands, and a
+             count that reports on your last click belongs with the other
+             figures that move when you make it.
+
+             ⚠️ Both numbers are also visible in the list above, so this asserts
+             nothing the reader can't check. That's what separates it from the
+             count the table header deliberately doesn't carry — that one would
+             have been a claim about scope. This is feedback on your own click.
+
+             `tabular-nums`, like every other figure here, so the digits don't
+             jitter as they change. -->
           <div class="flex items-center justify-between">
-            <dt class="text-p-base font-medium text-ink-gray-6">Total hours</dt>
+            <dt class="text-p-base font-medium text-ink-gray-6">Modules selected</dt>
+            <dd class="text-p-base font-medium tabular-nums text-ink-gray-7">
+              {{ selected.length }} of {{ rows.length }}
+            </dd>
+          </div>
+          <!-- Medium, not regular: these are the inputs the total is made of,
+             and they were reading as a caption under it. -->
+          <div class="mt-1.5 flex items-center justify-between">
+            <!-- "Total estimated hours", matching the column it sums. "Total
+                 hours" read as a fact about the project; every figure in this
+                 panel is an estimate, and the one that adds the others up
+                 shouldn't be the one that drops the word. -->
+            <dt class="text-p-base font-medium text-ink-gray-6">Total estimated hours</dt>
             <dd class="text-p-base font-medium tabular-nums text-ink-gray-7">
               {{ totalHours }} hrs
             </dd>
@@ -408,20 +517,54 @@ const close = () => {
           </div>
         </dl>
 
-        <!-- The label carries what the removed disclaimer used to: this figure
-           isn't the quote, it's the reason to ask for one — and asking means
-           sending them a message, which the icon and the verb both say.
+        <!-- The label is about the ESTIMATE, not about a quote to come. It
+           used to read "Message partner for a final quote", which framed
+           everything above it as a placeholder for a real number arriving
+           later — so the panel's own work read as provisional, and the reason
+           to click was to go and get the actual answer somewhere else.
+           Wrong way round. The figure above IS the thing; the button carries it
+           into a conversation with the partner who'd deliver it.
            ⚠️ Same destination as every other Contact on this page — the in-app
            messages screen, which doesn't exist yet — so it raises the same
-           toast. This is the terminal action of the whole quote flow; it was
-           the one button in the modal that did nothing at all. -->
+           toast. -->
         <Button
           variant="solid"
           class="mt-5 w-full"
-          label="Message partner for a final quote"
+          label="Contact partner with this estimate"
           @click="contactToast(partner)"
         >
           <template #prefix><LucideMessageSquare class="size-4" /></template>
+        </Button>
+
+        <!-- The one question the panel provokes and doesn't answer: what a
+             starter pack actually contains. The rows above are the visitor's
+             project; a pack is a fixed scope the partner sells, and the two are
+             compared constantly on this screen without the second ever being
+             spelled out. The comparison table on `/connect` spells it out, so
+             this points there rather than restating it in a modal.
+
+             Full width and `subtle`, matching the primary's footprint exactly
+             so the two read as a stacked pair rather than a button with a
+             footnote. The variant is what separates them now that the width
+             doesn't: solid carries the action, subtle carries the aside. Ghost
+             was too quiet at this width — a full-width control with no fill is
+             a large area of nothing, and the label floated in the middle of it
+             unattached to anything.
+
+             ⚠️ NEW TAB, via `link` (frappe-ui's Button renders `link` as an
+             `<a target="_blank" rel="noreferrer noopener">`; `route` would be
+             the same-tab RouterLink). Deliberate: the ticks above are a tuned
+             estimate that closing this panel throws away by design, and losing
+             it to a definition lookup is a different thing from losing it to
+             "I'm done". Reading what a pack contains is exactly the question
+             you ask WHILE deciding. -->
+        <Button
+          variant="subtle"
+          class="mt-2 w-full"
+          :link="packsHref"
+          label="What's in a starter pack?"
+        >
+          <template #suffix><LucideArrowUpRight class="size-4" /></template>
         </Button>
       </div>
     </template>
