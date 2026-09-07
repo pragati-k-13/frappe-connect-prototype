@@ -15,7 +15,11 @@ import DottedWorldMap from '../components/DottedWorldMap.vue'
 import FilterChip from '../components/FilterChip.vue'
 import { useConnectStore } from '../stores/connect'
 import { INDUSTRIES, REGIONS, IMPLEMENTATION_TYPES, MAP_REGIONS } from '../data/quiz'
-import { STARTER_PACKS, SUCCESS_STORIES } from '../data/partners'
+import { SUCCESS_STORIES } from '../data/partners'
+// Pack pricing is per region now. This table has no region to read — the quiz
+// asks for one, but a visitor can skip it — so it quotes the default, India,
+// and says so in the line above it.
+import { STARTER_PACKS, priceFor, pricingFor, DEFAULT_REGION } from '../data/packs'
 
 const store = useConnectStore()
 const router = useRouter()
@@ -300,7 +304,8 @@ const restartQuiz = () => {
         </h2>
         <p class="mt-1.5 max-w-2xl text-p-base text-ink-gray-6">
           Fixed scope, fixed price, delivered by any certified partner. Pick one now or let the
-          questions above narrow it down for you.
+          questions above narrow it down for you. Prices for India, before
+          {{ pricingFor(DEFAULT_REGION).tax }}.
         </p>
 
         <ScrollArea
@@ -345,7 +350,7 @@ const restartQuiz = () => {
               <tr class="border-t border-outline-gray-2">
                 <th scope="row" class="px-4 py-3.5 text-left font-normal text-ink-gray-7">Cost</th>
                 <td v-for="p in STARTER_PACKS" :key="p.value" class="px-4 py-3.5 text-center font-medium tabular-nums text-ink-gray-9">
-                  {{ p.cost }}
+                  {{ priceFor(p, DEFAULT_REGION) }}
                 </td>
               </tr>
             </tbody>

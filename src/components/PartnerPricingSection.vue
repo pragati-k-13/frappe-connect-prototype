@@ -4,7 +4,7 @@ import { Button } from 'frappe-ui'
 import IconPacks from '~icons/lucide/package'
 import IconCustom from '~icons/lucide/pencil-ruler'
 import EstimateQuoteDialog from './EstimateQuoteDialog.vue'
-import { STARTER_PACKS } from '../data/partners'
+import { STARTER_PACKS } from '../data/packs'
 import { contactToast } from '../feedback'
 
 // SCREEN 6, fourth section — "Pricing".

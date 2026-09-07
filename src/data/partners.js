@@ -30,51 +30,15 @@ export const APPS = [
   { value: 'framework', label: 'Framework' },
 ]
 
-// ⚠️ Costs are invented, and they were repriced once. They used to be rupee
-// strings — ₹80,000 for the 40-hour pack — which works out at ₹2,000/hr, about
-// $24. Partner rates are $60–140/hr, so the estimator would have quoted three
-// to six times the pack price for identical hours, in the same section of the
-// same page. ₹80,000 for 40 hours of consulting isn't plausible in any
-// currency; the symbol was never the problem.
+// The Starter Pack catalogue moved to `data/packs.js` when the real scope
+// document landed — it now carries the module-by-module scope, the terms, and
+// per-region pricing, which is far more than a partner file should hold.
 //
-// They're now each `hours × $70`, a benchmark below every partner's rate, so a
-// pack reads as the discounted fixed-scope product it is: Tridots Tech at $85
-// estimates $3,400 bespoke against the $2,800 pack for the same 40 hours.
-// `hours` is the number both surfaces derive from, so they can't drift.
-export const STARTER_PACKS = [
-  {
-    value: 'core-erpnext',
-    name: 'Core ERPNext',
-    modules: 'Finance + Sales + Purchase + Inventory',
-    hours: 40,
-    validity: '30 days',
-    cost: '$2,800',
-  },
-  {
-    value: 'manufacturing',
-    name: 'Manufacturing',
-    modules: 'Core ERPNext + Manufacturing',
-    hours: 70,
-    validity: '60 days',
-    cost: '$4,900',
-  },
-  {
-    value: 'all-in-one',
-    name: 'All in one',
-    modules: 'Core ERPNext + Manufacturing + Frappe HR',
-    hours: 100,
-    validity: '90 days',
-    cost: '$7,000',
-  },
-  {
-    value: 'frappe-hr',
-    name: 'Frappe HR',
-    modules: 'Frappe HR',
-    hours: 30,
-    validity: '30 days',
-    cost: '$2,100',
-  },
-]
+// ⚠️ The prices in here used to be `hours × $70`, converted from rupees on the
+// grounds that ₹2,000/hr was implausible next to partner rates of $60–140/hr.
+// The scope document says ₹2,000/hr is the real India rate — so the implausible
+// number was the invented PARTNER rate, not the pack price. India's prices are
+// now the real ones; see `REGION_PRICING`.
 
 // `tier` is 'gold' | 'silver' | 'bronze' — the three levels of the partner
 // programme, drawn from Frappe's own partner badge set. Gold renders as a
