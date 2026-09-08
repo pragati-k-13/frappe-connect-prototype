@@ -105,10 +105,6 @@ export const IMPLEMENTATION_TYPES = [
   { value: 'custom', label: 'Customized implementation', short: 'Customized' },
 ]
 
-// The map's stat row reads from the same numbers as the chips, so the two can't
-// drift. Totals 156, which is the directory's "155+ Partners".
-export const MAP_REGIONS = REGIONS.map((r) => ({ label: r.label, count: r.count }))
-
 // Partner hub cities, plotted on the dotted world map. Real lat/lng, projected
 // by `DottedWorldMap` with Frappe Cloud's own Mercator constants — `region`
 // keys back into REGIONS above so a hub lights up when its region is answered.

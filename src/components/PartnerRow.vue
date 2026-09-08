@@ -37,14 +37,27 @@ const toggleSave = () =>
 // reflows as real assets land.
 const logo = computed(() => logoFor(props.partner.id))
 
-// Split rather than one string, so the row can truncate without eating the
-// count: the named industries are the part that gives way, "+2 more" is pinned
-// and always readable. Wrapping this line to two lines made rows uneven heights
-// and pushed the list taller than it needs to be.
+// Still split into two spans rather than one string, and for the original
+// reason: the row is one line and the named industries are the part allowed to
+// give way, so the tail is pinned (`shrink-0`) and stays readable at any width.
+// Wrapping to two lines made rows uneven heights and pushed the list taller
+// than it needs to be.
+//
+// What changed is that the tail is now part of the SENTENCE — "…, Retail, and
+// 4 more" — rather than a "+4" chip hung off the end of it. The chip form read
+// as a badge on the row, which invited the reading that it was counting
+// whatever the ellipsis had just clipped. It never was: `rest` is the number of
+// industries beyond the three named, the span only renders when that's non-zero,
+// and it's the same figure whether or not the text happens to be truncated at
+// this width. Saying it in words is what makes that legible.
+//
+// The comma that joins the two halves lives at the end of the LEAD, so it
+// disappears with the names it belongs to when the line truncates.
 const SHOWN = 3
 const industryLine = computed(() => {
   const { stories, industries } = props.partner
-  const shown = industries.slice(0, SHOWN).join(', ')
+  const rest = Math.max(industries.length - SHOWN, 0)
+  const shown = industries.slice(0, SHOWN).join(', ') + (rest ? ',' : '')
   // Some partners have published none, so the line can't always lead with a
   // count — "0 success stories across Retail" reads as a failure rather than
   // as "these are the industries they work in", which is the line's actual
@@ -52,7 +65,7 @@ const industryLine = computed(() => {
   const lead = stories
     ? `${stories} success ${stories === 1 ? 'story' : 'stories'} across ${shown}`
     : `Works across ${shown}`
-  return { lead, rest: Math.max(industries.length - SHOWN, 0) }
+  return { lead, rest }
 })
 </script>
 
@@ -136,17 +149,48 @@ const industryLine = computed(() => {
           <TierIcon :tier="partner.tier" />
         </div>
 
+        <!-- ── The row's vertical rhythm: 2 / 12 / 4 ─────────────────────
+             Four stacked lines, and the gaps are uneven on purpose — they group
+             the row into two clusters rather than spacing it evenly:
+
+               name          ─┐ 2px   the identity. A city under a company name
+               city          ─┘       is a subtitle, not a separate fact.
+                              ── 12px  the break
+               rate · rating · reply ─┐ 4px   the facts. What you compare rows
+               N stories across …    ─┘       on, read as one block.
+
+             Evenly spaced (it was 2 / 6 / 6) all four lines read as one list of
+             four unrelated things, and the eye had to do the grouping itself.
+             The big gap is the only structural signal in the row — there is no
+             rule and no fill between them — so it has to be big enough to
+             actually read as a break, which 6px was not. -->
+
         <!-- No icon here. The city sits directly under the name as a plain
            subtitle — the icons below label a row of unlike facts (rate, rating,
            response time) that need telling apart at a glance; this line doesn't. -->
         <p class="mt-0.5 text-p-sm text-ink-gray-6">{{ partner.city }}</p>
 
-        <div class="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-p-sm text-ink-gray-7">
+        <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-p-sm text-ink-gray-7">
+          <!-- A partner who doesn't publish a rate still gets the slot and the
+               icon, and says so. Dropping the fact entirely would close the gap
+               and leave the row LOOKING complete — three facts on one partner
+               and two on the next, with nothing to say which fact went missing.
+               "Rate undisclosed" is also the honest answer to the question the
+               column is asking, and it's set in `ink-gray-5` so a row of them
+               doesn't read as loudly as a row of figures. -->
           <span class="flex items-center gap-1">
             <LucideCircleDollarSign class="size-3.5 shrink-0 text-ink-gray-6" />
-            From ${{ partner.rate }}/hr
+            <template v-if="partner.rate">From ${{ partner.rate }}/hr</template>
+            <span v-else class="text-ink-gray-5">Rate undisclosed</span>
           </span>
           <span class="flex items-center gap-1">
+            <!-- Plain outline star, `ink-gray-6`, matching the dollar sign and
+                 the clock either side of it. This row is three unlike facts in
+                 a line and the icons are labels for them, not marks in their
+                 own right — a filled amber star here is the loudest thing in a
+                 list of thirteen rows, thirteen times over. Amber and filled is
+                 for the places where the star IS the rating: the profile's
+                 review scores and the marketplace five-star rows. -->
             <LucideStar class="size-3.5 shrink-0 text-ink-gray-6" />
             {{ partner.rating }}
             <span class="text-ink-gray-5">({{ partner.reviews }})</span>
@@ -162,9 +206,9 @@ const industryLine = computed(() => {
         <!-- One line, always. `min-w-0` on the growing span is what lets
            `truncate` actually clip inside a flex row — a flex item defaults to
            min-width:auto and refuses to shrink below its text. -->
-        <p class="mt-1.5 flex gap-1 text-p-sm text-ink-gray-6">
+        <p class="mt-1 flex gap-1 text-p-sm text-ink-gray-6">
           <span class="min-w-0 truncate">{{ industryLine.lead }}</span>
-          <span v-if="industryLine.rest" class="shrink-0">+{{ industryLine.rest }} more</span>
+          <span v-if="industryLine.rest" class="shrink-0">and {{ industryLine.rest }} more</span>
         </p>
       </div>
 

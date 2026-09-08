@@ -8,12 +8,14 @@
 // affordances). Devs shouldn't build this — it already exists.
 //
 // The one behaviour that matters here: "Find a partner" opens Frappe Connect
-// in a NEW TAB, per the design. That's why it's a plain anchor with
-// target="_blank" rather than a RouterLink.
+// in a NEW TAB, per the design. That's why the CTA takes frappe-ui Button's
+// `link` prop (which renders an `<a target="_blank">`) rather than `route`.
+
+import { Button } from 'frappe-ui'
 
 // Where the app is mounted — '/' locally, '/frappe-connect-prototype/' on
-// GitHub Pages. Only the one hand-written anchor below needs it; every other
-// link in the app goes through the router, which handles the base itself.
+// GitHub Pages. Only the CTA below needs it; every other link in the app goes
+// through the router, which handles the base itself.
 const baseUrl = import.meta.env.BASE_URL
 
 const BENEFITS = [
@@ -94,21 +96,39 @@ const BENEFITS = [
         <p class="text-lg text-ink-gray-8">
           Frappe Partners to find the best match for your business.
         </p>
-        <!-- A real anchor rather than a router-link, because it deliberately
-             opens a new tab: the fiction is that you're leaving frappe.io and
-             arriving at Connect.
+        <!-- frappe-ui's `Button`, not the hand-rolled anchor this used to be.
+             The lookalike was `px-4 py-2.5` — roughly 40px tall with 16px
+             flanks, a size that isn't on the scale at all and read as
+             oversized next to the sentence beside it. `md` is the system's
+             32px step.
+
+             `link` rather than `route`, which is what keeps the one behaviour
+             that matters on this screen: frappe-ui renders `link` as an
+             `<a target="_blank" rel="noreferrer noopener">`, so the CTA still
+             opens Connect in a NEW TAB — the fiction is that you're leaving
+             frappe.io and arriving somewhere else. `route` would give a
+             same-tab RouterLink and lose it. Same prop the estimator's
+             "What's in a starter pack?" uses.
+
              ⚠️ `BASE_URL` prefixed, so it survives being served from a
              subpath. A bare "/connect" points at the domain root, which under
-             GitHub Pages is somebody else's page. -->
-        <a
-          :href="`${baseUrl}connect`"
-          target="_blank"
-          rel="noopener"
-          class="inline-flex shrink-0 items-center gap-2 rounded-4 bg-gray-900 px-4 py-2.5 text-p-base font-medium text-white transition-colors hover:bg-gray-800"
+             GitHub Pages is somebody else's page.
+
+             ⚠️ This is the ONE frappe-ui control on a screen that is meant to
+             read as a website rather than as the app — see the note at the top
+             of this file. It's allowed because it's the seam: the button is
+             the thing that takes you into the product, so it's the one place
+             the product's own chrome belongs. Don't let the rest of the page
+             follow it. -->
+        <Button
+          variant="solid"
+          size="md"
+          :link="`${baseUrl}connect`"
+          label="Find a partner"
+          class="shrink-0"
         >
-          Find a partner
-          <LucideArrowRight class="size-4" />
-        </a>
+          <template #suffix><LucideArrowRight class="size-4" /></template>
+        </Button>
       </div>
 
       <h2 class="mt-14 font-serif text-3xl text-ink-gray-9">
@@ -116,8 +136,19 @@ const BENEFITS = [
       </h2>
       <dl class="mt-7 space-y-7">
         <div v-for="b in BENEFITS" :key="b.title" class="flex gap-4">
+          <!-- Grey, not the near-black these started as. Three black discs down
+               the left of the benefits list were the heaviest marks on a page
+               whose actual focal points are the serif headline and the one dark
+               CTA — they read as three more buttons. The disc is a bullet: it
+               groups the icon and separates the rows, and it doesn't need to
+               compete for that.
+               ⚠️ Semantic tokens rather than the `bg-gray-*` the rest of this
+               page reaches for. Which raw shades exist is not fixed — Tailwind
+               emits only what something in the scanned content references, and
+               that set moves as the app and frappe-ui's own source change. The
+               `surface-*` / `ink-*` tokens are always there. -->
           <div
-            class="flex size-10 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white"
+            class="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-gray-3 text-ink-gray-7"
             aria-hidden="true"
           >
             <LucideGlobe v-if="b.icon === 'globe'" class="size-5" />

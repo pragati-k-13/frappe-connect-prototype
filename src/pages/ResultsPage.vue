@@ -40,7 +40,13 @@ const suggestionCopy = (key) => {
     case 'region':
       // No note: the title is already the whole fact, and every row names its
       // own city underneath.
-      return { title: 'Partners outside your region' }
+      //
+      // "other regions", not "outside your region". The quiz asks where the
+      // PARTNER can be based, not where the visitor is — so the answer is a set
+      // of acceptable regions, and these are the partners outside that set.
+      // "Your region" would be claiming to know where they are, which this
+      // screen no longer asks.
+      return { title: 'Partners in other regions' }
     case 'segments':
       return {
         title: 'Proven in other industries',
@@ -176,21 +182,41 @@ const clearTooltip = computed(() => {
       </h1>
 
       <!-- Filter bar. Seeded from the quiz, editable from here on.
-           Every control is a fixed 160px, search included. frappe-ui's Select
-           trigger is `inline-flex`, so left alone it sizes to its value and the
-           row reflows every time you pick something — "Trading and Distribution"
-           was 201px against "All regions"' 111px. The trigger already truncates
+           Every SELECT is a fixed 160px. frappe-ui's Select trigger is
+           `inline-flex`, so left alone it sizes to its value and the row reflows
+           every time you pick something — "Trading and Distribution" was 201px
+           against "All regions"' 111px. The trigger already truncates
            internally, so a fixed width shortens the label instead of moving its
-           neighbours, and a uniform width means any wrap is an even one. -->
+           neighbours, and a uniform width means any wrap is an even one.
+
+           ⚠️ Search is the exception: `flex-1`, so it absorbs whatever the
+           fixed controls leave and the row always reaches the right edge of the
+           column. A row that stops short of the content beneath it reads as a
+           ragged edge rather than as a bar. It's also the right control to give
+           the slack to — a search field can always use more room, where a
+           Select past its longest option is just padding.
+
+           `min-w-40` floors it at the Selects' own 160px. Below that the row
+           wraps, which is the only time it should: `flex-wrap` is here for
+           genuinely narrow viewports, not as the resting state. -->
       <div class="mt-3 flex flex-wrap items-center gap-2">
         <TextInput
           :model-value="store.filters.search"
-          class="w-40"
+          class="min-w-40 flex-1"
           placeholder="Search"
           @update:model-value="setFilter('search', $event)"
         >
+          <!-- ⚠️ `ink-gray-4`, not `-6`. Everything else in this bar sits at
+               `ink-gray-4` in its empty state — frappe-ui's TextInput
+               placeholder is `placeholder-ink-gray-4` and its Select chevron is
+               `text-ink-gray-4` — so a `-6` magnifier was two steps darker than
+               the word "Search" beside it and than every chevron across the
+               row. The icon is input decoration, the same class of thing as a
+               chevron, so it takes the chevron's ink.
+               (frappe-ui's own `PrefixSuffix` story does use `-6`, but that one
+               isn't sitting in a row of placeholders.) -->
           <template #prefix>
-            <LucideSearch class="size-4 text-ink-gray-6" />
+            <LucideSearch class="size-4 text-ink-gray-4" />
           </template>
         </TextInput>
 

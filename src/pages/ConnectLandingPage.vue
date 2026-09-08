@@ -14,7 +14,7 @@ import ConnectShell from '../components/ConnectShell.vue'
 import DottedWorldMap from '../components/DottedWorldMap.vue'
 import FilterChip from '../components/FilterChip.vue'
 import { useConnectStore } from '../stores/connect'
-import { INDUSTRIES, REGIONS, IMPLEMENTATION_TYPES, MAP_REGIONS } from '../data/quiz'
+import { INDUSTRIES, REGIONS, IMPLEMENTATION_TYPES } from '../data/quiz'
 import { STARTER_PACKS, SUCCESS_STORIES } from '../data/partners'
 
 const store = useConnectStore()
@@ -23,9 +23,6 @@ const router = useRouter()
 const TOTAL = 3
 const step = ref(1)
 const quizTop = ref(null)
-// Set when Continue is pressed with a required branch field still empty.
-const branchError = ref(false)
-
 // Region is pre-answered from "where we think you are" so this question costs a
 // confirmation instead of a decision. The hint under the chips says so —
 // a silently pre-filled answer would be the dishonest version of this.
@@ -33,39 +30,87 @@ onMounted(() => store.seedInferredRegion())
 
 const selectedIndustry = computed(() => INDUSTRIES.find((i) => i.value === store.answers.industry))
 // All four groups branch — every one has real segments in the directory's
-// taxonomy. The branch is required once it's open.
+// taxonomy. The branch is OPTIONAL: picking an industry is a complete answer to
+// this step, and the segment narrows it further if you want it to.
 //
-// The quiz asks for one segment; the store holds an array, because the results
-// filter merges industry and segment into a single multi-select and can widen
-// this to several. `[$event]` below is that one answer in the shared shape.
-const needsSegment = computed(() => Boolean(selectedIndustry.value?.segments))
+// How "no segment" is stored is the part worth reading. `answers.industry` does
+// not filter anything — partners are tagged at the SEGMENT level, so `segments`
+// is the whole constraint (see `stores/connect.js`). Left empty, "Services"
+// would therefore mean "no constraint at all", and Continue would land you on
+// the same unfiltered listing as Skip.
+//
+// So picking an industry selects EVERY segment in it. The results filter unions
+// segments ("any of these"), so a group's full set is exactly what that group
+// means as a filter, and the answer now does what the visitor thinks it does.
+// Picking one segment from the Select narrows that set to the one.
+const segmentsOf = (value) => INDUSTRIES.find((i) => i.value === value)?.segments ?? []
+
+// ⚠️ No partner count beside each option, and that was a decision rather than an
+// omission. One was built and taken out: the numbers are derived from the mock's
+// thirteen partners over an INVENTED partner→segment mapping, eleven of the
+// thirty-five segments come out at zero, and a bare number here has no obvious
+// referent — this question is about the visitor's own industry, so "Education 3"
+// doesn't read as "three partners" the way "India 71" does one question later,
+// where the question itself is about partners. Labelling it ("3 partners") would
+// have fixed the ambiguity; it wasn't worth 14 repetitions of the word for a
+// figure this soft.
 const segmentOptions = computed(() =>
-  (selectedIndustry.value?.segments ?? []).map((s) => ({ label: s, value: s })),
+  segmentsOf(store.answers.industry).map((s) => ({ label: s, value: s })),
+)
+
+// ⚠️ The Select shows a value only when ONE segment is held. Any other length
+// is the implicit "whole industry" set written below, which is not a choice the
+// visitor made in this control — rendering `segments[0]` there would show
+// "Aviation Industry" as picked the moment someone chose Services.
+const chosenSegment = computed(() =>
+  store.answers.segments.length === 1 ? store.answers.segments[0] : undefined,
 )
 
 const pickIndustry = (value) => {
+  // Order matters: `answer('industry')` clears `segments` (changing industry
+  // must drop a segment picked under the old one), so the full set goes in
+  // after it.
   store.answer('industry', value)
-  branchError.value = false
+  const segments = segmentsOf(value)
+  if (segments.length) store.answer('segments', segments)
 }
 
-const canContinue = computed(() => {
-  if (step.value === 1) return !needsSegment.value || store.answers.segments.length > 0
-  return true
+// Continue is disabled until the current step has an answer. Skip sits beside it
+// and stays enabled, so the step is never a trap: not answering is a supported
+// move, it just isn't this button's move.
+//
+// The SEGMENT IS OPTIONAL. Picking an industry is enough to move on, and there
+// is no error for leaving the segment empty — the Select's "Pick a segment"
+// placeholder is the whole prompt.
+//
+// ⚠️ This step used to keep Continue enabled and then REFUSE the press, raising
+// "Pick a segment, or skip the question." An enabled button that doesn't do the
+// thing is worse than a disabled one, and the sentence only repeated the
+// placeholder in red after you'd been rejected once. Both are gone: the button
+// is disabled when there is nothing, enabled when there is something, and it
+// always does what it says.
+//
+// ⚠️ Worth knowing what the enabled state buys on step 1: `answers.industry`
+// does NOT filter. The directory's taxonomy is two levels, partners are tagged
+// at the segment level, and `segments` is the whole constraint — see
+// `stores/connect.js`. So continuing with an industry and no segment reaches
+// the same unfiltered listing that Skip does. That's fine and intended; the
+// answer is still recorded, and the results page's own segment filter is where
+// someone narrows it. Don't "fix" this by requiring the segment.
+const hasAnswer = computed(() => {
+  if (step.value === 1) return Boolean(store.answers.industry)
+  if (step.value === 2) return store.answers.region.length > 0
+  return Boolean(store.answers.implementation)
 })
 
 const goToResults = () => router.push('/connect/partners')
 
 const next = () => {
-  if (step.value === 1 && !canContinue.value) {
-    branchError.value = true
-    return
-  }
   if (step.value === TOTAL) return goToResults()
   step.value += 1
 }
 
 const back = () => {
-  branchError.value = false
   if (step.value > 1) step.value -= 1
 }
 
@@ -74,7 +119,6 @@ const back = () => {
 const skip = () => {
   const key = { 1: 'industry', 2: 'region', 3: 'implementation' }[step.value]
   store.skip(key)
-  branchError.value = false
   if (step.value === TOTAL) return goToResults()
   step.value += 1
 }
@@ -155,15 +199,22 @@ const restartQuiz = () => {
                            above it read as a detail rather than a question. The
                            `pl-9` on the wrapper still holds its left edge under
                            the label, so "full" means the rest of the column. -->
+                      <!-- "All segments" rather than "Pick a segment": with an
+                           industry chosen, every one of its segments is already
+                           in the filter, so an empty-looking control is not an
+                           unanswered question — it's the widest answer. The old
+                           placeholder read as a prompt for something still
+                           required, which it isn't.
+
+                           No partner count on the options — see the note on
+                           `segmentOptions`. -->
                       <Select
-                        :model-value="store.answers.segments[0] ?? undefined"
+                        :model-value="chosenSegment"
                         :options="segmentOptions"
-                        required
-                        placeholder="Pick a segment"
+                        placeholder="All segments"
                         size="md"
                         class="w-full"
-                        :error="branchError ? 'Pick a segment, or skip the question.' : undefined"
-                        @update:model-value="store.answer('segments', [$event]); branchError = false"
+                        @update:model-value="store.answer('segments', [$event])"
                       />
                     </div>
                   </Transition>
@@ -171,16 +222,32 @@ const restartQuiz = () => {
               </RadioGroup>
 
               <div class="mt-5 flex items-center justify-between">
-                <Button variant="solid" label="Continue" @click="next" />
+                <Button variant="solid" label="Continue" :disabled="!hasAnswer" @click="next" />
 <Button variant="ghost" label="Skip" @click="skip" />
               </div>
             </fieldset>
 
-            <!-- Q2 — region. Pre-answered from inferred location. -->
+            <!-- Q2 — region. Pre-answered from inferred location.
+
+                 ⚠️ Asked about the PARTNER, not about the visitor. It used to
+                 read "Where is your company based?", which asked for a fact
+                 about them and then quietly used it as a filter on somebody
+                 else — and the answer to that question can only be one place,
+                 while this control takes several. Reframed, the multi-answer
+                 shape stops being odd: an implementation can be run from
+                 anywhere, and what the visitor is actually deciding is how far
+                 they're willing to look.
+
+                 "can", not "should" or "would you like": this is a constraint
+                 the visitor sets, and ticking three regions means all three are
+                 acceptable rather than ranked. Their own region is pre-ticked
+                 from inferred location, which under this framing is a sensible
+                 default rather than a guess about them — see
+                 `seedInferredRegion`. -->
             <fieldset v-else-if="step === 2" key="2" class="w-full">
               <div class="flex items-baseline justify-between gap-4">
                 <legend class="text-p-base font-semibold text-ink-gray-9">
-                  Where is your company based?
+                  Where can your partner be based?
                 </legend>
                 <span class="shrink-0 text-p-sm tabular-nums text-ink-gray-5">{{ step }} / {{ TOTAL }}</span>
               </div>
@@ -201,7 +268,7 @@ const restartQuiz = () => {
 
               <div class="mt-5 flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                  <Button variant="solid" label="Continue" @click="next" />
+                  <Button variant="solid" label="Continue" :disabled="!hasAnswer" @click="next" />
                   <Button variant="subtle" label="Back" @click="back" />
                 </div>
 <Button variant="ghost" label="Skip" @click="skip" />
@@ -235,7 +302,7 @@ const restartQuiz = () => {
 
               <div class="mt-5 flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                  <Button variant="solid" label="Find partners" @click="next" />
+                  <Button variant="solid" label="Find partners" :disabled="!hasAnswer" @click="next" />
                   <Button variant="subtle" label="Back" @click="back" />
                 </div>
 <Button variant="ghost" label="Skip" @click="skip" />
@@ -247,38 +314,18 @@ const restartQuiz = () => {
 
       <!-- Map: a stable frame beside the changing question. Its hubs light up
            for whichever region is currently answered. -->
-      <div class="fc-map-panel flex min-w-0 flex-col rounded-7 bg-surface-gray-1 p-6 lg:p-8">
-        <!-- Map centred in whatever height the panel gets, counts pinned to the
-             bottom — so a tall panel reads as composed rather than padded. -->
+      <!-- Just the map. There used to be a row of six labelled counts pinned to
+           the bottom of this panel — "71 India, 19 Asia, …" — and they were the
+           same six numbers the region question's own chips carry a few hundred
+           pixels to the left, on screen at the same time. One of the two had to
+           go, and it wasn't the one attached to the control you answer with. -->
+      <div class="flex min-w-0 flex-col justify-center rounded-7 bg-surface-gray-1 p-6 lg:p-8">
         <!-- The region answer is pre-seeded from inferred location before the
              quiz starts, so without this guard the map would emphasise India
              while you're still on question 1 — highlighting an answer nothing
              on screen has asked for yet. It holds until the region question is
              actually reached, then stays lit for the rest of the quiz. -->
-        <div class="flex flex-1 items-center">
-          <DottedWorldMap
-            :highlight="step >= 2 ? store.answers.region : []"
-            class="mx-auto w-full"
-          />
-        </div>
-        <!-- Grouped, not spread across the panel: `justify-between` made these
-             read as six separate facts rather than one — the network's size,
-             which is the only claim they make.
-             The column gap comes from a container query on the panel, not a
-             viewport breakpoint — see `.fc-stats` in index.css. What decides
-             whether six fit on one line is how wide this panel is, and the
-             panel is at its narrowest exactly where the viewport is widest
-             enough to go two-column. -->
-        <dl class="fc-stats mx-auto mt-8">
-          <!-- Left, not centred. The label is the wider line in every pair, so
-               centring hangs each number in the middle of its own label and the
-               row loses the shared baseline down its left edge. -->
-          <div v-for="r in MAP_REGIONS" :key="r.label" class="text-left">
-            <dt class="sr-only">{{ r.label }}</dt>
-            <dd class="text-xl font-medium tabular-nums text-ink-gray-9">{{ r.count }}</dd>
-            <dd class="mt-0.5 text-p-sm text-ink-gray-6">{{ r.label }}</dd>
-          </div>
-        </dl>
+        <DottedWorldMap :highlight="step >= 2 ? store.answers.region : []" class="mx-auto w-full" />
       </div>
     </section>
 

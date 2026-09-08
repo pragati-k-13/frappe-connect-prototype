@@ -68,9 +68,21 @@ const asTag = (t) => (typeof t === 'string' ? { label: t, hint: null } : t)
          `<blockquote>` already says this is a quotation; a screen reader
          announcing "left double quotation mark" adds nothing. -->
     <figure class="mt-8">
+      <!-- ⚠️ `translate-y-[0.27em]`, and the figure is measured rather than
+           eyeballed. `items-center` centres the BOX, and a quote mark's box is
+           nothing like its ink: Georgia sets “ and ” up near cap height, so the
+           painted marks sat 9.5px above the rule on a 56px glyph even though
+           the boxes were perfectly centred. Canvas
+           `measureText().actualBoundingBoxAscent/Descent` against a
+           zero-width baseline probe puts the ink centre 0.17em above the rule,
+           on top of the 0.1em that was already here — hence 0.27em, and hence
+           the same value on both marks, since the two glyphs share their
+           vertical metrics.
+           Re-measure if the face or `text-12xl` ever changes; this number
+           belongs to Georgia at this size and nothing else. -->
       <div class="flex items-center gap-3">
         <span
-          class="select-none translate-y-[0.1em] font-serif text-12xl leading-[0.42] text-ink-gray-3"
+          class="select-none translate-y-[0.27em] font-serif text-12xl leading-[0.42] text-ink-gray-3"
           aria-hidden="true"
         >
           &ldquo;
@@ -100,8 +112,9 @@ const asTag = (t) => (typeof t === 'string' ? { label: t, hint: null } : t)
 
       <div class="mt-4 flex items-center gap-3">
         <span class="flex-1 border-t border-outline-gray-1" />
+        <!-- Same 0.27em as the opening mark — see the note above. -->
         <span
-          class="select-none translate-y-[0.1em] font-serif text-12xl leading-[0.42] text-ink-gray-3"
+          class="select-none translate-y-[0.27em] font-serif text-12xl leading-[0.42] text-ink-gray-3"
           aria-hidden="true"
         >
           &rdquo;
@@ -127,8 +140,12 @@ const asTag = (t) => (typeof t === 'string' ? { label: t, hint: null } : t)
             <component :is="row.icon" class="size-3.5" />
           </span>
           <!-- `leading-6` so a heading that wraps to two lines sits level with
-               the first two lines of its answer. -->
-          <span class="text-base font-medium leading-6 text-ink-gray-6">{{ row.question }}</span>
+               the first two lines of its answer.
+               `ink-7`, a step darker than the answer beside it in `ink-6`: these
+               are the directory's own prompts, the same three for every partner,
+               and they're the column you scan down. At the same ink as the
+               answers the two halves of the row read as one block of grey. -->
+          <span class="text-base font-medium leading-6 text-ink-gray-7">{{ row.question }}</span>
         </dt>
 
         <dd class="min-w-0">

@@ -3,7 +3,6 @@ import { computed, ref } from 'vue'
 import { Avatar, Button, toast } from 'frappe-ui'
 import IconPositive from '~icons/lucide/check'
 import IconCaution from '~icons/lucide/info'
-import FilterChip from './FilterChip.vue'
 import MediaLightbox from './MediaLightbox.vue'
 import { reviewMediaFor } from '../data/media'
 import { reviewsFor } from '../data/reviews'
@@ -29,15 +28,26 @@ const rating = computed(() => props.partner.rating.toFixed(1))
 
 const iconFor = (sentiment) => (sentiment === 'caution' ? IconCaution : IconPositive)
 
-// ⚠️ Selection is local and does nothing downstream — what a click filters is
-// still to be decided. Held here so the chips are genuinely pressable and the
-// selected state is reviewable, rather than being dead controls that look live.
-const activeTags = ref([])
-const toggleTag = (label) => {
-  activeTags.value = activeTags.value.includes(label)
-    ? activeTags.value.filter((l) => l !== label)
-    : [...activeTags.value, label]
-}
+// ⚠️ These chips are NOT selectable. They used to be `FilterChip` toggles with
+// a local `activeTags` array, and that was the wrong affordance: a chip that
+// takes a pressed state promises it filters the list underneath, and a visitor
+// who pressed one and saw four unchanged reviews would read the page as broken
+// rather than unbuilt. They're a way IN to a set of reviews — a modal, once it
+// exists — not a filter on the ones already shown.
+//
+// So they're plain buttons now. Same look (`outline` at `sm`, icon, count) and
+// still pressable, but no `aria-pressed`, no selected fill, no state to get out
+// of sync with the list.
+//
+// Single-use copy, so it lives here rather than in `feedback.js`. Names the
+// destination rather than letting the click vanish, the same way Contact does.
+const tagToast = (tag) =>
+  toast.info('Reviews by tag are not built yet', {
+    id: 'review-tag',
+    description: `This would open the ${tag.count} ${
+      tag.count === 1 ? 'review' : 'reviews'
+    } that mention "${tag.label}".`,
+  })
 
 const lightboxOpen = ref(false)
 const lightboxAt = ref(0)
@@ -64,7 +74,11 @@ const ago = (months) => (months < 12 ? `${months} months ago` : `${Math.floor(mo
       <div>
         <p class="flex items-center gap-1.5">
           <span class="text-6xl font-medium tabular-nums text-ink-gray-8">{{ rating }}</span>
-          <LucideStar class="size-4 fill-current text-ink-gray-5" aria-hidden="true" />
+          <!-- Amber, the same `ink-amber-5` the marketplace listings fill with
+               and the shade frappe-ui's own `Rating` uses for a filled star.
+               ⚠️ `ink-amber-1` to `-4` have no generated utility and render
+               black — see FRAPPE-UI-NOTES.md. -->
+          <LucideStar class="size-4 fill-current text-ink-amber-5" aria-hidden="true" />
           <span class="sr-only">out of 5</span>
         </p>
         <p class="mt-0.5 text-p-base text-ink-gray-6">
@@ -109,19 +123,34 @@ const ago = (months) => (months < 12 ? `${months} months ago` : `${Math.floor(mo
     </div>
 
     <!-- ── What reviewers keep saying ──────────────────────────────────── -->
-    <!-- The app's own chip (`FilterChip` — an outline ⇄ subtle Button), the
-         same control as the quiz's region chips and the mid-list app chips.
-         Pressable with a real selected state; the icon carries the sentiment. -->
+    <!-- ⚠️ NOT `FilterChip`, though it looks identical to one in its unselected
+         state. `FilterChip` is a toggle — it exists to carry a pressed state —
+         and these aren't selectable: they open a set of reviews rather than
+         filtering the four below. Reusing it here would have meant a chip that
+         latches on click and changes nothing, which reads as a broken filter
+         rather than an unbuilt screen. See the note on `tagToast`.
+
+         Same `Button` underneath at the same `outline` / `sm`, so the row still
+         matches the quiz's region chips visually. The icon carries the
+         sentiment: a check for what reviewers praised, an info mark for what
+         they cautioned about. The count is `currentColor` at 60%, matching
+         `FilterChip`'s own treatment. -->
     <div class="mt-4 flex flex-wrap gap-2">
-      <FilterChip
+      <Button
         v-for="t in review.tags"
         :key="t.label"
-        :label="t.label"
-        :count="t.count"
-        :icon="iconFor(t.sentiment)"
-        :selected="activeTags.includes(t.label)"
-        @toggle="toggleTag(t.label)"
-      />
+        variant="outline"
+        size="sm"
+        @click="tagToast(t)"
+      >
+        <template #prefix>
+          <component :is="iconFor(t.sentiment)" class="size-3.5" />
+        </template>
+        {{ t.label }}
+        <template #suffix>
+          <span class="tabular-nums opacity-60">{{ t.count }}</span>
+        </template>
+      </Button>
     </div>
 
     <!-- ── The reviews ─────────────────────────────────────────────────── -->
@@ -155,13 +184,23 @@ const ago = (months) => (months < 12 ? `${months} months ago` : `${Math.floor(mo
              what they scored it, then why. Under the body it was the last thing
              in the row and read as a footnote to the paragraph, when it's
              actually the part someone scanning a list of reviews is looking
-             for. -->
-        <div class="mt-2 flex items-center gap-4">
+             for.
+
+             `mt-3` against the body's `mt-2`, so the review splits 12 / 8 into
+             two groups rather than sitting as three evenly spaced lines: WHO
+             wrote it (avatar, name, company, date), then WHAT THEY SAID (the
+             score, then the reason for it). At an even 8 / 8 the company line
+             and the star row read as one run of small grey text and the review
+             had no visible start. Same rhythm the listing row uses — identity,
+             break, content. -->
+        <div class="mt-3 flex items-center gap-4">
           <p class="flex items-center gap-1.5 text-base font-medium text-ink-gray-8">
-            <!-- Lighter than the figure beside it: `fill-current` would inherit the
-                 row's ink-8, which makes a solid black star the loudest thing in
-                 the review. -->
-            <LucideStar class="size-3.5 fill-current text-ink-gray-5" aria-hidden="true" />
+            <!-- Coloured rather than inherited: `fill-current` on its own would
+                 take the row's ink-8 and make a solid black star the loudest
+                 thing in the review. Amber carries the same job the grey used
+                 to — it's the star that's marked, not the number — and matches
+                 the aggregate above and the marketplace rows. -->
+            <LucideStar class="size-3.5 fill-current text-ink-amber-5" aria-hidden="true" />
             {{ r.stars.toFixed(1) }}
             <span class="sr-only">out of 5</span>
           </p>
