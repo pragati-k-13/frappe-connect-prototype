@@ -10,7 +10,7 @@
 //
 // It's invented but not arbitrary. An app is only ever drawn from something the
 // directory already says about that partner:
-//   • a localisation app comes from their REGION — the German partner gets the
+//   • a localisation app comes from their MARKET — the German partner gets the
 //     German compliance app, not the Indian one;
 //   • a product app comes from an app they actually implement (`partner.apps`),
 //     so nobody is publishing a CRM add-on for a CRM they don't work in.
@@ -38,9 +38,11 @@ const hash = (str) => {
 }
 const seedFor = (id, field) => hash(`${id}:${field}`)
 
-// Localisation and compliance work, keyed by the partner's own region. These
-// are the apps a partner builds because of where they operate.
-const BY_REGION = {
+// Localisation and compliance work, keyed by the partner's own market — the
+// region, except that India is a market of its own (`marketOf` in
+// `data/partners.js`). GST is not a Singapore partner's problem. These are the
+// apps a partner builds because of where they operate.
+const BY_MARKET = {
   india: ['GST and E-Invoicing', 'TDS Automation', 'India Payroll Compliance'],
   europe: ['Germany Compliance', 'SEPA Direct Debit', 'EU VAT and OSS Returns'],
   'middle-east': ['UAE VAT Compliance', 'Arabic Print Formats'],
@@ -102,18 +104,22 @@ export const contributionsFor = (partner) => {
   const total = COUNTS[partner.id] ?? 0
   if (!total) return []
 
-  // The region app first, then product apps drawn from the partner's own stack.
-  // Concatenating gives a pool at least as long as any partner's count, and
-  // slicing keeps the region app in whenever there is one to have.
+  // The localisation app first, then product apps drawn from the partner's own
+  // stack. Concatenating gives a pool at least as long as any partner's count,
+  // and slicing keeps the localisation app in whenever there is one to have.
   //
-  // ⚠️ The region pool is ROTATED per partner rather than read from the top.
+  // ⚠️ The market pool is ROTATED per partner rather than read from the top.
   // Eight of the thirteen partners are Indian, and without this every one of
   // them published an app called "GST and E-Invoicing" — true enough to life,
   // but on a directory two profiles showing the identical listing read as a
   // copy-paste bug rather than as two partners in the same market.
-  const region = BY_REGION[partner.region] ?? []
-  const off = region.length ? seedFor(partner.id, 'region') % region.length : 0
-  const rotated = [...region.slice(off), ...region.slice(0, off)]
+  //
+  // The rotation salt stays 'region' now that the pool is keyed by market: it's
+  // an arbitrary per-partner offset, and renaming it would rotate all thirteen
+  // listings to no end.
+  const market = BY_MARKET[partner.market] ?? []
+  const off = market.length ? seedFor(partner.id, 'region') % market.length : 0
+  const rotated = [...market.slice(off), ...market.slice(0, off)]
   const products = partner.apps.flatMap((app) => BY_APP[app] ?? [])
   const pool = [...rotated.slice(0, 1), ...products, ...rotated.slice(1)]
 

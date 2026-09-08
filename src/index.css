@@ -57,7 +57,7 @@
 }
 
 /* Map panel stat row.
-   Six labelled counts that read as one claim about the network's size — broken
+   Five labelled counts that read as one claim about the network's size — broken
    across lines unevenly, they read as several. What decides whether they fit on
    one line is the PANEL's width, not the window's, and the panel is NARROWEST
    at 1024px, where the layout turns two-column and the map hands most of its
@@ -71,12 +71,12 @@
 }
 
 /* Grid, not flex, and every column gets the same floor. Left to size
-   themselves the six cells run 26px ("Asia") to 71px ("Middle East"), so a
+   themselves the five cells run 26px ("Asia") to 71px ("Middle East"), so a
    uniform gap lands the numbers at wildly uneven intervals and the row reads as
-   six unrelated facts. The floor pulls the short ones up — the range closes to
+   five unrelated facts. The floor pulls the short ones up — the range closes to
    48-71px — without stretching the columns to equal `1fr` widths, which at a
    956px panel would fling them back out to the edges.
-   Narrow panel: 3 x 2. */
+   Narrow panel: 3 then 2. */
 .fc-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(48px, max-content));
@@ -85,15 +85,15 @@
   row-gap: 1.25rem;
 }
 
-/* Wide enough for one row at that floor. Four of the six sit at 48px, "Middle
-   East" needs 71 and "Americas" 57, so the columns come to 320px and each tier
+/* Wide enough for one row at that floor. Three of the five sit at 48px, "Middle
+   East" needs 71 and "Americas" 57, so the columns come to 272px and each tier
    below is that plus its gaps. These widths are the panel's CONTENT box, which
    is what @container measures: at `p-8` that's 64px less than the panel's own
    width. */
-@container (min-width: 380px) {
+@container (min-width: 320px) {
   .fc-stats {
-    grid-template-columns: repeat(6, minmax(48px, max-content));
-    column-gap: 0.75rem; /* 380px */
+    grid-template-columns: repeat(5, minmax(48px, max-content));
+    column-gap: 0.75rem; /* 320px */
   }
 }
 @container (min-width: 420px) {

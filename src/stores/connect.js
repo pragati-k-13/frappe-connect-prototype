@@ -195,10 +195,12 @@ export const useConnectStore = defineStore('connect', {
         'frappe-hr': ['payroll', 'attendance'],
       },
     },
-    // Post-quiz filters on the results page. `app` starts unset — it's a
-    // refinement offered mid-list, not a qualifier.
+    // Filters on the results page. `app` starts unset — it's a refinement
+    // offered mid-list, not a qualifier.
     // `countries` is the granular half of the region dimension. Empty reads as
     // "no constraint", the same as an unset `app` — see the filter notes above.
+    // It is NOT post-quiz only: the quiz's India chip is a country, so the
+    // question before the listing writes this field too (`toggleGeo`).
     filters: { search: '', app: null, countries: [] },
   }),
 
@@ -216,7 +218,13 @@ export const useConnectStore = defineStore('connect', {
     // A stand-in for GeoIP. Real implementations resolve this server-side on
     // first paint; the mock hardcodes the common case so the interaction (a
     // pre-filled answer you can override) is reviewable.
-    inferredRegion: () => 'india',
+    //
+    // Shaped like a `GEO_CHOICES` entry — `{ country }` or `{ region }` — because
+    // that's what the geo question is answered with, and the common case here is
+    // a country: eight of thirteen partners are in India and so is most of the
+    // traffic. A real GeoIP resolves to a country too; the region is the fallback
+    // for the ones no chip names.
+    inferredGeo: () => ({ country: 'India' }),
 
     results(state) {
       const c = criteriaFrom(state)
@@ -368,15 +376,39 @@ export const useConnectStore = defineStore('connect', {
         current.includes(value) ? current.filter((r) => r !== value) : [...current, value],
       )
     },
+    // One geo chip, either granularity — takes a `GEO_CHOICES` entry and routes
+    // it to the half of the dimension it belongs to. The quiz asks India as a
+    // country and the five regions as regions (see `data/quiz.js`), and the
+    // results filter reads the union of both fields, so a country answered here
+    // arrives there ticked under its region with nothing to translate.
+    toggleGeo(choice) {
+      if (!choice.country) return this.toggleRegion(choice.region)
+      const current = this.filters.countries
+      this.filters.countries = current.includes(choice.country)
+        ? current.filter((c) => c !== choice.country)
+        : [...current, choice.country]
+      // Same clearing `answer('region', …)` does for the region half: whichever
+      // way the question is answered, it stops being an inferred answer.
+      this.regionInferred = false
+    },
     skip(key) {
       this.answers[key] = key === 'region' || key === 'segments' ? [] : null
+      // The geo question holds a country as well as a region, so skipping it has
+      // to drop both halves — otherwise the India seeded from inferred location
+      // survives a deliberate "no preference" and the listing arrives filtered
+      // by an answer the visitor declined to give.
+      if (key === 'region') this.filters.countries = []
       if (key === 'industry') this.answers.segments = []
     },
-    // Called when the quiz mounts: seeds the region answer from "geo" so the
-    // user confirms rather than picks. Never overwrites a real choice.
-    seedInferredRegion() {
-      if (this.answers.region.length) return
-      this.answers.region = [this.inferredRegion]
+    // Called when the quiz mounts: seeds the geo answer from "where we think you
+    // are" so the question costs a confirmation instead of a decision. Never
+    // overwrites a real choice — and it checks BOTH halves for one, because
+    // either can hold the answer.
+    seedInferredGeo() {
+      if (this.answers.region.length || this.filters.countries.length) return
+      const { region, country } = this.inferredGeo
+      if (country) this.filters.countries = [country]
+      else this.answers.region = [region]
       this.regionInferred = true
     },
     reset() {

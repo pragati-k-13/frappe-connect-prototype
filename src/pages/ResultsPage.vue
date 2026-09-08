@@ -95,22 +95,23 @@ const setSegments = (value) => {
   store.answers.segments = value ?? []
 }
 
-// ONE control for where a partner is, at two levels of granularity: every
-// country the programme lists, grouped under its region, with the region itself
-// selectable as the first row of its own group.
+// ONE control for where a partner is: every country the programme lists, grouped
+// under its region. Countries are the only rows — a region is a heading, not an
+// option.
 //
 // Region and country as two separate dropdowns was worse in the way the
-// industry/segment rework already established — two controls for one dimension
-// and two chances for them to disagree. `MultiSelect` renders a group LABEL
-// rather than a group option, so the region can't be ticked from the heading;
-// it rides in as a real option instead, distinguished by a prefixed value.
+// industry/segment rework already established: two controls for one dimension
+// and two chances for them to disagree.
 //
-// The store keeps its two fields regardless: `answers.region` is what the quiz
-// collects and what the landing page's map is drawn from, and `filters.countries`
-// is the granular half. Only this control's model merges them, which is what
-// lets one dropdown drive both without changing the store's contract.
-const REGION_PREFIX = 'region:'
-const isRegionValue = (v) => String(v).startsWith(REGION_PREFIX)
+// There USED to be an "All of Asia" row leading each group, carrying a prefixed
+// region value, because `MultiSelect` renders a group LABEL and not a group
+// option. It's gone, and with it the one-click way to say "anywhere in this
+// region" — the quiz still asks that question with its chips, and here a region
+// is said by ticking its countries. What keeps that from being a downgrade in
+// the store is `setGeo` below: a region whose every country is ticked collapses
+// back to the region value, so `answers.region` still holds what the quiz
+// collects and what the landing map is drawn from, and the trigger still names
+// the region rather than counting to twelve.
 
 // Counts come from `store.countryCounts`, which ignores the whole geo dimension
 // so each number says how many picking that row would ADD. A country with no
@@ -121,54 +122,90 @@ const isRegionValue = (v) => String(v).startsWith(REGION_PREFIX)
 // group, so you could no longer tell a country the programme doesn't cover from
 // one your other filters ruled out.
 //
-// The group label carries the region's total, so regions stay comparable
-// without adding up their countries. It's interpolated into the string because
-// `MultiSelectGroupedOption` takes a plain `group` label and no slot.
+// The group heading carries the region's own partner total, so regions stay
+// comparable without adding up their countries by eye. It's rendered through
+// `#group-label` and summed from the options by `groupTotal` — it can't ride on
+// the group object, which `normalizeMultiSelectOptions` strips down to `key`,
+// `group`, `hideLabel` and `options` on the way through.
+//
+// Each group is ordered by that count, most partners first — the order the
+// source page lists countries in, and the order that reads as an answer to "who
+// is actually here". `data/quiz.js` holds the lists alphabetically; that order
+// survives as the tiebreak, which is what the long tail of 0s is sorted by.
+//
+// Ordering by a number that MOVES is safe here, and only here. The count shifts
+// when search, industry or app shifts — controls you can't reach without
+// closing this list — and ticking a country inside it moves nothing, because
+// `countryCounts` skips the whole geo dimension by design. So the list never
+// reshuffles while it's open, and it always agrees with the numbers printed
+// down its right edge.
 const geoOptions = computed(() =>
   REGIONS.map((r) => {
-    const countries = r.countries.map((name) => ({
-      label: name,
-      value: name,
-      // Read back by `#item-suffix`. `MultiSelectOption` allows arbitrary keys,
-      // which is what lets the count ride along on the option itself instead of
-      // being looked up again during render.
-      count: store.countryCounts[name] ?? 0,
-    }))
-    const total = countries.reduce((n, o) => n + o.count, 0)
-    return {
-      key: r.value,
-      group: `${r.label} · ${total}`,
-      options:
-        countries.length === 1
-          ? // A region with one country selects exactly the same partners either
-            // way, so it gets ONE row rather than an "All of India" sitting above
-            // an identical "India". It carries the REGION value, so a region
-            // answered in the quiz still finds an option to tick here.
-            [{ ...countries[0], value: `${REGION_PREFIX}${r.value}` }]
-          : [
-              { label: `All of ${r.label}`, value: `${REGION_PREFIX}${r.value}`, count: total },
-              ...countries,
-            ],
-    }
+    const countries = r.countries
+      .map((name) => ({
+        label: name,
+        value: name,
+        // Read back by `#item-suffix`. `MultiSelectOption` allows arbitrary keys,
+        // which is what lets the count ride along on the option itself instead of
+        // being looked up again during render.
+        count: store.countryCounts[name] ?? 0,
+      }))
+      // `.map()` already handed back a fresh array, so this sorts a copy and
+      // leaves `r.countries` alone.
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+    return { key: r.value, group: r.label, options: countries }
   }),
 )
 
-// The merge, both ways. Region values are prefixed on the way out and stripped
-// on the way back in, so the two store fields stay exactly as they were.
+// The region's partner total, for its group heading. Every option in the group
+// is a country now, so this is just their sum — the same arithmetic the old
+// "All of …" row carried, done where the number is used.
+const groupTotal = (group) => group.options.reduce((n, o) => n + o.count, 0)
+
+// The merge, both ways — and the whole reason removing the "All of …" rows costs
+// the store nothing.
+//
+// Out: a region in `answers.region` shows as every one of its countries ticked,
+// because that is what it means in a list where only countries are selectable.
+// A `Set` because a country can arrive from both halves at once — Asia answered
+// in the quiz, then India ticked here — and a duplicate value would render the
+// row twice in the trigger's count.
 const geoSelection = computed(() => [
-  ...store.answers.region.map((v) => `${REGION_PREFIX}${v}`),
-  ...store.filters.countries,
+  ...new Set([
+    ...REGIONS.filter((r) => store.answers.region.includes(r.value)).flatMap((r) => r.countries),
+    ...store.filters.countries,
+  ]),
 ])
+
+// In: a region survives as a region only while every country in it is still
+// ticked. Untick one and the answer becomes the countries themselves — "Asia
+// except Pakistan" is sayable, and it has to be, because the row you unticked
+// was the only way to say it. Tick the last one back and it collapses to the
+// region again.
 const setGeo = (value) => {
-  const next = value ?? []
-  // Through `answer()` rather than assigned, so picking a region here clears
-  // the inferred-region flag the same way the quiz's own chips do.
+  const picked = value ?? []
+  const whole = REGIONS.filter((r) => r.countries.every((c) => picked.includes(c)))
+  const covered = new Set(whole.flatMap((r) => r.countries))
+  // Through `answer()` rather than assigned, so picking here clears the
+  // inferred-region flag the same way the quiz's own chips do.
   store.answer(
     'region',
-    next.filter(isRegionValue).map((v) => v.slice(REGION_PREFIX.length)),
+    whole.map((r) => r.value),
   )
-  store.filters.countries = next.filter((v) => !isRegionValue(v))
+  store.filters.countries = picked.filter((c) => !covered.has(c))
 }
+
+// What the trigger says, for the same reason `segmentSummary` exists below: a
+// whole region ticked is "Asia", and "12 selected" would hide a plain answer
+// behind a number. Regions first, then any loose countries — "Asia +1" rather
+// than a number that lost the word.
+const geoSummary = computed(() => {
+  const regions = REGIONS.filter((r) => store.answers.region.includes(r.value))
+  const loose = store.filters.countries
+  if (!regions.length) return loose.length > 1 ? `${loose.length} countries` : null
+  const named = regions.map((r) => r.label).join(', ')
+  return loose.length ? `${named} +${loose.length}` : named
+})
 // ONE control for the industry dimension, not two. Industry and segment used to
 // be separate Selects — pick a group, then a second control appears to narrow
 // inside it — which meant two controls for one question, an option list you
@@ -277,8 +314,16 @@ const clearTooltip = computed(() => {
           placeholder="Search"
           @update:model-value="setFilter('search', $event)"
         >
+          <!-- gray-4, not the gray-6 the row-metadata icons use: this one is a
+               control affordance, and its peers are the chevrons on the three
+               dropdowns beside it, which `Select` and `MultiSelect` both
+               hardcode at `text-ink-gray-4`. It's also the colour of the
+               placeholder it sits against — TextInput's own is
+               `placeholder-ink-gray-4` — so an empty field reads as one thing.
+               Passing no class at all would inherit the input's `text-ink-gray-8`
+               and be darker still. -->
           <template #prefix>
-            <LucideSearch class="size-4 text-ink-gray-6" />
+            <LucideSearch class="size-4 text-ink-gray-4" />
           </template>
         </TextInput>
 
@@ -299,6 +344,17 @@ const clearTooltip = computed(() => {
           <template #item-suffix="{ item }">
             <span class="tabular-nums text-ink-gray-5">{{ item.count }}</span>
           </template>
+          <!-- The region's count belongs in the same column as its countries',
+               not inline after the label where it read as a count OF those
+               countries. `ComboboxLabel` is `px-2` and so is `ItemListRow` at
+               `sm`, so a right-aligned span here lands on exactly the edge
+               `#item-suffix` sits on. Colour is inherited: the heading is one
+               quiet line, and a gray-5 number in a gray-4 label splits it. -->
+          <template #group-label="{ group }">
+            <span class="min-w-0 flex-1 truncate">{{ group.group }}</span>
+            <span class="tabular-nums">{{ groupTotal(group) }}</span>
+          </template>
+          <template v-if="geoSummary" #summary>{{ geoSummary }}</template>
         </MultiSelect>
 
         <!-- Industry AND segment, in one control. The group label is the
