@@ -214,8 +214,23 @@ const geoSummary = computed(() => {
 // natively, so the industry becomes the group label and the segments are the
 // options. Nothing is selectable at the group level, because nothing in the
 // data is tagged there: partners carry segment names.
+//
+// Counts ride along the same way the geo control's do — on the option for
+// `#item-suffix`, and off `store.industryCounts` for the heading. The heading's
+// number is NOT the sum of its rows: a partner lists several segments, so
+// summing would report it once per segment (see `industryCounts`). Order is left
+// as the directory's; only the geo list is sorted by count, and there the count
+// can't move while the list is open.
 const segmentOptions = computed(() =>
-  INDUSTRIES.map((i) => ({ group: i.label, key: i.value, options: i.segments.map((s) => ({ label: s, value: s })) })),
+  INDUSTRIES.map((i) => ({
+    group: i.label,
+    key: i.value,
+    // Read back by `#group-label`, which gets the group object — and unlike the
+    // options, groups are stripped to `key`/`group`/`hideLabel`/`options` on
+    // the way through `normalizeMultiSelectOptions`, so the count can't ride on
+    // the group. The key survives, so the heading looks it up by that.
+    options: i.segments.map((s) => ({ label: s, value: s, count: store.segmentCounts[s] ?? 0 })),
+  })),
 )
 
 // What the trigger says. MultiSelect's default is the label when one is picked
@@ -370,6 +385,16 @@ const clearTooltip = computed(() => {
           @update:model-value="setSegments"
         >
           <template v-if="segmentSummary" #summary>{{ segmentSummary }}</template>
+          <!-- Same two slots as the geo control, so the two dropdowns read as
+               one bar: count right-aligned on every row, and the group's own
+               total in the same column on the heading. -->
+          <template #item-suffix="{ item }">
+            <span class="tabular-nums text-ink-gray-5">{{ item.count }}</span>
+          </template>
+          <template #group-label="{ group }">
+            <span class="min-w-0 flex-1 truncate">{{ group.group }}</span>
+            <span class="tabular-nums">{{ store.industryCounts[group.key] ?? 0 }}</span>
+          </template>
         </MultiSelect>
         <!-- Q3. Was missing entirely, so the answer filtered silently. -->
         <Select

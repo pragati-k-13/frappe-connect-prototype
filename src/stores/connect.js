@@ -1,5 +1,8 @@
 import { defineStore } from 'pinia'
 import { PARTNERS } from '../data/partners'
+// For `industryCounts` only — the group totals on the industry filter's
+// headings, which need to know which segments belong to which group.
+import { INDUSTRIES } from '../data/quiz'
 
 // A skipped question stores `null`, which every filter below reads as "no
 // constraint". That keeps skip and never-asked identical downstream, so the
@@ -259,6 +262,44 @@ export const useConnectStore = defineStore('connect', {
       for (const p of PARTNERS) {
         if (!matches(p, c, 'geo')) continue
         for (const country of p.countries) counts[country] = (counts[country] ?? 0) + 1
+      }
+      return counts
+    },
+
+    // Partner count per segment, for the labels on the industry filter. The
+    // same shape and the same reasoning as `countryCounts` above: it skips the
+    // whole `segments` dimension and nothing else, so each number says how many
+    // picking that row would ADD rather than reading 0 the moment you pick a
+    // sibling. Region, app and search are still respected.
+    segmentCounts(state) {
+      const c = criteriaFrom(state)
+      const counts = {}
+      for (const p of PARTNERS) {
+        if (!matches(p, c, 'segments')) continue
+        for (const segment of p.industries) counts[segment] = (counts[segment] ?? 0) + 1
+      }
+      return counts
+    },
+
+    // Partner count per industry GROUP, keyed by industry value — the number on
+    // the filter's group headings.
+    //
+    // ⚠️ Not the sum of the group's segment counts, which is what the geo
+    // filter's heading can get away with. A partner sits in exactly one country
+    // but routinely in several segments — Tridots is in five — so summing would
+    // count the same partner once per segment it lists and report more
+    // "partners" in Manufacturing than the directory holds. This counts each
+    // partner once per group.
+    industryCounts(state) {
+      const c = criteriaFrom(state)
+      const counts = {}
+      for (const p of PARTNERS) {
+        if (!matches(p, c, 'segments')) continue
+        for (const industry of INDUSTRIES) {
+          if (p.industries.some((i) => industry.segments.includes(i))) {
+            counts[industry.value] = (counts[industry.value] ?? 0) + 1
+          }
+        }
       }
       return counts
     },
