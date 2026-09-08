@@ -14,7 +14,7 @@ import ConnectShell from '../components/ConnectShell.vue'
 import DottedWorldMap from '../components/DottedWorldMap.vue'
 import FilterChip from '../components/FilterChip.vue'
 import { useConnectStore } from '../stores/connect'
-import { INDUSTRIES, REGIONS, IMPLEMENTATION_TYPES, MAP_REGIONS } from '../data/quiz'
+import { INDUSTRIES, GEO_CHOICES, IMPLEMENTATION_TYPES, MAP_REGIONS } from '../data/quiz'
 import { STARTER_PACKS, SUCCESS_STORIES } from '../data/partners'
 
 const store = useConnectStore()
@@ -26,10 +26,10 @@ const quizTop = ref(null)
 // Set when Continue is pressed with a required branch field still empty.
 const branchError = ref(false)
 
-// Region is pre-answered from "where we think you are" so this question costs a
-// confirmation instead of a decision. The hint under the chips says so —
+// Location is pre-answered from "where we think you are" so this question costs
+// a confirmation instead of a decision. The hint under the chips says so —
 // a silently pre-filled answer would be the dishonest version of this.
-onMounted(() => store.seedInferredRegion())
+onMounted(() => store.seedInferredGeo())
 
 const selectedIndustry = computed(() => INDUSTRIES.find((i) => i.value === store.answers.industry))
 // All four groups branch — every one has real segments in the directory's
@@ -188,14 +188,24 @@ const restartQuiz = () => {
               <!-- mt-3 against the radio steps' mt-1.5: chips have no internal
                    top padding, so the larger margin lands on the same visual
                    gap below the question. -->
+              <!-- India is a chip of its own here, and a COUNTRY rather than a
+                   region — most visitors are in it, and asking them to find
+                   themselves inside "Asia" is a worse question. The results
+                   filter puts the same answer where it belongs taxonomically,
+                   as the first country under Asia; `toggleGeo` is what lets one
+                   chip row hold both granularities. See `GEO_CHOICES`. -->
               <div class="mt-3 flex flex-wrap gap-2">
                 <FilterChip
-                  v-for="r in REGIONS"
-                  :key="r.value"
-                  :label="r.label"
-                  :count="r.count"
-                  :selected="store.answers.region.includes(r.value)"
-                  @toggle="store.toggleRegion(r.value)"
+                  v-for="c in GEO_CHOICES"
+                  :key="c.region ?? c.country"
+                  :label="c.label"
+                  :count="c.count"
+                  :selected="
+                    c.country
+                      ? store.filters.countries.includes(c.country)
+                      : store.answers.region.includes(c.region)
+                  "
+                  @toggle="store.toggleGeo(c)"
                 />
               </div>
 
@@ -251,22 +261,22 @@ const restartQuiz = () => {
         <!-- Map centred in whatever height the panel gets, counts pinned to the
              bottom — so a tall panel reads as composed rather than padded. -->
         <!-- The region answer is pre-seeded from inferred location before the
-             quiz starts, so without this guard the map would emphasise India
+             quiz starts, so without this guard the map would emphasise Asia
              while you're still on question 1 — highlighting an answer nothing
              on screen has asked for yet. It holds until the region question is
              actually reached, then stays lit for the rest of the quiz. -->
         <div class="flex flex-1 items-center">
           <DottedWorldMap
-            :highlight="step >= 2 ? store.answers.region : []"
+            :highlight="step >= 2 ? [...store.answers.region, ...store.filters.countries] : []"
             class="mx-auto w-full"
           />
         </div>
         <!-- Grouped, not spread across the panel: `justify-between` made these
-             read as six separate facts rather than one — the network's size,
+             read as five separate facts rather than one — the network's size,
              which is the only claim they make.
              The column gap comes from a container query on the panel, not a
              viewport breakpoint — see `.fc-stats` in index.css. What decides
-             whether six fit on one line is how wide this panel is, and the
+             whether five fit on one line is how wide this panel is, and the
              panel is at its narrowest exactly where the viewport is widest
              enough to go two-column. -->
         <dl class="fc-stats mx-auto mt-8">

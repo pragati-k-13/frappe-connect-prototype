@@ -370,11 +370,27 @@ const CERTIFIED_MEMBERS = {
   korecent: { erpnext: 1 },
 }
 
-// ⚠️ Invented, and uniform by region. Real migration paths, but not sourced
+// The country of a scraped city — its last comma field. 'Singapore' has no
+// comma and is its own country, which is why this splits rather than indexes.
+const countryOf = (city) => city.split(',').pop().trim()
+
+// Which pool a partner's PLACEHOLDER content is drawn from: reviewer names and
+// company suffixes (`data/reviews.js`), localisation apps (`data/marketplace.js`)
+// and the migrations below.
+//
+// It is the region, except in India, which is a country inside Asia and not a
+// region of its own — see the note above `REGIONS` in `data/quiz.js`. That
+// distinction is real for this content and only for this content: a Chennai
+// partner and a Singapore one share a region and share none of a legacy stack,
+// a compliance app or a naming convention. `region` stays what the filter and
+// the map ask about; `market` is what the invented content varies at.
+const marketOf = (city, region) => (countryOf(city) === 'India' ? 'india' : region)
+
+// ⚠️ Invented, and uniform by market. Real migration paths, but not sourced
 // from any partner's own listing — Tally and SAP are simply the two ERPNext
 // migrations that actually come up in India, QuickBooks the common one outside
 // it. Replace per partner when the directory publishes them.
-const MIGRATIONS_BY_REGION = {
+const MIGRATIONS_BY_MARKET = {
   india: ['Tally to ERPNext', 'SAP to ERPNext'],
 }
 const DEFAULT_MIGRATIONS = ['QuickBooks to ERPNext', 'SAP to ERPNext']
@@ -418,13 +434,15 @@ const P = (
   accolades,
   pmm: PMM_BY_TIER[tier] ?? 1,
   // Real: `city` is scraped, and the country is its last comma field.
-  countries: [city.split(',').pop().trim()],
+  countries: [countryOf(city)],
+  // See `marketOf` above — the region, except that India is its own market.
+  market: marketOf(city, region),
   // `[{ app, members }]`, highest count first, zeroes dropped.
   certifications: Object.entries(CERTIFIED_MEMBERS[slug(name)] ?? {})
     .filter(([, members]) => members > 0)
     .map(([app, members]) => ({ app, members }))
     .sort((a, b) => b.members - a.members),
-  migrations: MIGRATIONS_BY_REGION[region] ?? DEFAULT_MIGRATIONS,
+  migrations: MIGRATIONS_BY_MARKET[marketOf(city, region)] ?? DEFAULT_MIGRATIONS,
   vision: visionFor(name),
   tier,
   city,
@@ -452,7 +470,7 @@ export const PARTNERS = [
     accolades: [{ title: 'Partner of the Year', year: 2026 }],
     tier: 'gold',
     city: 'Chennai, India',
-    region: 'india',
+    region: 'asia',
     initials: 'TT',
     color: '#3b82f6',
     rate: 85,
@@ -479,7 +497,7 @@ export const PARTNERS = [
     tagline: 'Running payroll, plants and pipelines on one system since 2011',
     tier: 'gold',
     city: 'Mumbai, India',
-    region: 'india',
+    region: 'asia',
     initials: 'SW',
     color: '#8b5cf6',
     rate: 85,
@@ -495,7 +513,7 @@ export const PARTNERS = [
     tagline: 'Open source for institutions that keep records for decades',
     tier: 'silver',
     city: 'Pune, India',
-    region: 'india',
+    region: 'asia',
     initials: 'NI',
     color: '#14b8a6',
     rate: 70,
@@ -511,7 +529,7 @@ export const PARTNERS = [
     tagline: 'Traceability from the shop floor up',
     tier: 'gold',
     city: 'Pune, India',
-    region: 'india',
+    region: 'asia',
     initials: '88',
     color: '#f59e0b',
     rate: 90,
@@ -532,7 +550,7 @@ export const PARTNERS = [
     tagline: 'A small studio setting up ERPNext properly for small teams',
     tier: 'bronze',
     city: 'Mumbai, India',
-    region: 'india',
+    region: 'asia',
     initials: 'GC',
     color: '#64748b',
     rate: 75,
@@ -548,7 +566,7 @@ export const PARTNERS = [
     tagline: 'One system across every outlet, from Kerala to the Gulf',
     tier: 'gold',
     city: 'Kochi, India',
-    region: 'india',
+    region: 'asia',
     initials: 'WA',
     color: '#00b4f5',
     rate: 65,
@@ -564,7 +582,7 @@ export const PARTNERS = [
     tagline: 'Building less on Frappe, so you maintain less',
     tier: 'silver',
     city: 'Pune, India',
-    region: 'india',
+    region: 'asia',
     initials: 'HL',
     color: '#0ea5e9',
     rate: 60,
@@ -580,7 +598,7 @@ export const PARTNERS = [
     tagline: 'Built for the finance team that lives in the ERP',
     tier: 'silver',
     city: 'Ahmedabad, India',
-    region: 'india',
+    region: 'asia',
     initials: 'FB',
     color: '#22c55e',
     rate: 70,
