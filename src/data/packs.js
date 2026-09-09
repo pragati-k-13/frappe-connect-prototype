@@ -30,6 +30,8 @@ export const STARTER_PACKS = [
     name: 'Core ERPNext',
     // The one-line version, for the marketing page and the comparison table.
     modules: 'Finance + Sales + Purchase + Inventory',
+    tagline: 'Where most businesses start',
+    moduleList: 'Finance, Sales, Purchase and Inventory modules',
     areas: ['accounting', 'selling', 'buying', 'inventory'],
     apps: ['erpnext'],
     hours: 40,
@@ -40,6 +42,8 @@ export const STARTER_PACKS = [
     value: 'manufacturing',
     name: 'Manufacturing',
     modules: 'Core ERPNext + Manufacturing',
+    tagline: 'Everything in Core ERPNext, plus production',
+    moduleList: 'Finance, Sales, Purchase, Inventory and Manufacturing modules',
     areas: ['accounting', 'selling', 'buying', 'inventory', 'manufacturing'],
     apps: ['erpnext'],
     hours: 70,
@@ -50,6 +54,8 @@ export const STARTER_PACKS = [
     value: 'all-in-one',
     name: 'All in one',
     modules: 'Core ERPNext + Manufacturing + Frappe HR',
+    tagline: 'Everything in Manufacturing, plus HR and payroll',
+    moduleList: 'Finance, Sales, Purchase, Inventory, Manufacturing and Frappe HR modules',
     areas: ['accounting', 'selling', 'buying', 'inventory', 'manufacturing', 'hrms', 'payroll'],
     apps: ['erpnext', 'frappe-hr'],
     hours: 100,
@@ -60,6 +66,8 @@ export const STARTER_PACKS = [
     value: 'frappe-hr',
     name: 'Frappe HR',
     modules: 'HRMS + Payroll',
+    tagline: 'HR and payroll, on their own',
+    moduleList: 'HRMS and Payroll modules',
     areas: ['hrms', 'payroll'],
     apps: ['frappe-hr'],
     hours: 30,
@@ -379,16 +387,29 @@ export const INCLUDED_IN_ALL = [
 // Section 5 — out of scope for every pack, available as paid add-ons. This list
 // is the reason a pack is cheap and fast, so it's given the same weight as the
 // inclusions rather than being buried in fine print.
+// A bare string, or `{ label, hint }` when the line carries a caveat that would
+// otherwise double its length. Same shape as the vision section's tags — see
+// `components/PartnerVisionSection.vue`.
+// ⚠️ Where a line needs a qualifier, the qualifier goes in `hint`, not in
+// parentheses on the label. Three of these ran past the column's 304px and
+// wrapped, and a wrapped exclusion reads as the loudest thing in the list —
+// which is backwards, since the wrap is about sentence length, not importance.
 export const STRICTLY_EXCLUDED = [
   'Custom print formats',
-  'Custom scripting (Python and server scripts)',
-  'API integrations for biometric devices, banks and payment gateways',
-  'Data cleaning and migration (you provide clean Excel or CSV data)',
+  'Custom scripting (Python / server scripts)',
+  { label: 'API integrations', hint: 'Biometric devices, banks and payment gateways' },
+  {
+    label: 'Data cleaning and data import/migration',
+    hint: 'You provide clean Excel or CSV data',
+  },
   'UAT training',
   'Custom workflows',
   'Complex notification automation',
-  'Post go-live support beyond day one, which needs an AMC',
+  { label: 'Post go-live support beyond Day 1', hint: 'Covered by an AMC' },
 ]
+
+// A line is a bare string until it needs a caveat. One place decides which.
+export const asExclusion = (item) => (typeof item === 'string' ? { label: item, hint: null } : item)
 
 // Section 8.
 export const CUSTOMER_RESPONSIBILITIES = [
