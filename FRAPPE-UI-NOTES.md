@@ -44,7 +44,12 @@ Three more traps in the same family:
 
 - There is no `bg-surface-white`. The token is **`bg-surface-base`**.
 - There is no `text-ink-white`. Use **`text-white`**.
-- `bg-gray-*` only ships shades `100, 300, 400, 500, 900` — not the full ramp.
+- `bg-gray-*` is **not the full ramp**, and which shades exist is not fixed. Tailwind
+  emits only what something in the scanned content actually references, so the set moves
+  as this app and frappe-ui's own source change — at the time of writing it's
+  `100, 200, 300, 400, 500, 900`, and it was `100, 300, 400, 500, 900` a few commits
+  earlier. Don't memorise the list; prefer the semantic tokens, which are always emitted,
+  and measure before relying on a raw shade.
 
 Because none of this errors, the only reliable check is to diff the classes you
 wrote against the CSS Tailwind actually emitted. Build, then grep
@@ -85,8 +90,8 @@ of its own therefore has no accessible description, and reka-ui warns that
 `ToastProvider` — `Toasts` and `createToast` are the pre-1.0 API and are gone, so a
 `<Toasts />` tag renders nothing and reports nothing. It doesn't self-mount either, so
 `toast()` without it is a silent no-op. Worse, it's a pure subscriber: it only sees
-toasts published *after* it subscribes and never seeds from the queue, so mounted
-*after* `<RouterView />` it swallows anything a child toasts from `setup()` or
+toasts published _after_ it subscribes and never seeds from the queue, so mounted
+_after_ `<RouterView />` it swallows anything a child toasts from `setup()` or
 `onMounted()`. Mount exactly one, above the app content — a second copy has no dedup
 guard and renders every toast twice.
 
@@ -94,7 +99,7 @@ guard and renders every toast twice.
 Position is hardcoded `bottom-right`, along with the close button and a 3-toast cap, so
 anything else means dropping to `<Toaster>` from vue-sonner directly. The offsets look
 like CSS variables you can override — `--offset-bottom` and friends — but vue-sonner
-writes all four onto the element as an *inline* `style` attribute, so a stylesheet rule
+writes all four onto the element as an _inline_ `style` attribute, so a stylesheet rule
 loses no matter how specific it is, silently. An `!important` author declaration beats a
 non-important inline one, which is the only way to shift the stack.
 
@@ -102,7 +107,7 @@ Usually you don't need to. The toaster is `position: fixed` at `z-index: 9999999
 it paints over anything the app has parked in that corner and its action button stays the
 hit target — a floating control down there gets covered for a few seconds rather than
 blocking the toast. Check with `elementFromPoint` before assuming a clash: this mock's
-demo switch (`z-50`) *looks* like it sits on top in a scaled screenshot and does not.
+demo switch (`z-50`) _looks_ like it sits on top in a scaled screenshot and does not.
 
 **`toast()`'s old object form still works, and its units differ.**
 `toast({ title, text, timeout })` is accepted but logs a deprecation warning, and its
@@ -133,6 +138,40 @@ lucide icons.
 `.divide-… > :not([hidden]) ~ :not([hidden])` — three class-level components. A
 `:hover` rule to suppress a divider simply never applies. Put the border on the row
 itself and use a hover variant.
+
+**`SidebarItem`'s collapsed tooltip pops UP, over the sidebar.** It renders
+`<Tooltip placement="right">`, and `Tooltip`'s prop is **`side`**. `Tooltip` also sets
+`inheritAttrs: false`, so `placement` isn't applied to anything either — it's dropped, the
+default `side: 'top'` wins, and every collapsed rail item paints its label across the item
+above it inside a 48px rail. Confirmed by reading `data-side` off the bubble: `"top"`.
+
+Worse, you can't fix it from outside. No prop of yours reaches that Tooltip, and its
+`disabled` is `!isCollapsed || !tooltipText` where `tooltipText` falls back to the row's own
+rendered text — so any row with a visible label has one whether you want it or not. The way
+out is to stop its trigger receiving hover and supply your own:
+
+```css
+[data-slot='sidebar-item'] [data-grace-area-trigger] {
+  pointer-events: none;
+}
+```
+
+`data-grace-area-trigger` is reka-ui's own marker on a tooltip trigger. The row stays
+clickable — pointer events over a `pointer-events: none` child target its parent, which is
+the row's `<a>`/`<button>`. Then wrap the whole `SidebarItem` in your own
+`<Tooltip side="right" :offset="…">`; reka merges the trigger onto the row's root `<div>`,
+so the bubble is placed against the row rather than against the icon.
+
+⚠️ **`offset` is measured to the ARROW's tip, not to the bubble.** The bubble lands a
+further 4px out (the arrow's height). So to sit the tip exactly on the rail's outer edge,
+`offset` = rail width − the row's right edge: with frappe-ui's 48px collapsed rail and the
+ScrollArea viewport's `px-2`, the row ends at 40 and the figure is **8**. Verified by
+reading the arrow's own `getBoundingClientRect().left`.
+
+⚠️ That wrapper is hover-only. The row's root `<div>` isn't focusable and `focus` doesn't
+bubble from the control inside it — but the built-in tooltip had the same hole for the same
+reason, and `SidebarItem` still puts `aria-label` on the control, so the accessible name is
+intact.
 
 **`SidebarItem` matches the whole path, not a prefix.** Active state is inferred
 with `current.path === target.path`, so an item pointing at a parent route lights

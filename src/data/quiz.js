@@ -93,8 +93,8 @@ export const INDUSTRIES = [
 // later than the `count` figures above — which is why some of them no longer
 // add up: the directory now reads India alone at 73, Middle East 35 and
 // Americas 10. The counts are left as they were on purpose, because
-// `MAP_REGIONS` totals them to the "155+ Partners" the marketing page claims;
-// re-lift all of it together or not at all.
+// together they total the "155+ Partners" the marketing page claims; re-lift all
+// of it together or not at all.
 //
 // ⚠️ Alphabetical, which is NOT the order anyone reads. The results filter sorts
 // each group by partner count, most first — the source page's own order — and
@@ -209,18 +209,13 @@ export const IMPLEMENTATION_TYPES = [
 //
 // ⚠️ India's 71 sits INSIDE Asia's 90, so these counts deliberately don't sum
 // to the network's size the way the region counts do. Picking Asia is a
-// superset of picking India and the numbers have to admit it. `MAP_REGIONS`
-// below still totals 156, because it reads REGIONS — where India is a country
-// and not a row of its own.
+// superset of picking India and the numbers have to admit it. The region counts
+// on their own still total 156; India's 71 is a slice of Asia's 90, not a sixth
+// row.
 export const GEO_CHOICES = [
   { label: 'India', count: 71, country: 'India' },
   ...REGIONS.map((r) => ({ label: r.label, count: r.count, region: r.value })),
 ]
-
-// The map's stat row reads from the same numbers as the region chips, so the two
-// can't drift. Totals 156, which is the directory's "155+ Partners" — India is
-// not a row here, so nothing is counted twice.
-export const MAP_REGIONS = REGIONS.map((r) => ({ label: r.label, count: r.count }))
 
 // Partner hub cities, plotted on the dotted world map. Real lat/lng, projected
 // by `DottedWorldMap` with Frappe Cloud's own Mercator constants.

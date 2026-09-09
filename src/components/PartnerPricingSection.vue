@@ -36,6 +36,14 @@ const hoursLabel = computed(() => {
   return lo === hi ? `${lo} hrs` : `${lo}-${hi} hrs`
 })
 
+// Three of the thirteen partners don't publish an hourly rate (`rate: null` —
+// see `data/partners.js`), and the estimator has nothing to multiply hours by
+// for those. The card still stands: the pack hours are the partner's own and
+// don't depend on a rate. What changes is the action — a conversation instead
+// of a figure — so the estimator is never opened without a number behind it.
+// `EstimateQuoteDialog` trusts that and reads `partner.rate` directly.
+const quotable = computed(() => Boolean(props.partner.rate))
+
 // ⚠️ TODO gate: the estimator is meant to be for people who have created a
 // project — the scope it prices comes from one. `store.hasProject` is live and
 // already true for the demo switcher's "Ongoing project" viewer, so gating this
@@ -79,10 +87,26 @@ const estimating = ref(false)
                fixed-scope packs; the modal prices the visitor's own project,
                which can legitimately come out higher. -->
           <Button
+            v-if="quotable"
             variant="ghost"
             label="Estimate quote"
             class="-ml-2 mt-2"
             @click="estimating = true"
+          >
+            <template #suffix><LucideChevronRight class="size-4" /></template>
+          </Button>
+          <!-- Undisclosed rate. The label says which of the two cards you are
+               on — "Contact us" is already the Custom card's action, and two
+               identical buttons side by side would make the split between a
+               fixed scope and a bespoke one look like a distinction without a
+               difference. Same destination and same toast as every other
+               Contact on the page. -->
+          <Button
+            v-else
+            variant="ghost"
+            label="Ask for pack pricing"
+            class="-ml-2 mt-2"
+            @click="contactToast(partner)"
           >
             <template #suffix><LucideChevronRight class="size-4" /></template>
           </Button>
@@ -120,6 +144,11 @@ const estimating = ref(false)
       </div>
     </div>
 
-    <EstimateQuoteDialog :open="estimating" :partner="partner" @close="estimating = false" />
+    <EstimateQuoteDialog
+      v-if="quotable"
+      :open="estimating"
+      :partner="partner"
+      @close="estimating = false"
+    />
   </section>
 </template>

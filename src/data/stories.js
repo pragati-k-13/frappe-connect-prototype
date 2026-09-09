@@ -17,7 +17,6 @@
 
 import { CLIENTS } from './media'
 import { APPS } from './partners'
-import { reviewsFor } from './reviews'
 
 // FNV-1a plus MurmurHash3's finalizer. The finalizer is load-bearing — every
 // `pick()` here is `seed % len` over pools of 8–10, which reads only the low
@@ -38,26 +37,6 @@ const hash = (str) => {
 }
 const seedFor = (id, field) => hash(`${id}:${field}`)
 const pick = (arr, seed) => arr[seed % arr.length]
-
-// ⚠️ `fcSites` and `years` are invented per partner — a site count and a
-// tenure are both claims the directory would have to source. They're an
-// explicit table rather than a formula so they read as data to be replaced,
-// and so two partners don't end up with suspiciously round matching numbers.
-const STATS = {
-  'tridots-tech': { fcSites: 800, years: 17 },
-  'software-work': { fcSites: 540, years: 14 },
-  'new-indictrans': { fcSites: 190, years: 19 },
-  '8848-digital': { fcSites: 610, years: 8 },
-  'greycube-technologies': { fcSites: 70, years: 11 },
-  wahni: { fcSites: 430, years: 10 },
-  hybrowlabs: { fcSites: 260, years: 6 },
-  'finbyz-tech': { fcSites: 350, years: 12 },
-  alyf: { fcSites: 45, years: 5 },
-  'craft-interactive': { fcSites: 480, years: 13 },
-  'kingstech-services': { fcSites: 60, years: 7 },
-  navari: { fcSites: 90, years: 9 },
-  korecent: { fcSites: 210, years: 15 },
-}
 
 // What the client company gets called. The base names come from `CLIENTS`, so
 // the stories and the logo strip are about the same invented companies.
@@ -95,43 +74,23 @@ const STRIDES = { client: 3, trade: 3, outcome: 7 }
 
 const appLabel = (value) => APPS.find((a) => a.value === value)?.label ?? value
 
-// The three numbers above the stories.
-//
-// The middle one has been through two rewrites, and the reasoning is worth
-// keeping. It started as a client-retention rate: a claim nobody can check
-// without asking the partner for their books, so the wrong thing for a
-// directory profile. Then it was the certification count — verifiable, since
-// Frappe issues the certificates, but it says what a partner *is qualified
-// for*, not whether the work went well, which is the one thing this section is
-// about.
-//
-// It's now the share of reviewers who would recommend them. That's a success
-// signal, it's computed from the reviews the platform already holds, and it
-// needs no validating — the same reasoning that keeps `fcSites` a Frappe Cloud
-// figure rather than a self-reported one. Over ALL of a partner's reviews, not
-// the four the profile renders: see the note in `reviews.js`.
-export const statsFor = (partner) => {
-  const s = STATS[partner.id]
-  if (!s) return []
-  const { recommendRate } = reviewsFor(partner)
-  return [
-    { key: 'sites', value: `${s.fcSites}+`, label: 'FC sites' },
-    // A partner with no reviews yet has no rate to quote, so the card drops
-    // rather than showing a hopeful 0%.
-    ...(recommendRate === null
-      ? []
-      : [{ key: 'recommend', value: `${recommendRate}%`, label: 'Would recommend' }]),
-    { key: 'years', value: `${s.years}y`, label: 'Years operating' },
-  ]
-}
-
 // `{ pinned, rest }`. `pinned` is the one story the partner has chosen to lead
 // with, rendered full width; `rest` is everything else, in the grid. A pinned
 // story is deliberately NOT repeated in the grid — the design's mock shows it
 // twice, which reads as a duplicate rather than emphasis.
 //
-// Not every partner pins one. Two thirds of those with something to pin do,
-// which is what makes the un-pinned layout (grid only, no lead) reviewable.
+// Not every partner pins one. Two thirds of those ELIGIBLE do, which is what
+// makes the un-pinned layout (grid only, no lead) reviewable.
+//
+// ⚠️ Eligibility is FOUR stories. Pinning costs the grid its lead item, and the
+// grid is three columns — so a lead is only worth it when a full row survives
+// behind it. Below four it doesn't: at two, a full-width 4:1 banner was left
+// with one lonely tile and two thirds of the row empty; at three, still a gap
+// in the third column. Either way the banner read as the section and the
+// remainder as an afterthought.
+//
+// Four is the shape of the grid, not a taste — change it with `sm:grid-cols-3`
+// in `PartnerStoriesSection` and nowhere else.
 export const storiesFor = (partner) => {
   const total = partner.stories
   if (!total) return { pinned: null, rest: [] }
@@ -157,6 +116,6 @@ export const storiesFor = (partner) => {
     }
   })
 
-  const pins = total >= 2 && seedFor(partner.id, 'pin') % 3 !== 0
+  const pins = total >= 4 && seedFor(partner.id, 'pin') % 3 !== 0
   return pins ? { pinned: items[0], rest: items.slice(1) } : { pinned: null, rest: items }
 }

@@ -1,10 +1,13 @@
 <script setup>
 // SCREEN 6 — the partner profile.
 //
-// ⚠️ TOP SECTION ONLY. The header, the media gallery and the client strip are
-// built; the About / Services and Expertise cards below them are the next
-// section and are deliberately absent rather than stubbed — an empty card reads
-// as a bug in review, a missing one reads as "not yet".
+// Every section is built: header, media gallery, client strip, the About /
+// Services and Expertise card, Partner vision, Pricing, Reviews, Success
+// stories, Marketplace contributions, and "How they began" last. Two of them
+// can be absent for a given partner — the marketplace row and the founding
+// story — and those own their top margins rather than taking one from a
+// wrapper here, because an empty `<div class="mt-24">` collapses its margins
+// through itself and leaves the gap behind.
 
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -20,6 +23,7 @@ import PartnerReviewsSection from '../components/PartnerReviewsSection.vue'
 import PartnerStoriesSection from '../components/PartnerStoriesSection.vue'
 import { useConnectStore } from '../stores/connect'
 import PartnerMarketplaceSection from '../components/PartnerMarketplaceSection.vue'
+import PartnerFoundingSection from '../components/PartnerFoundingSection.vue'
 import BookSlotDialog from '../components/BookSlotDialog.vue'
 import { PARTNERS } from '../data/partners'
 import { logoFor } from '../data/logos'
@@ -67,6 +71,36 @@ const booking = ref(false)
 
 <template>
   <ConnectShell :crumb="partner?.name">
+    <!-- The chrome's trailing control, taken over from the shell's default auth
+         CTA. Contact is what this whole page is for, and the page's own Contact
+         sits in the header at the very top — which is off screen for most of a
+         profile this long. This one doesn't scroll away, so the action stays
+         reachable from the reviews, the pricing and the founding story at the
+         foot.
+
+         Ghost, matching the control it replaces and for the same reason: a
+         solid button in the chrome would outrank the page's own solid Contact,
+         and the two would be competing for the same click.
+
+         ⚠️ `v-if` on the slot template, not on the Button. It has to be the
+         SLOT that goes away on the 404 branch, or the shell sees a provided
+         slot, skips its fallback, and a visitor who followed a dead link gets a
+         bar with no control in it at all.
+
+         Signed out this opens the login prompt first, exactly like the page's
+         own Contact — which is what keeps the sign-in path intact on a screen
+         that has taken the auth CTA out of the chrome. -->
+    <template v-if="partner" #action>
+      <Button
+        variant="ghost"
+        class="-mr-2"
+        label="Contact"
+        @click="store.requireLogin(() => contactToast(partner))"
+      >
+        <template #suffix><LucideArrowRight class="size-4" /></template>
+      </Button>
+    </template>
+
     <!-- Unknown id: a real 404 rather than a blank page, with the way back. -->
     <div v-if="!partner" class="mx-auto w-full max-w-[800px] px-5 py-20 text-center lg:px-10">
       <p class="text-p-lg font-medium text-ink-gray-8">No such partner</p>
@@ -82,7 +116,13 @@ const booking = ref(false)
       </div>
     </div>
 
-    <div v-else class="mx-auto w-full max-w-[800px] px-5 py-8 lg:px-10">
+    <!-- `pb-48` against the top's `pt-8`. The page ends on the founding story,
+         which is the one thing here meant to be read straight through rather
+         than scanned, and 32px of tail put the browser edge right under the
+         last line — the passage read as cut off rather than finished. 192px is
+         twice the 96px that separates the sections, which is the smallest gap
+         that reads as "nothing follows" rather than as another section break. -->
+    <div v-else class="mx-auto w-full max-w-[800px] px-5 pb-48 pt-8 lg:px-10">
       <!-- ── Header ──────────────────────────────────────────────────────
            Identity left, actions right. The actions are ordered by weight, not
            by frequency: Contact is the page's one solid button because it is
@@ -153,7 +193,15 @@ const booking = ref(false)
             label="Contact"
             @click="store.requireLogin(() => contactToast(partner))"
           >
-            <template #prefix><LucideSend class="size-4" /></template>
+            <!-- The same message bubble the listing row's Contact carries, not
+                 the paper plane this used to have. One action, one mark: a
+                 visitor meets Contact on the row and again in this header, and
+                 two different glyphs for the same button in the same flow read
+                 as two different things. The bubble is also the truer one —
+                 contact runs through in-app messages, and a paper plane reads
+                 as "send", which promises a compose-and-fire rather than a
+                 thread. Same reason the row rejected an envelope. -->
+            <template #prefix><LucideMessageSquare class="size-4" /></template>
           </Button>
         </div>
       </div>
@@ -223,6 +271,18 @@ const booking = ref(false)
            collapses its margins THROUGH itself), which left 96px of dead space
            at the foot of five profiles. So this one owns its own top margin. -->
       <PartnerMarketplaceSection :partner="partner" />
+
+      <!-- ── How they began ──────────────────────────────────────────────
+           The last thing on the page, and after the marketplace row for the
+           same reason that row comes after everything else: nothing here helps
+           you choose. Every section above answers a question a visitor
+           weighing up partners is actually asking — what they do, what it
+           costs, what it was like, what they've shipped. This one answers the
+           question you only ask once you've decided you like them.
+
+           ⚠️ Owns its own `mt-24`, no wrapper — see the component, and the note
+           on the marketplace section above. -->
+      <PartnerFoundingSection :partner="partner" />
     </div>
 
     <BookSlotDialog v-if="partner" :open="booking" :partner="partner" @close="booking = false" />

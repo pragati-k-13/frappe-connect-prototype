@@ -2,9 +2,8 @@ import { toast } from 'frappe-ui'
 
 // Toast copy for the actions that appear on more than one screen.
 //
-// Kept in one file for the same reason the login prompt is one component: Save
-// sits in the listing row AND the profile header, and Contact sits in three
-// places plus the quote modal. As inline strings at each call site they drift,
+// Kept in one file because Save sits in the listing row AND the profile header,
+// and Contact sits in three places plus the quote modal. As inline strings at each call site they drift,
 // and two buttons that do the same thing start saying different things about it.
 // Anything single-use stays at its call site, next to the reasoning for it.
 //
@@ -20,8 +19,11 @@ import { toast } from 'frappe-ui'
 // the caller because only it knows which partner it holds.
 //
 // No description: the obvious one would name where the partner was saved TO,
-// and the sidebar's "Saved partners" is still inert — a toast is the wrong
-// place to promise a screen that isn't there.
+// and there is nowhere to name. ⚠️ The rail's "Saved partners" item has been
+// removed, so the save gesture now has no destination at all — the list lives
+// on the store (`connect.saved`) and is read only by the bookmark icons
+// themselves. The toast stays deliberately silent about it rather than
+// promising a screen that doesn't exist; the fix is the screen, not the copy.
 export const savedToast = (partner, saved, undo) => {
   const notify = saved ? toast.success : toast
   return notify(saved ? `${partner.name} saved` : `${partner.name} removed from saved`, {
@@ -39,4 +41,21 @@ export const contactToast = (partner) =>
   toast.info('Messages are not built yet', {
     id: 'contact',
     description: `This is where the thread with ${partner.name} would open.`,
+  })
+
+// The top bar's "Log in or create account". ⚠️ `LoginDialog` has been removed
+// and a new sign-in design is coming, so the button has nowhere to send anyone
+// — same situation as Contact above, and the same answer: name the gap rather
+// than let the click vanish.
+//
+// When the new prompt lands this goes away and the button goes back to
+// `store.requireLogin()`, which is where the prompt plugs in.
+//
+// `id: 'auth'` is shared with the "Logged out" toast in `ConnectShell` on
+// purpose: they are the two halves of the same story and you should never see
+// both stacked, so the later one replaces the earlier.
+export const signInToast = () =>
+  toast.info('Sign in is being redesigned', {
+    id: 'auth',
+    description: 'Switch account state from the demo control meanwhile.',
   })

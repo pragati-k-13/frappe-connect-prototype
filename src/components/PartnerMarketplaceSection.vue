@@ -32,6 +32,12 @@ const apps = computed(() => contributionsFor(props.partner))
   <!-- `mt-24` lives here rather than on a wrapper in the page: this is the only
        section that can be absent, and an empty wrapper still contributes its
        margin. See the note at the call site. -->
+  <!-- Full width, like every other section on the page. It was briefly capped at
+       600px to pull the View button closer to the app it belongs to — at 800 the
+       two sit a long way apart with nothing between them — but a section that is
+       narrower than the ones above it reads as a different KIND of thing, and
+       this one isn't. The gap in the row is the row's problem to solve, not the
+       section's. -->
   <section v-if="apps.length" class="mt-24">
     <!-- Title and count exactly as in "Success stories" — same size, weight and
          Badge — because they're the same kind of thing: a named collection with

@@ -41,16 +41,10 @@ const emptyAnswers = () => ({
 // account with no project yet) a change in this file alone.
 const ACCOUNT_STATES = ['visitor', 'client']
 
-// What the visitor was trying to do when the login prompt interrupted them, so
-// it can be finished once they're in. Module scope rather than store state on
-// purpose: it's a callback, and a function sitting in reactive state is both
-// pointless to track and awkward to serialise.
-let pendingAction = null
-
 // The answers and filters as they were immediately before the last `reset()`,
-// so Undo on the cleared-filters toast can put them back. Module scope for the
-// same reason as `pendingAction`: a one-shot stash the toast reads once, not
-// state any screen renders.
+// so Undo on the cleared-filters toast can put them back. Module scope rather
+// than store state: it's a one-shot stash the toast reads once, not something
+// any screen renders.
 let lastCleared = null
 
 // The listing's primary order, always. Tier is the one ranking the partner
@@ -147,11 +141,6 @@ export const useConnectStore = defineStore('connect', {
     // See ACCOUNT_STATES above. Deliberately NOT cleared by `reset()`: it's
     // which demo you're in, not something the quiz collected — same as `role`.
     account: 'visitor',
-    // Whether the login prompt is showing. `ConnectShell` renders one dialog
-    // for the whole app and every gated control opens it through
-    // `requireLogin`, so a list of thirteen partner rows doesn't mount
-    // thirteen copies of the same modal.
-    loginOpen: false,
     // Who the signed-in viewer is. Invented, but harmlessly so: this is the
     // demo's own business user, not a person at any of the real partners in
     // the directory, so a made-up name here asserts nothing about anyone.
@@ -383,33 +372,27 @@ export const useConnectStore = defineStore('connect', {
     //
     //   @click="store.requireLogin(() => (saved = !saved))"
     //
-    // Signed in, it just runs. Signed out, it opens the prompt and holds the
-    // action until `completeLogin` — so the visitor lands back on the thing
-    // they were doing rather than on a page that forgot. Returns whether it
-    // ran, for callers that care.
+    // ⚠️ CURRENTLY OPEN. `LoginDialog` has been removed — a new sign-in design
+    // is coming — so there is nothing to hold the action for and this just runs
+    // it, signed in or not. Every gated control therefore works for everyone
+    // right now.
+    //
+    // It is kept as a function rather than deleted, and the call sites are left
+    // wrapped, deliberately: this is the ONE seam the new prompt plugs into.
+    // Unwrapping the five callers now would mean rewriting all five again later,
+    // and losing the record of which actions were meant to need an account —
+    // saving a partner, and contacting one.
+    //
+    // To re-gate: open the new prompt here when `!this.signedIn`, stash `action`
+    // and run it once the visitor is in. The old version held it in a
+    // module-level `pendingAction` and dropped it on dismiss, because running a
+    // held action after someone deliberately backed out is the app doing what
+    // they cancelled. Worth keeping that rule.
+    //
+    // Returns whether it ran, for callers that care.
     requireLogin(action) {
-      if (this.signedIn) {
-        action?.()
-        return true
-      }
-      pendingAction = action ?? null
-      this.loginOpen = true
-      return false
-    },
-
-    completeLogin() {
-      this.setAccount('client')
-      this.loginOpen = false
-      const action = pendingAction
-      pendingAction = null
       action?.()
-    },
-
-    // Dismissing drops the held action. Running it later, after the visitor
-    // deliberately backed out, would be the app doing something they cancelled.
-    dismissLogin() {
-      this.loginOpen = false
-      pendingAction = null
+      return true
     },
 
     answer(key, value) {
@@ -457,6 +440,13 @@ export const useConnectStore = defineStore('connect', {
     // are" so the question costs a confirmation instead of a decision. Never
     // overwrites a real choice — and it checks BOTH halves for one, because
     // either can hold the answer.
+    //
+    // ⚠️ The question this pre-answers is "where can your partner be based?",
+    // not "where are you?" — so the seed is a DEFAULT (start near me, widen from
+    // there), not a guess at a fact about the visitor. That's what makes getting
+    // it wrong cheap: an unwanted region is one chip to untick, where a wrong
+    // answer to a question ABOUT them would read as the app being confidently
+    // mistaken.
     seedInferredGeo() {
       if (this.answers.region.length || this.filters.countries.length) return
       const { region, country } = this.inferredGeo

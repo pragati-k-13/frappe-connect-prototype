@@ -51,7 +51,14 @@ const suggestionCopy = (key) => {
       if (!picked.length) {
         // No note: the title is already the whole fact, and every row names its
         // own city underneath.
-        return { title: 'Partners outside your region' }
+        //
+        // "in other regions", not "outside your region". The quiz asks where the
+        // PARTNER can be based, not where the visitor is, so the answer is a set
+        // of acceptable regions and these are the partners outside that set.
+        // "Your region" would claim to know where they are, which this screen no
+        // longer asks. The two branches either side name what was PICKED for the
+        // same reason.
+        return { title: 'Partners in other regions' }
       }
       return {
         title: 'Partners in other locations',
@@ -282,7 +289,12 @@ const clearFilters = () => {
   store.reset()
   toast('Filters cleared', {
     id: 'filters-cleared',
-    description: 'The quiz answers went with them.',
+    // Says the consequence plainly. It read "The quiz answers went with them.",
+    // which is the one line in the toast doing real work — clearing wipes all
+    // three quiz answers, not just the filter bar you pressed — and it was
+    // phrased as an aside. "Went with them" is also vaguer than it looks: it
+    // never says the answers are gone, only that something happened to them.
+    description: 'Your quiz answers were cleared too.',
     action: {
       label: 'Undo',
       onClick: () => {
@@ -316,16 +328,27 @@ const clearTooltip = computed(() => {
       </h1>
 
       <!-- Filter bar. Seeded from the quiz, editable from here on.
-           Every control is a fixed 160px, search included. frappe-ui's Select
-           trigger is `inline-flex`, so left alone it sizes to its value and the
-           row reflows every time you pick something — "Trading and Distribution"
-           was 201px against "All regions"' 111px. The trigger already truncates
+           Every SELECT is a fixed 160px. frappe-ui's Select trigger is
+           `inline-flex`, so left alone it sizes to its value and the row reflows
+           every time you pick something — "Trading and Distribution" was 201px
+           against "All regions"' 111px. The trigger already truncates
            internally, so a fixed width shortens the label instead of moving its
-           neighbours, and a uniform width means any wrap is an even one. -->
+           neighbours, and a uniform width means any wrap is an even one.
+
+           ⚠️ Search is the exception: `flex-1`, so it absorbs whatever the
+           fixed controls leave and the row always reaches the right edge of the
+           column. A row that stops short of the content beneath it reads as a
+           ragged edge rather than as a bar. It's also the right control to give
+           the slack to — a search field can always use more room, where a
+           Select past its longest option is just padding.
+
+           `min-w-40` floors it at the Selects' own 160px. Below that the row
+           wraps, which is the only time it should: `flex-wrap` is here for
+           genuinely narrow viewports, not as the resting state. -->
       <div class="mt-3 flex flex-wrap items-center gap-2">
         <TextInput
           :model-value="store.filters.search"
-          class="w-40"
+          class="min-w-40 flex-1"
           placeholder="Search"
           @update:model-value="setFilter('search', $event)"
         >
@@ -336,7 +359,10 @@ const clearTooltip = computed(() => {
                placeholder it sits against — TextInput's own is
                `placeholder-ink-gray-4` — so an empty field reads as one thing.
                Passing no class at all would inherit the input's `text-ink-gray-8`
-               and be darker still. -->
+               and be darker still.
+               ⚠️ frappe-ui's own `PrefixSuffix` story uses `-6` for exactly this
+               icon, so copying the story reproduces the bug. It works there
+               because that input isn't sitting in a row of placeholders. -->
           <template #prefix>
             <LucideSearch class="size-4 text-ink-gray-4" />
           </template>
