@@ -148,7 +148,12 @@ const clearFilters = () => {
   store.reset()
   toast('Filters cleared', {
     id: 'filters-cleared',
-    description: 'The quiz answers went with them.',
+    // Says the consequence plainly. It read "The quiz answers went with them.",
+    // which is the one line in the toast doing real work — clearing wipes all
+    // three quiz answers, not just the filter bar you pressed — and it was
+    // phrased as an aside. "Went with them" is also vaguer than it looks: it
+    // never says the answers are gone, only that something happened to them.
+    description: 'Your quiz answers were cleared too.',
     action: {
       label: 'Undo',
       onClick: () => {

@@ -167,14 +167,20 @@ const ago = (months) => (months < 12 ? `${months} months ago` : `${Math.floor(mo
               <!-- Stored as an age rather than a date, so the label can't drift
                    as the mock gets older — see `data/reviews.js`.
 
-                   ⚠️ `text-base`, not `text-p-base`, and that matters more than
-                   it looks. Paragraph leading gives a single 14px line a 21px
-                   box; this one shares a flex row with the name, whose box is
-                   16px, so `items-start` left 5px of dead air under the name
-                   before the company line's own margin started. The gap read as
-                   ~7px against a 2px margin. Single lines take the tight scale;
-                   only the review body below wants paragraph leading. -->
-              <p class="shrink-0 text-base text-ink-gray-5">{{ ago(r.monthsAgo) }}</p>
+                   `text-sm` (13px) against the name's 14px: the date is the
+                   least important thing in the review — you read who wrote it,
+                   what they scored it and why, and the age only qualifies all
+                   three — so it takes a step down in size as well as the step
+                   down in ink it already had.
+
+                   ⚠️ The TIGHT scale, not `text-p-sm`, and that matters more
+                   than it looks. Paragraph leading would give this single line
+                   a 19.5px box; it shares a flex row with the name, whose box is
+                   16px, so `items-start` would leave dead air under the name
+                   before the company line's own margin started. Single lines
+                   take the tight scale here; only the review body below wants
+                   paragraph leading. -->
+              <p class="shrink-0 text-sm text-ink-gray-5">{{ ago(r.monthsAgo) }}</p>
             </div>
             <p class="mt-1 text-base text-ink-gray-6">{{ r.company }}</p>
           </div>

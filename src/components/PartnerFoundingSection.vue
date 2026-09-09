@@ -20,11 +20,15 @@ import { computed } from 'vue'
 // everything a visitor is comparing partners on.
 //
 // This one is not being compared. It's the partner's own account of themselves
-// and the only thing to do with it is read it, so what marks it out is the
-// SHAPE, not the type: a single column pulled in to 600px against the page's
-// 800, and no frame, icon, chip or rule anywhere in it. Everything else on the
-// page runs the full width and is built out of parts; this is one narrow
-// column of prose, and that's what tells you the register has changed.
+// and the only thing to do with it is read it, and what marks it out is that it
+// carries nothing: no frame, no icon, no chip, no rule, no two-column grid.
+// Everything above is built out of parts; this is prose.
+//
+// ⚠️ It was briefly capped at 600px so the measure read as something to be read
+// rather than scanned. That's gone — it runs the page's full 800px like every
+// other section. The trade is a longer line: at `text-p-base` the measure is
+// ~110 characters against the ~75 that reads comfortably. If the paragraphs
+// start feeling like hard work, the measure is the first thing to look at.
 //
 // The body is `text-p-base text-ink-gray-6`, the same as every other paragraph
 // in the app. It was briefly set a step larger (`p-lg`, `ink-gray-7`) on the
@@ -47,7 +51,7 @@ const founding = computed(() => props.partner.founding)
        reason `PartnerMarketplaceSection` does: this section can be absent, and
        an empty `<div class="mt-24">` still collapses its margins through itself
        and leaves the 96px gap behind. -->
-  <section v-if="founding" class="mx-auto mt-24 max-w-[600px]">
+  <section v-if="founding" class="mt-24">
     <!-- The one checkable fact in the section, stated plainly and once. The
          prose deliberately keeps the date vague ("the mid-2000s", "a decade
          in") so there's a single place a reader has to trust, and a single
