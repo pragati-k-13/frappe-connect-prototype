@@ -11,6 +11,7 @@ import IconPricing from '~icons/lucide/circle-dollar-sign'
 import IconSpeed from '~icons/lucide/clock'
 import IconOversight from '~icons/lucide/circle-check'
 import { useConnectStore } from '../stores/connect'
+import { useAuthGate } from '../utils/auth'
 import {
   STARTER_PACKS,
   INCLUDED_IN_ALL,
@@ -44,6 +45,7 @@ import {
 // There's no filter or search bar: four is the whole catalogue, and a control
 // bar over four items is furniture.
 const store = useConnectStore()
+const { requireAccount } = useAuthGate()
 const route = useRoute()
 const router = useRouter()
 
@@ -112,6 +114,19 @@ const close = () => {
   const { pack, ...rest } = route.query
   router.push({ query: rest })
 }
+
+// "Get started" is the buying gesture, so it's gated where the info button
+// isn't: reading a pack's scope needs no account, committing to one does.
+//
+// Signed out, this sends the visitor to SIGN UP — someone pressing Get started
+// on a fixed-price pack is new business, and a log-in form in front of them is a
+// wrong guess with a form attached. Signed in, it opens the panel, which is
+// still all there is; see the seam in `PackDrawer`.
+//
+// The held action is `open(value)` rather than the `?pack=` being carried in
+// `next`, because the gate captures the path as it is at the click — the panel
+// isn't open yet at that moment. Coming back, the action opens it.
+const start = (value) => requireAccount(() => open(value), { screen: 'signup' })
 </script>
 
 <template>
@@ -169,10 +184,11 @@ const close = () => {
                   >
                     <template #icon><LucideInfo class="size-4" /></template>
                   </Button>
-                  <!-- ⚠️ Opens the same panel the info button does. Once the
-                       booking flow exists this one should skip the scope and go
-                       straight to it; today there is nowhere else to go. -->
-                  <Button label="Get started" @click="open(pack.value)" />
+                  <!-- ⚠️ Signed in, this opens the same panel the info button
+                       does. Once the booking flow exists it should skip the
+                       scope and go straight to it; today there is nowhere else
+                       to go. -->
+                  <Button label="Get started" @click="start(pack.value)" />
                 </div>
               </div>
 

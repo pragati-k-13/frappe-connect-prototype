@@ -10,8 +10,8 @@ import {
   SidebarLabel,
   toast,
 } from 'frappe-ui'
-import LoginDialog from './LoginDialog.vue'
 import { useConnectStore } from '../stores/connect'
+import { useAuthGate } from '../utils/auth'
 
 // Collapsed on arrival: the quiz and the map are the point of this screen, and
 // an expanded rail eats width the map wants. Binding the model also takes over
@@ -20,6 +20,7 @@ import { useConnectStore } from '../stores/connect'
 const collapsed = ref(true)
 
 const store = useConnectStore()
+const { requireAccount } = useAuthGate()
 
 // ⚠️ `SidebarItem` infers its active state by comparing the WHOLE path
 // (`current.path === target.path`), so a child route lights nothing at all.
@@ -219,7 +220,7 @@ defineProps({
           v-if="!store.signedIn"
           variant="ghost"
           label="Log in or create account"
-          @click="store.requireLogin()"
+          @click="requireAccount()"
         >
           <template #suffix><LucideArrowRight class="size-4" /></template>
         </Button>
@@ -268,11 +269,5 @@ defineProps({
         </aside>
       </div>
     </div>
-
-    <!-- One login prompt for the whole app. It lives here because ConnectShell
-         wraps every in-app screen, so a list of thirteen partner rows doesn't
-         mount thirteen copies of the same modal — every gated control opens
-         this one through `store.requireLogin()`. -->
-    <LoginDialog />
   </div>
 </template>

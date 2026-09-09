@@ -5,18 +5,20 @@ import TierIcon from './TierIcon.vue'
 import { logoFor } from '../data/logos'
 import { contactToast, savedToast } from '../feedback'
 import { useConnectStore } from '../stores/connect'
+import { useAuthGate } from '../utils/auth'
 
 const props = defineProps({
   partner: { type: Object, required: true },
 })
 
 const store = useConnectStore()
+const { requireAccount } = useAuthGate()
 
 // Read from the store, not a local `ref`. A real build writes to the visitor's
 // saved partners, which is the first thing an account actually buys you — and
-// which is why it's gated: `requireLogin` holds the toggle until the visitor is
-// in, then runs it, so they land on a saved partner rather than back where they
-// started having to press it again.
+// which is why it's gated: `requireAccount` holds the toggle while the visitor
+// signs in, then runs it once they're back, so they land on a saved partner
+// rather than back where they started having to press it again.
 //
 // It used to be a local `ref(false)` here and another one on the profile page,
 // which meant saving from the row and then opening that partner showed it
@@ -26,11 +28,13 @@ const saved = computed(() => store.isSaved(props.partner.id))
 // The toggle, the confirmation and the undo are one gesture, so they're one
 // function. `toggleSaved` hands back the state it moved to, and Undo is simply
 // the same call again.
-const toggleSave = () =>
-  store.requireLogin(() => {
-    const now = store.toggleSaved(props.partner.id)
-    savedToast(props.partner, now, () => store.toggleSaved(props.partner.id))
-  })
+// The partner is read BEFORE the gate. Signing in unmounts this row, and an
+// action holding `props` of a dead component is a question not worth having —
+// the object from `PARTNERS` outlives every screen.
+const toggleSave = () => {
+  const p = props.partner
+  requireAccount(() => savedToast(p, store.toggleSaved(p.id), () => store.toggleSaved(p.id)))
+}
 
 // A real logo when `src/assets/partners/<id>.<ext>` exists, initials otherwise —
 // see `data/logos.js`. Both render in the same 40px box so the list never

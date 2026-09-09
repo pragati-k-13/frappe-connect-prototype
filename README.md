@@ -22,7 +22,9 @@ Then open <http://localhost:5173>.
 | 1   | `/`                     | `frappe.io/partners` — where a business discovers Connect              | **No** — the real page exists |
 | 2   | `/connect`              | Frappe Connect landing: the 3-question qualifier + supporting sections | Yes                           |
 | 3   | `/connect/partners`     | The filtered partner list                                              | Yes                           |
-| 3a  | `/connect/packs`        | The Starter Pack catalogue; `?pack=` opens a pack's scope in a dialog  | Yes                           |
+| 3a  | `/connect/packs`        | The Starter Pack catalogue; `?pack=` opens a pack's scope in a panel   | Yes                           |
+| 3b  | `/connect/login`        | Log in. Every gated control lands here with `?next=` back to itself    | Yes                           |
+| 3c  | `/connect/signup`       | Create an account. Where a pack's "Get started" sends a new visitor    | Yes                           |
 | 4   | `/connect/partners/:id` | A partner's profile — **top section only so far**                      | Yes                           |
 
 Screen 1 is a deliberately light stand-in. It's here so the entry point isn't imaginary

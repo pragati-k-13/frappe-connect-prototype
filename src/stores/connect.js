@@ -38,10 +38,16 @@ const emptyAnswers = () => ({
 // account with no project yet) a change in this file alone.
 const ACCOUNT_STATES = ['visitor', 'client']
 
-// What the visitor was trying to do when the login prompt interrupted them, so
-// it can be finished once they're in. Module scope rather than store state on
-// purpose: it's a callback, and a function sitting in reactive state is both
-// pointless to track and awkward to serialise.
+// What the visitor was trying to do when the gate interrupted them, so it can be
+// finished once they're in. Module scope rather than store state on purpose:
+// it's a callback, and a function sitting in reactive state is both pointless to
+// track and awkward to serialise.
+//
+// ⚠️ It survives a route change, which is the whole reason it can work at all
+// now that the gate NAVIGATES rather than opening a modal over the page. The
+// component that set it is unmounted by the time it runs, so an action that
+// touches component-local state is not safe to hold — every current one goes
+// through the store, which is.
 let pendingAction = null
 
 // The answers and filters as they were immediately before the last `reset()`,
@@ -129,11 +135,6 @@ export const useConnectStore = defineStore('connect', {
     // See ACCOUNT_STATES above. Deliberately NOT cleared by `reset()`: it's
     // which demo you're in, not something the quiz collected — same as `role`.
     account: 'visitor',
-    // Whether the login prompt is showing. `ConnectShell` renders one dialog
-    // for the whole app and every gated control opens it through
-    // `requireLogin`, so a list of thirteen partner rows doesn't mount
-    // thirteen copies of the same modal.
-    loginOpen: false,
     // Who the signed-in viewer is. Invented, but harmlessly so: this is the
     // demo's own business user, not a person at any of the real partners in
     // the directory, so a made-up name here asserts nothing about anyone.
@@ -288,27 +289,36 @@ export const useConnectStore = defineStore('connect', {
       return cleared
     },
 
-    // The gate. Wrap any action that needs an account:
+    // The three halves of the gate. `useAuthGate` in `utils/auth.js` is what
+    // components call; these are what it and the auth screens use.
     //
-    //   @click="store.requireLogin(() => (saved = !saved))"
-    //
-    // Signed in, it just runs. Signed out, it opens the prompt and holds the
-    // action until `completeLogin` — so the visitor lands back on the thing
-    // they were doing rather than on a page that forgot. Returns whether it
-    // ran, for callers that care.
-    requireLogin(action) {
-      if (this.signedIn) {
-        action?.()
-        return true
-      }
+    // ⚠️ Holding is deliberately NOT the same step as running. The gate now
+    // sends the visitor to a screen of its own, so between the two there is a
+    // full navigation: the action has to run once the app is back on the page
+    // it interrupted, not while the auth screen is still mounted. See
+    // `runPending`.
+    holdUntilLogin(action) {
       pendingAction = action ?? null
-      this.loginOpen = true
-      return false
     },
 
-    // The two auth SCREENS' way in, as opposed to `completeLogin`, which is the
-    // dialog's. Both end at `completeLogin` — the difference is what they knew
-    // before they got there.
+    // Run the held action. Called by an auth screen AFTER it has navigated back
+    // to `next`, so the action lands on a mounted page and isn't clobbered by
+    // the navigation that would otherwise follow it.
+    runPending() {
+      const action = pendingAction
+      pendingAction = null
+      action?.()
+    },
+
+    // Backing out drops it. An auth screen the visitor left without finishing
+    // must not leave an action armed — otherwise signing in from somewhere else
+    // an hour later silently saves the partner they walked away from.
+    dropPending() {
+      pendingAction = null
+    },
+
+    // The two auth screens' way in. Both end at `completeLogin` — the
+    // difference is what they knew before they got there.
     //
     // Sign-up collected a name, an address and a country. All three replace the
     // seeded demo viewer, because a form that asks who you are and then shows
@@ -333,19 +343,10 @@ export const useConnectStore = defineStore('connect', {
       this.completeLogin()
     },
 
+    // ⚠️ Signs the visitor in and nothing else. It does NOT run the held action
+    // — `runPending` does, once the caller has navigated.
     completeLogin() {
       this.setAccount('client')
-      this.loginOpen = false
-      const action = pendingAction
-      pendingAction = null
-      action?.()
-    },
-
-    // Dismissing drops the held action. Running it later, after the visitor
-    // deliberately backed out, would be the app doing something they cancelled.
-    dismissLogin() {
-      this.loginOpen = false
-      pendingAction = null
     },
 
     answer(key, value) {

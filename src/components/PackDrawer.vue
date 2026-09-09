@@ -1,7 +1,7 @@
 <script setup>
 import { Button } from 'frappe-ui'
 import PackScope from './PackScope.vue'
-import { useConnectStore } from '../stores/connect'
+import { useAuthGate } from '../utils/auth'
 
 // A pack's full scope, in the column beside the catalogue.
 //
@@ -18,13 +18,18 @@ defineProps({
 })
 defineEmits(['close'])
 
-const store = useConnectStore()
+const { requireAccount } = useAuthGate()
 
 // ⚠️ THE SEAM. Booking is: pick a pack → sign in → answer the onboarding
-// questions → meet the partner Frappe assigns you → pay. Only the login gate
-// exists, so this opens the prompt when signed out and does nothing when
-// signed in. Wire the rest here.
-const start = () => store.requireLogin()
+// questions → meet the partner Frappe assigns you → pay. Only the gate exists,
+// so this sends a signed-out visitor to sign up and does nothing once they're
+// in. Wire the rest here.
+//
+// `signup`, not `login`: someone reading a pack's scope and pressing Get
+// started is new business, and meeting a log-in form is a wrong guess about who
+// they are. The sign-up screen carries a "Log in" link for the minority who
+// already have an account.
+const start = () => requireAccount(null, { screen: 'signup' })
 </script>
 
 <template>

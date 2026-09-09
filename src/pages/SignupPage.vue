@@ -67,8 +67,12 @@ const submit = () => {
   submitted.value = true
   if (loading.value || Object.keys(errors.value).length) return
   loading.value = true
-  timer = setTimeout(() => {
+  timer = setTimeout(async () => {
     loading.value = false
+    // This toast first, then whatever the gate was holding. The held action
+    // raises one of its own ("Partner saved"), and the pair only reads in the
+    // right order if the account lands before what the account let you do.
+    toast.success('Account created', { id: 'auth' })
     // The account carries the name that was typed. Without this the app would
     // greet you by the demo's seeded viewer immediately after asking who you
     // are, which reads as the form having been thrown away.
@@ -77,8 +81,13 @@ const submit = () => {
       email: form.email.trim(),
       region: regionForCountry(form.country),
     })
-    toast.success('Account created', { id: 'auth' })
-    router.replace(next.value)
+    // ⚠️ Navigate FIRST, then run the held action — see `runPending` in the
+    // store. The action belongs to the screen the gate interrupted, and it
+    // usually navigates itself (opening a pack's panel is a `?pack=` push), so
+    // running it before this would either fire against an unmounted page or be
+    // overwritten by the very next line.
+    await router.replace(next.value)
+    store.runPending()
   }, AUTH_MS)
 }
 
@@ -95,7 +104,13 @@ const next = computed(() => {
 
 const loginLink = computed(() => ({ name: 'login', query: route.query }))
 
-onBeforeUnmount(() => clearTimeout(timer))
+// Leaving without finishing drops whatever the gate was holding. Otherwise a
+// visitor who backs out here and signs in from somewhere else an hour later
+// silently completes the action they walked away from.
+onBeforeUnmount(() => {
+  clearTimeout(timer)
+  if (!store.signedIn) store.dropPending()
+})
 </script>
 
 <template>

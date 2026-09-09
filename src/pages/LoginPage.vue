@@ -39,7 +39,7 @@ const submit = () => {
   submitted.value = true
   if (loading.value || error.value) return
   loading.value = true
-  timer = setTimeout(() => {
+  timer = setTimeout(async () => {
     loading.value = false
     // The account is the one that was typed, not the demo's seeded viewer —
     // otherwise the toast names someone else a beat after you gave your own
@@ -47,8 +47,13 @@ const submit = () => {
     // never asked for one, and inventing one from the address would be worse
     // than a placeholder.
     store.logIn({ email: email.value.trim() })
+    // Before the held action, which raises a toast of its own — "logged in",
+    // then "partner saved", not the other way round.
     toast.success(`Logged in as ${store.viewer.name}`, { id: 'auth' })
-    router.replace(next.value)
+    // ⚠️ Navigate FIRST, then run what the gate was holding. See the same note
+    // in `SignupPage` and `runPending` in the store.
+    await router.replace(next.value)
+    store.runPending()
   }, AUTH_MS)
 }
 
@@ -60,7 +65,11 @@ const next = computed(() => {
 
 const signupLink = computed(() => ({ name: 'signup', query: route.query }))
 
-onBeforeUnmount(() => clearTimeout(timer))
+// See `SignupPage`: backing out must not leave a held action armed.
+onBeforeUnmount(() => {
+  clearTimeout(timer)
+  if (!store.signedIn) store.dropPending()
+})
 </script>
 
 <template>

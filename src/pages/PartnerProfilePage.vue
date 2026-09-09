@@ -19,6 +19,7 @@ import PartnerPricingSection from '../components/PartnerPricingSection.vue'
 import PartnerReviewsSection from '../components/PartnerReviewsSection.vue'
 import PartnerStoriesSection from '../components/PartnerStoriesSection.vue'
 import { useConnectStore } from '../stores/connect'
+import { useAuthGate } from '../utils/auth'
 import PartnerMarketplaceSection from '../components/PartnerMarketplaceSection.vue'
 import BookSlotDialog from '../components/BookSlotDialog.vue'
 import { PARTNERS } from '../data/partners'
@@ -46,6 +47,7 @@ const subtitle = computed(() => {
 })
 
 const store = useConnectStore()
+const { requireAccount } = useAuthGate()
 
 // The same list the listing row reads, not a second copy. These two used to be
 // independent `ref(false)`s — the comment here said sharing them would imply
@@ -56,11 +58,16 @@ const store = useConnectStore()
 const saved = computed(() => Boolean(partner.value && store.isSaved(partner.value.id)))
 
 // Same gesture as the row's, same copy — see `feedback.js`.
-const toggleSave = () =>
-  store.requireLogin(() => {
-    const id = partner.value.id
-    savedToast(partner.value, store.toggleSaved(id), () => store.toggleSaved(id))
-  })
+// ⚠️ The partner is read BEFORE the gate, not inside the held action. Signing
+// in navigates away and back, so by the time the action runs this component is
+// gone and `partner` — a computed over the route's `:id` — has resolved against
+// the auth screen's route in between. Closing over the plain object from
+// `PARTNERS` sidesteps the whole question.
+const toggleSave = () => {
+  const p = partner.value
+  if (!p) return
+  requireAccount(() => savedToast(p, store.toggleSaved(p.id), () => store.toggleSaved(p.id)))
+}
 
 const booking = ref(false)
 </script>
@@ -151,7 +158,7 @@ const booking = ref(false)
           <Button
             variant="solid"
             label="Contact"
-            @click="store.requireLogin(() => contactToast(partner))"
+            @click="requireAccount(() => contactToast(partner))"
           >
             <template #prefix><LucideSend class="size-4" /></template>
           </Button>
