@@ -1,5 +1,8 @@
 import { defineStore } from 'pinia'
 import { PARTNERS } from '../data/partners'
+// For `industryCounts` only — the group totals on the industry filter's
+// headings, which need to know which segments belong to which group.
+import { INDUSTRIES } from '../data/quiz'
 
 // A skipped question stores `null`, which every filter below reads as "no
 // constraint". That keeps skip and never-asked identical downstream, so the
@@ -62,6 +65,7 @@ const criteriaFrom = (state) => ({
   region: state.answers.region,
   implementation: state.answers.implementation,
   app: state.filters.app,
+  countries: state.filters.countries,
   q: state.filters.search.trim().toLowerCase(),
 })
 
@@ -73,7 +77,19 @@ const criteriaFrom = (state) => ({
 // about what the other filters mean — the bug you get the moment the filter
 // logic is written out twice.
 const matches = (p, c, skip = null) => {
-  if (skip !== 'region' && c.region.length && !c.region.includes(p.region)) return false
+  // Region and country are ONE dimension — `geo` — selected through a single
+  // control, so they combine as a UNION and not an intersection. "All of Asia"
+  // plus "Germany" has to mean either, the same way two regions or two segments
+  // already do; read as an intersection it would return nothing, since no
+  // partner is in both places.
+  //
+  // `p.countries` is an array because a partner could serve more than one,
+  // even though every seeded one resolves to the last comma field of its city.
+  if (skip !== 'geo' && (c.region.length || c.countries.length)) {
+    const byRegion = c.region.includes(p.region)
+    const byCountry = p.countries.some((x) => c.countries.includes(x))
+    if (!byRegion && !byCountry) return false
+  }
   if (skip !== 'app' && c.app && !p.apps.includes(c.app)) return false
   // Union, not intersection: several segments read as "any of these", the same
   // way several regions do. Partners are tagged with the directory's own segment
@@ -100,7 +116,9 @@ const matches = (p, c, skip = null) => {
 // thing — often a partner by name — so answering it with partners that don't
 // match the text reads as the app ignoring what you typed.
 const SUGGESTABLE = [
-  { key: 'region', active: (c) => c.region.length > 0 },
+  // Region and country lift together, because they're one dimension. Lifting
+  // only one of them would offer a "suggestion" the other half still excludes.
+  { key: 'geo', active: (c) => c.region.length > 0 || c.countries.length > 0 },
   { key: 'segments', active: (c) => c.segments.length > 0 },
   // Only 'standard' constrains. Custom work rules nobody out, so lifting it
   // would produce an empty group.
@@ -181,9 +199,13 @@ export const useConnectStore = defineStore('connect', {
         erpnext: ['finance', 'sales', 'purchase', 'inventory', 'manufacturing', 'hr'],
       },
     },
-    // Post-quiz filters on the results page. `app` starts unset — it's a
-    // refinement offered mid-list, not a qualifier.
-    filters: { search: '', app: null },
+    // Filters on the results page. `app` starts unset — it's a refinement
+    // offered mid-list, not a qualifier.
+    // `countries` is the granular half of the region dimension. Empty reads as
+    // "no constraint", the same as an unset `app` — see the filter notes above.
+    // It is NOT post-quiz only: the quiz's India chip is a country, so the
+    // question before the listing writes this field too (`toggleGeo`).
+    filters: { search: '', app: null, countries: [] },
   }),
 
   getters: {
@@ -200,7 +222,13 @@ export const useConnectStore = defineStore('connect', {
     // A stand-in for GeoIP. Real implementations resolve this server-side on
     // first paint; the mock hardcodes the common case so the interaction (a
     // pre-filled answer you can override) is reviewable.
-    inferredRegion: () => 'india',
+    //
+    // Shaped like a `GEO_CHOICES` entry — `{ country }` or `{ region }` — because
+    // that's what the geo question is answered with, and the common case here is
+    // a country: eight of thirteen partners are in India and so is most of the
+    // traffic. A real GeoIP resolves to a country too; the region is the fallback
+    // for the ones no chip names.
+    inferredGeo: () => ({ country: 'India' }),
 
     results(state) {
       const c = criteriaFrom(state)
@@ -212,6 +240,69 @@ export const useConnectStore = defineStore('connect', {
           // `data/partners.js` — the seed list's order is the tiebreak.
           .sort(byTier)
       )
+    },
+
+    // Partner count per country, for the labels on the country filter.
+    //
+    // Skips the whole `geo` dimension — region and country together, because
+    // they are one dimension — and nothing else. That's what makes the numbers
+    // worth reading: counted with geo applied, every country you hadn't picked
+    // would read 0 the moment you picked one.
+    //
+    // So each number answers "how many would picking this ADD", which is the
+    // right question now that the dimension is a union: with Europe selected,
+    // India still reads 8, because ticking it would widen the list by eight and
+    // not narrow it to nothing. Industry, app and search are still respected.
+    //
+    // A plain object keyed by country name. Countries with no partners never
+    // appear here; the filter reads a missing key as 0 rather than this getter
+    // having to know the directory's full country list.
+    countryCounts(state) {
+      const c = criteriaFrom(state)
+      const counts = {}
+      for (const p of PARTNERS) {
+        if (!matches(p, c, 'geo')) continue
+        for (const country of p.countries) counts[country] = (counts[country] ?? 0) + 1
+      }
+      return counts
+    },
+
+    // Partner count per segment, for the labels on the industry filter. The
+    // same shape and the same reasoning as `countryCounts` above: it skips the
+    // whole `segments` dimension and nothing else, so each number says how many
+    // picking that row would ADD rather than reading 0 the moment you pick a
+    // sibling. Region, app and search are still respected.
+    segmentCounts(state) {
+      const c = criteriaFrom(state)
+      const counts = {}
+      for (const p of PARTNERS) {
+        if (!matches(p, c, 'segments')) continue
+        for (const segment of p.industries) counts[segment] = (counts[segment] ?? 0) + 1
+      }
+      return counts
+    },
+
+    // Partner count per industry GROUP, keyed by industry value — the number on
+    // the filter's group headings.
+    //
+    // ⚠️ Not the sum of the group's segment counts, which is what the geo
+    // filter's heading can get away with. A partner sits in exactly one country
+    // but routinely in several segments — Tridots is in five — so summing would
+    // count the same partner once per segment it lists and report more
+    // "partners" in Manufacturing than the directory holds. This counts each
+    // partner once per group.
+    industryCounts(state) {
+      const c = criteriaFrom(state)
+      const counts = {}
+      for (const p of PARTNERS) {
+        if (!matches(p, c, 'segments')) continue
+        for (const industry of INDUSTRIES) {
+          if (p.industries.some((i) => industry.segments.includes(i))) {
+            counts[industry.value] = (counts[industry.value] ?? 0) + 1
+          }
+        }
+      }
+      return counts
     },
 
     // Partners that are ONE lifted filter away from qualifying, grouped by which
@@ -321,22 +412,46 @@ export const useConnectStore = defineStore('connect', {
         current.includes(value) ? current.filter((r) => r !== value) : [...current, value],
       )
     },
+    // One geo chip, either granularity — takes a `GEO_CHOICES` entry and routes
+    // it to the half of the dimension it belongs to. The quiz asks India as a
+    // country and the five regions as regions (see `data/quiz.js`), and the
+    // results filter reads the union of both fields, so a country answered here
+    // arrives there ticked under its region with nothing to translate.
+    toggleGeo(choice) {
+      if (!choice.country) return this.toggleRegion(choice.region)
+      const current = this.filters.countries
+      this.filters.countries = current.includes(choice.country)
+        ? current.filter((c) => c !== choice.country)
+        : [...current, choice.country]
+      // Same clearing `answer('region', …)` does for the region half: whichever
+      // way the question is answered, it stops being an inferred answer.
+      this.regionInferred = false
+    },
     skip(key) {
       this.answers[key] = key === 'region' || key === 'segments' ? [] : null
+      // The geo question holds a country as well as a region, so skipping it has
+      // to drop both halves — otherwise the India seeded from inferred location
+      // survives a deliberate "no preference" and the listing arrives filtered
+      // by an answer the visitor declined to give.
+      if (key === 'region') this.filters.countries = []
       if (key === 'industry') this.answers.segments = []
     },
-    // Called when the quiz mounts: seeds the region answer from "geo" so the
-    // user confirms rather than picks. Never overwrites a real choice.
+    // Called when the quiz mounts: seeds the geo answer from "where we think you
+    // are" so the question costs a confirmation instead of a decision. Never
+    // overwrites a real choice — and it checks BOTH halves for one, because
+    // either can hold the answer.
     //
-    // The question this pre-answers is "where can your partner be based?", not
-    // "where are you?" — so the seed is a DEFAULT (start with partners near me,
-    // widen from there), not a guess at a fact about the visitor. That's what
-    // makes getting it wrong cheap: an unwanted region is one chip to untick,
-    // where a wrong answer to a question about them would just read as the app
-    // being confidently mistaken.
-    seedInferredRegion() {
-      if (this.answers.region.length) return
-      this.answers.region = [this.inferredRegion]
+    // ⚠️ The question this pre-answers is "where can your partner be based?",
+    // not "where are you?" — so the seed is a DEFAULT (start near me, widen from
+    // there), not a guess at a fact about the visitor. That's what makes getting
+    // it wrong cheap: an unwanted region is one chip to untick, where a wrong
+    // answer to a question ABOUT them would read as the app being confidently
+    // mistaken.
+    seedInferredGeo() {
+      if (this.answers.region.length || this.filters.countries.length) return
+      const { region, country } = this.inferredGeo
+      if (country) this.filters.countries = [country]
+      else this.answers.region = [region]
       this.regionInferred = true
     },
     reset() {
@@ -352,11 +467,14 @@ export const useConnectStore = defineStore('connect', {
           segments: [...this.answers.segments],
         },
         regionInferred: this.regionInferred,
-        filters: { ...this.filters },
+        // `countries` is an array, so it needs the same explicit copy as the
+        // answers above — a bare spread would hand back the very array the
+        // reset is about to replace.
+        filters: { ...this.filters, countries: [...this.filters.countries] },
       }
       this.answers = emptyAnswers()
       this.regionInferred = false
-      this.filters = { search: '', app: null }
+      this.filters = { search: '', app: null, countries: [] }
     },
 
     // Undo for the toast `reset()` raises. Returns whether there was anything

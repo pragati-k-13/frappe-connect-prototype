@@ -517,11 +517,27 @@ const CERTIFIED_MEMBERS = {
   korecent: { erpnext: 1 },
 }
 
-// ⚠️ Invented, and uniform by region. Real migration paths, but not sourced
+// The country of a scraped city — its last comma field. 'Singapore' has no
+// comma and is its own country, which is why this splits rather than indexes.
+const countryOf = (city) => city.split(',').pop().trim()
+
+// Which pool a partner's PLACEHOLDER content is drawn from: reviewer names and
+// company suffixes (`data/reviews.js`), localisation apps (`data/marketplace.js`)
+// and the migrations below.
+//
+// It is the region, except in India, which is a country inside Asia and not a
+// region of its own — see the note above `REGIONS` in `data/quiz.js`. That
+// distinction is real for this content and only for this content: a Chennai
+// partner and a Singapore one share a region and share none of a legacy stack,
+// a compliance app or a naming convention. `region` stays what the filter and
+// the map ask about; `market` is what the invented content varies at.
+const marketOf = (city, region) => (countryOf(city) === 'India' ? 'india' : region)
+
+// ⚠️ Invented, and uniform by market. Real migration paths, but not sourced
 // from any partner's own listing — Tally and SAP are simply the two ERPNext
 // migrations that actually come up in India, QuickBooks the common one outside
 // it. Replace per partner when the directory publishes them.
-const MIGRATIONS_BY_REGION = {
+const MIGRATIONS_BY_MARKET = {
   india: ['Tally to ERPNext', 'SAP to ERPNext'],
 }
 const DEFAULT_MIGRATIONS = ['QuickBooks to ERPNext', 'SAP to ERPNext']
@@ -587,13 +603,15 @@ const P = (
   accolades,
   pmm: PMM_BY_TIER[tier] ?? 1,
   // Real: `city` is scraped, and the country is its last comma field.
-  countries: [city.split(',').pop().trim()],
+  countries: [countryOf(city)],
+  // See `marketOf` above — the region, except that India is its own market.
+  market: marketOf(city, region),
   // `[{ app, members }]`, highest count first, zeroes dropped.
   certifications: Object.entries(CERTIFIED_MEMBERS[slug(name)] ?? {})
     .filter(([, members]) => members > 0)
     .map(([app, members]) => ({ app, members }))
     .sort((a, b) => b.members - a.members),
-  migrations: MIGRATIONS_BY_REGION[region] ?? DEFAULT_MIGRATIONS,
+  migrations: MIGRATIONS_BY_MARKET[marketOf(city, region)] ?? DEFAULT_MIGRATIONS,
   vision: visionFor(name),
   founding: foundingFor(name),
   tier,
@@ -622,7 +640,7 @@ export const PARTNERS = [
     accolades: [{ title: 'Partner of the Year', year: 2026 }],
     tier: 'gold',
     city: 'Chennai, India',
-    region: 'india',
+    region: 'asia',
     initials: 'TT',
     color: '#3b82f6',
     rate: 85,
@@ -650,7 +668,7 @@ export const PARTNERS = [
     address: 'Unit 402, Marol Business Centre, Andheri East, Mumbai 400059, Maharashtra, India',
     tier: 'gold',
     city: 'Mumbai, India',
-    region: 'india',
+    region: 'asia',
     initials: 'SW',
     color: '#8b5cf6',
     rate: 78,
@@ -668,7 +686,7 @@ export const PARTNERS = [
       '3rd Floor, Deccan Chambers, Senapati Bapat Road, Shivajinagar, Pune 411016, Maharashtra, India',
     tier: 'silver',
     city: 'Pune, India',
-    region: 'india',
+    region: 'asia',
     initials: 'NI',
     color: '#14b8a6',
     rate: null,
@@ -685,7 +703,7 @@ export const PARTNERS = [
     address: 'Office 21, Kharadi Knowledge Park, Kharadi, Pune 411014, Maharashtra, India',
     tier: 'gold',
     city: 'Pune, India',
-    region: 'india',
+    region: 'asia',
     initials: '88',
     color: '#f59e0b',
     rate: 92,
@@ -707,7 +725,7 @@ export const PARTNERS = [
     address: 'B-14, Hiranandani Gardens Annexe, Powai, Mumbai 400076, Maharashtra, India',
     tier: 'bronze',
     city: 'Mumbai, India',
-    region: 'india',
+    region: 'asia',
     initials: 'GC',
     color: '#64748b',
     rate: 74,
@@ -724,7 +742,7 @@ export const PARTNERS = [
     address: '2nd Floor, Backwater Square, Kakkanad, Kochi 682030, Kerala, India',
     tier: 'gold',
     city: 'Kochi, India',
-    region: 'india',
+    region: 'asia',
     initials: 'WA',
     color: '#00b4f5',
     rate: 72,
@@ -741,7 +759,7 @@ export const PARTNERS = [
     address: 'Office 5, Baner Business Bay, Baner Road, Baner, Pune 411045, Maharashtra, India',
     tier: 'silver',
     city: 'Pune, India',
-    region: 'india',
+    region: 'asia',
     initials: 'HL',
     color: '#0ea5e9',
     rate: null,
@@ -759,7 +777,7 @@ export const PARTNERS = [
       '902, Satellite Trade Centre, Iscon Cross Road, Satellite, Ahmedabad 380015, Gujarat, India',
     tier: 'silver',
     city: 'Ahmedabad, India',
-    region: 'india',
+    region: 'asia',
     initials: 'FB',
     color: '#22c55e',
     rate: 76,

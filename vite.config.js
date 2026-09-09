@@ -26,6 +26,15 @@ export default defineConfig({
     }),
     vue(),
   ],
+  server: {
+    // `.claude/launch.json` runs this with `autoPort`, which hands the port it
+    // assigned in through PORT. Vite doesn't read that variable on its own — it
+    // would take 5173, find another worktree's dev server already there, and
+    // walk to 5174 while the preview pane waited on the port it assigned.
+    // Nothing here needs a fixed port: there's no backend, no OAuth callback
+    // and no proxy. Falls back to Vite's own default when PORT is unset.
+    port: Number(process.env.PORT) || 5173,
+  },
   optimizeDeps: {
     exclude: ['frappe-ui'],
     include: [

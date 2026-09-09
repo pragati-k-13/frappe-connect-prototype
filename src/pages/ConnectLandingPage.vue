@@ -14,7 +14,7 @@ import ConnectShell from '../components/ConnectShell.vue'
 import DottedWorldMap from '../components/DottedWorldMap.vue'
 import FilterChip from '../components/FilterChip.vue'
 import { useConnectStore } from '../stores/connect'
-import { INDUSTRIES, REGIONS, IMPLEMENTATION_TYPES } from '../data/quiz'
+import { INDUSTRIES, GEO_CHOICES, IMPLEMENTATION_TYPES } from '../data/quiz'
 import { STARTER_PACKS, SUCCESS_STORIES } from '../data/partners'
 
 const store = useConnectStore()
@@ -23,10 +23,10 @@ const router = useRouter()
 const TOTAL = 3
 const step = ref(1)
 const quizTop = ref(null)
-// Region is pre-answered from "where we think you are" so this question costs a
-// confirmation instead of a decision. The hint under the chips says so —
+// Location is pre-answered from "where we think you are" so this question costs
+// a confirmation instead of a decision. The hint under the chips says so —
 // a silently pre-filled answer would be the dishonest version of this.
-onMounted(() => store.seedInferredRegion())
+onMounted(() => store.seedInferredGeo())
 
 const selectedIndustry = computed(() => INDUSTRIES.find((i) => i.value === store.answers.industry))
 // All four groups branch — every one has real segments in the directory's
@@ -99,7 +99,14 @@ const pickIndustry = (value) => {
 // someone narrows it. Don't "fix" this by requiring the segment.
 const hasAnswer = computed(() => {
   if (step.value === 1) return Boolean(store.answers.industry)
-  if (step.value === 2) return store.answers.region.length > 0
+  // ⚠️ BOTH halves. The geo question holds a region in `answers.region` and a
+  // country in `filters.countries`, and either one on its own is a complete
+  // answer — the India chip writes only the second. Checking `region` alone
+  // disabled Continue for anyone whose inferred location seeded a country,
+  // which is the default path for most visitors.
+  if (step.value === 2) {
+    return store.answers.region.length > 0 || store.filters.countries.length > 0
+  }
   return Boolean(store.answers.implementation)
 })
 
@@ -227,7 +234,7 @@ const restartQuiz = () => {
               </div>
             </fieldset>
 
-            <!-- Q2 — region. Pre-answered from inferred location.
+            <!-- Q2 — location. Pre-answered from inferred location.
 
                  ⚠️ Asked about the PARTNER, not about the visitor. It used to
                  read "Where is your company based?", which asked for a fact
@@ -243,7 +250,7 @@ const restartQuiz = () => {
                  acceptable rather than ranked. Their own region is pre-ticked
                  from inferred location, which under this framing is a sensible
                  default rather than a guess about them — see
-                 `seedInferredRegion`. -->
+                 `seedInferredGeo`. -->
             <fieldset v-else-if="step === 2" key="2" class="w-full">
               <div class="flex items-baseline justify-between gap-4">
                 <legend class="text-p-base font-semibold text-ink-gray-9">
@@ -255,14 +262,24 @@ const restartQuiz = () => {
               <!-- mt-3 against the radio steps' mt-1.5: chips have no internal
                    top padding, so the larger margin lands on the same visual
                    gap below the question. -->
+              <!-- India is a chip of its own here, and a COUNTRY rather than a
+                   region — most visitors are in it, and asking them to find
+                   themselves inside "Asia" is a worse question. The results
+                   filter puts the same answer where it belongs taxonomically,
+                   as the first country under Asia; `toggleGeo` is what lets one
+                   chip row hold both granularities. See `GEO_CHOICES`. -->
               <div class="mt-3 flex flex-wrap gap-2">
                 <FilterChip
-                  v-for="r in REGIONS"
-                  :key="r.value"
-                  :label="r.label"
-                  :count="r.count"
-                  :selected="store.answers.region.includes(r.value)"
-                  @toggle="store.toggleRegion(r.value)"
+                  v-for="c in GEO_CHOICES"
+                  :key="c.region ?? c.country"
+                  :label="c.label"
+                  :count="c.count"
+                  :selected="
+                    c.country
+                      ? store.filters.countries.includes(c.country)
+                      : store.answers.region.includes(c.region)
+                  "
+                  @toggle="store.toggleGeo(c)"
                 />
               </div>
 
@@ -314,18 +331,21 @@ const restartQuiz = () => {
 
       <!-- Map: a stable frame beside the changing question. Its hubs light up
            for whichever region is currently answered. -->
-      <!-- Just the map. There used to be a row of six labelled counts pinned to
-           the bottom of this panel — "71 India, 19 Asia, …" — and they were the
-           same six numbers the region question's own chips carry a few hundred
+      <!-- Just the map. There used to be a row of labelled counts pinned to the
+           bottom of this panel — "90 Asia, 32 Middle East, …" — and they were
+           the same numbers the geo question's own chips carry a few hundred
            pixels to the left, on screen at the same time. One of the two had to
            go, and it wasn't the one attached to the control you answer with. -->
       <div class="flex min-w-0 flex-col justify-center rounded-7 bg-surface-gray-1 p-6 lg:p-8">
         <!-- The region answer is pre-seeded from inferred location before the
-             quiz starts, so without this guard the map would emphasise India
+             quiz starts, so without this guard the map would emphasise Asia
              while you're still on question 1 — highlighting an answer nothing
              on screen has asked for yet. It holds until the region question is
              actually reached, then stays lit for the rest of the quiz. -->
-        <DottedWorldMap :highlight="step >= 2 ? store.answers.region : []" class="mx-auto w-full" />
+        <DottedWorldMap
+          :highlight="step >= 2 ? [...store.answers.region, ...store.filters.countries] : []"
+          class="mx-auto w-full"
+        />
       </div>
     </section>
 
