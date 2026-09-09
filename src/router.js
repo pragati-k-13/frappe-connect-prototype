@@ -9,6 +9,16 @@ import { createRouter, createWebHistory } from 'vue-router'
 const routes = [
   { path: '/', name: 'website', component: () => import('./pages/FrappeSitePage.vue') },
   { path: '/connect', name: 'connect', component: () => import('./pages/ConnectLandingPage.vue') },
+  // The two auth screens. Routes rather than a dialog, and outside
+  // `ConnectShell`: sign-up is the first of four steps (create account, verify,
+  // company info, project info), and a four-screen sequence needs a URL per
+  // step so Back works and a half-finished signup can be resumed.
+  //
+  // Both accept `?next=` — an in-app path to return to once the visitor is in,
+  // so a gated control can send someone here and get them back. The pages
+  // reject anything that isn't a relative path; see the note on `next` there.
+  { path: '/connect/login', name: 'login', component: () => import('./pages/LoginPage.vue') },
+  { path: '/connect/signup', name: 'signup', component: () => import('./pages/SignupPage.vue') },
   {
     path: '/connect/partners',
     name: 'results',

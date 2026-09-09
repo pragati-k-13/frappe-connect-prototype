@@ -306,6 +306,33 @@ export const useConnectStore = defineStore('connect', {
       return false
     },
 
+    // The two auth SCREENS' way in, as opposed to `completeLogin`, which is the
+    // dialog's. Both end at `completeLogin` — the difference is what they knew
+    // before they got there.
+    //
+    // Sign-up collected a name, an address and a country. All three replace the
+    // seeded demo viewer, because a form that asks who you are and then shows
+    // you someone else's name reads as the answers having been discarded.
+    //
+    // The country arrives already resolved to a REGION (see
+    // `data/countries.js` — nothing in here knows what a country is) and goes
+    // through `answer()` rather than straight onto state, so it clears
+    // `regionInferred` the same way the quiz's own chips do: it was a guess
+    // until someone confirmed it, and confirming it is what this screen did.
+    signUp({ name, email, region }) {
+      this.viewer = { ...this.viewer, name, email }
+      if (region) this.answer('region', [region])
+      this.completeLogin()
+    },
+
+    // Logging in knows only the address. The name stays whatever the store
+    // already holds — a real build reads it back from the account, and deriving
+    // one from the email would be a guess dressed up as a fact.
+    logIn({ email }) {
+      this.viewer = { ...this.viewer, email }
+      this.completeLogin()
+    },
+
     completeLogin() {
       this.setAccount('client')
       this.loginOpen = false
