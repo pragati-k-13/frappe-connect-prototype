@@ -3,6 +3,13 @@
 @tailwind utilities;
 
 /* Text selection inverts the foreground, matching the rest of the Frappe apps. */
+/* Ionic's iOS drawer curve. The built-in easings are too weak to read as
+   intentional, and this one front-loads the movement so a panel is essentially
+   in place by the time you've registered it. */
+:root {
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
 ::selection {
   background-color: var(--ink-gray-9);
   color: var(--surface-elevation-1);
@@ -292,53 +299,90 @@
   }
 }
 
-/* The scope panel arriving beside the pack list.
+/* ── The scope panel, and the page making room for it ──────────────────────
  *
- * WHY IT ANIMATES: the panel is a flex sibling, not an overlay, so the content
- * column reflows at the same instant it appears. Two discontinuities at once
- * read as a glitch. The fade gives the eye something to follow while the page
- * beside it re-lays-out.
+ * WHAT WAS WRONG: the panel faded in while the page BESIDE it jumped. Measured
+ * at 1440px, the content block keeps its 800px measure and moves 190px left in
+ * a single frame — a pure translation, no re-wrap. Softening the panel and
+ * leaving that jump animated the small half of the change and not the loud one.
  *
- * WHY IT'S THIS SMALL: opening a pack is an occasional gesture, not a hundred-
- * times-a-day one, so it earns motion — but only just. 8px and a fade, no
- * scale, no bounce. The panel should look like it was already there.
+ * WHAT MOVES NOW: the panel's own width, 0 → 340/380px. Everything else follows
+ * from the flex layout for free — the content column widens and narrows, and
+ * the 800px block re-centres — so the page and the panel are one motion rather
+ * than two events. It also makes CLOSING work: a FLIP transform on the content
+ * can't handle it, because the panel stays in the DOM for its whole leave and
+ * the column doesn't widen until it's gone.
  *
- * ⚠️ SWITCHING packs does NOT animate, and that's deliberate rather than
- * missed: the same `<aside>` stays mounted and only its contents change, so no
- * transition fires. Comparing four packs is a repeated gesture, and motion on a
- * repeated gesture is what makes an interface feel slow.
+ * ⚠️ This animates `width`, which is layout, against the usual rule of moving
+ * only transform and opacity. It's the deliberate exception, on three
+ * conditions: the interaction is occasional, the subtree is small, and — the
+ * one that actually matters — `fc-panel-inner` holds the panel's contents at a
+ * FIXED width so nothing inside re-wraps while the container animates. Without
+ * it every frame re-lays-out the panel's text and the tagline visibly re-wraps.
+ * The `overflow: hidden` is what turns the growing box into a reveal: the inner
+ * column is anchored at the left edge, so it slides in from the right the way a
+ * drawer should, rather than being squashed and stretched.
  *
- * Enter 240ms, leave 140ms. The system should respond faster than it announces,
- * and on the way out the page is waiting to expand behind it.
+ * No fade and no offset on top of it. The push IS the motion, and a fade laid
+ * over a physical movement is the "look at me" version of this.
  *
- * `cubic-bezier(0.23, 1, 0.32, 1)` rather than `ease`: CSS's built-in easings
- * are too weak to read as intentional at 8px. This one front-loads the movement
- * so the panel is essentially in place by the time you've registered it.
+ * Enter 280ms, leave 200ms — the system should respond faster than it
+ * announces. `--ease-drawer` is Ionic's iOS curve, which is the one that reads
+ * as weight rather than as a slide.
  *
- * Leave drops the transform and fades only — a panel sliding right while the
- * column expands left is two motions arguing about which way the page is going.
+ * Below `md` there is no push to animate: the content column steps aside
+ * entirely (`hidden md:block`) and the panel takes the width, so a 0 → 100%
+ * wipe would be motion describing something that isn't happening. It fades
+ * instead.
  */
+.fc-panel {
+  --fc-panel-w: 100%;
+  width: var(--fc-panel-w);
+  overflow: hidden;
+}
+.fc-panel-inner {
+  width: var(--fc-panel-w);
+  flex: none;
+}
+@media (min-width: 768px) {
+  .fc-panel {
+    --fc-panel-w: 340px;
+  }
+}
+@media (min-width: 1024px) {
+  .fc-panel {
+    --fc-panel-w: 380px;
+  }
+}
+
 .panel-enter-active {
-  transition:
-    opacity 0.24s cubic-bezier(0.23, 1, 0.32, 1),
-    transform 0.24s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: opacity 0.28s var(--ease-drawer);
 }
 .panel-leave-active {
-  transition: opacity 0.14s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: opacity 0.2s var(--ease-drawer);
 }
-.panel-enter-from {
-  opacity: 0;
-  transform: translateX(8px);
-}
+.panel-enter-from,
 .panel-leave-to {
   opacity: 0;
 }
+
+@media (min-width: 768px) {
+  .panel-enter-active {
+    transition: width 0.28s var(--ease-drawer);
+  }
+  .panel-leave-active {
+    transition: width 0.2s var(--ease-drawer);
+  }
+  .panel-enter-from,
+  .panel-leave-to {
+    width: 0;
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .panel-enter-active,
   .panel-leave-active {
     transition-duration: 0.01ms;
-  }
-  .panel-enter-from {
-    transform: none;
   }
 }

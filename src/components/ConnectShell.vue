@@ -244,12 +244,7 @@ defineProps({
            That matters here and nowhere else: the column's width now changes
            without the window changing, so viewport breakpoints inside a page
            would answer the wrong question. See `index.css`. -->
-      <!-- ⚠️ `overflow-hidden` is load-bearing for the panel's entrance, not
-           decoration: it enters from `translateX(8px)`, which for those few
-           frames puts it past the right edge of the window. Without the clip
-           the document gains a horizontal scrollbar every time a pack opens,
-           for a quarter of a second. Nothing here overflows in rest. -->
-      <div class="flex min-h-0 flex-1 overflow-hidden">
+      <div class="flex min-h-0 flex-1">
         <!-- frappe-ui's ScrollArea: overlay scrollbars that fade in on hover or
              scroll, instead of a permanent native gutter. Same primitive
              DesktopShell uses for its content region. -->
@@ -266,15 +261,21 @@ defineProps({
           </main>
         </ScrollArea>
 
-        <!-- See `.panel-*` in index.css for what moves and why. In short: the
-             column reflows the instant this mounts, and a fade is what stops
-             two simultaneous discontinuities reading as a glitch. -->
+        <!-- ⚠️ The width lives in `.fc-panel` (index.css), not in Tailwind
+             classes here, because it is the thing that ANIMATES: the panel
+             pushes the content column aside rather than appearing beside it, so
+             the page and the panel are one motion. `fc-panel-inner` is not a
+             wrapper for styling — it holds the contents at the panel's full
+             width so nothing inside re-wraps while the box is still growing.
+             See the note in index.css for the whole reasoning. -->
         <Transition name="panel">
           <aside
             v-if="$slots.panel"
-            class="flex w-full min-w-0 shrink-0 flex-col border-l border-outline-gray-1 bg-surface-base md:w-[340px] lg:w-[380px]"
+            class="fc-panel flex shrink-0 border-l border-outline-gray-1 bg-surface-base"
           >
-            <slot name="panel" />
+            <div class="fc-panel-inner flex min-w-0 flex-col">
+              <slot name="panel" />
+            </div>
           </aside>
         </Transition>
       </div>
