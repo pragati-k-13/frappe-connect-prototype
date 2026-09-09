@@ -1,10 +1,10 @@
 <script setup>
-import { computed, onBeforeUnmount, reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Button, FormControl, toast } from 'frappe-ui'
+import { Button, FormControl } from 'frappe-ui'
 import AuthShell from '../components/AuthShell.vue'
 import { COUNTRY_OPTIONS, INFERRED_COUNTRY, regionForCountry } from '../data/countries'
-import { AUTH_MS, isEmail } from '../utils/auth'
+import { isEmail, useAuthExit } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 
 // SCREEN — create an account.
@@ -25,11 +25,10 @@ import { useConnectStore } from '../stores/connect'
 // credential and a password field here would be a second one nobody asked for.
 //
 // ── THE SEAM ────────────────────────────────────────────────────────────────
-// Continue signs the visitor in and lands them in the app. In the real flow it
-// goes to `verify`, then `company info`, then `project info`, and only then to
-// wherever they were headed. None of those three screens exist yet; when they
-// do, this handler pushes to the first of them instead and the last one calls
-// `completeLogin()`.
+// Continue hands off to `verify`, which is where the account is actually
+// created. After that the flow chart has `company info`, then `project info`,
+// and only then wherever the visitor was headed. Neither exists yet, so verify
+// goes straight to `next`; when they land, they slot in between.
 const store = useConnectStore()
 const route = useRoute()
 const router = useRouter()
@@ -50,8 +49,6 @@ const form = reactive({
 // what's wrong and are trying to fix it, and silence until the next press would
 // hide the fact that they had.
 const submitted = ref(false)
-const loading = ref(false)
-let timer = null
 
 const errors = computed(() => {
   if (!submitted.value) return {}
@@ -65,103 +62,71 @@ const errors = computed(() => {
 
 const submit = () => {
   submitted.value = true
-  if (loading.value || Object.keys(errors.value).length) return
-  loading.value = true
-  timer = setTimeout(async () => {
-    loading.value = false
-    // This toast first, then whatever the gate was holding. The held action
-    // raises one of its own ("Partner saved"), and the pair only reads in the
-    // right order if the account lands before what the account let you do.
-    toast.success('Account created', { id: 'auth' })
-    // The account carries the name that was typed. Without this the app would
-    // greet you by the demo's seeded viewer immediately after asking who you
-    // are, which reads as the form having been thrown away.
-    store.signUp({
-      name: form.name.trim(),
-      email: form.email.trim(),
-      region: regionForCountry(form.country),
-    })
-    // ⚠️ Navigate FIRST, then run the held action — see `runPending` in the
-    // store. The action belongs to the screen the gate interrupted, and it
-    // usually navigates itself (opening a pack's panel is a `?pack=` push), so
-    // running it before this would either fire against an unmounted page or be
-    // overwritten by the very next line.
-    await router.replace(next.value)
-    store.runPending()
-  }, AUTH_MS)
+  if (Object.keys(errors.value).length) return
+  // The account carries the name that was typed. Recorded BEFORE verification
+  // so the next screen can name the address it sent a code to; the visitor
+  // isn't signed in until they come back with it.
+  store.signUp({
+    name: form.name.trim(),
+    email: form.email.trim(),
+    region: regionForCountry(form.country),
+  })
+  // `email` in the query as well as the store, so a reload on the verify screen
+  // still knows where the code went. `next` rides along so the gate's errand
+  // survives both hops.
+  router.push({
+    name: 'signup-verify',
+    query: { email: form.email.trim(), ...(route.query.next ? { next: route.query.next } : {}) },
+  })
 }
-
-// Where to land afterwards. `?next=` so a gated control can send someone here
-// and get them back — the same contract the log-in screen uses.
-//
-// Only in-app paths are honoured: an absolute URL in a query parameter is how a
-// sign-in page gets turned into an open redirect, and this one is linked from a
-// public marketing page.
-const next = computed(() => {
-  const to = route.query.next
-  return typeof to === 'string' && to.startsWith('/') && !to.startsWith('//') ? to : '/connect'
-})
 
 const loginLink = computed(() => ({ name: 'login', query: route.query }))
 
 // Leaving without finishing drops whatever the gate was holding. Otherwise a
 // visitor who backs out here and signs in from somewhere else an hour later
 // silently completes the action they walked away from.
-onBeforeUnmount(() => {
-  clearTimeout(timer)
-  if (!store.signedIn) store.dropPending()
-})
+useAuthExit()
 </script>
 
 <template>
   <AuthShell title="Create your account">
     <!-- `novalidate` so the browser's own bubbles stay out of it: every field
          here has a message of its own, and the two validators fire at different
-         moments and word things differently. -->
-    <form class="mt-8" novalidate @submit.prevent="submit">
-      <!-- 20px between fields. `FormControl` puts 6px between a label and its
-           input, so anything tighter and the two gaps stop telling you which
-           label belongs to which box. -->
-      <div class="space-y-5">
-        <FormControl
-          v-model="form.name"
-          size="lg"
-          label="Full name"
-          placeholder="Full name"
-          autocomplete="name"
-          :error="errors.name"
-        />
-        <FormControl
-          v-model="form.email"
-          type="email"
-          size="lg"
-          label="Work email"
-          placeholder="username@company.com"
-          autocomplete="email"
-          :error="errors.email"
-        />
-        <FormControl
-          v-model="form.country"
-          type="select"
-          size="lg"
-          label="Country"
-          :options="COUNTRY_OPTIONS"
-          :error="errors.country"
-        />
-      </div>
-
-      <Button
-        type="submit"
-        variant="solid"
-        size="lg"
-        class="mt-6 w-full"
-        :loading="loading"
-        loading-text="Creating account"
-        label="Continue"
+         moments and word things differently.
+         `mt-6 space-y-4` and `size="md"` throughout, matching
+         `MinimalAuthShell`'s screens in frappe-cloud-v2. -->
+    <form class="mt-6 space-y-4" novalidate @submit.prevent="submit">
+      <FormControl
+        v-model="form.name"
+        size="md"
+        label="Full name"
+        placeholder="Your full name"
+        autocomplete="name"
+        autofocus
+        :error="errors.name"
       />
+      <FormControl
+        v-model="form.email"
+        type="email"
+        size="md"
+        label="Work email"
+        placeholder="name@company.com"
+        autocomplete="email"
+        :error="errors.email"
+      />
+      <FormControl
+        v-model="form.country"
+        type="select"
+        size="md"
+        label="Country"
+        :options="COUNTRY_OPTIONS"
+        :error="errors.country"
+      />
+
+      <Button type="submit" variant="solid" size="md" class="w-full" label="Continue" />
     </form>
 
-    <p class="mt-5 text-p-base text-ink-gray-6">
+    <p class="mt-4 text-p-sm text-ink-gray-5">
       Already have an account?
       <!-- `query` is carried across so a visitor who was sent here by a gated
            control, then realised they already have an account, still lands back

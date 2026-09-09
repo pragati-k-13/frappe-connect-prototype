@@ -317,8 +317,9 @@ export const useConnectStore = defineStore('connect', {
       pendingAction = null
     },
 
-    // The two auth screens' way in. Both end at `completeLogin` — the
-    // difference is what they knew before they got there.
+    // What the two auth FORMS record. Neither signs anyone in: the code comes
+    // back on the verify screen, and `completeLogin` is that screen's. Recorded
+    // early all the same, so verify can name the address it sent a code to.
     //
     // Sign-up collected a name, an address and a country. All three replace the
     // seeded demo viewer, because a form that asks who you are and then shows
@@ -332,7 +333,6 @@ export const useConnectStore = defineStore('connect', {
     signUp({ name, email, region }) {
       this.viewer = { ...this.viewer, name, email }
       if (region) this.answer('region', [region])
-      this.completeLogin()
     },
 
     // Logging in knows only the address. The name stays whatever the store
@@ -340,11 +340,11 @@ export const useConnectStore = defineStore('connect', {
     // one from the email would be a guess dressed up as a fact.
     logIn({ email }) {
       this.viewer = { ...this.viewer, email }
-      this.completeLogin()
     },
 
-    // ⚠️ Signs the visitor in and nothing else. It does NOT run the held action
-    // — `runPending` does, once the caller has navigated.
+    // ⚠️ Signs the visitor in and nothing else. Called by the VERIFY screen,
+    // once the code is back — not by either form. It does NOT run the held
+    // action either; `runPending` does, once the caller has navigated.
     completeLogin() {
       this.setAccount('client')
     },

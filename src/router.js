@@ -19,6 +19,21 @@ const routes = [
   // reject anything that isn't a relative path; see the note on `next` there.
   { path: '/connect/login', name: 'login', component: () => import('./pages/LoginPage.vue') },
   { path: '/connect/signup', name: 'signup', component: () => import('./pages/SignupPage.vue') },
+  // The code step both forms hand off to. ONE component behind two routes:
+  // sign-up and log-in reach the identical screen, and only the heading, the
+  // toast and where "Use a different email" goes back to differ. The route NAME
+  // is what tells them apart, which is also how `useAuthExit` knows this hop is
+  // still inside the auth flow rather than someone backing out of it.
+  {
+    path: '/connect/signup/verify',
+    name: 'signup-verify',
+    component: () => import('./pages/VerifyPage.vue'),
+  },
+  {
+    path: '/connect/login/verify',
+    name: 'login-verify',
+    component: () => import('./pages/VerifyPage.vue'),
+  },
   {
     path: '/connect/partners',
     name: 'results',

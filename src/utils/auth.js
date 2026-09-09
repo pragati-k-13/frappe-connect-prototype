@@ -1,4 +1,4 @@
-import { useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useConnectStore } from '../stores/connect'
 
 // Everything the auth screens and the controls they gate have in common.
@@ -61,4 +61,33 @@ export function useAuthGate() {
   }
 
   return { requireAccount }
+}
+
+// The route names that make up the auth flow, so leaving one for another isn't
+// mistaken for backing out of it. Sign-up hands off to its verify screen, and
+// that hop must not drop what the gate is holding.
+const AUTH_ROUTES = new Set(['login', 'signup', 'login-verify', 'signup-verify'])
+
+// Where to land once the visitor is in. `?next=` so a gated control can send
+// someone to an auth screen and get them back.
+//
+// ⚠️ Relative paths only. An absolute URL in a query parameter is how a sign-in
+// page becomes an open redirect, and these are linked from a public marketing
+// page.
+export function nextFrom(route) {
+  const to = route.query.next
+  return typeof to === 'string' && to.startsWith('/') && !to.startsWith('//') ? to : '/connect'
+}
+
+// Leaving the auth flow without finishing drops whatever the gate was holding.
+// Otherwise a visitor who backs out and signs in from somewhere else an hour
+// later silently completes the action they walked away from.
+//
+// Route names, not paths: sign-up → verify is still inside the flow, and the
+// hop between them must not look like an exit.
+export function useAuthExit() {
+  const store = useConnectStore()
+  onBeforeRouteLeave((to) => {
+    if (!store.signedIn && !AUTH_ROUTES.has(to.name)) store.dropPending()
+  })
 }
