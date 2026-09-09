@@ -233,14 +233,40 @@ defineProps({
              enum in the store — see `stores/connect.js`. -->
       </header>
 
-      <!-- frappe-ui's ScrollArea: overlay scrollbars that fade in on hover or
-           scroll, instead of a permanent native gutter. Same primitive
-           DesktopShell uses for its content region. -->
-      <ScrollArea class="min-h-0 flex-1">
-        <main class="min-w-0">
-          <slot />
-        </main>
-      </ScrollArea>
+      <!-- The content region and, beside it, an optional panel.
+           A row rather than a stack, because a screen that opens a detail panel
+           here gets a real column: the page keeps its own scroll, the panel
+           keeps a separate one, and NOTHING is covered. No scrim, no fixed
+           positioning, no scroll lock — the page just narrows.
+           ⚠️ `fc-content` makes the content column a container-query root, so a
+           page inside it can respond to ITS width rather than the viewport's.
+           That matters here and nowhere else: the column's width now changes
+           without the window changing, so viewport breakpoints inside a page
+           would answer the wrong question. See `index.css`. -->
+      <div class="flex min-h-0 flex-1">
+        <!-- frappe-ui's ScrollArea: overlay scrollbars that fade in on hover or
+             scroll, instead of a permanent native gutter. Same primitive
+             DesktopShell uses for its content region. -->
+        <!-- ⚠️ Below `md` there isn't room for both, and the brief rules out
+             covering the page — so the content column steps aside entirely and
+             the panel takes the width. Still no overlay: nothing is on top of
+             anything. -->
+        <ScrollArea
+          class="fc-content min-h-0 min-w-0 flex-1"
+          :class="$slots.panel ? 'hidden md:block' : ''"
+        >
+          <main class="min-w-0">
+            <slot />
+          </main>
+        </ScrollArea>
+
+        <aside
+          v-if="$slots.panel"
+          class="flex w-full min-w-0 shrink-0 flex-col border-l border-outline-gray-1 bg-surface-base md:w-[340px] lg:w-[380px]"
+        >
+          <slot name="panel" />
+        </aside>
+      </div>
     </div>
 
     <!-- One login prompt for the whole app. It lives here because ConnectShell
