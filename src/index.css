@@ -291,3 +291,54 @@
     border-left: 1px solid var(--outline-gray-1);
   }
 }
+
+/* The scope panel arriving beside the pack list.
+ *
+ * WHY IT ANIMATES: the panel is a flex sibling, not an overlay, so the content
+ * column reflows at the same instant it appears. Two discontinuities at once
+ * read as a glitch. The fade gives the eye something to follow while the page
+ * beside it re-lays-out.
+ *
+ * WHY IT'S THIS SMALL: opening a pack is an occasional gesture, not a hundred-
+ * times-a-day one, so it earns motion — but only just. 8px and a fade, no
+ * scale, no bounce. The panel should look like it was already there.
+ *
+ * ⚠️ SWITCHING packs does NOT animate, and that's deliberate rather than
+ * missed: the same `<aside>` stays mounted and only its contents change, so no
+ * transition fires. Comparing four packs is a repeated gesture, and motion on a
+ * repeated gesture is what makes an interface feel slow.
+ *
+ * Enter 240ms, leave 140ms. The system should respond faster than it announces,
+ * and on the way out the page is waiting to expand behind it.
+ *
+ * `cubic-bezier(0.23, 1, 0.32, 1)` rather than `ease`: CSS's built-in easings
+ * are too weak to read as intentional at 8px. This one front-loads the movement
+ * so the panel is essentially in place by the time you've registered it.
+ *
+ * Leave drops the transform and fades only — a panel sliding right while the
+ * column expands left is two motions arguing about which way the page is going.
+ */
+.panel-enter-active {
+  transition:
+    opacity 0.24s cubic-bezier(0.23, 1, 0.32, 1),
+    transform 0.24s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.panel-leave-active {
+  transition: opacity 0.14s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.panel-enter-from {
+  opacity: 0;
+  transform: translateX(8px);
+}
+.panel-leave-to {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel-enter-active,
+  .panel-leave-active {
+    transition-duration: 0.01ms;
+  }
+  .panel-enter-from {
+    transform: none;
+  }
+}

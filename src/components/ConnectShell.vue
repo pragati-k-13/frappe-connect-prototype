@@ -244,7 +244,12 @@ defineProps({
            That matters here and nowhere else: the column's width now changes
            without the window changing, so viewport breakpoints inside a page
            would answer the wrong question. See `index.css`. -->
-      <div class="flex min-h-0 flex-1">
+      <!-- ⚠️ `overflow-hidden` is load-bearing for the panel's entrance, not
+           decoration: it enters from `translateX(8px)`, which for those few
+           frames puts it past the right edge of the window. Without the clip
+           the document gains a horizontal scrollbar every time a pack opens,
+           for a quarter of a second. Nothing here overflows in rest. -->
+      <div class="flex min-h-0 flex-1 overflow-hidden">
         <!-- frappe-ui's ScrollArea: overlay scrollbars that fade in on hover or
              scroll, instead of a permanent native gutter. Same primitive
              DesktopShell uses for its content region. -->
@@ -261,12 +266,17 @@ defineProps({
           </main>
         </ScrollArea>
 
-        <aside
-          v-if="$slots.panel"
-          class="flex w-full min-w-0 shrink-0 flex-col border-l border-outline-gray-1 bg-surface-base md:w-[340px] lg:w-[380px]"
-        >
-          <slot name="panel" />
-        </aside>
+        <!-- See `.panel-*` in index.css for what moves and why. In short: the
+             column reflows the instant this mounts, and a fade is what stops
+             two simultaneous discontinuities reading as a glitch. -->
+        <Transition name="panel">
+          <aside
+            v-if="$slots.panel"
+            class="flex w-full min-w-0 shrink-0 flex-col border-l border-outline-gray-1 bg-surface-base md:w-[340px] lg:w-[380px]"
+          >
+            <slot name="panel" />
+          </aside>
+        </Transition>
       </div>
     </div>
   </div>
