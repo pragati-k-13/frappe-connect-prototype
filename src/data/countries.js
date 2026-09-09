@@ -13,21 +13,19 @@
 // knows what a country is, so signup writes the region and the country is only
 // ever the input to it.
 //
-// ⚠️ The region taxonomy (`REGIONS` in `data/quiz.js`) has six values and no
-// Oceania, so Australia and New Zealand are filed under `asia` — which the
-// directory used to call "Asia Pacific". If those become real markets the
-// taxonomy needs a seventh row, not a wider reading of this one.
+// ⚠️ No Australia or New Zealand. The region they'd fall under is Asia Pacific,
+// which does cover them, but neither is a market this list serves yet — and the
+// menu should not offer a country the app has no partners for. Add them here
+// when it does; the region is already right for them.
 export const COUNTRIES = [
   { label: 'India', value: 'IN', region: 'india' },
 
-  { label: 'Australia', value: 'AU', region: 'asia' },
   { label: 'Bangladesh', value: 'BD', region: 'asia' },
   { label: 'China', value: 'CN', region: 'asia' },
   { label: 'Indonesia', value: 'ID', region: 'asia' },
   { label: 'Japan', value: 'JP', region: 'asia' },
   { label: 'Malaysia', value: 'MY', region: 'asia' },
   { label: 'Nepal', value: 'NP', region: 'asia' },
-  { label: 'New Zealand', value: 'NZ', region: 'asia' },
   { label: 'Pakistan', value: 'PK', region: 'asia' },
   { label: 'Philippines', value: 'PH', region: 'asia' },
   { label: 'Singapore', value: 'SG', region: 'asia' },

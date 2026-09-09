@@ -81,10 +81,16 @@ export const INDUSTRIES = [
 // because at 14 partners it outranks Europe; hiding it would be arbitrary.
 export const REGIONS = [
   { value: 'india', label: 'India', count: 71 },
-  // "Asia", not the directory's "Asia Pacific": with India split out above, the
-  // long form promises a breadth this row no longer covers, and it was the
-  // widest label in a set that has to line up.
-  { value: 'asia', label: 'Asia', count: 19 },
+  // The directory's own name for this region, and the one the map needs: Sydney
+  // is one of the hub cities filed under it below, and "Asia" doesn't cover
+  // Sydney. It is the widest label in a set that has to line up, so the quiz
+  // chips, the map's stat row and the results filter are all worth a look if it
+  // changes again.
+  //
+  // ⚠️ The VALUE stays `asia`. It's an internal id — partners, pack pricing and
+  // the hub cities all key off it and none of it is user-visible — so renaming
+  // it would touch four files to change nothing anyone can see.
+  { value: 'asia', label: 'Asia Pacific', count: 19 },
   { value: 'middle-east', label: 'Middle East', count: 32 },
   { value: 'africa', label: 'Africa', count: 14 },
   { value: 'europe', label: 'Europe', count: 11 },
