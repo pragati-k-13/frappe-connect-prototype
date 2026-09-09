@@ -1,52 +1,87 @@
 <script setup>
 import { computed } from 'vue'
-import { PACK_SCOPE, priceFor, pricingFor } from '../data/packs'
+import { PACK_SCOPE } from '../data/packs'
+// Imported rather than written as tags, because the modules are a data list and
+// the icon has to travel with the row — same pattern as `PartnerVisionSection`.
+import IconAccounting from '~icons/lucide/landmark'
+import IconSelling from '~icons/lucide/trending-up'
+import IconBuying from '~icons/lucide/shopping-cart'
+import IconInventory from '~icons/lucide/warehouse'
+import IconManufacturing from '~icons/lucide/factory'
+import IconHrms from '~icons/lucide/users'
+import IconPayroll from '~icons/lucide/banknote'
 
 // A Starter Pack's scope, rendered from the scope document in `data/packs.js`.
 //
-// ⚠️ Content, not container. It knows nothing about the dialog it's mounted in,
-// which is what let it move to an inline panel and back without a line changing
-// inside it. Keep it that way.
+// ⚠️ Content, not container. It knows nothing about where it's mounted — it has
+// been a dialog body and is now a side panel, and moved between them without a
+// line changing inside it. Keep it that way.
 //
 // ── The idea ────────────────────────────────────────────────────────────────
 // A starter pack is defined as much by what it EXCLUDES as by what it includes.
 // That's the whole reason it's cheap and quick, and the source document says so
 // module by module — nearly every area carries an "Exclusions" row.
 //
-// So the exclusions get equal billing: every area is a ledger, in scope on the
-// left, out of scope on the right, same size and same weight. What separates
-// them is ground, not colour — `surface-gray-2` says "different territory"
-// without saying "bad", which red would. Someone deciding between a pack and a
-// custom implementation is deciding exactly this, and a page that whispers the
-// carve-outs in a footnote is not helping them decide.
+// So every module ends with its own carve-outs rather than hiding them in a
+// footnote, on the same footing as everything it does cover.
 //
-// ⚠️ What belongs here is what VARIES BY PACK: the hours, the price, and the
-// module-by-module scope with its carve-outs. What ships with every pack, what
-// never does, and the commercial terms are on the catalogue page instead —
-// identical in all four, so four dialogs repeating them padded each one with
-// the half that never changes and buried the half that does.
+// EVERYTHING is collapsed by default — the masters, the transactions, the
+// reports, the settings and the carve-outs alike. Open, this is a ~2000px
+// document in a 420px column and nobody scrolls it; closed, a pack is seven
+// named modules with five labelled rows each, which is a shape you can take in
+// at a glance and then open the two you care about.
 //
-// ⚠️ Customer responsibilities are in neither. They're what you agree to once
-// you've chosen, not what helps you choose — they belong in the booking flow.
+// ⚠️ Hours, price and validity are NOT here — they're on the catalogue row this
+// panel opens from, and repeating them at the top of the panel said the same
+// thing twice within 400px.
 const props = defineProps({
   pack: { type: Object, required: true },
-  region: { type: String, required: true },
 })
 
-const pricing = computed(() => pricingFor(props.region))
-const price = computed(() => priceFor(props.pack, props.region))
+// Presentation, so it lives here rather than in `data/packs.js` — the scope
+// document has no icons in it.
+const ICONS = {
+  accounting: IconAccounting,
+  selling: IconSelling,
+  buying: IconBuying,
+  inventory: IconInventory,
+  manufacturing: IconManufacturing,
+  hrms: IconHrms,
+  payroll: IconPayroll,
+}
 
-// One area becomes one ledger. `rows` arrive in the document's own order and
+// The carve-outs as a single row's worth of items, or nothing at all where a
+// module excludes nothing — Inventory is the one the document carves nothing
+// out of, and an empty disclosure there would read as a broken control.
+const excludedRows = (area) => {
+  const items = area.rows.filter((r) => r.excluded).flatMap((r) => r.items)
+  return items.length ? [items] : []
+}
+
+// One area becomes one section. Rows arrive in the document's own order and
 // split on the `excluded` flag the data already carries, so nothing here
-// decides what's in or out — it only decides which column it lands in.
+// decides what's in or out — only how it reads once open.
 const areas = computed(() =>
   props.pack.areas.map((key) => {
     const area = PACK_SCOPE[key]
     return {
       key,
       label: area.label,
-      included: area.rows.filter((r) => !r.excluded),
-      excluded: area.rows.filter((r) => r.excluded).flatMap((r) => r.items),
+      icon: ICONS[key],
+      // One list, so the carve-outs are a row of the module like any other
+      // rather than a differently-shaped thing bolted underneath it. `excluded`
+      // only changes how the open contents read, not the row.
+      rows: [
+        ...area.rows
+          .filter((r) => !r.excluded)
+          .map((r) => ({ key: r.area, label: r.area, items: r.items, excluded: false })),
+        ...excludedRows(area).map((items) => ({
+          key: 'not-in-scope',
+          label: `Not in scope (${items.length})`,
+          items,
+          excluded: true,
+        })),
+      ],
     }
   }),
 )
@@ -54,73 +89,52 @@ const areas = computed(() =>
 
 <template>
   <div>
-    <!-- Hours first. The price is what you pay, but the pack IS a block of a
-         partner's time against a fixed scope, and the validity is the clock
-         that block runs against.
-         ⚠️ `divide-x`, not a 1px gap over a coloured ground. The gap trick needs
-         `bg-outline-gray-1` on the grid, and `outline-*` is frappe-ui's BORDER
-         scale — as a background it compiles to nothing and the hairlines simply
-         never draw. See FRAPPE-UI-NOTES.md. -->
-    <dl
-      class="grid grid-cols-3 divide-x divide-outline-gray-1 rounded-6 border border-outline-gray-1"
-    >
-      <div class="px-4 py-3">
-        <dt class="text-xs text-ink-gray-5">Hours</dt>
-        <dd class="mt-1 text-lg font-medium tabular-nums text-ink-gray-8">{{ pack.hours }}</dd>
-      </div>
-      <div class="px-4 py-3">
-        <dt class="text-xs text-ink-gray-5">Use within</dt>
-        <dd class="mt-1 text-lg font-medium text-ink-gray-8">{{ pack.validity }}</dd>
-      </div>
-      <div class="px-4 py-3">
-        <dt class="text-xs text-ink-gray-5">Price</dt>
-        <dd class="mt-1 text-lg font-medium tabular-nums text-ink-gray-8">{{ price }}</dd>
-      </div>
-    </dl>
+    <!-- Rules between MODULES, and nowhere else: they separate the seven
+         things the pack is made of. Inside a module the rows are one module's
+         contents and don't need dividing from each other.
+         No heading above this — the panel's own header already says which pack
+         you're reading, and "What this pack includes" was a label on the only
+         thing in the panel. -->
+    <div class="divide-y divide-outline-gray-1">
+      <section v-for="area in areas" :key="area.key" class="py-5 first:pt-0 last:pb-0">
+        <!-- A section title, not an eyebrow: these are the seven things the
+             pack is made of, and setting them as small grey capitals filed
+             them as labels on the content rather than as its structure. -->
+        <h4 class="flex items-center gap-2 text-base font-medium text-ink-gray-8">
+          <component :is="area.icon" class="size-4 shrink-0 text-ink-gray-6" />
+          {{ area.label }}
+        </h4>
 
-    <p class="mt-2 text-p-sm text-ink-gray-5">
-      Priced for {{ pricing.label }}, before {{ pricing.tax }}.
-    </p>
+        <div class="mt-3">
+          <!-- ⚠️ `<details>`, not a hand-rolled toggle: this version of
+               frappe-ui ships no accordion, and the native element brings the
+               open state, the keyboard behaviour and the semantics for free. -->
+          <details v-for="row in area.rows" :key="row.key" class="group">
+            <summary
+              class="flex cursor-pointer list-none items-center gap-1.5 py-1 text-p-sm font-medium text-ink-gray-7 [&::-webkit-details-marker]:hidden"
+              :class="row.excluded && 'text-ink-gray-6'"
+            >
+              <LucideChevronRight
+                class="size-3.5 shrink-0 text-ink-gray-5 motion-safe:transition-transform group-open:rotate-90"
+              />
+              {{ row.label }}
+            </summary>
 
-    <!-- ── The ledger ──────────────────────────────────────────────────── -->
-    <section class="mt-8">
-      <h3 class="text-base font-medium text-ink-gray-8">What the partner sets up</h3>
-
-      <div class="mt-4 space-y-5">
-        <div v-for="area in areas" :key="area.key">
-          <p class="text-xs font-semibold uppercase tracking-[0.06em] text-ink-gray-5">
-            {{ area.label }}
-          </p>
-
-          <div class="mt-2 grid gap-3 sm:grid-cols-[1.6fr_1fr]">
-            <div>
-              <div v-for="row in area.included" :key="row.area" class="mt-3 first:mt-0">
-                <p class="text-p-sm font-medium text-ink-gray-7">{{ row.area }}</p>
-                <!-- A comma run, not bullets. These are lists of doctype names
-                     six and seven long; as bullets each area became a column of
-                     one-word lines and the ledger stopped being scannable. -->
-                <p class="mt-0.5 text-p-base text-ink-gray-6">{{ row.items.join(', ') }}</p>
-              </div>
-            </div>
-
-            <!-- `self-start`, or the grid stretches this to the height of the
-                 in-scope column beside it and Accounting's four carve-outs sit
-                 at the top of a tall empty block. -->
-            <div class="self-start rounded-6 bg-surface-gray-2 px-3 py-2.5">
-              <p class="text-p-sm font-medium text-ink-gray-6">Not in scope</p>
-              <ul v-if="area.excluded.length" class="mt-1 space-y-0.5">
-                <li v-for="item in area.excluded" :key="item" class="text-p-base text-ink-gray-5">
-                  {{ item }}
-                </li>
-              </ul>
-              <!-- An empty column reads as a bug. "No carve-outs" is a fact
-                   about this module and worth stating — Inventory is the one
-                   area the document excludes nothing from. -->
-              <p v-else class="mt-1 text-p-base text-ink-gray-5">No carve-outs</p>
-            </div>
-          </div>
+            <!-- A comma run for what's covered: these are lists of doctype
+                 names six and seven long, and as bullets each row became a
+                 column of one-word lines. The carve-outs stay a list — they're
+                 read one at a time, to check for a specific thing. -->
+            <p v-if="!row.excluded" class="pb-3 pl-5 text-p-base text-ink-gray-6">
+              {{ row.items.join(', ') }}
+            </p>
+            <ul v-else class="space-y-0.5 pb-3 pl-5">
+              <li v-for="item in row.items" :key="item" class="text-p-base text-ink-gray-5">
+                {{ item }}
+              </li>
+            </ul>
+          </details>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   </div>
 </template>
