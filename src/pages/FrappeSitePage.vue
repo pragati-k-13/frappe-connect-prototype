@@ -35,7 +35,6 @@
 // because the fiction is that you're leaving frappe.io and arriving somewhere
 // else.
 import { Avatar, Button } from 'frappe-ui'
-import { STARTER_PACKS, priceFor, DEFAULT_REGION } from '../data/packs'
 import { SUCCESS_STORIES } from '../data/partners'
 import { ONBOARDING } from '../data/onboarding'
 // A placeholder portrait for the testimonial. Generated art, like the rest of
@@ -47,13 +46,6 @@ import portrait from '../assets/media/placeholder-2.jpg'
 // the app goes through the router, which handles the base itself.
 const baseUrl = import.meta.env.BASE_URL
 const connect = (path = '') => `${baseUrl}connect${path}`
-
-// ⚠️ Prices are India's, because India is the only region whose Starter Pack
-// pricing is decided (see `data/packs.js`), and this page says neither of those
-// things: not which market it's quoting, and not that 18% GST goes on top.
-// Nothing here knows who is reading it — region is collected later, at signup —
-// so both facts have to land on the pack's own detail view.
-const region = DEFAULT_REGION
 
 // The three doors, in increasing order of commitment.
 //
@@ -83,10 +75,7 @@ const SERVICES = [
       'Published pricing, no quote to wait for',
     ],
     cta: 'View packs',
-    // The only one that stays on this page: the packs and their prices are
-    // right there under the fold, so sending the reader to another tab to see
-    // what they've already scrolled past would be the page arguing with itself.
-    scrollTo: 'starter-packs',
+    link: connect('/packs'),
   },
   {
     id: 'custom',
@@ -139,9 +128,6 @@ const RAIL = [
   ['book', 'users', 'pin', 'bulb'],
   ['file', 'target', 'video', 'award'],
 ]
-
-const scrollToSection = (id) =>
-  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 </script>
 
 <template>
@@ -195,13 +181,21 @@ const scrollToSection = (id) =>
           <LucideChevronRight class="size-4 text-ink-gray-4" />
           <span class="text-ink-gray-6">Work with Partners</span>
         </nav>
+        <!-- The account entry, and deliberately not "Get started".
+             This is the path a visitor takes when they DON'T pick one of the
+             three services below — they sign in and land on the home with all
+             three. The three cards are the product entries; this is the account
+             one, and the two shouldn't read as the same offer.
+             The wording is the real frappe.io's, and it's what Connect's own top
+             bar says too (see `ConnectShell`), so a visitor meets the same
+             control either side of the seam. -->
         <a
           :href="connect()"
           target="_blank"
           rel="noopener"
           class="flex items-center gap-1.5 text-[14px] font-medium text-ink-gray-7 hover:text-ink-gray-9"
         >
-          Get started
+          Log in or create account
           <LucideArrowRight class="size-4" />
         </a>
       </header>
@@ -225,7 +219,14 @@ const scrollToSection = (id) =>
             Partners in over 30 countries, ready to get you running.
           </p>
           <div class="mt-4 flex justify-center">
-            <Button variant="solid" size="md" label="Find a partner" :link="connect()">
+            <!-- `ghost`, not solid. The page's real question is which of the
+                 three services below you want, and a filled button in the hero
+                 answered it for the reader before they'd been asked — it also
+                 pointed at the same place as "Browse partners", so the loudest
+                 control on the page was a shortcut past the choice the page
+                 exists to present. Quieter than the cards' own buttons, so it
+                 reads as the shortcut it is. -->
+            <Button variant="ghost" size="md" label="Find a partner" :link="connect()">
               <template #suffix><LucideArrowRight class="size-4" /></template>
             </Button>
           </div>
@@ -278,17 +279,8 @@ const scrollToSection = (id) =>
                   </li>
                 </ul>
                 <div class="mt-4">
-                  <!-- The arrow says "this takes you somewhere". "View packs"
-                       scrolls down this same page, so it doesn't get one. -->
-                  <Button
-                    size="md"
-                    :label="s.cta"
-                    :link="s.link"
-                    @click="s.scrollTo && scrollToSection(s.scrollTo)"
-                  >
-                    <template v-if="s.link" #suffix>
-                      <LucideArrowRight class="size-4" />
-                    </template>
+                  <Button size="md" :label="s.cta" :link="s.link">
+                    <template #suffix><LucideArrowRight class="size-4" /></template>
                   </Button>
                 </div>
               </div>
@@ -353,65 +345,6 @@ const scrollToSection = (id) =>
               </span>
             </div>
           </figure>
-        </section>
-
-        <!-- Pricing -->
-        <section id="starter-packs" class="mx-auto max-w-[600px] scroll-mt-8 pb-32">
-          <p class="text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-gray-5">
-            Pricing
-          </p>
-          <h2 class="mt-2 text-[20px] font-semibold leading-[1.3] text-ink-gray-8">
-            Starter packs
-          </h2>
-
-          <!-- Rules BETWEEN rows only. A rule above the first row and below the
-               last one frames the list, and the list doesn't need a frame — it
-               needs to be readable as four things rather than one. -->
-          <ul class="mt-10 divide-y divide-outline-gray-1">
-            <li
-              v-for="pack in STARTER_PACKS"
-              :key="pack.value"
-              class="flex flex-col gap-4 py-6 first:pt-0 sm:flex-row sm:items-start sm:justify-between"
-            >
-              <div class="min-w-0">
-                <h3 class="text-[15px] font-medium text-ink-gray-7">{{ pack.name }}</h3>
-                <p class="mt-1 text-[15px] text-ink-gray-6">{{ pack.modules }}</p>
-                <div class="mt-3">
-                  <Button
-                    size="md"
-                    label="View details"
-                    :link="connect(`/packs?pack=${pack.value}`)"
-                  >
-                    <template #suffix><LucideArrowRight class="size-4" /></template>
-                  </Button>
-                </div>
-              </div>
-              <!-- Price first: it's why this section exists, and the two lines
-                   under it are what the price buys. -->
-              <dl class="space-y-1.5 sm:w-[200px] sm:shrink-0">
-                <div class="flex items-center gap-2">
-                  <LucideCheck class="size-3.5 shrink-0 text-ink-gray-4" />
-                  <dt class="sr-only">Price</dt>
-                  <!-- ⚠️ Ex-tax, and the page no longer says so. India's packs
-                       carry 18% GST on top; the pack's own detail view has to
-                       be where that gets said. -->
-                  <dd class="text-[15px] font-medium tabular-nums text-ink-gray-7">
-                    {{ priceFor(pack, region) }}
-                  </dd>
-                </div>
-                <div class="flex items-center gap-2">
-                  <LucideCheck class="size-3.5 shrink-0 text-ink-gray-4" />
-                  <dt class="sr-only">Hours</dt>
-                  <dd class="text-[15px] tabular-nums text-ink-gray-7">{{ pack.hours }} hours</dd>
-                </div>
-                <div class="flex items-center gap-2">
-                  <LucideCheck class="size-3.5 shrink-0 text-ink-gray-4" />
-                  <dt class="sr-only">Validity</dt>
-                  <dd class="text-[15px] text-ink-gray-7">Use within {{ pack.validity }}</dd>
-                </div>
-              </dl>
-            </li>
-          </ul>
         </section>
 
         <!-- Benefits -->
