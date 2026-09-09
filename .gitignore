@@ -9,3 +9,11 @@ components.d.ts
 
 # Generator venv — recreate with the commands in scripts/README.md
 .venv/
+
+# Agent skills installed with `npx skills add`. They belong to the machine, not
+# to the app — `.agents/` is the package, `.claude/skills/` the symlinks into
+# it, and the lockfile pins the versions. Ignored because a stray `git add -A`
+# otherwise sweeps a few hundred kilobytes of prose into a source commit.
+.agents/
+.claude/skills/
+skills-lock.json
