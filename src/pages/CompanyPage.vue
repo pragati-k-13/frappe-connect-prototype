@@ -1,7 +1,7 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Badge, Button, FormControl, toast } from 'frappe-ui'
+import { Button, FormControl, toast } from 'frappe-ui'
 import AuthShell from '../components/AuthShell.vue'
 import ConnectMark from '../components/ConnectMark.vue'
 import { INDUSTRIES } from '../data/quiz'
@@ -29,7 +29,7 @@ const router = useRouter()
 // there is no `?pack=` to carry — see `selectPack` in the store.
 //
 // Nothing when they arrived by another door (saving a partner, the top-bar
-// CTA). The strip then doesn't render at all, rather than showing a pack they
+// CTA). The subtitle then reads generically, rather than naming a pack they
 // never chose.
 const pack = computed(() => STARTER_PACKS.find((p) => p.value === store.pack) ?? null)
 
@@ -123,20 +123,23 @@ useAuthExit()
       <ConnectMark class="mb-5" size="xl" />
     </template>
 
+    <!-- The pack carried across from the catalogue, named in the subtitle
+         rather than boxed above the form. It is context, not a control:
+         nothing here changes it, and it's the reason these questions are being
+         asked at all.
+         ⚠️ It used to be its own bordered strip, which was `rounded-4 text-base`
+         at full column width — exactly what a `size="sm"` field renders. So it
+         read as the first field of the form, sat directly above the real first
+         field, and then didn't respond to a click. Same fact, no false
+         affordance. -->
     <p class="mt-1 text-p-base text-ink-gray-5">
-      This will connect you with the ideal Partner for your needs.
+      This will connect you with the ideal Partner for your
+      <template v-if="pack">
+        <span class="font-medium whitespace-nowrap text-ink-gray-7">{{ pack.name }}</span>
+        pack.
+      </template>
+      <template v-else>needs.</template>
     </p>
-
-    <!-- The pack carried across from the catalogue. It is context, not a
-         control: nothing here changes it, and it's the reason these questions
-         are being asked at all. -->
-    <div
-      v-if="pack"
-      class="mt-6 flex items-center gap-2 rounded-4 border border-outline-gray-2 px-3 py-2.5"
-    >
-      <span class="min-w-0 truncate text-base font-medium text-ink-gray-8">{{ pack.name }}</span>
-      <Badge variant="subtle" theme="gray" size="sm" label="Selected Starter Pack" />
-    </div>
 
     <form class="mt-6 space-y-4" novalidate @submit.prevent="submit">
       <FormControl

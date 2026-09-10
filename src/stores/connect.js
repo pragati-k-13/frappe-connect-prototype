@@ -218,7 +218,8 @@ export const useConnectStore = defineStore('connect', {
     // screen two navigations later still has to name it.
     //
     // ⚠️ Null when they arrived by another door (saving a partner, the top-bar
-    // CTA). Onboarding shows no pack strip at all rather than guessing one.
+    // CTA). Onboarding's subtitle then reads generically rather than guessing
+    // a pack they never chose.
     pack: null,
     // What the onboarding screen collected. `name` is the company's, which is
     // also mirrored onto `viewer.company` — the sidebar and the quote header
