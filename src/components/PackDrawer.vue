@@ -1,6 +1,7 @@
 <script setup>
 import { Button } from 'frappe-ui'
 import PackScope from './PackScope.vue'
+import { useRouter } from 'vue-router'
 import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 
@@ -14,25 +15,31 @@ import { useConnectStore } from '../stores/connect'
 // ⚠️ No scrim, no fixed positioning, no scroll lock. It's a flex sibling of the
 // content column — see `ConnectShell`'s `panel` slot — so the page narrows
 // rather than being covered, and both sides keep their own scroll.
-defineProps({
+const props = defineProps({
   pack: { type: Object, required: true },
+  // ⚠️ Off on the confirmation screen. The footer's CTA is "start this pack",
+  // and by then you have — the panel there is reference material opened beside
+  // a booking you are in the middle of making, not a way in.
+  actionable: { type: Boolean, default: true },
 })
 defineEmits(['close'])
 
 const store = useConnectStore()
+const router = useRouter()
 const { requireAccount } = useAuthGate()
 
-// ⚠️ THE SEAM. Booking is: pick a pack → sign in → answer the onboarding
-// questions → meet the partner Frappe assigns you → pay. Only the gate exists,
-// so this sends a signed-out visitor to sign up and does nothing once they're
-// in. Wire the rest here.
+// Booking is: pick a pack → sign in → answer the onboarding questions →
+// confirm and book the call. Signed out, the gate sends them to sign up and
+// onboarding hands off to `/connect/confirm` at the end; signed in, they go
+// straight there.
 //
 // The gate lands on sign-up, which is `useAuthGate`'s default — someone reading
 // a pack's scope and pressing Get started is new business.
 const start = () => {
-  // See `PacksPage`: the pack has to be recorded before the gate fires.
+  // Recorded before the gate fires — the confirmation screen is two or four
+  // navigations away and has no other way to know which pack this was about.
   store.selectPack(props.pack.value)
-  requireAccount()
+  requireAccount(() => router.push('/connect/confirm'))
 }
 </script>
 
@@ -57,7 +64,7 @@ const start = () => {
     <PackScope :pack="pack" />
   </div>
 
-  <footer class="shrink-0 border-t border-outline-gray-1 px-5 py-3">
+  <footer v-if="actionable" class="shrink-0 border-t border-outline-gray-1 px-5 py-3">
     <Button class="w-full" variant="solid" label="Get started" @click="start" />
   </footer>
 </template>

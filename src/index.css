@@ -391,3 +391,21 @@
 textarea[data-slot='control'] {
   @apply text-p-sm;
 }
+
+/* The confirmation screen: what you are doing on the left, what you are buying
+   on the right.
+
+   A container query, not a viewport one, for the same reason `.fc-col-*` are:
+   the scope panel narrows this column without the window changing, so at
+   `md:` the card would stay beside the steps in half the room. Below 900px of
+   COLUMN it stacks, which is what happens the moment the panel opens. */
+.fc-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2rem;
+}
+@container content (min-width: 900px) {
+  .fc-split {
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+}

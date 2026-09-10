@@ -34,6 +34,14 @@ const routes = [
     name: 'login-verify',
     component: () => import('./pages/VerifyPage.vue'),
   },
+  // Where the booking flow stops: confirm the pack and book the call. The pack
+  // comes from `store.pack`, so there is nothing in the path — but `?scope=1`
+  // opens the panel, addressable for the same reason `?pack=` is.
+  {
+    path: '/connect/confirm',
+    name: 'confirm',
+    component: () => import('./pages/ConfirmPage.vue'),
+  },
   // The last step of signing up, and sign-up only — a returning customer
   // answered these once, so `login-verify` goes straight to `next`. This is
   // where the account actually lands: see the note at the top of the page.
