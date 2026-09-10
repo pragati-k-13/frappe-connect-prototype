@@ -1,12 +1,5 @@
 <template>
-  <!-- ⚠️ Same corner everywhere, but LIFTED clear of the messages composer.
-       That is the one screen whose own controls reach the bottom-right: at
-       `bottom-4` this button sits on the composer's Send, and a demo control
-       that makes a product control unclickable is worse than one that shifts up.
-       `bottom-24` clears a one-line composer; typing enough to grow it will
-       reach under this button again, which is the trade for keeping the control
-       in the corner reviewers look for. Toasts still cover it, as everywhere. -->
-  <div class="fixed right-4 z-50" :class="inMessages ? 'bottom-24' : 'bottom-4'">
+  <div class="fixed bottom-4 right-4 z-50">
     <Dropdown :options="options" side="top" align="end">
       <Button
         variant="outline"
@@ -42,14 +35,12 @@
 // (screen 1) has no app chrome at all, and the switch has to be reachable from
 // every screen in the flow.
 import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { Button, Dropdown } from 'frappe-ui'
 import { useConnectStore } from '../stores/connect'
 
 const store = useConnectStore()
 const router = useRouter()
-const route = useRoute()
-const inMessages = computed(() => route.name === 'messages')
 
 // Picking Business restarts the whole demo rather than just setting a flag:
 // state is wiped and you land back on the Frappe website, where the flow
