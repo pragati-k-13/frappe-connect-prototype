@@ -118,15 +118,14 @@ const close = () => {
 // "Get started" is the buying gesture, so it's gated where the info button
 // isn't: reading a pack's scope needs no account, committing to one does.
 //
-// Signed out, this sends the visitor to SIGN UP — someone pressing Get started
-// on a fixed-price pack is new business, and a log-in form in front of them is a
-// wrong guess with a form attached. Signed in, it opens the panel, which is
-// still all there is; see the seam in `PackDrawer`.
+// Signed out, this sends the visitor to sign up (`useAuthGate`'s default).
+// Signed in, it opens the panel, which is still all there is; see the seam in
+// `PackDrawer`.
 //
 // The held action is `open(value)` rather than the `?pack=` being carried in
 // `next`, because the gate captures the path as it is at the click — the panel
 // isn't open yet at that moment. Coming back, the action opens it.
-const start = (value) => requireAccount(() => open(value), { screen: 'signup' })
+const start = (value) => requireAccount(() => open(value))
 </script>
 
 <template>

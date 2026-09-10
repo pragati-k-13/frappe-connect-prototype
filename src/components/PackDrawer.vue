@@ -25,11 +25,9 @@ const { requireAccount } = useAuthGate()
 // so this sends a signed-out visitor to sign up and does nothing once they're
 // in. Wire the rest here.
 //
-// `signup`, not `login`: someone reading a pack's scope and pressing Get
-// started is new business, and meeting a log-in form is a wrong guess about who
-// they are. The sign-up screen carries a "Log in" link for the minority who
-// already have an account.
-const start = () => requireAccount(null, { screen: 'signup' })
+// The gate lands on sign-up, which is `useAuthGate`'s default — someone reading
+// a pack's scope and pressing Get started is new business.
+const start = () => requireAccount()
 </script>
 
 <template>

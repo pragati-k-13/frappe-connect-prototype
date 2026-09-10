@@ -189,7 +189,7 @@ const RAIL = [
              bar says too (see `ConnectShell`), so a visitor meets the same
              control either side of the seam. -->
         <a
-          :href="connect('/login')"
+          :href="connect('/signup')"
           target="_blank"
           rel="noopener"
           class="flex items-center gap-1.5 text-[14px] font-medium text-ink-gray-7 hover:text-ink-gray-9"

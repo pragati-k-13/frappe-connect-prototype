@@ -37,17 +37,22 @@ export const AUTH_MS = 1400
 // rather than a store action: it needs the router and the current route, and a
 // store reaching for the router is how you get an import cycle.
 //
-// `screen` picks which of the two the visitor meets. `'login'` is the default,
-// because the log-in screen carries a "Create an account" link and so serves
-// both, while sign-up in front of a returning customer is a wrong guess with a
-// form attached. Pass `'signup'` where the intent really is new business —
-// "Get started" on a pack is the case that exists today.
+// `screen` picks which of the two the visitor meets, and `'signup'` is the
+// default. Anyone the gate stops is by definition not signed in, and on a
+// directory reached from a public marketing page that is overwhelmingly someone
+// without an account yet. Meeting them with a log-in form asks for a credential
+// they don't have; sign-up carries a "Log in" link, so it costs the returning
+// customer one click and costs the newcomer nothing.
+//
+// Pass `'login'` to send someone to the log-in screen instead. Nothing does
+// today — it's here so a surface aimed at returning customers has the option
+// without reopening this file.
 export function useAuthGate() {
   const store = useConnectStore()
   const router = useRouter()
   const route = useRoute()
 
-  const requireAccount = (action, { screen = 'login' } = {}) => {
+  const requireAccount = (action, { screen = 'signup' } = {}) => {
     if (store.signedIn) {
       action?.()
       return true
