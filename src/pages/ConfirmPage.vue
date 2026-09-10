@@ -14,8 +14,10 @@ import { useConnectStore } from '../stores/connect'
 // and the partner-side surfaces don't exist, so "Confirm and book call" is the
 // end of what's been designed.
 //
-// ⚠️ TITLE COPY IS PLACEHOLDER, per the wireframe. "Confirm selection" and the
-// subtitle beneath it are the drawing's words, not decided ones.
+// ⚠️ TITLE COPY IS PLACEHOLDER, per the wireframe: "Confirm selection" is the
+// drawing's word, not a decided one. The subtitle is not the wireframe's — it
+// said "This will connect you with the ideal Partner for your needs", which was
+// also the onboarding screen's subtitle two navigations earlier.
 const store = useConnectStore()
 const route = useRoute()
 const router = useRouter()
@@ -116,7 +118,7 @@ const confirm = () => {
         <div class="min-w-0">
           <h1 class="text-2xl font-semibold text-ink-gray-8">Confirm selection</h1>
           <p class="mt-1 text-p-base text-ink-gray-6">
-            This will connect you with the ideal Partner for your needs.
+            Pick a slot, and we will assign your Partner.
           </p>
 
           <ol class="mt-6 space-y-5">
@@ -141,7 +143,18 @@ const confirm = () => {
             </li>
           </ol>
 
-          <div class="mt-8 flex items-center gap-2">
+          <!-- ⚠️ Not in the wireframe. The onboarding screen collected a
+               company profile — size, industry, operations, problems — and
+               pressing Confirm hands all of it to a partner who has not been
+               named yet. That is the one consequence of this button someone
+               could reasonably object to, so it is read BEFORE the button and
+               not after it, and long before the receipt on the next screen
+               reads "Project details sent". -->
+          <p class="mt-8 text-p-sm text-ink-gray-5">
+            Your company details go to the Partner before the call.
+          </p>
+
+          <div class="mt-3 flex items-center gap-2">
             <Button
               variant="solid"
               label="Confirm and book call"
@@ -151,17 +164,6 @@ const confirm = () => {
             />
             <Button variant="subtle" label="Cancel" :route="'/connect/packs'" />
           </div>
-
-          <!-- ⚠️ Not in the wireframe. The onboarding screen collected a
-               company profile — size, industry, operations, problems — and
-               pressing Confirm hands all of it to a partner who has not been
-               named yet. That is the one consequence of this button someone
-               could reasonably object to, so it is stated next to the button
-               rather than discovered on the screen after, where the receipt
-               already reads "Project details sent". -->
-          <p class="mt-3 text-p-sm text-ink-gray-5">
-            Your company details go to the Partner before the call.
-          </p>
         </div>
 
         <SelectedServiceCard :pack="pack" :region="region" />
