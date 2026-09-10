@@ -370,3 +370,24 @@
 .fc-mark > div {
   @apply bg-surface-violet-7 text-white;
 }
+
+/* ⚠️ WORKAROUND — delete when frappe-ui moves past 1.0.0-beta.55.
+ *
+ * beta.55's `Textarea` scales FONT SIZE with the `size` prop — sm 14px, md
+ * 16px, lg 18px — while `TextInput` and `Select` hold at 14px for sm and md.
+ * Upstream does not: every textarea size on ui.frappe.io renders `text-p-sm` at
+ * 13px and only the padding changes, 6/8/10/12px across xs/sm/md/lg. Measured
+ * there, not inferred.
+ *
+ * So this pins what the library already intends, which is why it can be deleted
+ * outright on upgrade rather than reconciled.
+ *
+ * `textarea[data-slot='control']` — `data-slot` is frappe-ui's own attribute, so
+ * this reaches its textareas and no hand-rolled one, and its 0,1,1 beats the
+ * component's own `text-p-*` utility. The class has to land on the element
+ * itself: `FormControl` forwards a `class` to the labeling WRAPPER, so a
+ * utility passed in would sit on the div and lose.
+ */
+textarea[data-slot='control'] {
+  @apply text-p-sm;
+}
