@@ -80,7 +80,13 @@ const closeScope = () => {
 
 <template>
   <ConnectShell root-label="Starter packs" root-to="/connect/packs" crumb="Confirmed">
-    <div class="mx-auto w-full max-w-[1100px] px-5 py-8 lg:px-10">
+    <!-- 972px = 500 for the column you read + the 360 card + 32 between
+         them + the 80 of `lg:px-10`, which sits INSIDE the cap. At the 1100
+         this started on, the left column ran to 628 and the partner card
+         stretched to fill it: that wide it reads as a table row, and the tick
+         list under it broke the eye across a measure two thirds longer than
+         the body copy above. -->
+    <div class="mx-auto w-full max-w-[972px] px-5 py-8 lg:px-10">
       <div v-if="!pack || !partner" class="py-20 text-center">
         <p class="text-p-lg font-medium text-ink-gray-8">Nothing to show here</p>
         <p class="mx-auto mt-1.5 max-w-sm text-p-base text-ink-gray-6">
@@ -141,9 +147,15 @@ const closeScope = () => {
                   </span>
                 </div>
 
+                <!-- The tail can't break. Wrapping it stranded "more" alone
+                     on a second line; the listing solves the same problem by
+                     pinning its tail and truncating the lead, and here the line
+                     is allowed to wrap so the tail just has to stay whole. -->
                 <p class="mt-1 text-p-sm text-ink-gray-6">
                   Expertise across {{ expertise.lead }}
-                  <template v-if="expertise.rest">and {{ expertise.rest }} more</template>
+                  <span v-if="expertise.rest" class="whitespace-nowrap">
+                    and {{ expertise.rest }} more
+                  </span>
                 </p>
 
                 <Button
