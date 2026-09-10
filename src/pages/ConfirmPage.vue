@@ -117,8 +117,18 @@ const confirm = () => {
         <!-- ── What you are doing ─────────────────────────────────────── -->
         <div class="min-w-0">
           <h1 class="text-xl font-semibold text-ink-gray-8">Confirm selection</h1>
+          <!-- ⚠️ Not the wireframe's subtitle, which read "This will connect
+               you with the ideal Partner for your needs" — also the onboarding
+               screen's line, two navigations earlier.
+               It carries the disclosure rather than a separate note lower down:
+               onboarding collected a company profile (size, industry,
+               operations, problems) and Confirm hands all of it to a partner
+               who has not been named yet. That is the one consequence of this
+               screen someone could reasonably object to, so it is read at the
+               top, long before the receipt on the next screen says "Project
+               details sent". -->
           <p class="mt-1 text-p-base text-ink-gray-6">
-            Pick a slot, and we will assign your Partner.
+            Pick a slot, and we will send your company details to the Partner we assign.
           </p>
 
           <ol class="mt-6 space-y-5">
@@ -143,18 +153,7 @@ const confirm = () => {
             </li>
           </ol>
 
-          <!-- ⚠️ Not in the wireframe. The onboarding screen collected a
-               company profile — size, industry, operations, problems — and
-               pressing Confirm hands all of it to a partner who has not been
-               named yet. That is the one consequence of this button someone
-               could reasonably object to, so it is read BEFORE the button and
-               not after it, and long before the receipt on the next screen
-               reads "Project details sent". -->
-          <p class="mt-8 text-p-sm text-ink-gray-5">
-            Your company details go to the Partner before the call.
-          </p>
-
-          <div class="mt-3 flex items-center gap-2">
+          <div class="mt-8 flex items-center gap-2">
             <Button
               variant="solid"
               label="Confirm and book call"
