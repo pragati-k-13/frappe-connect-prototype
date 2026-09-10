@@ -72,9 +72,8 @@ const shortName = computed(() => partner.value?.name.split(' ')[0] ?? 'Your part
 <template>
   <ConnectShell root-label="Starter packs" root-to="/connect/packs" crumb="Confirmed">
     <!-- Full width to 1440. The card rides the page's right padding and the
-         reading column is centred between the sidebar and the card by
-         `.fc-split`'s own left padding, so this cap only decides where that
-         stops growing — past it an equidistant layout is mostly gap. -->
+         600px reading column is placed by `.fc-split`'s own left padding, so
+         this cap only decides where the gutter stops growing. -->
     <div class="mx-auto w-full max-w-[1440px] px-5 py-8 lg:px-10">
       <div v-if="!pack || !partner" class="py-20 text-center">
         <p class="text-p-lg font-medium text-ink-gray-8">Nothing to show here</p>
