@@ -306,92 +306,119 @@ watch(open, toBottom)
                  between two organisations is a record more than a banter, and
                  the mirrored right-hand bubble buys nothing once each message
                  already carries a name. -->
-            <div v-for="m in open.messages" :key="m.id" class="mt-5">
-              <!-- `gap-1.5` rather than a space in the markup: Vue drops the
+            <!-- ⚠️ The avatar sits beside the whole GROUP, not beside the
+                 bubble: the name, the time and whatever the message is (text or
+                 one of the two cards) hang off a single left edge.
+                 A person is a circle and a company is a square, which is the
+                 shape rule the rest of the app already follows — every partner
+                 logo in the listing, the profile and the inbox is square. -->
+            <div v-for="m in open.messages" :key="m.id" class="mt-5 flex items-start gap-3">
+              <Avatar
+                v-if="m.from === 'you'"
+                :label="store.viewer.name"
+                size="xl"
+                class="mt-0.5 shrink-0"
+              />
+              <Avatar
+                v-else-if="logo"
+                :image="logo"
+                :label="open.partner.name"
+                size="xl"
+                shape="square"
+                class="fc-logo-avatar mt-0.5 shrink-0"
+              />
+              <Avatar
+                v-else
+                :label="open.partner.name"
+                size="xl"
+                shape="square"
+                class="mt-0.5 shrink-0"
+              />
+
+              <div class="min-w-0 flex-1">
+                <!-- `gap-1.5` rather than a space in the markup: Vue drops the
                    whitespace between two elements on their own lines, which
                    welded the name to the separator. -->
-              <p class="flex items-baseline gap-1.5 text-p-sm">
-                <span class="font-medium text-ink-gray-8">{{ authorOf(m) }}</span>
-                <span class="text-ink-gray-5">·</span>
-                <span class="text-ink-gray-5">{{ time(m.at) }}</span>
-              </p>
+                <p class="flex items-baseline gap-1.5 text-p-sm">
+                  <span class="font-medium text-ink-gray-8">{{ authorOf(m) }}</span>
+                  <span class="text-ink-gray-5">·</span>
+                  <span class="text-ink-gray-5">{{ time(m.at) }}</span>
+                </p>
 
-              <!-- ⚠️ `v-html`, because the composer writes HTML. It is the
+                <!-- ⚠️ `v-html`, because the composer writes HTML. It is the
                    viewer's own typing rendered back to them in a prototype with
                    no server and no second author, so there is nothing here that
                    one person can inject into another's screen. A real build
                    sanitises on the way in. -->
-              <div
-                v-if="m.kind === 'text'"
-                class="fc-message mt-1.5 max-w-[640px] rounded-5 bg-surface-gray-1 px-3.5 py-2.5 text-p-base text-ink-gray-8"
-                v-html="m.body"
-              />
-
-              <!-- The company profile onboarding collected, as it was sent. -->
-              <div
-                v-else-if="m.kind === 'company'"
-                class="mt-1.5 w-fit rounded-5 border border-outline-gray-2 p-3.5"
-              >
-                <dl class="space-y-1.5">
-                  <div class="flex gap-6 text-p-base">
-                    <dt class="w-36 text-ink-gray-5">Company name</dt>
-                    <dd class="font-medium text-ink-gray-8">
-                      {{ store.company.name || store.viewer.company }}
-                    </dd>
-                  </div>
-                  <div class="flex gap-6 text-p-base">
-                    <dt class="w-36 text-ink-gray-5">Industry</dt>
-                    <dd class="font-medium text-ink-gray-8">
-                      {{ store.company.segments?.[0] || 'Not provided' }}
-                    </dd>
-                  </div>
-                  <div class="flex gap-6 text-p-base">
-                    <dt class="w-36 text-ink-gray-5">No. of employees</dt>
-                    <dd class="font-medium text-ink-gray-8">
-                      {{ store.company.employees || 'Not provided' }}
-                    </dd>
-                  </div>
-                </dl>
-                <Button
-                  class="mt-3"
-                  variant="subtle"
-                  size="sm"
-                  label="View all details"
-                  @click="details = true"
+                <div
+                  v-if="m.kind === 'text'"
+                  class="fc-message mt-1.5 max-w-[640px] rounded-5 bg-surface-gray-1 px-3.5 py-2.5 text-p-base text-ink-gray-8"
+                  v-html="m.body"
                 />
-              </div>
 
-              <!-- The booked call. The external mark is the whole point of the
-                   control: the invite is in a calendar this app doesn't own. -->
-              <div
-                v-else-if="m.kind === 'call'"
-                class="mt-1.5 flex w-fit items-center gap-3 rounded-5 border border-outline-gray-2 p-3.5"
-              >
-                <Avatar size="2xl" shape="square" aria-hidden="true">
-                  <IconCalendar class="size-full" />
-                </Avatar>
-                <div class="min-w-0">
-                  <p class="text-base font-medium text-ink-gray-8">
-                    Scheduled an introduction call
-                  </p>
-                  <p class="mt-0.5 text-p-base text-ink-gray-6">{{ callWhen(m.when) }}</p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label="Open in your calendar"
-                  @click="openCalendar"
+                <!-- The company profile onboarding collected, as it was sent. -->
+                <div
+                  v-else-if="m.kind === 'company'"
+                  class="mt-1.5 w-fit rounded-5 border border-outline-gray-2 p-3.5"
                 >
-                  <template #icon><IconExternal class="size-4" /></template>
-                </Button>
+                  <dl class="space-y-1.5">
+                    <div class="flex gap-6 text-p-base">
+                      <dt class="w-36 text-ink-gray-5">Company name</dt>
+                      <dd class="font-medium text-ink-gray-8">
+                        {{ store.company.name || store.viewer.company }}
+                      </dd>
+                    </div>
+                    <div class="flex gap-6 text-p-base">
+                      <dt class="w-36 text-ink-gray-5">Industry</dt>
+                      <dd class="font-medium text-ink-gray-8">
+                        {{ store.company.segments?.[0] || 'Not provided' }}
+                      </dd>
+                    </div>
+                    <div class="flex gap-6 text-p-base">
+                      <dt class="w-36 text-ink-gray-5">No. of employees</dt>
+                      <dd class="font-medium text-ink-gray-8">
+                        {{ store.company.employees || 'Not provided' }}
+                      </dd>
+                    </div>
+                  </dl>
+                  <Button
+                    class="mt-3"
+                    variant="subtle"
+                    size="sm"
+                    label="View all details"
+                    @click="details = true"
+                  />
+                </div>
+
+                <!-- The booked call. The external mark is the whole point of the
+                   control: the invite is in a calendar this app doesn't own. -->
+                <div
+                  v-else-if="m.kind === 'call'"
+                  class="mt-1.5 flex w-fit items-center gap-3 rounded-5 border border-outline-gray-2 p-3.5"
+                >
+                  <Avatar size="2xl" shape="square" aria-hidden="true">
+                    <IconCalendar class="size-full" />
+                  </Avatar>
+                  <div class="min-w-0">
+                    <p class="text-base font-medium text-ink-gray-8">
+                      Scheduled an introduction call
+                    </p>
+                    <p class="mt-0.5 text-p-base text-ink-gray-6">{{ callWhen(m.when) }}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Open in your calendar"
+                    @click="openCalendar"
+                  >
+                    <template #icon><IconExternal class="size-4" /></template>
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
         </ScrollArea>
 
-        <!-- The composer. frappe-ui's `Textarea` rather than an input: two
-             sentences about your inventory is a normal thing to send, and a
-             single line hides everything but the end of it. -->
         <!-- The composer. ⚠️ No rule above it: the conversation ends in white
              space, and a line there fenced the composer off from the thread it
              belongs to.
