@@ -71,13 +71,14 @@ const shortName = computed(() => partner.value?.name.split(' ')[0] ?? 'Your part
 
 <template>
   <ConnectShell root-label="Starter packs" root-to="/connect/packs" crumb="Confirmed">
-    <!-- 1040px = the 500 reading column + the 360 card + 100 of gutter
-         between them + the 80 of `lg:px-10`, which sits INSIDE the cap. The
-         reading column is capped in `.fc-split`, so raising this widens the
-         GUTTER and pushes the card right; it does not stretch the text.
-         (It ran to 628 at the 1100 this started on, which made the partner
-         card read as a table row.) -->
-    <div class="mx-auto w-full max-w-[1040px] px-5 py-8 lg:px-10">
+    <!-- ⚠️ This cap positions the CARD, not the text. The reading column is
+         capped at 500 inside `.fc-split` and the two are pushed apart by
+         `space-between`, so every pixel added here goes to the gutter and
+         carries the card further right. 1280 puts it near the page's right
+         edge on a laptop; the cap is what stops it drifting into the middle
+         distance on an ultrawide, where `space-between` would otherwise open a
+         gulf the eye can't cross. -->
+    <div class="mx-auto w-full max-w-[1280px] px-5 py-8 lg:px-10">
       <div v-if="!pack || !partner" class="py-20 text-center">
         <p class="text-p-lg font-medium text-ink-gray-8">Nothing to show here</p>
         <p class="mx-auto mt-1.5 max-w-sm text-p-base text-ink-gray-6">
