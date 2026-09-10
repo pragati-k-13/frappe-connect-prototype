@@ -4,7 +4,7 @@ import { Badge, Button } from 'frappe-ui'
 import IconModules from '~icons/lucide/package'
 import IconEffort from '~icons/lucide/hourglass'
 import IconDelivery from '~icons/lucide/calendar'
-import IconScope from '~icons/lucide/info'
+import IconExternal from '~icons/lucide/arrow-up-right'
 import { priceFor } from '../data/packs'
 
 // What you are buying, carried across the last two screens of the flow.
@@ -17,8 +17,6 @@ const props = defineProps({
   pack: { type: Object, required: true },
   region: { type: String, required: true },
 })
-
-defineEmits(['scope'])
 
 const details = computed(() => [
   { icon: IconModules, text: props.pack.moduleList },
@@ -54,8 +52,13 @@ const details = computed(() => [
       </li>
     </ul>
 
-    <Button class="mt-5" variant="subtle" size="sm" label="View full scope" @click="$emit('scope')">
-      <template #prefix><IconScope class="size-4" /></template>
+    <!-- ⚠️ Inert, and the arrow says why: it opens the Starter Pack scope
+         document, which lives outside the app. Same treatment as "Read full
+         scope" on the catalogue — a suffix arrow rather than a prefix icon,
+         because the mark is about where the click GOES, and that belongs at the
+         end of the label rather than in front of it. -->
+    <Button class="mt-5" variant="subtle" size="sm" label="View full scope">
+      <template #suffix><IconExternal class="size-4" /></template>
     </Button>
   </aside>
 </template>

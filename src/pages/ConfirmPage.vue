@@ -3,7 +3,6 @@ import { computed, ref, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Button, FormControl, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
-import PackDrawer from '../components/PackDrawer.vue'
 import SelectedServiceCard from '../components/SelectedServiceCard.vue'
 import { PARTNERS } from '../data/partners'
 import { STARTER_PACKS, marketFor, DEFAULT_REGION } from '../data/packs'
@@ -93,12 +92,6 @@ const confirm = () => {
 
 // The scope panel, addressable so Back closes it — the same contract the
 // catalogue's `?pack=` has.
-const scopeOpen = computed(() => route.query.scope === '1' && Boolean(pack.value))
-const openScope = () => router.push({ query: { ...route.query, scope: '1' } })
-const closeScope = () => {
-  const { scope, ...rest } = route.query
-  router.push({ query: rest })
-}
 </script>
 
 <template>
@@ -163,15 +156,8 @@ const closeScope = () => {
           </div>
         </div>
 
-        <SelectedServiceCard :pack="pack" :region="region" @scope="openScope" />
+        <SelectedServiceCard :pack="pack" :region="region" />
       </div>
     </div>
-
-    <!-- The same panel the catalogue opens, and the same way — it pushes the
-         page aside rather than covering it. `actionable="false"` drops its
-         "Get started" footer: you are already doing that here. -->
-    <template v-if="scopeOpen" #panel>
-      <PackDrawer :pack="pack" :actionable="false" @close="closeScope" />
-    </template>
   </ConnectShell>
 </template>

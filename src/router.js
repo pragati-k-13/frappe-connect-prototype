@@ -36,10 +36,10 @@ const routes = [
   },
   // Where the booking flow stops: confirm the pack and book the call.
   //
-  // `?pack=` names what is being confirmed and `?scope=1` opens the scope panel.
-  // The pack is in the URL rather than read from the store alone because the
-  // store is in memory: reloading this screen used to lose the selection, and a
-  // confirmation page is the one you might refresh or send on before paying.
+  // `?pack=` names what is being confirmed. It is in the URL rather than read
+  // from the store alone because the store is in memory: reloading this screen
+  // used to lose the selection, and a confirmation page is the one you might
+  // refresh or send on before paying.
   {
     path: '/connect/confirm',
     name: 'confirm',

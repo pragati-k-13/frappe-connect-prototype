@@ -17,10 +17,6 @@ import { useConnectStore } from '../stores/connect'
 // rather than being covered, and both sides keep their own scroll.
 const props = defineProps({
   pack: { type: Object, required: true },
-  // ⚠️ Off on the confirmation screen. The footer's CTA is "start this pack",
-  // and by then you have — the panel there is reference material opened beside
-  // a booking you are in the middle of making, not a way in.
-  actionable: { type: Boolean, default: true },
 })
 defineEmits(['close'])
 
@@ -64,7 +60,7 @@ const start = () => {
     <PackScope :pack="pack" />
   </div>
 
-  <footer v-if="actionable" class="shrink-0 border-t border-outline-gray-1 px-5 py-3">
+  <footer class="shrink-0 border-t border-outline-gray-1 px-5 py-3">
     <Button class="w-full" variant="solid" label="Get started" @click="start" />
   </footer>
 </template>

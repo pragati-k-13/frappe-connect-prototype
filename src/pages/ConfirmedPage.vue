@@ -1,9 +1,8 @@
 <script setup>
 import { computed, watchEffect } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { Avatar, Button } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
-import PackDrawer from '../components/PackDrawer.vue'
 import SelectedServiceCard from '../components/SelectedServiceCard.vue'
 import TierIcon from '../components/TierIcon.vue'
 import IconCheck from '~icons/lucide/check'
@@ -27,7 +26,6 @@ import { useConnectStore } from '../stores/connect'
 // changed on reload would be worse than one that was never shown.
 const store = useConnectStore()
 const route = useRoute()
-const router = useRouter()
 
 const pack = computed(
   () => STARTER_PACKS.find((p) => p.value === (route.query.pack ?? store.pack)) ?? null,
@@ -69,13 +67,6 @@ const expertise = computed(() => {
 // First name only — "Tridots will be in contact", not "Tridots Tech Pvt Ltd
 // will be in contact". A sentence about a person you are about to meet.
 const shortName = computed(() => partner.value?.name.split(' ')[0] ?? 'Your partner')
-
-const scopeOpen = computed(() => route.query.scope === '1' && Boolean(pack.value))
-const openScope = () => router.push({ query: { ...route.query, scope: '1' } })
-const closeScope = () => {
-  const { scope, ...rest } = route.query
-  router.push({ query: rest })
-}
 </script>
 
 <template>
@@ -221,12 +212,8 @@ const closeScope = () => {
           </ul>
         </div>
 
-        <SelectedServiceCard :pack="pack" :region="region" @scope="openScope" />
+        <SelectedServiceCard :pack="pack" :region="region" />
       </div>
     </div>
-
-    <template v-if="scopeOpen" #panel>
-      <PackDrawer :pack="pack" :actionable="false" @close="closeScope" />
-    </template>
   </ConnectShell>
 </template>
