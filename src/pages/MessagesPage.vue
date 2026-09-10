@@ -352,7 +352,7 @@ watch(open, toBottom)
                    sanitises on the way in. -->
                 <div
                   v-if="m.kind === 'text'"
-                  class="fc-message mt-1.5 max-w-[640px] rounded-5 bg-surface-gray-1 px-3.5 py-2.5 text-p-base text-ink-gray-8"
+                  class="fc-message mt-1.5 max-w-[480px] rounded-5 bg-surface-gray-1 px-3.5 py-2.5 text-p-base text-ink-gray-8"
                   v-html="m.body"
                 />
 
@@ -438,10 +438,12 @@ watch(open, toBottom)
                    box is one object rather than a control with something
                    attached to it. `p-2` on the box and `px-1` on the editor
                    keeps the text and the button on one left edge. -->
-              <!-- ⚠️ 640px, the same cap the message bubbles carry, so the
-                   composer and the thread measure the same. Centred in the
-                   pane rather than left-aligned with the bubbles: the field
-                   belongs to the pane, not to the last message above it. -->
+              <!-- ⚠️ 640px, wider than a bubble on purpose: a bubble is read
+                   at a glance and holds a comfortable measure, and this is
+                   written into, where a longer line means fewer wraps while
+                   you type. Centred in the pane rather than left-aligned with
+                   the thread: the field belongs to the pane, not to the last
+                   message above it. -->
               <div
                 class="group mx-auto max-w-[640px] rounded-4 border border-[var(--surface-gray-2)] bg-surface-gray-2 p-2 transition-colors focus-within:border-outline-gray-4 focus-within:bg-surface-base focus-within:shadow-sm"
                 @keydown.capture="onKey"
