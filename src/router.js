@@ -34,9 +34,12 @@ const routes = [
     name: 'login-verify',
     component: () => import('./pages/VerifyPage.vue'),
   },
-  // Where the booking flow stops: confirm the pack and book the call. The pack
-  // comes from `store.pack`, so there is nothing in the path — but `?scope=1`
-  // opens the panel, addressable for the same reason `?pack=` is.
+  // Where the booking flow stops: confirm the pack and book the call.
+  //
+  // `?pack=` names what is being confirmed and `?scope=1` opens the scope panel.
+  // The pack is in the URL rather than read from the store alone because the
+  // store is in memory: reloading this screen used to lose the selection, and a
+  // confirmation page is the one you might refresh or send on before paying.
   {
     path: '/connect/confirm',
     name: 'confirm',

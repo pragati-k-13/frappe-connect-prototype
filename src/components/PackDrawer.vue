@@ -39,7 +39,7 @@ const start = () => {
   // Recorded before the gate fires — the confirmation screen is two or four
   // navigations away and has no other way to know which pack this was about.
   store.selectPack(props.pack.value)
-  requireAccount(() => router.push('/connect/confirm'))
+  requireAccount(() => router.push({ name: 'confirm', query: { pack: props.pack.value } }))
 }
 </script>
 

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Badge, Button, FormControl, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
@@ -23,7 +23,23 @@ const store = useConnectStore()
 const route = useRoute()
 const router = useRouter()
 
-const pack = computed(() => STARTER_PACKS.find((p) => p.value === store.pack) ?? null)
+// ⚠️ The URL is authoritative, the store is the fallback.
+//
+// `store.pack` is in-memory, so reading it alone meant a RELOAD of this screen
+// lost the selection and showed the empty state — on a confirmation page, which
+// is the one screen someone might refresh, bookmark or send to a colleague
+// before committing money. `?pack=` is the same contract the catalogue's panel
+// already has.
+//
+// The store still gets written, so the rest of the app agrees with the URL when
+// someone arrives by link rather than by choosing.
+const pack = computed(
+  () => STARTER_PACKS.find((p) => p.value === (route.query.pack ?? store.pack)) ?? null,
+)
+
+watchEffect(() => {
+  if (pack.value && store.pack !== pack.value.value) store.selectPack(pack.value.value)
+})
 
 // Same market resolution as the catalogue — the country first, because sign-up
 // writes only that. See `marketFor` in `data/packs.js`.
@@ -95,7 +111,7 @@ const closeScope = () => {
       <div v-if="!pack" class="py-20 text-center">
         <p class="text-p-lg font-medium text-ink-gray-8">No pack selected</p>
         <p class="mx-auto mt-1.5 max-w-sm text-p-base text-ink-gray-6">
-          Pick a Starter Pack first and this is where you will confirm it.
+          This link doesn't name a pack. Pick one and this is where you'll confirm it.
         </p>
         <Button class="mt-4" variant="solid" label="See the packs" :route="'/connect/packs'" />
       </div>
