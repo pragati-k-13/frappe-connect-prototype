@@ -85,7 +85,7 @@ const shortName = computed(() => partner.value?.name.split(' ')[0] ?? 'Your part
 
       <div v-else class="fc-split">
         <div class="min-w-0">
-          <h1 class="text-2xl font-semibold text-ink-gray-8">Confirmed!</h1>
+          <h1 class="text-lg font-semibold text-ink-gray-8">Confirmed!</h1>
           <!-- Two short sentences, and the second one's job is to hand off to
                the card rather than to summarise it.
                "Frappe has assigned you a partner" was the previous try and it

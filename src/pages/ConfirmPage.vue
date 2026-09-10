@@ -116,7 +116,7 @@ const confirm = () => {
       <div v-else class="fc-split">
         <!-- ── What you are doing ─────────────────────────────────────── -->
         <div class="min-w-0">
-          <h1 class="text-xl font-semibold text-ink-gray-8">Confirm selection</h1>
+          <h1 class="text-lg font-semibold text-ink-gray-8">Confirm selection</h1>
           <!-- ⚠️ Not the wireframe's subtitle, which read "This will connect
                you with the ideal Partner for your needs" — also the onboarding
                screen's line, two navigations earlier. -->
