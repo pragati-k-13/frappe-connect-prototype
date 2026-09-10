@@ -133,7 +133,7 @@ useAuthExit()
          field, and then didn't respond to a click. Same fact, no false
          affordance. -->
     <p class="mt-1 text-p-base text-ink-gray-5">
-      This will connect you with the ideal Partner for your
+      To find the right Partner for your
       <template v-if="pack">
         <span class="font-medium whitespace-nowrap text-ink-gray-7">{{ pack.name }}</span>
         pack.
