@@ -96,14 +96,11 @@ const confirm = () => {
 
 <template>
   <ConnectShell root-label="Starter packs" root-to="/connect/packs" crumb="Confirm selection">
-    <!-- ⚠️ This cap positions the CARD, not the text. The reading column is
-         capped at 500 inside `.fc-split` and the two are pushed apart by
-         `space-between`, so every pixel added here goes to the gutter and
-         carries the card further right. 1280 puts it near the page's right
-         edge on a laptop; the cap is what stops it drifting into the middle
-         distance on an ultrawide, where `space-between` would otherwise open a
-         gulf the eye can't cross. -->
-    <div class="mx-auto w-full max-w-[1280px] px-5 py-8 lg:px-10">
+    <!-- Full width to 1440. The card rides the page's right padding and the
+         reading column is centred between the sidebar and the card by
+         `.fc-split`'s own left padding, so this cap only decides where that
+         stops growing — past it an equidistant layout is mostly gap. -->
+    <div class="mx-auto w-full max-w-[1440px] px-5 py-8 lg:px-10">
       <!-- No pack in the store: someone reached this by URL rather than by
            choosing. Sending them to the catalogue is the only honest answer —
            there is nothing to confirm. -->
