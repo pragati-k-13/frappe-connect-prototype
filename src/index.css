@@ -368,7 +368,10 @@
  * beats the theme utility's 0,1,0.
  */
 .fc-mark > div {
-  @apply bg-surface-violet-7 text-white;
+  /* ⚠️ A literal hex, and deliberately: #2F3E9D is Connect's brand blue and
+   * frappe-ui has no token for it. Every other colour in the app is a token —
+   * if this one ever gets a `--surface-*` variable, it belongs there instead. */
+  @apply bg-[#2F3E9D] text-white;
 }
 
 /* ⚠️ WORKAROUND — delete when frappe-ui moves past 1.0.0-beta.55.

@@ -2,10 +2,10 @@
 import { Avatar } from 'frappe-ui'
 import IconHandshake from '~icons/lucide/handshake'
 
-// Frappe Connect's mark: a handshake on violet. ONE definition for the whole
-// app — the sidebar and the onboarding screen used to draw different marks
-// (a grey square with `LucideBlocks`, and a hand-rolled violet box), which is
-// two identities for one product a couple of clicks apart.
+// Frappe Connect's mark: a handshake on the brand blue. ONE definition for the
+// whole app — the sidebar and the onboarding screen used to draw different
+// marks (a grey square with `LucideBlocks`, and a hand-rolled violet box),
+// which is two identities for one product a couple of clicks apart.
 //
 // Built on `Avatar` so the box and its corner come from frappe-ui rather than
 // from three guessed values: `lg` is 28px, `xl` 32px, both `rounded-[6px]`, and
