@@ -171,9 +171,16 @@ const RAIL = [
       <!-- Site chrome. 14px, the one place on the page that isn't 15.
            `min-h-12` and the gray-1 rule are Connect's own top bar, measured
            from `ConnectShell` — the two screens sit a click apart and a header
-           that changes height across that seam reads as a different app. -->
+           that changes height across that seam reads as a different app.
+
+           Sticky for the same reason: in Connect the bar sits OUTSIDE the
+           `ScrollArea`, so it's fixed by construction and the account CTA is
+           always in reach. This page scrolls the document instead, so it has to
+           say so. `top-0 z-10` are the live site's own values, and the opaque
+           background is what stops the hero sliding under a transparent strip —
+           `sticky` doesn't imply one. -->
       <header
-        class="flex min-h-12 items-center justify-between border-b border-outline-gray-1 px-4 sm:px-5"
+        class="sticky top-0 z-10 flex min-h-12 items-center justify-between border-b border-outline-gray-1 bg-white px-4 sm:px-5"
       >
         <nav class="flex items-center gap-2 text-[14px]" aria-label="Breadcrumb">
           <a href="#" class="text-ink-gray-7 hover:underline">Frappe</a>
