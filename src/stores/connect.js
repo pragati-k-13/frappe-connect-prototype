@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { PARTNERS } from '../data/partners'
+import { INDUSTRIES } from '../data/quiz'
 
 // A skipped question stores `null`, which every filter below reads as "no
 // constraint". That keeps skip and never-asked identical downstream, so the
@@ -207,7 +208,7 @@ export const useConnectStore = defineStore('connect', {
     //
     // ⚠️ `operations` and `problems` are free text and optional. They're what a
     // partner reads before the first call; nothing in the app renders them yet.
-    company: { name: '', employees: '', industry: '', operations: '', problems: '' },
+    company: { name: '', employees: '', segments: [], operations: '', problems: '' },
     // Post-quiz filters on the results page. `app` starts unset — it's a
     // refinement offered mid-list, not a qualifier.
     filters: { search: '', app: null },
@@ -339,16 +340,25 @@ export const useConnectStore = defineStore('connect', {
       this.pack = value
     },
 
-    // What the onboarding screen collected. The industry goes through
-    // `answer()` so it lands in the same place the quiz would have put it.
+    // What the onboarding screen collected. The segments land where the quiz
+    // would have put them, which is the whole point: `matches()` filters on
+    // `answers.segments`, so answering here narrows the partner list the same
+    // way answering the quiz does.
     //
-    // ⚠️ Answering the industry does NOT narrow the partner list — partners are
-    // tagged at the segment level and `matches()` filters on `answers.segments`,
-    // which nothing sets here. See the note in `CompanyPage`.
-    saveCompany({ name, employees, industry, operations, problems }) {
-      this.company = { name, employees, industry, operations, problems }
+    // ⚠️ ORDER MATTERS. `answer('industry', …)` CLEARS segments — changing the
+    // group is meant to drop the choices made under the old one — so the group
+    // has to be written first and the segments after it. Reversed, this method
+    // would silently throw away everything it just collected.
+    //
+    // The group is derived rather than asked for: the control is grouped, so
+    // the first pick's heading is the industry. Segments spanning two groups
+    // keep the first, since the quiz's own field holds exactly one.
+    saveCompany({ name, employees, segments, operations, problems }) {
+      this.company = { name, employees, segments, operations, problems }
       this.viewer = { ...this.viewer, company: name }
-      if (industry) this.answer('industry', industry)
+      const group = INDUSTRIES.find((i) => i.segments.includes(segments?.[0]))
+      if (group) this.answer('industry', group.value)
+      this.answers.segments = segments ?? []
     },
 
     // What the two auth FORMS record. Neither signs anyone in: the code comes

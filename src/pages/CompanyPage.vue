@@ -40,20 +40,32 @@ const pack = computed(() => STARTER_PACKS.find((p) => p.value === store.pack) ??
 // them. Nothing acts on it yet.
 const COMPANY_SIZES = ['1 to 10', '11 to 50', '51 to 200', '201 to 500', 'More than 500']
 
-// The four groups from the directory's own taxonomy, not invented ones.
+// Industry AND segment in one control, grouped — the same shape as the partner
+// listing's industry filter, and for the same reason: partners are tagged at the
+// SEGMENT level ("Textile Manufacturing"), so the industry is a heading and the
+// segments are the options. Nothing is selectable at the group level because
+// nothing in the data is tagged there.
 //
-// ⚠️ Answering this does NOT narrow the partner list. Partners are tagged at
-// the SEGMENT level ("Textile Manufacturing"), and the store filters on
-// `answers.segments`; `answers.industry` is the group above that and filters
-// nothing. So this question currently records an answer that matching can't
-// use. Either the segment question comes back, or `matches()` learns to widen
-// a group into its segments.
-const INDUSTRY_OPTIONS = INDUSTRIES.map((i) => ({ label: i.label, value: i.value }))
+// This is what makes the answer usable. Asking for the group alone recorded
+// something `matches()` can't filter on — it reads `answers.segments`, and the
+// group above it narrows nothing.
+//
+// ⚠️ `multiselect`, not `select`: frappe-ui's `Select` has no grouping at all
+// ("Select renders no group / group-label", per its own source), so a grouped
+// list needs `MultiSelect` or `Combobox`. Multi is also the truer answer — a
+// business spanning "Discrete Manufacturing" and "Logistics" can say so, which
+// as a single choice it couldn't.
+const SEGMENT_OPTIONS = INDUSTRIES.map((i) => ({
+  group: i.label,
+  key: i.value,
+  options: i.segments.map((sg) => ({ label: sg, value: sg })),
+}))
 
 const form = reactive({
   company: '',
   employees: '',
-  industry: '',
+  // An array, because the control is a grouped multi-select — see above.
+  segments: [],
   operations: '',
   problems: '',
 })
@@ -70,7 +82,7 @@ const errors = computed(() => {
   const e = {}
   if (!form.company.trim()) e.company = 'Enter your company name'
   if (!form.employees) e.employees = 'Select a size'
-  if (!form.industry) e.industry = 'Select an industry'
+  if (!form.segments.length) e.segments = 'Select an industry'
   return e
 })
 
@@ -84,7 +96,7 @@ const submit = () => {
   store.saveCompany({
     name: form.company.trim(),
     employees: form.employees,
-    industry: form.industry,
+    segments: form.segments,
     operations: form.operations.trim(),
     problems: form.problems.trim(),
   })
@@ -160,14 +172,14 @@ useAuthExit()
           :error="errors.employees"
         />
         <FormControl
-          v-model="form.industry"
-          type="select"
+          v-model="form.segments"
+          type="multiselect"
           size="sm"
           label="Relevant industry"
           placeholder="Select"
-          :options="INDUSTRY_OPTIONS"
+          :options="SEGMENT_OPTIONS"
           required
-          :error="errors.industry"
+          :error="errors.segments"
         />
       </div>
 
