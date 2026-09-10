@@ -411,8 +411,12 @@ watch(open, toBottom)
                    box is one object rather than a control with something
                    attached to it. `p-2` on the box and `px-1` on the editor
                    keeps the text and the button on one left edge. -->
+              <!-- ⚠️ 640px, the same cap the message bubbles carry, so the
+                   composer and the thread are one column rather than a field
+                   that runs the width of the pane while everything it sends
+                   stops two thirds of the way across. -->
               <div
-                class="rounded-4 border border-[var(--surface-gray-2)] bg-surface-gray-2 p-2 transition-colors focus-within:border-outline-gray-4 focus-within:bg-surface-base focus-within:shadow-sm"
+                class="max-w-[640px] rounded-4 border border-[var(--surface-gray-2)] bg-surface-gray-2 p-2 transition-colors focus-within:border-outline-gray-4 focus-within:bg-surface-base focus-within:shadow-sm"
                 @keydown.capture="onKey"
               >
                 <EditorContent class="fc-composer max-h-40 min-h-6 overflow-y-auto px-1" />
