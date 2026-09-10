@@ -93,12 +93,16 @@ useAuthExit()
     <!-- `novalidate` so the browser's own bubbles stay out of it: every field
          here has a message of its own, and the two validators fire at different
          moments and word things differently.
-         `mt-6 space-y-4` and `size="md"` throughout, matching
-         `MinimalAuthShell`'s screens in frappe-cloud-v2. -->
+         `mt-6 space-y-4` throughout, from `MinimalAuthShell`'s screens in
+         frappe-cloud-v2. The controls are `sm` rather than their `md`, and at
+         `sm` all three kinds agree natively — 28px tall, 8px of side padding,
+         14px text on inputs, selects and textareas alike. At `md` they do not:
+         the pinned frappe-ui renders a `md` textarea at 16px while an input
+         stays at 14, which this flow used to need a CSS override to undo. -->
     <form class="mt-6 space-y-4" novalidate @submit.prevent="submit">
       <FormControl
         v-model="form.name"
-        size="md"
+        size="sm"
         label="Full name"
         placeholder="Your full name"
         autocomplete="name"
@@ -108,7 +112,7 @@ useAuthExit()
       <FormControl
         v-model="form.email"
         type="email"
-        size="md"
+        size="sm"
         label="Work email"
         placeholder="name@company.com"
         autocomplete="email"
@@ -117,7 +121,7 @@ useAuthExit()
       <FormControl
         v-model="form.country"
         type="select"
-        size="md"
+        size="sm"
         label="Country"
         :options="COUNTRY_OPTIONS"
         :error="errors.country"

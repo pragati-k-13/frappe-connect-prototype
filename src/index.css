@@ -386,29 +386,3 @@
     transition-duration: 0.01ms;
   }
 }
-
-/* ⚠️ WORKAROUND — remove when frappe-ui moves past 1.0.0-beta.55.
- *
- * That version's `Textarea` scales FONT SIZE with the `size` prop
- * (sm 14px, md 16px, lg 18px) while `TextInput` and `Select` hold at 14px for
- * both sm and md. So a single form at one `size` renders two text sizes — the
- * onboarding screen had 14px inputs above 16px textareas.
- *
- * It's a bug, and it's already fixed upstream: on ui.frappe.io every textarea
- * size renders `text-p-sm` and only the padding changes (6/8/10/12px across
- * xs/sm/md/lg), which is what a design system should do. Measured there, not
- * inferred.
- *
- * Fixing it by dropping to `size="sm"` would be wrong twice over: it also
- * changes the padding from `px-2.5` to `px-2`, which would shift the textarea's
- * text 2px left of every field above it. They currently share a left edge to
- * the pixel. So this overrides the ONE declaration that is wrong and leaves the
- * box alone.
- *
- * The marker class goes on `FormControl`, which forwards it to the labeling
- * WRAPPER rather than the control — hence the descendant selector, which is
- * also what gives it the specificity to beat the component's own `text-p-lg`.
- */
-.fc-prose-field textarea {
-  @apply text-p-base;
-}

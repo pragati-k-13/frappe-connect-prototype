@@ -129,7 +129,7 @@ useAuthExit()
     <form class="mt-6 space-y-4" novalidate @submit.prevent="submit">
       <FormControl
         v-model="form.company"
-        size="md"
+        size="sm"
         label="Company name"
         placeholder="Company name"
         autocomplete="organization"
@@ -145,7 +145,7 @@ useAuthExit()
         <FormControl
           v-model="form.employees"
           type="select"
-          size="md"
+          size="sm"
           label="Number of employees"
           placeholder="Select"
           :options="COMPANY_SIZES"
@@ -155,7 +155,7 @@ useAuthExit()
         <FormControl
           v-model="form.industry"
           type="select"
-          size="md"
+          size="sm"
           label="Relevant industry"
           placeholder="Select"
           :options="INDUSTRY_OPTIONS"
@@ -166,24 +166,19 @@ useAuthExit()
 
       <!-- Optional, and deliberately so. These two are what a partner actually
            reads before the first call, but demanding prose to finish signing up
-           is how you get "asdf" in both boxes.
-
-           ⚠️ `fc-prose-field` holds them at 14px, matching the fields above.
-           It works around a bug in the pinned frappe-ui; see index.css. -->
+           is how you get "asdf" in both boxes. -->
       <FormControl
         v-model="form.operations"
-        class="fc-prose-field"
         type="textarea"
-        size="md"
+        size="sm"
         :rows="3"
         label="Describe your current operations"
         placeholder="e.g. Orders come in over email and WhatsApp, we track stock in spreadsheets, and invoicing runs through Tally."
       />
       <FormControl
         v-model="form.problems"
-        class="fc-prose-field"
         type="textarea"
-        size="md"
+        size="sm"
         :rows="3"
         label="What problems are you looking to solve?"
         placeholder="e.g. Our spreadsheets and Tally don't talk to each other, so month-end reconciliation takes days and stock counts are often wrong."

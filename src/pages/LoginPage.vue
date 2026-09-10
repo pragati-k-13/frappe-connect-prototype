@@ -58,7 +58,7 @@ useAuthExit()
       <FormControl
         v-model="email"
         type="email"
-        size="md"
+        size="sm"
         label="Work email"
         placeholder="name@company.com"
         autocomplete="email"
