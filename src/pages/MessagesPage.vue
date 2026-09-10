@@ -6,7 +6,13 @@ import { Avatar, Button, ScrollArea, TabButtons, toast } from 'frappe-ui'
 // That one is the v0 family, kept only as an interim import path while apps
 // migrate off it ("Moved out of root (#974)"); this is the replacement, and it
 // ships its own ProseMirror styles so nothing else has to be imported.
-import { CommentKit, Editor, EditorContent } from 'frappe-ui/editor'
+import {
+  CommentKit,
+  commentToolbar,
+  Editor,
+  EditorContent,
+  EditorFixedMenu,
+} from 'frappe-ui/editor'
 import IconCalendar from '~icons/lucide/calendar'
 import IconExternal from '~icons/lucide/external-link'
 import IconSend from '~icons/lucide/send-horizontal'
@@ -410,7 +416,14 @@ watch(open, toBottom)
                 @keydown.capture="onKey"
               >
                 <EditorContent class="fc-composer max-h-40 min-h-6 overflow-y-auto px-1" />
-                <div class="mt-2 flex justify-end">
+                <!-- ⚠️ `Editor` is renderless, so the formatting controls are a
+                     separate building block and nothing draws them for you.
+                     `commentToolbar` is the library's own preset for this
+                     grade of editor: bold, italic, strike, the two lists, link.
+                     No avatar beside the field — the message already carries a
+                     name above it, and the thread is between two parties. -->
+                <div class="mt-2 flex items-center justify-between gap-2">
+                  <EditorFixedMenu :items="commentToolbar" button-size="sm" />
                   <Button variant="solid" size="sm" label="Send" :disabled="isEmpty" @click="send">
                     <template #suffix><IconSend class="size-4" /></template>
                   </Button>
