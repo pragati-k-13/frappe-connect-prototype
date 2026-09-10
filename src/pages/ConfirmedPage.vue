@@ -100,13 +100,20 @@ const shortName = computed(() => partner.value?.name.split(' ')[0] ?? 'Your part
             Your {{ pack.name }} pack is booked. Here is who you will work with.
           </p>
 
-          <!-- The listing row, framed. Same 40px `2xl` avatar, same name and
-               tier, same three facts with the same icons and the same 2/12/4
-               rhythm — so the partner you were assigned reads as the same kind
-               of thing as the partners you could have browsed.
-               16px of padding, and a border rather than the row's hover fill:
+          <!-- ⚠️ NOT the listing row's structure, and that's the one place it
+               departs. There the avatar indents everything beside it, because a
+               row is scanned down a column of identical rows and the indent is
+               what separates one from the next. This is a single card, so only
+               the IDENTITY sits beside the avatar — the name and the city, which
+               are what the mark is a picture of. The facts, the expertise line
+               and the button belong to the card rather than to the logo, and
+               they start where the avatar starts.
+               Everything else is the row's: same 40px `2xl` avatar at 8px
+               radius, same three facts with the same icons, same 2/12/4 rhythm.
+               16px of padding, and a border rather than the row's hover fill —
                nothing here is a list, so there is nothing to hover between. -->
           <article class="mt-6 rounded-6 border border-outline-gray-2 p-4">
+            <!-- The identity: the mark and what it names. -->
             <div class="flex items-start gap-3">
               <Avatar
                 v-if="logo"
@@ -134,39 +141,38 @@ const shortName = computed(() => partner.value?.name.split(' ')[0] ?? 'Your part
                   <TierIcon :tier="partner.tier" />
                 </div>
                 <p class="mt-0.5 text-p-sm text-ink-gray-6">{{ partner.city }}</p>
-
-                <div
-                  class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-p-sm text-ink-gray-7"
-                >
-                  <span v-for="f in facts" :key="f.text" class="flex items-center gap-1">
-                    <component :is="f.icon" class="size-3.5 shrink-0 text-ink-gray-6" />
-                    <span :class="f.muted ? 'text-ink-gray-5' : ''">{{ f.text }}</span>
-                    <span v-if="f.sub" class="text-ink-gray-5">{{ f.sub }}</span>
-                  </span>
-                </div>
-
-                <!-- The tail can't break. Wrapping it stranded "more" alone
-                     on a second line; the listing solves the same problem by
-                     pinning its tail and truncating the lead, and here the line
-                     is allowed to wrap so the tail just has to stay whole. -->
-                <p class="mt-1 text-p-sm text-ink-gray-6">
-                  Expertise across {{ expertise.lead }}
-                  <span v-if="expertise.rest" class="whitespace-nowrap">
-                    and {{ expertise.rest }} more
-                  </span>
-                </p>
-
-                <Button
-                  class="mt-4"
-                  variant="subtle"
-                  size="sm"
-                  label="View full profile"
-                  :route="`/connect/partners/${partner.id}`"
-                >
-                  <template #suffix><IconChevronRight class="size-4" /></template>
-                </Button>
               </div>
             </div>
+
+            <!-- Full width from here, flush with the avatar's left edge. -->
+            <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-p-sm text-ink-gray-7">
+              <span v-for="f in facts" :key="f.text" class="flex items-center gap-1">
+                <component :is="f.icon" class="size-3.5 shrink-0 text-ink-gray-6" />
+                <span :class="f.muted ? 'text-ink-gray-5' : ''">{{ f.text }}</span>
+                <span v-if="f.sub" class="text-ink-gray-5">{{ f.sub }}</span>
+              </span>
+            </div>
+
+            <!-- The tail can't break. Wrapping it stranded "more" alone on a
+                 second line; the listing solves the same problem by pinning its
+                 tail and truncating the lead, and here the line is allowed to
+                 wrap so the tail just has to stay whole. -->
+            <p class="mt-1 text-p-sm text-ink-gray-6">
+              Expertise across {{ expertise.lead }}
+              <span v-if="expertise.rest" class="whitespace-nowrap">
+                and {{ expertise.rest }} more
+              </span>
+            </p>
+
+            <Button
+              class="mt-4"
+              variant="subtle"
+              size="sm"
+              label="View full profile"
+              :route="`/connect/partners/${partner.id}`"
+            >
+              <template #suffix><IconChevronRight class="size-4" /></template>
+            </Button>
           </article>
 
           <!-- What has happened, in the order it happened. Ticks rather than
