@@ -1,12 +1,11 @@
 <template>
-  <!-- ⚠️ Bottom-LEFT on the messages screen. Everywhere else this corner holds
-       nothing but toasts, which pass over for a few seconds; there it sits
-       exactly on top of the composer's Send button, and a demo control that
-       makes a product control unclickable is worse than one that moves.
-       `left-16` clears the collapsed rail; with the sidebar open it floats over
-       its empty lower half, which costs nothing. -->
-  <div class="fixed bottom-4 z-50" :class="offRight ? 'left-16' : 'right-4'">
-    <Dropdown :options="options" side="top" :align="offRight ? 'start' : 'end'">
+  <!-- ⚠️ Same corner everywhere, but LIFTED on the messages screen. That is the
+       one screen whose own controls reach the bottom-right: at `bottom-4` this
+       button sits exactly on the composer's Send, and a demo control that makes
+       a product control unclickable is worse than one that shifts up a row.
+       Toasts still cover it there, as they do everywhere else. -->
+  <div class="fixed right-4 z-50" :class="inMessages ? 'bottom-20' : 'bottom-4'">
+    <Dropdown :options="options" side="top" align="end">
       <Button
         variant="outline"
         size="sm"
@@ -48,9 +47,7 @@ import { useConnectStore } from '../stores/connect'
 const store = useConnectStore()
 const router = useRouter()
 const route = useRoute()
-
-// The one screen whose own controls reach into the bottom-right corner.
-const offRight = computed(() => route.name === 'messages')
+const inMessages = computed(() => route.name === 'messages')
 
 // Picking Business restarts the whole demo rather than just setting a flag:
 // state is wiped and you land back on the Frappe website, where the flow
