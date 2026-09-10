@@ -401,15 +401,20 @@ watch(open, toBottom)
             placeholder="Type a message..."
           >
             <template #default="{ isEmpty }">
-              <div class="flex items-end gap-2" @keydown.capture="onKey">
-                <div
-                  class="min-w-0 flex-1 rounded-4 border border-[var(--surface-gray-2)] bg-surface-gray-2 px-2 py-1.5 transition-colors focus-within:border-outline-gray-4 focus-within:bg-surface-base focus-within:shadow-sm"
-                >
-                  <EditorContent class="fc-composer max-h-40 min-h-6 overflow-y-auto" />
+              <!-- Send sits INSIDE the field, under the text it sends, so the
+                   box is one object rather than a control with something
+                   attached to it. `p-2` on the box and `px-1` on the editor
+                   keeps the text and the button on one left edge. -->
+              <div
+                class="rounded-4 border border-[var(--surface-gray-2)] bg-surface-gray-2 p-2 transition-colors focus-within:border-outline-gray-4 focus-within:bg-surface-base focus-within:shadow-sm"
+                @keydown.capture="onKey"
+              >
+                <EditorContent class="fc-composer max-h-40 min-h-6 overflow-y-auto px-1" />
+                <div class="mt-2 flex justify-end">
+                  <Button variant="solid" size="sm" label="Send" :disabled="isEmpty" @click="send">
+                    <template #suffix><IconSend class="size-4" /></template>
+                  </Button>
                 </div>
-                <Button variant="solid" label="Send" :disabled="isEmpty" @click="send">
-                  <template #suffix><IconSend class="size-4" /></template>
-                </Button>
               </div>
             </template>
           </Editor>
