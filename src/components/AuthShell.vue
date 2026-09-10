@@ -43,8 +43,13 @@ defineProps({
 
     <!-- The same mark as the rail on frappe.io/partners, at the same 24px, so
          the seam between the website and the app doesn't restate the brand in a
-         second size. Decorative beside its own wordmark, hence the empty alt. -->
-    <footer class="mt-auto flex items-center justify-center gap-2 pb-10">
+         second size. Decorative beside its own wordmark, hence the empty alt.
+
+         `pb-6`, not the reference's `pb-10`: this is a sign-off, not a second
+         piece of content, and it sits closer to the bottom edge than
+         `MinimalAuthShell` puts it. Shrinking the padding also gives `mt-auto`
+         more room to push it, so it moves down twice over. -->
+    <footer class="mt-auto flex items-center justify-center gap-2 pb-6">
       <img :src="frappeMark" alt="" class="size-6" />
       <span class="text-sm font-semibold text-ink-gray-7">Frappe</span>
     </footer>
