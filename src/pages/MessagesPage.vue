@@ -416,7 +416,7 @@ watch(open, toBottom)
                    that runs the width of the pane while everything it sends
                    stops two thirds of the way across. -->
               <div
-                class="max-w-[640px] rounded-4 border border-[var(--surface-gray-2)] bg-surface-gray-2 p-2 transition-colors focus-within:border-outline-gray-4 focus-within:bg-surface-base focus-within:shadow-sm"
+                class="group max-w-[640px] rounded-4 border border-[var(--surface-gray-2)] bg-surface-gray-2 p-2 transition-colors focus-within:border-outline-gray-4 focus-within:bg-surface-base focus-within:shadow-sm"
                 @keydown.capture="onKey"
               >
                 <EditorContent class="fc-composer max-h-40 min-h-6 overflow-y-auto px-1" />
@@ -427,8 +427,30 @@ watch(open, toBottom)
                      No avatar beside the field — the message already carries a
                      name above it, and the thread is between two parties. -->
                 <div class="mt-2 flex items-center justify-between gap-2">
-                  <EditorFixedMenu :items="commentToolbar" button-size="sm" />
-                  <Button variant="solid" size="sm" label="Send" :disabled="isEmpty" @click="send">
+                  <!-- ⚠️ Hidden until the field has focus, and by CSS rather
+                       than by `v-if`. The toolbar lives INSIDE the box that
+                       `focus-within` watches, so clicking a button keeps the
+                       group focused and the toolbar on screen; removing it from
+                       the DOM on blur would take the button out from under the
+                       pointer between mousedown and mouseup, and the click
+                       would never land. Send holds the row's right edge either
+                       way, so nothing moves when the toolbar appears. -->
+                  <EditorFixedMenu
+                    class="hidden group-focus-within:flex"
+                    :items="commentToolbar"
+                    button-size="sm"
+                  />
+                  <!-- ⚠️ `ml-auto`, not the row's `justify-between`: with the
+                       toolbar hidden Send is the only child, and
+                       space-between parks a lone child at the START. -->
+                  <Button
+                    class="ml-auto"
+                    variant="solid"
+                    size="sm"
+                    label="Send"
+                    :disabled="isEmpty"
+                    @click="send"
+                  >
                     <template #suffix><IconSend class="size-4" /></template>
                   </Button>
                 </div>
