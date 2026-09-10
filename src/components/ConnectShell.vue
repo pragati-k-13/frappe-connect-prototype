@@ -32,10 +32,18 @@ const { requireAccount } = useAuthGate()
 // and the two you spend the most time on. Every route under /connect is the
 // partner directory, so the match is a prefix.
 const route = useRoute()
-// ⚠️ The packs screen is excluded. Every route under /connect used to be the
-// directory; the catalogue is the first that isn't, and without this both rail
-// rows light up at once.
-const inPacks = computed(() => route.path.startsWith('/connect/packs'))
+// ⚠️ The pack flow is excluded from the directory. Every route under /connect
+// used to be the directory; the catalogue was the first that wasn't, and
+// without this both rail rows light up at once.
+//
+// ⚠️ NAMES, not a path prefix. The flow leaves `/connect/packs` after the
+// catalogue — confirming and the booked screen are `/connect/confirm` and
+// `/connect/confirmed` — so a prefix lit "Find partners" on the last two
+// screens of buying a pack, while their own breadcrumb read "Starter packs".
+// The rail and the breadcrumb should never disagree about which section you
+// are in. A new screen in this flow belongs in this set.
+const PACK_ROUTES = new Set(['packs', 'confirm', 'confirmed'])
+const inPacks = computed(() => PACK_ROUTES.has(route.name))
 const inDirectory = computed(() => route.path.startsWith('/connect') && !inPacks.value)
 
 // The header is already a Dropdown trigger — `SidebarHeader` takes `menuItems`
