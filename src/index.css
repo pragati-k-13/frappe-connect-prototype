@@ -421,14 +421,17 @@ textarea[data-slot='control'] {
        left and the gutter takes the rest — which is the right way round, since
        the reading column is what the eye returns to.
        `100%` here resolves against the wrapper's content box (the page width
-       less its 80px of horizontal padding), which is why the constant is 1000
-       rather than 960 — 960 of columns plus the 40px of left padding already
+       less its 80px of horizontal padding), which is why the constant is 960
+       rather than 920 — 920 of columns plus the 40px of left padding already
        spent. `max()` keeps it at 0 when there is nothing left to share, which
-       is everything under about a 1070px page: the two columns and their gap
-       fill the row exactly there. */
-    grid-template-columns: minmax(0, 600px) 360px;
+       is everything under about a 1030px page: the two columns and their gap
+       fill the row exactly there.
+       ⚠️ The two constants move together: the card's width is in the template
+       above and again inside this `calc`. Change one and the column stops
+       being equidistant. */
+    grid-template-columns: minmax(0, 600px) 320px;
     justify-content: space-between;
-    padding-left: min(4rem, max(0px, calc((100% - 1000px) / 2)));
+    padding-left: min(4rem, max(0px, calc((100% - 960px) / 2)));
   }
 }
 
