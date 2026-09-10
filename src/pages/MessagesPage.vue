@@ -345,14 +345,18 @@ watch(open, toBottom)
                   <span class="text-ink-gray-5">{{ time(m.at) }}</span>
                 </p>
 
-                <!-- ⚠️ `v-html`, because the composer writes HTML. It is the
+                <!-- No bubble: the name above each message already says who is
+                   speaking, so a fill behind the words was a second answer to a
+                   question nobody was still asking. The measure stays capped so
+                   the line length is a decision rather than the pane's width.
+                   ⚠️ `v-html`, because the composer writes HTML. It is the
                    viewer's own typing rendered back to them in a prototype with
                    no server and no second author, so there is nothing here that
                    one person can inject into another's screen. A real build
                    sanitises on the way in. -->
                 <div
                   v-if="m.kind === 'text'"
-                  class="fc-message mt-1.5 max-w-[480px] rounded-5 bg-surface-gray-1 px-3.5 py-2.5 text-p-base text-ink-gray-8"
+                  class="fc-message mt-1 max-w-[480px] text-p-base text-ink-gray-8"
                   v-html="m.body"
                 />
 
