@@ -1,9 +1,9 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Avatar, Badge, Button, FormControl, toast } from 'frappe-ui'
+import { Badge, Button, FormControl, toast } from 'frappe-ui'
 import AuthShell from '../components/AuthShell.vue'
-import IconHandshake from '~icons/lucide/handshake'
+import ConnectMark from '../components/ConnectMark.vue'
 import { INDUSTRIES } from '../data/quiz'
 import { STARTER_PACKS } from '../data/packs'
 import { nextFrom, useAuthExit } from '../utils/auth'
@@ -111,23 +111,11 @@ useAuthExit()
 <template>
   <AuthShell title="Tell us more about your company">
     <template #mark>
-      <!-- `Avatar` at `xl` — 32px, `rounded-[6px]`, a 16px icon well — rather
-           than a hand-rolled box, so the mark maps to a component and a size
-           token instead of three guessed values.
-
-           ⚠️ Two things this gives up against the design. `theme="violet"` is
-           the component's own pairing, `bg-surface-violet-2` with
-           `text-ink-violet-7`: a pale tile with a violet icon, not the design's
-           saturated fill with a white one. Avatar has no saturated theme, and
-           overriding it means a descendant rule fighting the component's inner
-           div, which isn't worth it for a decorative mark.
-
-           ⚠️ It is also still NOT Frappe Connect's own mark — that's a grey
-           square with `LucideBlocks`, in the sidebar two clicks from here. Two
-           marks for one product, worth resolving before handoff. -->
-      <Avatar class="mb-5" size="xl" shape="square" theme="violet" aria-hidden="true">
-        <IconHandshake class="size-full" />
-      </Avatar>
+      <!-- The app's own mark, and now the only one — see `ConnectMark`. It used
+           to be a hand-rolled violet box here and a grey `LucideBlocks` square
+           in the sidebar, which is two identities for one product two clicks
+           apart. -->
+      <ConnectMark class="mb-5" size="xl" />
     </template>
 
     <p class="mt-1 text-p-base text-ink-gray-5">

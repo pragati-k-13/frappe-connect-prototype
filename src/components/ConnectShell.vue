@@ -11,6 +11,7 @@ import {
   toast,
 } from 'frappe-ui'
 import { useConnectStore } from '../stores/connect'
+import ConnectMark from './ConnectMark.vue'
 import { useAuthGate } from '../utils/auth'
 
 // Collapsed on arrival: the quiz and the map are the point of this screen, and
@@ -100,10 +101,12 @@ defineProps({
         :subtitle="store.signedIn ? store.viewer.name : undefined"
         :menu-items="logoMenu"
       >
+        <!-- `lg` is 28px, which is exactly SidebarHeader's own logo frame
+             (`size-7 rounded-[6px]`), so the mark fills it rather than sitting
+             in it. Same component as the onboarding screen — see
+             `ConnectMark`. -->
         <template #prefix>
-          <div class="flex size-full items-center justify-center bg-surface-gray-7 text-white">
-            <LucideBlocks class="size-4" />
-          </div>
+          <ConnectMark size="lg" />
         </template>
       </SidebarHeader>
 

@@ -386,3 +386,19 @@
     transition-duration: 0.01ms;
   }
 }
+
+/* Frappe Connect's mark, painted over `Avatar`'s theme.
+ *
+ * Avatar's six themes are all `-2` backgrounds with `-7` ink — pale tiles meant
+ * to sit behind a person's initials. A product mark wants the saturated fill,
+ * and the component offers none, so this overrides exactly that one pairing and
+ * leaves the box, the corner and the icon well to `Avatar`.
+ *
+ * A descendant rule rather than a class on the component, and not by choice:
+ * Avatar paints the colour on an inner `h-full w-full` div, so anything set on
+ * the root is simply covered by it. `> div` is that inner div, and its 0,1,1
+ * beats the theme utility's 0,1,0.
+ */
+.fc-mark > div {
+  @apply bg-surface-violet-7 text-white;
+}
