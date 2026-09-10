@@ -111,7 +111,7 @@ useAuthExit()
       </div>
     </template>
 
-    <p class="mt-1 text-p-sm text-ink-gray-5">
+    <p class="mt-1 text-p-base text-ink-gray-5">
       This will connect you with the ideal Partner for your needs.
     </p>
 

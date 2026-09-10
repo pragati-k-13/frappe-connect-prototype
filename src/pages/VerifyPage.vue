@@ -93,7 +93,7 @@ onBeforeUnmount(() => clearTimeout(timer))
          rather than a style choice: the repo runs prettier with
          `htmlWhitespaceSensitivity: "ignore"`, which is free to break the line
          after `</span>` and leave a visible space before the punctuation. -->
-    <p class="mt-1 text-p-sm text-ink-gray-5">
+    <p class="mt-1 text-p-base text-ink-gray-5">
       Enter the 6-digit code we sent to
       <span class="font-medium text-ink-gray-8">{{ email || 'your email address' }}</span>
     </p>
