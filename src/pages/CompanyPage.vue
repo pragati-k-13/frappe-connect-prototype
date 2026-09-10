@@ -166,9 +166,13 @@ useAuthExit()
 
       <!-- Optional, and deliberately so. These two are what a partner actually
            reads before the first call, but demanding prose to finish signing up
-           is how you get "asdf" in both boxes. -->
+           is how you get "asdf" in both boxes.
+
+           ⚠️ `fc-prose-field` holds them at 14px, matching the fields above.
+           It works around a bug in the pinned frappe-ui; see index.css. -->
       <FormControl
         v-model="form.operations"
+        class="fc-prose-field"
         type="textarea"
         size="md"
         :rows="3"
@@ -177,6 +181,7 @@ useAuthExit()
       />
       <FormControl
         v-model="form.problems"
+        class="fc-prose-field"
         type="textarea"
         size="md"
         :rows="3"
