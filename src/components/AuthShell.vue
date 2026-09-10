@@ -6,10 +6,16 @@
 // on an auth screen or a link back to the screen you're already on. A page
 // whose entire job is one decision gets a frame with nothing else in it.
 //
+// The mark is the real one, lifted from frappe.io itself — a rounded square at
+// rx 6.29/32, not the circle the sibling repo files under `providers/`. Its own
+// corner radius is baked into the artwork, so no CSS rounding on the img.
+//
 // Measured off `MinimalAuthShell` in frappe-cloud-v2, which is the same screen
 // one product over: 391px column, `pt-[16vh]` rather than vertical centring,
 // and a `text-xl` (17px) heading. Sign-in is a small, quiet page — at anything
 // larger it reads as a landing page that happens to have inputs.
+import frappeMark from '../assets/frappe.svg'
+
 defineProps({
   title: { type: String, required: true },
 })
@@ -27,14 +33,9 @@ defineProps({
 
     <!-- The same mark as the rail on frappe.io/partners, at the same 24px, so
          the seam between the website and the app doesn't restate the brand in a
-         second size. Decorative beside its own wordmark, hence `aria-hidden`. -->
+         second size. Decorative beside its own wordmark, hence the empty alt. -->
     <footer class="mt-auto flex items-center justify-center gap-2 pb-10">
-      <span
-        class="flex size-6 items-center justify-center rounded-4 bg-gray-900 text-xs font-bold text-white"
-        aria-hidden="true"
-      >
-        F
-      </span>
+      <img :src="frappeMark" alt="" class="size-6" />
       <span class="text-sm font-semibold text-ink-gray-7">Frappe</span>
     </footer>
   </main>

@@ -40,6 +40,9 @@ import { ONBOARDING } from '../data/onboarding'
 // A placeholder portrait for the testimonial. Generated art, like the rest of
 // `assets/media` — see `scripts/`.
 import portrait from '../assets/media/placeholder-2.jpg'
+// The real mark, taken from frappe.io itself. Its corner radius is baked into
+// the artwork, so it takes no `rounded-*` of its own.
+import frappeMark from '../assets/frappe.svg'
 
 // Where the app is mounted — '/' locally, '/frappe-connect-prototype/' on
 // GitHub Pages. Only the hand-written links below need it; every other link in
@@ -145,11 +148,7 @@ const RAIL = [
       <!-- The mark belongs to the rail, not the top bar — checked against
            frappe.io, where it sits at the rail's top and the bar beside it
            carries the breadcrumb alone. -->
-      <span
-        class="flex size-6 items-center justify-center rounded-4 bg-gray-900 text-xs font-bold text-white"
-      >
-        F
-      </span>
+      <img :src="frappeMark" alt="" class="size-6" />
       <div v-for="(group, gi) in RAIL" :key="gi" class="flex flex-col items-center gap-3.5">
         <span v-for="icon in group" :key="icon" class="text-ink-gray-4">
           <LucideHouse v-if="icon === 'house'" class="size-4" />
@@ -398,12 +397,7 @@ const RAIL = [
                      11/600/0.09em, and this is deliberately not that: an
                      eyebrow announces a section, this labels a row. -->
                 <p class="mt-2 flex items-center gap-2 text-2xs text-ink-gray-5">
-                  <span
-                    class="flex size-4 items-center justify-center rounded-sm bg-gray-900 text-[9px] font-bold text-white"
-                    aria-hidden="true"
-                  >
-                    F
-                  </span>
+                  <img :src="frappeMark" alt="" class="size-4" />
                   By Frappe
                   <span aria-hidden="true">·</span>
                   <span class="uppercase">{{ story.tag }}</span>
