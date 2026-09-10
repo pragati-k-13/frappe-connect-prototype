@@ -29,6 +29,7 @@ Then open <http://localhost:5173>.
 | 3e  | `/connect/signup/company` | Onboarding. Sign-up only, and where the account actually lands         | Yes                           |
 | 3f  | `/connect/confirm`        | Confirm the pack and book the call. `?pack=` names which               | Yes                           |
 | 3g  | `/connect/confirmed`      | Who Frappe assigned you, and what happens next. End of the journey     | Yes                           |
+| 3h  | `/connect/messages`       | The inbox. `?thread=` names the open conversation                      | Yes                           |
 | 4   | `/connect/partners/:id`   | A partner's profile — **top section only so far**                      | Yes                           |
 
 Screen 1 is a deliberately light stand-in. It's here so the entry point isn't imaginary
@@ -101,9 +102,10 @@ Scoped out of this pass, in rough order:
 1. **The rest of the partner profile.** Everything down to Marketplace contributions is
    built. What's below it isn't, and is deliberately absent rather than stubbed — an
    empty section reads as a bug in review, a missing one reads as "not yet".
-2. **Contact / request flow** — what "Contact" and "Message partner" actually open. Both
-   are on the profile and inert; they'd go to the in-app messages screen, which doesn't
-   exist. Not routed to a stub on purpose, so the gap stays visible.
+2. **Starting a thread from a profile** — "Contact" and "Message partner" are still
+   inert. The messages screen exists now, but a conversation opened from a listing row
+   needs a rule for what it says first, and nobody has decided one. Booking a pack is
+   the only thing that opens a thread today.
 3. **The signed-in views.** `store.account` and `store.project` are live and the demo
    switcher flips between them; what's missing is the screens behind them. The estimate
    modal is meant to be gated on `store.hasProject` and currently isn't.

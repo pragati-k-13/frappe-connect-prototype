@@ -62,6 +62,14 @@ const routes = [
     name: 'signup-company',
     component: () => import('./pages/CompanyPage.vue'),
   },
+  // The inbox. `?thread=` names the open conversation, for the same reason
+  // `?pack=` names the pack two screens earlier: reloading should not lose
+  // which one you were reading, and a thread should be linkable.
+  {
+    path: '/connect/messages',
+    name: 'messages',
+    component: () => import('./pages/MessagesPage.vue'),
+  },
   {
     path: '/connect/partners',
     name: 'results',

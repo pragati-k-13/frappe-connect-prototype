@@ -1,6 +1,12 @@
 <template>
-  <div class="fixed bottom-4 right-4 z-50">
-    <Dropdown :options="options" side="top" align="end">
+  <!-- ⚠️ Bottom-LEFT on the messages screen. Everywhere else this corner holds
+       nothing but toasts, which pass over for a few seconds; there it sits
+       exactly on top of the composer's Send button, and a demo control that
+       makes a product control unclickable is worse than one that moves.
+       `left-16` clears the collapsed rail; with the sidebar open it floats over
+       its empty lower half, which costs nothing. -->
+  <div class="fixed bottom-4 z-50" :class="offRight ? 'left-16' : 'right-4'">
+    <Dropdown :options="options" side="top" :align="offRight ? 'start' : 'end'">
       <Button
         variant="outline"
         size="sm"
@@ -35,12 +41,16 @@
 // (screen 1) has no app chrome at all, and the switch has to be reachable from
 // every screen in the flow.
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Button, Dropdown } from 'frappe-ui'
 import { useConnectStore } from '../stores/connect'
 
 const store = useConnectStore()
 const router = useRouter()
+const route = useRoute()
+
+// The one screen whose own controls reach into the bottom-right corner.
+const offRight = computed(() => route.name === 'messages')
 
 // Picking Business restarts the whole demo rather than just setting a flag:
 // state is wiped and you land back on the Frappe website, where the flow
@@ -60,8 +70,12 @@ function switchTo(role) {
 // It's a property of the viewer rather than a different demo, so flipping it
 // should re-render the screen you're on rather than throw you back to the
 // start of the flow — that's the comparison a reviewer wants to make.
+// ⚠️ `demoAccount`, not `setAccount`: it also loads the inbox that belongs to
+// the persona. `setAccount` alone is what the app calls when someone finishes
+// signing up, and a new account must not be handed conversations it never
+// started.
 function setAccount(account) {
-  store.setAccount(account)
+  store.demoAccount(account)
 }
 
 // Frappe Cloud's convention for a radio-style menu group: check on the active
@@ -108,6 +122,16 @@ const options = computed(() => [
               description: 'Signed out — every screen as built today',
               icon: checkAccount('visitor'),
               onClick: () => setAccount('visitor'),
+            },
+            {
+              // The messages screen's other viewer: signed in, no booking, and
+              // four conversations open with two of them gone quiet. It is the
+              // only way to see the active/inactive filter do anything, because
+              // a booking gives you exactly one thread.
+              label: 'Exploring partners',
+              description: 'Signed in, no project, several chats open',
+              icon: checkAccount('exploring'),
+              onClick: () => setAccount('exploring'),
             },
             {
               label: 'Ongoing project',

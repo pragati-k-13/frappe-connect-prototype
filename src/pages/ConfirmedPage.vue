@@ -13,7 +13,6 @@ import IconClock from '~icons/lucide/clock'
 import { PARTNERS } from '../data/partners'
 import { logoFor } from '../data/logos'
 import { STARTER_PACKS, marketFor, DEFAULT_REGION } from '../data/packs'
-import { messagesToast } from '../feedback'
 import { useConnectStore } from '../stores/connect'
 
 // SCREEN — booked. The end of the journey, and the first place the model's
@@ -182,12 +181,11 @@ const shortName = computed(() => partner.value?.name.split(' ')[0] ?? 'Your part
               <IconCheck class="mt-0.5 size-4 shrink-0 text-ink-gray-6" />
               <span>
                 Project details sent via
-                <!-- ⚠️ Subtle by instruction, and a button rather than a link
-                     because the messages screen doesn't exist yet — it raises
-                     the same toast every other route into messages does. It
-                     reads as part of the sentence rather than a control
-                     competing with "View full profile" above it: a grey
-                     underline that darkens on hover, no fill, no chevron.
+                <!-- ⚠️ Subtle by instruction. It reads as part of the
+                     sentence rather than a control competing with "View full
+                     profile" above it: a grey underline that darkens on hover,
+                     no fill, no chevron. It now GOES somewhere — straight to
+                     this partner's thread, which the booking just opened.
 
                      ⚠️ `decoration-[var(--outline-gray-3)]`, NOT
                      `decoration-outline-gray-3`. The `outline-*` scale is
@@ -195,13 +193,12 @@ const shortName = computed(() => partner.value?.name.split(' ')[0] ?? 'Your part
                      the underline at full-strength ink, the loudest possible
                      version of the quietest thing on the page. Measured: no
                      matching CSS rule was generated. See FRAPPE-UI-NOTES.md. -->
-                <button
-                  type="button"
+                <RouterLink
                   class="rounded-1 text-ink-gray-8 underline decoration-[var(--outline-gray-3)] underline-offset-2 transition-colors hover:decoration-[var(--outline-gray-4)]"
-                  @click="messagesToast"
+                  :to="{ name: 'messages', query: { thread: partner.id } }"
                 >
                   Messaging
-                </button>
+                </RouterLink>
               </span>
             </li>
             <li class="flex items-start gap-2 text-p-base text-ink-gray-7">

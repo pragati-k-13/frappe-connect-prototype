@@ -44,7 +44,12 @@ const route = useRoute()
 // are in. A new screen in this flow belongs in this set.
 const PACK_ROUTES = new Set(['packs', 'confirm', 'confirmed'])
 const inPacks = computed(() => PACK_ROUTES.has(route.name))
-const inDirectory = computed(() => route.path.startsWith('/connect') && !inPacks.value)
+const inMessages = computed(() => route.name === 'messages')
+// ⚠️ Everything under /connect that isn't one of the other sections. Each new
+// destination has to be subtracted here too, or the rail lights two rows.
+const inDirectory = computed(
+  () => route.path.startsWith('/connect') && !inPacks.value && !inMessages.value,
+)
 
 // The header is already a Dropdown trigger — `SidebarHeader` takes `menuItems`
 // and renders the chevron itself, so clicking the logo opens this rather than
@@ -119,6 +124,12 @@ defineProps({
   // hard-coding "Partners" filed it as one.
   rootLabel: { type: String, default: 'Partners' },
   rootTo: { type: String, default: '/connect/partners' },
+  // Hand the content region to the page at full height, with no scrolling of
+  // its own. For a screen whose panes scroll separately — messages, where the
+  // thread list and the conversation each keep their own position and the
+  // composer stays put at the bottom. A page that scrolls as one document
+  // wants the default.
+  flush: { type: Boolean, default: false },
 })
 
 // Slots: `default` is the screen. `#action` is optional and replaces the top
@@ -214,12 +225,13 @@ defineProps({
                threads land in. `lucide-inbox` is frappe-ui's own choice for the
                row too — see the Sidebar `Collapsed` story.
 
-               It's also the least speculative item in the rail: every Contact
-               button in the product toasts "the in-app messages screen, which
-               doesn't exist yet", and this is the screen those toasts point
-               at. -->
+               It was the least speculative item in the rail, and it is now the
+               only live one: the screen exists. ⚠️ The Contact buttons in the
+               listing and on the profiles still toast rather than opening a
+               thread — starting a conversation from there needs a rule for
+               what a brand new thread says, which is a separate decision. -->
           <Tooltip text="Messages" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Messages">
+            <SidebarItem label="Messages" to="/connect/messages" :active="inMessages">
               <template #prefix><LucideInbox class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>
@@ -460,7 +472,17 @@ defineProps({
            width changes without the window changing, so viewport breakpoints
            inside a page would answer the wrong question. See `index.css`. -->
       <div class="flex min-h-0 flex-1">
+        <!-- ⚠️ Two content regions, one slot. The default wraps the page in a
+             ScrollArea and lets it be as tall as it likes; `flush` hands over
+             the region at exactly the height left under the top bar and
+             scrolls nothing, so a page can put its own scrollers inside it.
+             `min-h-0` on both is what lets a child actually scroll instead of
+             stretching this box. -->
+        <main v-if="flush" class="fc-content flex min-h-0 min-w-0 flex-1">
+          <slot />
+        </main>
         <ScrollArea
+          v-else
           class="fc-content min-h-0 min-w-0 flex-1"
           :class="$slots.panel ? 'hidden md:block' : ''"
         >

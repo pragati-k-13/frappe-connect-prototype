@@ -82,6 +82,10 @@ const confirm = () => {
   setTimeout(() => {
     booking.value = false
     const assigned = store.results[0] ?? PARTNERS[0]
+    // The conversation the next screen promises. Booking is the only thing in
+    // the app that opens one, so it happens here rather than on arrival: the
+    // confirmed screen links to a thread that already exists.
+    store.startBooking({ partner: assigned, pack: pack.value, slot: slot.value })
     toast.success('Call booked', {
       description: `You will get an email with the details and an introduction to ${assigned.name}.`,
     })

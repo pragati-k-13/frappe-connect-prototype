@@ -32,22 +32,13 @@ export const savedToast = (partner, saved, undo) => {
   })
 }
 
-// ⚠️ Every Contact in the app lands here. The in-app messages screen doesn't
-// exist yet and is deliberately not stubbed — see the comment at each button —
-// so this names the gap instead of letting the click vanish. A button that
-// swallows a click reads as broken; one that says what it would have done reads
-// as unfinished, which is the truth.
-// The messages screen, reached from somewhere other than a specific partner —
-// the "sent via Messaging" line on the confirmed booking. Same gap as
-// `contactToast` names, without a partner to name alongside it.
-export const messagesToast = () =>
-  toast.info('Messages are not built yet', {
-    id: 'contact',
-    description: 'This is where your thread with the partner would open.',
-  })
-
+// ⚠️ Every Contact in the app lands here. The messages SCREEN now exists, but
+// starting a conversation from a listing row does not: a new thread needs a
+// rule for what it opens with, and that is a decision nobody has made. So this
+// still names the gap rather than letting the click vanish, and the copy says
+// what is missing now — the thread, not the screen.
 export const contactToast = (partner) =>
-  toast.info('Messages are not built yet', {
+  toast.info('Starting a thread is not built yet', {
     id: 'contact',
-    description: `This is where the thread with ${partner.name} would open.`,
+    description: `Booking a Starter Pack opens one with ${partner.name}.`,
   })

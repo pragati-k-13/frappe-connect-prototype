@@ -3,6 +3,7 @@ import { PARTNERS } from '../data/partners'
 // Two consumers: `industryCounts`, the group totals on the industry filter's
 // headings, and `saveCompany`, which derives a segment's group. Both need to
 // know which segments belong to which group.
+import { bookingThread, discoveryThreads } from '../data/messages'
 import { INDUSTRIES } from '../data/quiz'
 
 // A skipped question stores `null`, which every filter below reads as "no
@@ -32,15 +33,19 @@ const emptyAnswers = () => ({
 // (business or partner). `account` is, for the business side, where the viewer
 // stands with it:
 //
-//   visitor  no account. Browsing the directory signed out.
-//   client   has an account, and an implementation already under way.
+//   visitor    no account. Browsing the directory signed out.
+//   exploring  has an account, no project yet. Partway through choosing, with
+//              several conversations open — the messages screen's other viewer.
+//   client     has an account, and an implementation already under way.
 //
-// ⚠️ Nothing in the product reads `account` yet — every screen is built for the
-// visitor. The states are here so the switcher can offer them and so the seam
-// has a name. Components should read the `signedIn` / `hasProject` getters
-// rather than comparing the string, which is what makes a third state (an
-// account with no project yet) a change in this file alone.
-const ACCOUNT_STATES = ['visitor', 'client']
+// The third state is the one this file's own note said would be needed one day
+// ("an account with no project yet"), and it arrived with the messages screen:
+// signing up and booking are different moments, and only the second one gives
+// you a thread.
+//
+// Components should read the `signedIn` / `hasProject` getters rather than
+// comparing the string, which is what keeps the enum here.
+const ACCOUNT_STATES = ['visitor', 'exploring', 'client']
 
 // What the visitor was trying to do when the gate interrupted them, so it can be
 // finished once they're in. Module scope rather than store state on purpose:
@@ -228,6 +233,14 @@ export const useConnectStore = defineStore('connect', {
     // ⚠️ `operations` and `problems` are free text and optional. They're what a
     // partner reads before the first call; nothing in the app renders them yet.
     company: { name: '', employees: '', segments: [], operations: '', problems: '' },
+    // Every conversation the viewer can open, newest activity last within each
+    // thread. Two ways in and no third: the demo switch seeds the exploring
+    // viewer's inbox, and booking a pack adds the thread the confirmed screen
+    // promises ("Project details sent via Messaging"). A fresh account has
+    // none, which is why the screen has a real empty state.
+    //
+    // ⚠️ In memory, like everything else here. Reloading loses what you typed.
+    threads: [],
     // Filters on the results page. `app` starts unset — it's a refinement
     // offered mid-list, not a qualifier.
     // `countries` is the granular half of the region dimension. Empty reads as
@@ -378,6 +391,42 @@ export const useConnectStore = defineStore('connect', {
       this.account = account
     },
 
+    // The demo switch's version of `setAccount`: it also loads the inbox that
+    // belongs to the persona being switched to. Separate from `setAccount`
+    // because `completeLogin` calls that one the moment onboarding finishes,
+    // and a brand new account must NOT be handed threads it never started.
+    demoAccount(account) {
+      if (!ACCOUNT_STATES.includes(account)) return
+      this.setAccount(account)
+      this.threads = account === 'exploring' ? discoveryThreads() : []
+    },
+
+    // Booking a pack is the one thing in the app that starts a conversation.
+    // Idempotent by partner: confirming twice with the same partner reopens the
+    // thread rather than stacking a second copy of it.
+    startBooking({ partner, pack, slot }) {
+      const existing = this.threads.find((t) => t.partnerId === partner.id)
+      if (existing) return existing.id
+      this.threads = [...this.threads, bookingThread({ partner, pack, slot })]
+      return partner.id
+    },
+
+    // Appends to the thread and returns nothing: the screen reads the store
+    // back rather than being told what it just sent.
+    sendMessage(threadId, body) {
+      const text = body.trim()
+      if (!text) return
+      const thread = this.threads.find((t) => t.id === threadId)
+      if (!thread) return
+      thread.messages.push({
+        id: `m-${Date.now()}`,
+        from: 'you',
+        at: Date.now(),
+        kind: 'text',
+        body: text,
+      })
+    },
+
     // Returns the state it moved TO, so the caller can name which way it went
     // without re-reading the store to find out.
     toggleSaved(id) {
@@ -393,6 +442,8 @@ export const useConnectStore = defineStore('connect', {
     logOut() {
       const cleared = this.saved.length
       this.saved = []
+      // Conversations belong to the account, same as the saved list.
+      this.threads = []
       this.setAccount('visitor')
       return cleared
     },
