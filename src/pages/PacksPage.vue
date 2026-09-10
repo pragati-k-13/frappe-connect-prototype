@@ -126,18 +126,19 @@ const close = () => {
 // "Get started" is the buying gesture, so it's gated where the info button
 // isn't: reading a pack's scope needs no account, committing to one does.
 //
-// Signed out, this sends the visitor to sign up (`useAuthGate`'s default).
-// Signed in, it opens the panel, which is still all there is; see the seam in
-// `PackDrawer`.
+// ⚠️ Signed in, it goes STRAIGHT to the confirmation screen. It used to open
+// the scope panel — the same thing the info button does — because there was
+// nowhere else to send anyone yet. There is now, and a buying gesture that
+// answers with a reading pane makes you press a second button to buy.
 //
-// The held action is `open(value)` rather than the `?pack=` being carried in
-// `next`, because the gate captures the path as it is at the click — the panel
-// isn't open yet at that moment. Coming back, the action opens it.
+// Signed out, the gate sends them to sign up (`useAuthGate`'s default) and
+// onboarding hands off to the same screen at the end, so both routes land in
+// the same place. Same two lines as `PackDrawer`'s own Get started.
 const start = (value) => {
-  // Before the gate, not after: onboarding is two navigations away and has no
-  // other way to know which pack this was about.
+  // Recorded before the gate fires: confirmation is one navigation away signed
+  // in and four signed out, and nothing else carries which pack this was about.
   store.selectPack(value)
-  requireAccount(() => open(value))
+  requireAccount(() => router.push({ name: 'confirm', query: { pack: value } }))
 }
 </script>
 
@@ -196,10 +197,8 @@ const start = (value) => {
                   >
                     <template #icon><LucideInfo class="size-4" /></template>
                   </Button>
-                  <!-- ⚠️ Signed in, this opens the same panel the info button
-                       does. Once the booking flow exists it should skip the
-                       scope and go straight to it; today there is nowhere else
-                       to go. -->
+                  <!-- The info button reads, this one buys. Signed in it skips
+                       the scope entirely and goes to the confirmation screen. -->
                   <Button label="Get started" @click="start(pack.value)" />
                 </div>
               </div>
