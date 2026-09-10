@@ -28,7 +28,7 @@ const details = computed(() => [
 </script>
 
 <template>
-  <aside class="rounded-6 border border-outline-gray-2 p-5">
+  <aside class="rounded-6 border border-outline-gray-1 p-5">
     <h2 class="text-base font-medium text-ink-gray-8">Selected service</h2>
 
     <!-- ⚠️ Placeholder. The illustrations land later — same grey box the

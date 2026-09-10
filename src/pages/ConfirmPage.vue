@@ -103,13 +103,13 @@ const closeScope = () => {
 
 <template>
   <ConnectShell root-label="Starter packs" root-to="/connect/packs" crumb="Confirm selection">
-    <!-- 972px = 500 for the column you read + the 360 card + 32 between
-         them + the 80 of `lg:px-10`, which sits INSIDE the cap. At the 1100
-         this started on, the left column ran to 628 and the partner card
-         stretched to fill it: that wide it reads as a table row, and the tick
-         list under it broke the eye across a measure two thirds longer than
-         the body copy above. -->
-    <div class="mx-auto w-full max-w-[972px] px-5 py-8 lg:px-10">
+    <!-- 1040px = the 500 reading column + the 360 card + 100 of gutter
+         between them + the 80 of `lg:px-10`, which sits INSIDE the cap. The
+         reading column is capped in `.fc-split`, so raising this widens the
+         GUTTER and pushes the card right; it does not stretch the text.
+         (It ran to 628 at the 1100 this started on, which made the partner
+         card read as a table row.) -->
+    <div class="mx-auto w-full max-w-[1040px] px-5 py-8 lg:px-10">
       <!-- No pack in the store: someone reached this by URL rather than by
            choosing. Sending them to the catalogue is the only honest answer —
            there is nothing to confirm. -->

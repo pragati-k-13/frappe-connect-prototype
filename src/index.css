@@ -406,6 +406,11 @@ textarea[data-slot='control'] {
 }
 @container content (min-width: 900px) {
   .fc-split {
-    grid-template-columns: minmax(0, 1fr) 360px;
+    /* The reading column is CAPPED, not fractional, and `space-between` hands
+       the leftover to the gutter between them. So the card sits against the
+       right edge and the space grows there as the window does, rather than the
+       column stretching and dragging the card back toward the text. */
+    grid-template-columns: minmax(0, 500px) 360px;
+    justify-content: space-between;
   }
 }

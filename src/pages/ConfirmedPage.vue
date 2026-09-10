@@ -80,13 +80,13 @@ const closeScope = () => {
 
 <template>
   <ConnectShell root-label="Starter packs" root-to="/connect/packs" crumb="Confirmed">
-    <!-- 972px = 500 for the column you read + the 360 card + 32 between
-         them + the 80 of `lg:px-10`, which sits INSIDE the cap. At the 1100
-         this started on, the left column ran to 628 and the partner card
-         stretched to fill it: that wide it reads as a table row, and the tick
-         list under it broke the eye across a measure two thirds longer than
-         the body copy above. -->
-    <div class="mx-auto w-full max-w-[972px] px-5 py-8 lg:px-10">
+    <!-- 1040px = the 500 reading column + the 360 card + 100 of gutter
+         between them + the 80 of `lg:px-10`, which sits INSIDE the cap. The
+         reading column is capped in `.fc-split`, so raising this widens the
+         GUTTER and pushes the card right; it does not stretch the text.
+         (It ran to 628 at the 1100 this started on, which made the partner
+         card read as a table row.) -->
+    <div class="mx-auto w-full max-w-[1040px] px-5 py-8 lg:px-10">
       <div v-if="!pack || !partner" class="py-20 text-center">
         <p class="text-p-lg font-medium text-ink-gray-8">Nothing to show here</p>
         <p class="mx-auto mt-1.5 max-w-sm text-p-base text-ink-gray-6">
@@ -98,8 +98,17 @@ const closeScope = () => {
       <div v-else class="fc-split">
         <div class="min-w-0">
           <h1 class="text-2xl font-semibold text-ink-gray-8">Confirmed!</h1>
+          <!-- The wireframe's line was "This will connect you with the ideal
+               Partner for your needs" — future tense, on the page that says the
+               connecting is done and names who. It also had to carry the whole
+               screen, because it was written before there was a partner card
+               under it.
+               This one states what was bought and that the promise was kept,
+               and stops there: WHO is the card below, and WHAT NEXT is the
+               three ticks under that. Saying any of it twice would make the
+               card read as a repeat rather than the answer. -->
           <p class="mt-1 text-p-base text-ink-gray-6">
-            This will connect you with the ideal Partner for your needs.
+            Your {{ pack.name }} pack is booked, and Frappe has assigned you a partner.
           </p>
 
           <!-- The listing row, framed. Same 40px `2xl` avatar, same name and
