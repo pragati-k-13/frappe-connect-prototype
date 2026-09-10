@@ -431,3 +431,29 @@ textarea[data-slot='control'] {
     padding-left: min(4rem, max(0px, calc((100% - 1000px) / 2)));
   }
 }
+
+/* The messages composer and the bubbles it writes.
+ *
+ * `frappe-ui/editor` ships prose styles for the editing surface, and they are
+ * the right typography for a message too — but the bubble is not an editor, so
+ * the two rules it actually needs are here rather than pulling `prose` onto a
+ * paragraph of chat. Paragraph gaps only BETWEEN paragraphs, so a one-line
+ * message has no stray margin inside its bubble. */
+/* ⚠️ `.fc-composer` IS the ProseMirror element — `EditorContent`'s root and the
+ * editable node are the same div — so these are element rules, not descendant
+ * ones. It also arrives carrying `prose prose-v3`, which sizes text at 15px and
+ * puts margins on every paragraph; a composer is one field in a form, and it
+ * has to read at the same size as the messages above it. */
+.fc-composer {
+  @apply text-p-base text-ink-gray-8;
+}
+.fc-composer:focus {
+  @apply outline-none;
+}
+.fc-composer p {
+  @apply !my-0;
+}
+.fc-message > * + *,
+.fc-composer > * + * {
+  @apply mt-2;
+}

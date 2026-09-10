@@ -1,7 +1,12 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Avatar, Button, ScrollArea, TabButtons, Textarea, toast } from 'frappe-ui'
+import { Avatar, Button, ScrollArea, TabButtons, toast } from 'frappe-ui'
+// ⚠️ `frappe-ui/editor`, not the `TextEditor` parked in `frappe-ui/experimental`.
+// That one is the v0 family, kept only as an interim import path while apps
+// migrate off it ("Moved out of root (#974)"); this is the replacement, and it
+// ships its own ProseMirror styles so nothing else has to be imported.
+import { CommentKit, Editor, EditorContent } from 'frappe-ui/editor'
 import IconCalendar from '~icons/lucide/calendar'
 import IconExternal from '~icons/lucide/external-link'
 import IconSend from '~icons/lucide/send-horizontal'
@@ -108,10 +113,22 @@ const callWhen = (when) =>
 
 // The last line of a thread, for the list. A card has no text of its own, so it
 // says what it is rather than rendering blank.
+// ⚠️ Tags OUT. A message body is HTML now, and a preview is one line of plain
+// text in a 320px column — printing the markup put "<p>" in the inbox.
+const asText = (html) => {
+  const el = document.createElement('div')
+  el.innerHTML = html ?? ''
+  return el.textContent ?? ''
+}
+
 const preview = (thread) => {
   const m = thread.messages.at(-1)
   const body =
-    m.kind === 'company' ? 'Company details' : m.kind === 'call' ? 'Introduction call' : m.body
+    m.kind === 'company'
+      ? 'Company details'
+      : m.kind === 'call'
+        ? 'Introduction call'
+        : asText(m.body)
   return m.from === 'you' ? `You: ${body}` : body
 }
 
@@ -125,8 +142,32 @@ const openCalendar = () =>
     description: 'The invite lives outside Frappe Connect.',
   })
 
+// ⚠️ HTML, not a string of text: the editor's format is `html`, so a message
+// keeps whatever was typed into it (a link, a bold word, two paragraphs). The
+// seeded threads are plain sentences, which pass through unchanged.
 const draft = ref('')
+const composer = ref(null)
 const feed = ref(null)
+
+// Media without an upload function is a paste that lands in a broken state, so
+// the kit's image, video and attachment members are off. Mentions and emoji
+// stay: they are the two the design draws in the composer.
+const EXTENSIONS = [
+  CommentKit.configure({ image: false, video: false, attachment: false, table: false }),
+]
+
+// ⚠️ CAPTURE phase, and that is the whole trick. The editor handles Enter
+// itself, at the ProseMirror level, so a listener on the way UP fires after the
+// newline has already been inserted and `preventDefault` is too late.
+// Capturing on the wrapper runs first, and `stopPropagation` keeps the
+// keystroke away from the editor entirely. Shift+Enter is left alone, so it
+// still breaks the line.
+const onKey = (e) => {
+  if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return
+  e.preventDefault()
+  e.stopPropagation()
+  send()
+}
 
 // Sending scrolls the conversation to the bottom, because the message you just
 // wrote is the one you want to see land.
@@ -138,7 +179,9 @@ const toBottom = () => {
 }
 
 const send = () => {
-  if (!draft.value.trim() || !open.value) return
+  // `isEmpty` comes from the editor rather than from the string: an empty
+  // ProseMirror document is `<p></p>`, which is not an empty string.
+  if (composer.value?.isEmpty || !open.value) return
   store.sendMessage(open.value.id, draft.value)
   draft.value = ''
   // ⚠️ Replying revives a thread: it was last spoken in two months ago, and now
@@ -267,12 +310,16 @@ watch(open, toBottom)
                 <span class="text-ink-gray-5">{{ time(m.at) }}</span>
               </p>
 
-              <p
+              <!-- ⚠️ `v-html`, because the composer writes HTML. It is the
+                   viewer's own typing rendered back to them in a prototype with
+                   no server and no second author, so there is nothing here that
+                   one person can inject into another's screen. A real build
+                   sanitises on the way in. -->
+              <div
                 v-if="m.kind === 'text'"
-                class="mt-1.5 max-w-[640px] rounded-5 bg-surface-gray-1 px-3.5 py-2.5 text-p-base text-ink-gray-8"
-              >
-                {{ m.body }}
-              </p>
+                class="fc-message mt-1.5 max-w-[640px] rounded-5 bg-surface-gray-1 px-3.5 py-2.5 text-p-base text-ink-gray-8"
+                v-html="m.body"
+              />
 
               <!-- The company profile onboarding collected, as it was sent. -->
               <div
@@ -339,28 +386,34 @@ watch(open, toBottom)
         <!-- The composer. frappe-ui's `Textarea` rather than an input: two
              sentences about your inventory is a normal thing to send, and a
              single line hides everything but the end of it. -->
-        <!-- ⚠️ The Enter handler is on the FORM, not on the Textarea. Enter
-             inside a textarea never submits a form, so the keystroke has to be
-             caught on the way up; binding it to the component would rely on
-             attribute fallthrough reaching the inner `<textarea>`, which it
-             does not do here. Shift+Enter still breaks the line, because
-             `.exact` only matches the bare key. -->
-        <form
-          class="flex shrink-0 items-end gap-2 border-t border-outline-gray-1 px-5 py-4"
-          @submit.prevent="send"
-          @keydown.enter.exact.prevent="send"
-        >
-          <Textarea
+        <!-- The composer. ⚠️ No rule above it: the conversation ends in white
+             space, and a line there fenced the composer off from the thread it
+             belongs to.
+             `Editor` is RENDERLESS — it owns the editor, the model and the
+             placeholder, and hands back `{ isEmpty }` for the slot to lay out.
+             The field's own surface is on the wrapper rather than on
+             EditorContent, so focus can light the whole box. -->
+        <div class="shrink-0 px-5 pb-4 pt-1">
+          <Editor
+            ref="composer"
             v-model="draft"
-            class="min-w-0 flex-1"
-            size="sm"
-            :rows="1"
+            :extensions="EXTENSIONS"
             placeholder="Type a message..."
-          />
-          <Button variant="solid" type="submit" label="Send" :disabled="!draft.trim()">
-            <template #suffix><IconSend class="size-4" /></template>
-          </Button>
-        </form>
+          >
+            <template #default="{ isEmpty }">
+              <div class="flex items-end gap-2" @keydown.capture="onKey">
+                <div
+                  class="min-w-0 flex-1 rounded-4 border border-[var(--surface-gray-2)] bg-surface-gray-2 px-2 py-1.5 transition-colors focus-within:border-outline-gray-4 focus-within:bg-surface-base focus-within:shadow-sm"
+                >
+                  <EditorContent class="fc-composer max-h-40 min-h-6 overflow-y-auto" />
+                </div>
+                <Button variant="solid" label="Send" :disabled="isEmpty" @click="send">
+                  <template #suffix><IconSend class="size-4" /></template>
+                </Button>
+              </div>
+            </template>
+          </Editor>
+        </div>
       </section>
 
       <!-- Nothing selected, because there is nothing to select. -->
