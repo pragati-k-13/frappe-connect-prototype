@@ -409,15 +409,20 @@ textarea[data-slot='control'] {
     /* The reading column is CAPPED, not fractional, and `space-between` hands
        the leftover to the gutter, so the card sits against the page's right
        padding rather than the column stretching and dragging it inward.
-       The padding is what makes the column EQUIDISTANT: it takes half the
-       leftover onto the left, leaving the other half as the gutter, so the gap
-       to the sidebar and the gap to the card are the same number.
+       The padding centres the column between the two: it takes half the
+       leftover onto the left and leaves the other half as the gutter, so the
+       gap to the sidebar and the gap to the card match.
+       ⚠️ Up to a point. `min(4rem, …)` stops that share at 64px, because past
+       roughly a 1200px page the halves get big enough that the text drifts into
+       the middle of the screen. Beyond the cap the column holds still near the
+       left and the gutter takes the rest — which is the right way round, since
+       the reading column is what the eye returns to.
        `100%` here resolves against the wrapper's content box (the page width
        less its 80px of horizontal padding), which is why the constant is 900
        rather than 860 — 860 of columns plus that 40px of left padding already
        spent. `max()` keeps it at 0 when there is nothing to share. */
     grid-template-columns: minmax(0, 500px) 360px;
     justify-content: space-between;
-    padding-left: max(0px, calc((100% - 900px) / 2));
+    padding-left: min(4rem, max(0px, calc((100% - 900px) / 2)));
   }
 }
