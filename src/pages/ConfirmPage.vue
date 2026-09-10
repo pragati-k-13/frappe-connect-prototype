@@ -151,6 +151,17 @@ const confirm = () => {
             />
             <Button variant="subtle" label="Cancel" :route="'/connect/packs'" />
           </div>
+
+          <!-- ⚠️ Not in the wireframe. The onboarding screen collected a
+               company profile — size, industry, operations, problems — and
+               pressing Confirm hands all of it to a partner who has not been
+               named yet. That is the one consequence of this button someone
+               could reasonably object to, so it is stated next to the button
+               rather than discovered on the screen after, where the receipt
+               already reads "Project details sent". -->
+          <p class="mt-3 text-p-sm text-ink-gray-5">
+            Your company details go to the Partner before the call.
+          </p>
         </div>
 
         <SelectedServiceCard :pack="pack" :region="region" />
