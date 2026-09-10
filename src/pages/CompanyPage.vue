@@ -189,11 +189,12 @@ useAuthExit()
         placeholder="e.g. Our spreadsheets and Tally don't talk to each other, so month-end reconciliation takes days and stock counts are often wrong."
       />
 
-      <!-- Not full width, unlike the three screens before it. Those had one
-           decision each and a button spanning the form read as the whole
-           screen's answer; this one is the end of a long form, and a full-width
-           bar under two textareas reads as a fifth field. -->
-      <Button type="submit" variant="solid" size="md" label="Continue" />
+      <!-- Full width, like the three screens before it. It was auto-width to
+           start with — the design draws it that way, and the argument was that a
+           full-width bar under two textareas reads as a fifth field. But it made
+           this the one control in the whole flow with a different width, which
+           is what you notice flicking between the steps. -->
+      <Button type="submit" variant="solid" size="md" class="w-full" label="Continue" />
     </form>
   </AuthShell>
 </template>

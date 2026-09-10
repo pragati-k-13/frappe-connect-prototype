@@ -11,9 +11,15 @@
 // corner radius is baked into the artwork, so no CSS rounding on the img.
 //
 // Measured off `MinimalAuthShell` in frappe-cloud-v2, which is the same screen
-// one product over: 391px column, `pt-[16vh]` rather than vertical centring,
+// one product over: 391px column, top-weighted rather than vertically centred,
 // and a `text-xl` (17px) heading. Sign-in is a small, quiet page — at anything
 // larger it reads as a landing page that happens to have inputs.
+//
+// ⚠️ The one number that isn't theirs is the top padding: 10vh, not their 16vh.
+// Their auth screens are two fields; this flow ends on an onboarding step with
+// eight, and at 16vh that one sat low enough on a laptop to push its own footer
+// off the bottom. One value for all four, because a column that starts at a
+// different height on each step is worse than one that starts slightly high.
 import frappeMark from '../assets/frappe.svg'
 
 defineProps({
@@ -26,7 +32,7 @@ defineProps({
     <!-- Top-weighted, not centred. Centring puts a one-field log-in halfway
          down a tall window with nothing above it; a fixed fraction from the top
          keeps both screens starting in the same place whatever they hold. -->
-    <section class="mx-auto w-full max-w-[391px] pt-[16vh]">
+    <section class="mx-auto w-full max-w-[391px] pt-[10vh]">
       <!-- Optional, and only the onboarding step uses it. The three screens
            before it are a form and nothing else; a mark above every one of them
            would be decoration repeated four times. -->
