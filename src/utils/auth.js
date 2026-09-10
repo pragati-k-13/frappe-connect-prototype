@@ -71,7 +71,7 @@ export function useAuthGate() {
 // The route names that make up the auth flow, so leaving one for another isn't
 // mistaken for backing out of it. Sign-up hands off to its verify screen, and
 // that hop must not drop what the gate is holding.
-const AUTH_ROUTES = new Set(['login', 'signup', 'login-verify', 'signup-verify'])
+const AUTH_ROUTES = new Set(['login', 'signup', 'login-verify', 'signup-verify', 'signup-company'])
 
 // Where to land once the visitor is in. `?next=` so a gated control can send
 // someone to an auth screen and get them back.

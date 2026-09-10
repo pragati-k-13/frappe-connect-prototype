@@ -27,6 +27,10 @@ defineProps({
          down a tall window with nothing above it; a fixed fraction from the top
          keeps both screens starting in the same place whatever they hold. -->
     <section class="mx-auto w-full max-w-[391px] pt-[16vh]">
+      <!-- Optional, and only the onboarding step uses it. The three screens
+           before it are a form and nothing else; a mark above every one of them
+           would be decoration repeated four times. -->
+      <slot name="mark" />
       <h1 class="text-xl font-semibold text-ink-gray-8">{{ title }}</h1>
       <slot />
     </section>

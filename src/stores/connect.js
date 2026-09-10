@@ -193,6 +193,21 @@ export const useConnectStore = defineStore('connect', {
         erpnext: ['finance', 'sales', 'purchase', 'inventory', 'manufacturing', 'hr'],
       },
     },
+    // The pack the visitor pressed Get started on, by `value`. It lives here
+    // rather than in the URL because the gate fires BEFORE the panel opens —
+    // there is no `?pack=` yet at the moment of the click — and the onboarding
+    // screen two navigations later still has to name it.
+    //
+    // ⚠️ Null when they arrived by another door (saving a partner, the top-bar
+    // CTA). Onboarding shows no pack strip at all rather than guessing one.
+    pack: null,
+    // What the onboarding screen collected. `name` is the company's, which is
+    // also mirrored onto `viewer.company` — the sidebar and the quote header
+    // read the viewer, and two names for one company drift apart.
+    //
+    // ⚠️ `operations` and `problems` are free text and optional. They're what a
+    // partner reads before the first call; nothing in the app renders them yet.
+    company: { name: '', employees: '', industry: '', operations: '', problems: '' },
     // Post-quiz filters on the results page. `app` starts unset — it's a
     // refinement offered mid-list, not a qualifier.
     filters: { search: '', app: null },
@@ -315,6 +330,25 @@ export const useConnectStore = defineStore('connect', {
     // an hour later silently saves the partner they walked away from.
     dropPending() {
       pendingAction = null
+    },
+
+    // Which pack the visitor is buying. Set at the moment Get started is
+    // pressed, so it survives the gate, the two auth screens and the verify
+    // step to reach onboarding.
+    selectPack(value) {
+      this.pack = value
+    },
+
+    // What the onboarding screen collected. The industry goes through
+    // `answer()` so it lands in the same place the quiz would have put it.
+    //
+    // ⚠️ Answering the industry does NOT narrow the partner list — partners are
+    // tagged at the segment level and `matches()` filters on `answers.segments`,
+    // which nothing sets here. See the note in `CompanyPage`.
+    saveCompany({ name, employees, industry, operations, problems }) {
+      this.company = { name, employees, industry, operations, problems }
+      this.viewer = { ...this.viewer, company: name }
+      if (industry) this.answer('industry', industry)
     },
 
     // What the two auth FORMS record. Neither signs anyone in: the code comes

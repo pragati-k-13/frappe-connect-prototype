@@ -34,6 +34,14 @@ const routes = [
     name: 'login-verify',
     component: () => import('./pages/VerifyPage.vue'),
   },
+  // The last step of signing up, and sign-up only — a returning customer
+  // answered these once, so `login-verify` goes straight to `next`. This is
+  // where the account actually lands: see the note at the top of the page.
+  {
+    path: '/connect/signup/company',
+    name: 'signup-company',
+    component: () => import('./pages/CompanyPage.vue'),
+  },
   {
     path: '/connect/partners',
     name: 'results',

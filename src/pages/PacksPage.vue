@@ -125,7 +125,12 @@ const close = () => {
 // The held action is `open(value)` rather than the `?pack=` being carried in
 // `next`, because the gate captures the path as it is at the click — the panel
 // isn't open yet at that moment. Coming back, the action opens it.
-const start = (value) => requireAccount(() => open(value))
+const start = (value) => {
+  // Before the gate, not after: onboarding is two navigations away and has no
+  // other way to know which pack this was about.
+  store.selectPack(value)
+  requireAccount(() => open(value))
+}
 </script>
 
 <template>

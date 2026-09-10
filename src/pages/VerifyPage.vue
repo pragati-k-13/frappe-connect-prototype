@@ -43,12 +43,23 @@ const verify = () => {
   loading.value = true
   timer = setTimeout(async () => {
     loading.value = false
+    // ⚠️ The two paths end differently, and this is the fork.
+    //
+    // Signing up isn't finished here — one more screen asks about the company,
+    // and THAT is where the account lands and the held action runs. So this
+    // hands off and stays quiet: no toast, no `completeLogin`, or the app would
+    // congratulate someone halfway through and then let them wander off with
+    // the gate's errand still armed.
+    //
+    // Logging in has nothing left to ask, and finishes here as before.
+    if (isSignup.value) {
+      router.replace({ name: 'signup-company', query: route.query })
+      return
+    }
     // This toast before the held action, which raises one of its own — the pair
     // only reads in the right order if the account lands before what the account
     // let you do.
-    toast.success(isSignup.value ? 'Account created' : `Logged in as ${store.viewer.name}`, {
-      id: 'auth',
-    })
+    toast.success(`Logged in as ${store.viewer.name}`, { id: 'auth' })
     store.completeLogin()
     // ⚠️ Navigate FIRST, then run what the gate was holding — see `runPending`
     // in the store. The action belongs to the screen the gate interrupted, and

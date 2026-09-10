@@ -26,6 +26,7 @@ Then open <http://localhost:5173>.
 | 3b  | `/connect/login`        | Log in. Every gated control lands here with `?next=` back to itself    | Yes                           |
 | 3c  | `/connect/signup`       | Create an account. Where a pack's "Get started" sends a new visitor    | Yes                           |
 | 3d  | `/connect/*/verify`     | The 6-digit code. Both forms hand off here; nobody is signed in before | Yes                           |
+| 3e  | `/connect/signup/company` | Onboarding. Sign-up only, and where the account actually lands       | Yes                           |
 | 4   | `/connect/partners/:id` | A partner's profile — **top section only so far**                      | Yes                           |
 
 Screen 1 is a deliberately light stand-in. It's here so the entry point isn't imaginary

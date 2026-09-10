@@ -2,6 +2,7 @@
 import { Button } from 'frappe-ui'
 import PackScope from './PackScope.vue'
 import { useAuthGate } from '../utils/auth'
+import { useConnectStore } from '../stores/connect'
 
 // A pack's full scope, in the column beside the catalogue.
 //
@@ -18,6 +19,7 @@ defineProps({
 })
 defineEmits(['close'])
 
+const store = useConnectStore()
 const { requireAccount } = useAuthGate()
 
 // ⚠️ THE SEAM. Booking is: pick a pack → sign in → answer the onboarding
@@ -27,7 +29,11 @@ const { requireAccount } = useAuthGate()
 //
 // The gate lands on sign-up, which is `useAuthGate`'s default — someone reading
 // a pack's scope and pressing Get started is new business.
-const start = () => requireAccount()
+const start = () => {
+  // See `PacksPage`: the pack has to be recorded before the gate fires.
+  store.selectPack(props.pack.value)
+  requireAccount()
+}
 </script>
 
 <template>
