@@ -89,17 +89,17 @@ const shortName = computed(() => partner.value?.name.split(' ')[0] ?? 'Your part
       <div v-else class="fc-split">
         <div class="min-w-0">
           <h1 class="text-2xl font-semibold text-ink-gray-8">Confirmed!</h1>
-          <!-- The wireframe's line was "This will connect you with the ideal
-               Partner for your needs" — future tense, on the page that says the
-               connecting is done and names who. It also had to carry the whole
-               screen, because it was written before there was a partner card
-               under it.
-               This one states what was bought and that the promise was kept,
-               and stops there: WHO is the card below, and WHAT NEXT is the
-               three ticks under that. Saying any of it twice would make the
-               card read as a repeat rather than the answer. -->
+          <!-- Two short sentences, and the second one's job is to hand off to
+               the card rather than to summarise it.
+               "Frappe has assigned you a partner" was the previous try and it
+               reads like an allocation — a desk you were given. The second
+               sentence also restated what the card underneath already shows,
+               which made the card read as a repeat instead of the answer.
+               (The wireframe's original, "This will connect you with the ideal
+               Partner for your needs", was future tense on a page that says the
+               connecting is done.) -->
           <p class="mt-1 text-p-base text-ink-gray-6">
-            Your {{ pack.name }} pack is booked, and Frappe has assigned you a partner.
+            Your {{ pack.name }} pack is booked. Here is who you will work with.
           </p>
 
           <!-- The listing row, framed. Same 40px `2xl` avatar, same name and
