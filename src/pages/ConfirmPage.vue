@@ -119,16 +119,9 @@ const confirm = () => {
           <h1 class="text-xl font-semibold text-ink-gray-8">Confirm selection</h1>
           <!-- ⚠️ Not the wireframe's subtitle, which read "This will connect
                you with the ideal Partner for your needs" — also the onboarding
-               screen's line, two navigations earlier.
-               It carries the disclosure rather than a separate note lower down:
-               onboarding collected a company profile (size, industry,
-               operations, problems) and Confirm hands all of it to a partner
-               who has not been named yet. That is the one consequence of this
-               screen someone could reasonably object to, so it is read at the
-               top, long before the receipt on the next screen says "Project
-               details sent". -->
+               screen's line, two navigations earlier. -->
           <p class="mt-1 text-p-base text-ink-gray-6">
-            Pick a slot, and we will send your company details to the Partner we assign.
+            Pick a slot, and we will assign your Partner.
           </p>
 
           <ol class="mt-6 space-y-5">
