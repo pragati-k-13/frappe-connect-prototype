@@ -218,14 +218,16 @@ const RAIL = [
             Partners in over 30 countries, ready to get you running.
           </p>
           <div class="mt-4 flex justify-center">
-            <!-- `ghost`, not solid. The page's real question is which of the
+            <!-- `subtle`, not solid. The page's real question is which of the
                  three services below you want, and a filled button in the hero
                  answered it for the reader before they'd been asked — it also
                  pointed at the same place as "Browse partners", so the loudest
                  control on the page was a shortcut past the choice the page
-                 exists to present. Quieter than the cards' own buttons, so it
-                 reads as the shortcut it is. -->
-            <Button variant="ghost" size="md" label="Find a partner" :link="connect()">
+                 exists to present. Subtle keeps it a shortcut rather than the
+                 answer, while still reading as a button at rest: ghost had no
+                 fill until you hovered it, which in the middle of an empty hero
+                 left it looking like a link someone had centred. -->
+            <Button variant="subtle" size="md" label="Find a partner" :link="connect()">
               <template #suffix><LucideArrowRight class="size-4" /></template>
             </Button>
           </div>
