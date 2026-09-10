@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
-import { Badge, Button } from 'frappe-ui'
+import { Avatar, Badge, Button } from 'frappe-ui'
+import IconPack from '~icons/lucide/layers'
 import IconModules from '~icons/lucide/package'
 import IconEffort from '~icons/lucide/hourglass'
 import IconDelivery from '~icons/lucide/calendar'
@@ -29,15 +30,28 @@ const details = computed(() => [
   <aside class="rounded-6 border border-outline-gray-1 p-5">
     <h2 class="text-base font-medium text-ink-gray-8">Selected service</h2>
 
-    <!-- ⚠️ Placeholder. The illustrations land later — same grey box the
-         catalogue rows use. -->
-    <div class="mt-4 aspect-[16/10] w-full rounded-6 bg-surface-gray-2" aria-hidden="true" />
-
-    <div class="mt-4 flex items-center gap-2">
-      <span class="min-w-0 truncate text-lg font-medium text-ink-gray-8">{{ pack.name }}</span>
-      <Badge variant="subtle" theme="gray" size="sm" label="Starter Pack" />
+    <!-- ⚠️ The tile is a PLACEHOLDER for the pack illustration, which lands
+         later. It replaces a 16:10 grey box that took a third of the card to
+         say nothing; at 46px it holds the same place beside the name instead of
+         above it.
+         `Avatar` rather than a hand-rolled square: the box, its corner and the
+         icon well are the component's, and its default gray theme is already
+         `bg-surface-gray-2` with `ink-gray-5` ink. The icon is `size-full`
+         because Avatar sizes the well itself (20px at `3xl`).
+         ⚠️ `layers`, not `package` — `package` is the modules bullet six lines
+         down, and one card should not print the same glyph for two things. -->
+    <div class="mt-4 flex items-start gap-3">
+      <Avatar size="3xl" shape="square" aria-hidden="true">
+        <IconPack class="size-full" />
+      </Avatar>
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-2">
+          <span class="min-w-0 truncate text-lg font-medium text-ink-gray-8">{{ pack.name }}</span>
+          <Badge variant="subtle" theme="gray" size="sm" label="Starter Pack" />
+        </div>
+        <p class="mt-1 text-p-base text-ink-gray-6">{{ pack.tagline }}</p>
+      </div>
     </div>
-    <p class="mt-1 text-p-base text-ink-gray-6">{{ pack.tagline }}</p>
 
     <p class="mt-4 text-lg font-semibold text-ink-gray-7">{{ priceFor(pack, region) }}</p>
 
