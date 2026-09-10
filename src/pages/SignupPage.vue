@@ -33,7 +33,7 @@ const store = useConnectStore()
 const route = useRoute()
 const router = useRouter()
 
-// ⚠️ Stands in for GeoIP, the same way `inferredRegion` does in the store. A
+// ⚠️ Stands in for GeoIP, the same way `inferredGeo` does in the store. A
 // real build resolves this server-side on first paint; hardcoding the common
 // case is what makes the interaction — an answer already made, which you can
 // change — reviewable at all.

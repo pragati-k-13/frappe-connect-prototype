@@ -125,6 +125,23 @@ export const REGION_PRICING = Object.fromEntries(
 // of the directory's 156 partners.
 export const DEFAULT_REGION = 'india'
 
+// The pricing market a COUNTRY falls in.
+//
+// ⚠️ India is its own market and not Asia's, which is the whole reason this
+// can't be a plain country-to-region lookup: the directory files India inside
+// Asia (`REGIONS` in `data/quiz.js`), but India has the only real rate card —
+// ₹2,000/hr — and Asia's is an invented $40. Reading India as Asia would quote
+// an Indian business in dollars at a rate nobody agreed.
+//
+// Returns null for a country in no region, so callers can fall through to
+// whatever they were doing before.
+const REGION_OF_COUNTRY = Object.fromEntries(
+  REGIONS.flatMap((r) => r.countries.map((c) => [c, r.value])),
+)
+
+export const marketFor = (country) =>
+  country === 'India' ? 'india' : (REGION_OF_COUNTRY[country] ?? null)
+
 export const pricingFor = (region) => REGION_PRICING[region] ?? REGION_PRICING[DEFAULT_REGION]
 
 // `Intl` rather than a symbol and a template string, because India groups

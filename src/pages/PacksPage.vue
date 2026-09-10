@@ -19,6 +19,7 @@ import {
   asExclusion,
   priceFor,
   pricingFor,
+  marketFor,
   DEFAULT_REGION,
 } from '../data/packs'
 
@@ -52,7 +53,14 @@ const router = useRouter()
 // The quiz asks for a region, so use it when it's been answered — pack prices
 // are regional. Falls back to India, the only region whose pricing is real
 // (see `data/packs.js`).
-const region = computed(() => store.answers.region[0] ?? DEFAULT_REGION)
+// ⚠️ The COUNTRY is read first, and it has to be. The geo dimension lives in
+// two fields — `filters.countries` for the granular half, `answers.region` for
+// the coarse one — and sign-up writes only the country. Reading regions alone
+// meant anyone who arrived through sign-up fell through to the default and a
+// German business was quoted in rupees under "for your region".
+const region = computed(
+  () => marketFor(store.filters.countries[0]) ?? store.answers.region[0] ?? DEFAULT_REGION,
+)
 const pricing = computed(() => pricingFor(region.value))
 
 // The three reasons a pack is the right shape for a small business, from the
