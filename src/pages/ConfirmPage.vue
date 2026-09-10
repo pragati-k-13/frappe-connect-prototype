@@ -116,7 +116,7 @@ const confirm = () => {
       <div v-else class="fc-split">
         <!-- ── What you are doing ─────────────────────────────────────── -->
         <div class="min-w-0">
-          <h1 class="text-2xl font-semibold text-ink-gray-8">Confirm selection</h1>
+          <h1 class="text-xl font-semibold text-ink-gray-8">Confirm selection</h1>
           <p class="mt-1 text-p-base text-ink-gray-6">
             Pick a slot, and we will assign your Partner.
           </p>
