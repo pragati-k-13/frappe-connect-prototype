@@ -44,7 +44,8 @@ of the marketing site.
 The thirteen partners are real companies with real logos. Almost everything attached to
 them is invented: hourly rates, star ratings, review text and reviewers, partner tiers,
 case studies and the clients they name, marketplace apps, vision quotes and their
-authors, and several of the profile stats.
+authors, street addresses, founding years and founding stories, and several of the
+profile stats.
 
 Each one is flagged where it lives, in `src/data/`. **Nothing in this repo should be read
 as fact about those companies.**

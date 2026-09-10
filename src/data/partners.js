@@ -10,6 +10,12 @@
 // review counts, response times, story counts and packs — the public directory
 // doesn't publish any of it. Don't quote these numbers.
 //
+// So are the street addresses and the founding stories, and those are a
+// different kind of invention: not a number nobody can check, but a statement
+// about where a real company sits and how it started. Both carry their own ⚠️
+// below. They exist so the About card and the closing section have real-shaped
+// content to lay out, and they are the first thing to replace.
+//
 // `initials` and `color` are the fallback avatar for a partner with no logo
 // file. Every partner here has one, so they're currently unused — see
 // `data/logos.js`.
@@ -308,6 +314,142 @@ const visionFor = (name) => {
   return { ...v, author: v.author ?? { name, role: 'Leadership team' } }
 }
 
+// The closing section of the profile: how the firm started.
+//
+// ⚠️⚠️ EVERY WORD BELOW IS INVENTED, on the same footing as `VISION` above and
+// with the same instruction attached: nobody at these firms said any of it, no
+// such founding happened on that date, and it must be replaced with the
+// partners' own account before this is shown to anyone outside the team.
+//
+// Two things keep it as harmless as invented copy about a real company can be.
+// The stories name NO PEOPLE — every one is "two engineers", "the founders",
+// "a team that had been doing X" — so nothing here attributes a biography to a
+// real person, which is the line `VISION.author` had to stop at too. And the
+// `year` is the one figure a reader could take as fact, so it is kept
+// deliberately vague in the prose ("the mid-2000s", "a decade in") and stated
+// once, plainly, as a date the page labels rather than a claim the copy makes.
+//
+// ⚠️ Two `tagline`s already carry a founding year — Tridots Tech's "Since 2006"
+// (real, from the design file) and Software@Work's "since 2011" (invented). The
+// years here MATCH them. A profile that said 2006 in the header and 2009 at the
+// foot would be the mock contradicting itself in the one place a reader is
+// most likely to check.
+//
+// `story` is an array of paragraphs rather than one string: the section sets
+// them at a reading measure and the break between them is the beat between
+// "how it started" and "where it got to". Two is the shape; a third would turn
+// the section into the essay the Partner vision section already is.
+const FOUNDING = {
+  'tridots-tech': {
+    year: 2006,
+    story: [
+      'Tridots Tech started in Chennai in the mid-2000s, out of a run of consulting jobs that kept ending the same way: a manufacturer with good people, a warehouse full of stock nobody could account for, and a spreadsheet that three departments each kept their own copy of. The founders had spent years writing bespoke software for that problem one company at a time, and had come round to the view that the software was rarely the hard part.',
+      'The firm has stayed close to that first kind of customer — mid-sized manufacturing and distribution businesses, mostly in Tamil Nadu, increasingly beyond it. What has changed is how much of the work happens before anyone opens an editor. The teams here spend their first weeks on the floor and in the finance office, and treat a rollout as finished when the client stops needing them, not when the last ticket closes.',
+    ],
+  },
+
+  'software-work': {
+    year: 2011,
+    story: [
+      'Software@Work was founded in Mumbai in 2011 by a group who had been running payroll and plant operations from inside other people’s companies rather than selling to them. They had watched several ERP projects arrive, consume a year, and leave the business running two systems that disagreed about the same headcount.',
+      'That experience set the firm’s habit of arguing about a workflow for a week before configuring anything for it. The practice grew from payroll outward — Frappe HR alongside ERPNext, one system rather than two — and the client list is still mostly discrete manufacturers and traders around Mumbai who reached the point where Tally and a shared drive stopped scaling.',
+    ],
+  },
+
+  'new-indictrans': {
+    year: 2004,
+    story: [
+      'New Indictrans began in Pune in the early 2000s as a language-technology group, building tools that let public institutions work in Marathi and Hindi rather than only in English. Open source was not a positioning decision — it was the only way to ship software to a government department that had to be able to maintain it after the contract ended.',
+      'The ERP practice grew out of that constraint rather than away from it. Schools, cooperatives and state bodies came asking for systems that would still run in five years, staffed by people who had not been hired yet. The firm still plans around academic and audit calendars, still writes documentation in the language the staff actually use, and still measures itself on whether the client needs them next year.',
+    ],
+  },
+
+  '8848-digital': {
+    year: 2016,
+    story: [
+      '8848 Digital was started in Pune by engineers who had spent their careers inside automotive and pharmaceutical plants, on the manufacturing side rather than the software side. The founding argument was simple and slightly contrarian: most plant software is designed for the people reading the reports, not the people entering the data, and the operator decides whether any of it works.',
+      'So the firm built a practice around going to the floor first. A project starts with a fortnight of watching how material and paperwork actually move, before a single doctype is configured. Traceability work — batch, quality, audit — became the specialism because it is the part that has to survive somebody else’s inspection, and the part clients had most often been sold and not given.',
+    ],
+  },
+
+  'greycube-technologies': {
+    year: 2018,
+    story: [
+      'Greycube Technologies is a small studio in Mumbai, and it was founded as one on purpose. It started when two implementers left larger firms after one too many projects where a fifteen-person trading business was sold the same programme as a fifteen-hundred-person one, and spent the next year not using most of it.',
+      'The studio has stayed deliberately small, which is the whole product: the people you talk to are the people doing the work, and most questions are answered the same day. The work is retail, trading and e-commerce, usually under fifty staff, and the goal is eight screens set up properly rather than a system nobody has the time to grow into.',
+    ],
+  },
+
+  wahni: {
+    year: 2013,
+    story: [
+      'Wahni started in Kochi with a single restaurant group that had four kitchens and four different ways of closing the day. The founders took the job on the condition that they could fix all four rather than automate the mess, and the multi-outlet problem has been the firm’s centre of gravity ever since.',
+      'Growth followed the same shape of customer into retail, healthcare and education, and out of Kerala into the Gulf as clients opened there. The firm has turned down more work than it has taken, on the principle that a project it cannot staff properly costs more than the revenue is worth — and every reference it has comes from work it saw through.',
+    ],
+  },
+
+  hybrowlabs: {
+    year: 2019,
+    story: [
+      'Hybrowlabs began in Pune as a two-person consultancy taking on custom app work that other shops were quoting as ground-up builds. The founding observation was that most of what a growing company asks for already exists in the Frappe framework, and that the job is usually to build less rather than more.',
+      'The team stayed framework-first as it grew: custom apps, integrations and portals for software companies, e-commerce and professional-services firms whose processes never did fit a standard ERP. Working across timezones from the start made async the default, which is why everything runs off a shared backlog a client can read at any hour without asking.',
+    ],
+  },
+
+  'finbyz-tech': {
+    year: 2015,
+    story: [
+      'Finbyz Tech was founded in Ahmedabad by people who came out of finance rather than software — costing, import-export documentation, the month-end close. They kept meeting ERP implementations that had done the sales and inventory modules well and left the parts a finance team lives in half-finished.',
+      'The firm was built to finish those parts. Chemical manufacturers, traders and logistics businesses came for multi-currency and landed-cost work that other implementations had skipped, and stayed for a close they could trust without a parallel spreadsheet. The finance lead is still in the room fortnightly on every project, which is not a courtesy — it is who the system is designed for.',
+    ],
+  },
+
+  alyf: {
+    year: 2020,
+    story: [
+      'ALYF was founded in Munich on a question German mid-sized companies keep being asked and keep answering badly: pay for software that does not fit, or make do with software you have outgrown. The founders had implemented both of the usual answers and thought open source was a third one that nobody in the Mittelstand was being offered.',
+      'That meant doing the unglamorous work up front — DATEV exports, works-council processes, GDPR designed in rather than retrofitted — before the firm could credibly sell to a manufacturer or a property business here. Documentation and training are in German, project management in English if the client prefers, and phases are priced one at a time so nobody signs a year they cannot see the end of.',
+    ],
+  },
+
+  'craft-interactive': {
+    year: 2012,
+    story: [
+      'Craft Interactive started in Dubai in 2012, at the point where several of its founders’ clients were opening a second entity in a second country and discovering their books had not been built for it. The firm was set up around that moment rather than around a technology: a business in the Gulf is rarely in one jurisdiction for long.',
+      'VAT arrived, then e-invoicing, then Saudi expansion for half the client list, and each one was absorbed as routine rather than as a project. The team works in Arabic and English throughout, is physically present through go-live week, and tends to stay on retainer through a client’s first full year of returns — which is the year the design of the thing gets tested.',
+    ],
+  },
+
+  'kingstech-services': {
+    year: 2017,
+    story: [
+      'Kingstech Services was founded in Singapore by consultants who had just finished what was nominally one regional rollout and had in practice been four unrelated ones, run by four teams, in four countries, arriving at four charts of accounts. The firm exists to not do that again.',
+      'Its work is regional groups — trading, e-commerce, logistics, professional services — running a single ERP across several jurisdictions. One project lead sits in Singapore and delivery happens across timezones, with decisions written down rather than held in meetings, because a group rollout is mostly an argument about which differences between markets are real.',
+    ],
+  },
+
+  navari: {
+    year: 2014,
+    story: [
+      'Navari was founded in Nairobi by developers who were tired of deploying software that assumed reliable power, reliable connectivity and a desk. The systems worked in the demo and failed in the field, and the gap between those two was not a bug list — it was an assumption the software had been built on somewhere else.',
+      'So the firm builds for the conditions its clients actually work in: mobile money, offline-tolerant workflows, donor reporting that has to reconcile. The work is agriculture, trading, logistics and nonprofits across East Africa, training happens in Swahili and English, and a lot of it is delivered on site because most of the people using it are nowhere near an office.',
+    ],
+  },
+
+  korecent: {
+    year: 2009,
+    story: [
+      'Korecent started in Chicago serving medical device manufacturers, which shaped everything about how the firm works. In a regulated plant the ERP is not a business tool sitting next to the quality system — it is part of the quality system, and an auditor will eventually ask it to prove something.',
+      'The practice was built backwards from that audit. Phases are structured with documented sign-off at each one because the documentation is itself a deliverable, and validation and traceability are the reason clients choose the firm over a cheaper quote. It has since taken the same approach into healthcare and professional services across North America.',
+    ],
+  },
+}
+
+// A partner with no entry simply has no closing section — the profile ends on
+// the marketplace row, the same way it already ends early for the five partners
+// with nothing published there. Better a missing section than a stub.
+const foundingFor = (name) => FOUNDING[slug(name)] ?? null
+
 // Certified members, per certification. Frappe's programme certifies people on
 // ERPNext and on the Framework, so a partner's entry is "how many of our team
 // hold each" — two ERPNext certifications and one Framework, in the design's
@@ -334,11 +476,27 @@ const CERTIFIED_MEMBERS = {
   korecent: { erpnext: 1 },
 }
 
-// ⚠️ Invented, and uniform by region. Real migration paths, but not sourced
+// The country of a scraped city — its last comma field. 'Singapore' has no
+// comma and is its own country, which is why this splits rather than indexes.
+const countryOf = (city) => city.split(',').pop().trim()
+
+// Which pool a partner's PLACEHOLDER content is drawn from: reviewer names and
+// company suffixes (`data/reviews.js`), localisation apps (`data/marketplace.js`)
+// and the migrations below.
+//
+// It is the region, except in India, which is a country inside Asia and not a
+// region of its own — see the note above `REGIONS` in `data/quiz.js`. That
+// distinction is real for this content and only for this content: a Chennai
+// partner and a Singapore one share a region and share none of a legacy stack,
+// a compliance app or a naming convention. `region` stays what the filter and
+// the map ask about; `market` is what the invented content varies at.
+const marketOf = (city, region) => (countryOf(city) === 'India' ? 'india' : region)
+
+// ⚠️ Invented, and uniform by market. Real migration paths, but not sourced
 // from any partner's own listing — Tally and SAP are simply the two ERPNext
 // migrations that actually come up in India, QuickBooks the common one outside
 // it. Replace per partner when the directory publishes them.
-const MIGRATIONS_BY_REGION = {
+const MIGRATIONS_BY_MARKET = {
   india: ['Tally to ERPNext', 'SAP to ERPNext'],
 }
 const DEFAULT_MIGRATIONS = ['QuickBooks to ERPNext', 'SAP to ERPNext']
@@ -351,6 +509,15 @@ const P = (
     region,
     initials,
     color,
+    // ⚠️ Invented, like `rating`. Dollars per hour, and **nullable** — `null`
+    // is "undisclosed", a partner who quotes on the brief rather than
+    // publishing a number, which is a real thing firms of this size do. Three
+    // of the thirteen are set that way so the surfaces that render a rate have
+    // the state to show: the listing row prints "Rate undisclosed" instead of a
+    // figure, and the profile's Pricing card offers a conversation instead of
+    // the estimator, which has nothing to multiply by. Anything new that reads
+    // `rate` has to answer for `null` — see `PartnerRow.vue` and
+    // `PartnerPricingSection.vue`.
     rate,
     rating,
     reviews,
@@ -367,10 +534,23 @@ const P = (
     // "city · N success stories" line, which said nothing the page didn't
     // already show twice.
     tagline = null,
-    // ⚠️ Only set where the value came out of the design file. Inventing a
-    // street address or an award for a real, named company asserts something
-    // about a real business, so these stay empty and the profile falls back to
-    // the city — same rule `tagline` already follows.
+    // ⚠️⚠️ INVENTED, all but one. Tridots Tech's came out of the design file;
+    // the other twelve are written here so the About card has a real-shaped
+    // value to lay out rather than a bare city name.
+    //
+    // Each one is a plausible address for that partner's actual city, in that
+    // country's own postal conventions — unit-then-building in India, street
+    // number after the street in Germany, a PO Box in the UAE, the `#14-11`
+    // floor-unit form in Singapore — because a directory of thirteen firms
+    // across six regions that formatted every address like a US one would look
+    // wrong to everyone who lives in one of them. The DISTRICTS are real
+    // (Andheri East, Kakkanad, Business Bay, Kilimani); the BUILDINGS are made
+    // up, deliberately, so none of these points at a real occupied suite.
+    //
+    // They are still an invented fact about a real, named company. Replace with
+    // the partners' own before this is shown to anyone outside the team — same
+    // rule as `tagline`, `founding` and the `VISION` copy. The profile falls
+    // back to the city for a partner added without one.
     address = null,
     accolades = [],
   },
@@ -382,14 +562,17 @@ const P = (
   accolades,
   pmm: PMM_BY_TIER[tier] ?? 1,
   // Real: `city` is scraped, and the country is its last comma field.
-  countries: [city.split(',').pop().trim()],
+  countries: [countryOf(city)],
+  // See `marketOf` above — the region, except that India is its own market.
+  market: marketOf(city, region),
   // `[{ app, members }]`, highest count first, zeroes dropped.
   certifications: Object.entries(CERTIFIED_MEMBERS[slug(name)] ?? {})
     .filter(([, members]) => members > 0)
     .map(([app, members]) => ({ app, members }))
     .sort((a, b) => b.members - a.members),
-  migrations: MIGRATIONS_BY_REGION[region] ?? DEFAULT_MIGRATIONS,
+  migrations: MIGRATIONS_BY_MARKET[marketOf(city, region)] ?? DEFAULT_MIGRATIONS,
   vision: visionFor(name),
+  founding: foundingFor(name),
   tier,
   city,
   region,
@@ -416,7 +599,7 @@ export const PARTNERS = [
     accolades: [{ title: 'Partner of the Year', year: 2026 }],
     tier: 'gold',
     city: 'Chennai, India',
-    region: 'india',
+    region: 'asia',
     initials: 'TT',
     color: '#3b82f6',
     rate: 85,
@@ -441,12 +624,13 @@ export const PARTNERS = [
   }),
   P('Software@Work', {
     tagline: 'Running payroll, plants and pipelines on one system since 2011',
+    address: 'Unit 402, Marol Business Centre, Andheri East, Mumbai 400059, Maharashtra, India',
     tier: 'gold',
     city: 'Mumbai, India',
-    region: 'india',
+    region: 'asia',
     initials: 'SW',
     color: '#8b5cf6',
-    rate: 85,
+    rate: 78,
     rating: 4.4,
     reviews: 18,
     responds: '4h',
@@ -457,12 +641,14 @@ export const PARTNERS = [
   }),
   P('New Indictrans', {
     tagline: 'Open source for institutions that keep records for decades',
+    address:
+      '3rd Floor, Deccan Chambers, Senapati Bapat Road, Shivajinagar, Pune 411016, Maharashtra, India',
     tier: 'silver',
     city: 'Pune, India',
-    region: 'india',
+    region: 'asia',
     initials: 'NI',
     color: '#14b8a6',
-    rate: 70,
+    rate: null,
     rating: 4.5,
     reviews: 12,
     responds: '5h',
@@ -473,12 +659,13 @@ export const PARTNERS = [
   }),
   P('8848 Digital', {
     tagline: 'Traceability from the shop floor up',
+    address: 'Office 21, Kharadi Knowledge Park, Kharadi, Pune 411014, Maharashtra, India',
     tier: 'gold',
     city: 'Pune, India',
-    region: 'india',
+    region: 'asia',
     initials: '88',
     color: '#f59e0b',
-    rate: 90,
+    rate: 92,
     rating: 4.6,
     reviews: 22,
     responds: '3h',
@@ -494,12 +681,13 @@ export const PARTNERS = [
   }),
   P('Greycube Technologies', {
     tagline: 'A small studio setting up ERPNext properly for small teams',
+    address: 'B-14, Hiranandani Gardens Annexe, Powai, Mumbai 400076, Maharashtra, India',
     tier: 'bronze',
     city: 'Mumbai, India',
-    region: 'india',
+    region: 'asia',
     initials: 'GC',
     color: '#64748b',
-    rate: 75,
+    rate: 74,
     rating: 4.3,
     reviews: 9,
     responds: '6h',
@@ -510,12 +698,13 @@ export const PARTNERS = [
   }),
   P('Wahni', {
     tagline: 'One system across every outlet, from Kerala to the Gulf',
+    address: '2nd Floor, Backwater Square, Kakkanad, Kochi 682030, Kerala, India',
     tier: 'gold',
     city: 'Kochi, India',
-    region: 'india',
+    region: 'asia',
     initials: 'WA',
     color: '#00b4f5',
-    rate: 65,
+    rate: 72,
     rating: 4.6,
     reviews: 21,
     responds: '3h',
@@ -526,12 +715,13 @@ export const PARTNERS = [
   }),
   P('Hybrowlabs', {
     tagline: 'Building less on Frappe, so you maintain less',
+    address: 'Office 5, Baner Business Bay, Baner Road, Baner, Pune 411045, Maharashtra, India',
     tier: 'silver',
     city: 'Pune, India',
-    region: 'india',
+    region: 'asia',
     initials: 'HL',
     color: '#0ea5e9',
-    rate: 60,
+    rate: null,
     rating: 4.2,
     reviews: 8,
     responds: '7h',
@@ -542,12 +732,14 @@ export const PARTNERS = [
   }),
   P('Finbyz Tech', {
     tagline: 'Built for the finance team that lives in the ERP',
+    address:
+      '902, Satellite Trade Centre, Iscon Cross Road, Satellite, Ahmedabad 380015, Gujarat, India',
     tier: 'silver',
     city: 'Ahmedabad, India',
-    region: 'india',
+    region: 'asia',
     initials: 'FB',
     color: '#22c55e',
-    rate: 70,
+    rate: 76,
     rating: 4.4,
     reviews: 15,
     responds: '5h',
@@ -558,12 +750,13 @@ export const PARTNERS = [
   }),
   P('ALYF', {
     tagline: 'Open source ERP for the German Mittelstand',
+    address: 'Isarhöfe, Rosenheimer Straße 84, 81669 München, Germany',
     tier: 'silver',
     city: 'Munich, Germany',
     region: 'europe',
     initials: 'AL',
     color: '#a855f7',
-    rate: 130,
+    rate: 128,
     rating: 4.7,
     reviews: 6,
     responds: '8h',
@@ -574,12 +767,14 @@ export const PARTNERS = [
   }),
   P('Craft Interactive', {
     tagline: 'Multi-entity, multi-currency, across the Gulf since 2012',
+    address:
+      'Office 1203, Marasi Bay Tower, Business Bay, PO Box 62579, Dubai, United Arab Emirates',
     tier: 'gold',
     city: 'Dubai, United Arab Emirates',
     region: 'middle-east',
     initials: 'CI',
     color: '#ef4444',
-    rate: 100,
+    rate: 105,
     rating: 4.5,
     reviews: 14,
     responds: '4h',
@@ -595,12 +790,13 @@ export const PARTNERS = [
   }),
   P('Kingstech Services', {
     tagline: 'One rollout, several jurisdictions, out of Singapore',
+    address: '#14-11 Robinson Square, 108 Robinson Road, Singapore 068900',
     tier: 'bronze',
     city: 'Singapore',
     region: 'asia',
     initials: 'KS',
     color: '#ec4899',
-    rate: 110,
+    rate: null,
     rating: 4.3,
     reviews: 11,
     responds: '5h',
@@ -611,12 +807,14 @@ export const PARTNERS = [
   }),
   P('Navari', {
     tagline: 'Software built for the conditions East Africa actually works in',
+    address:
+      '4th Floor, Riverside Court, Kaburu Drive, Kilimani, PO Box 41283-00100, Nairobi, Kenya',
     tier: 'bronze',
     city: 'Nairobi, Kenya',
     region: 'africa',
     initials: 'NV',
     color: '#f97316',
-    rate: 80,
+    rate: 82,
     rating: 4.5,
     reviews: 9,
     responds: '6h',
@@ -627,12 +825,13 @@ export const PARTNERS = [
   }),
   P('Korecent', {
     tagline: 'ERP as part of your quality system, not beside it',
+    address: 'Suite 1750, 1420 West Fulton Market, Chicago, IL 60607, United States',
     tier: 'silver',
     city: 'Chicago, United States',
     region: 'americas',
     initials: 'KO',
     color: '#06b6d4',
-    rate: 140,
+    rate: 145,
     rating: 4.4,
     reviews: 7,
     responds: '6h',

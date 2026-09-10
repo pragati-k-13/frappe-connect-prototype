@@ -15,9 +15,13 @@ import mapUrl from '../assets/world-map.svg'
 import { HUB_CITIES } from '../data/quiz'
 
 const props = defineProps({
-  // Region keys from `data/quiz.js`. An array because the region question takes
-  // more than one answer — every hub in any answered region lights up. Empty
-  // before the question is reached, which leaves the whole map at rest.
+  // The answered geo tokens, mixed: region keys ('asia') and country names
+  // ('India'), both from `data/quiz.js`. One flat array because region and
+  // country are one dimension answered through one chip row, and the two can't
+  // collide — region keys are lowercase slugs, country names are capitalised.
+  // An array because the question takes more than one answer; every hub matching
+  // any of them lights up. Empty before the question is reached, which leaves
+  // the whole map at rest.
   highlight: { type: Array, default: () => [] },
 })
 
@@ -37,7 +41,7 @@ const project = (lat, lng) => ({
 const pins = computed(() =>
   HUB_CITIES.map((hub) => {
     const { x, y } = project(hub.lat, hub.lng)
-    const on = props.highlight.includes(hub.region)
+    const on = props.highlight.includes(hub.region) || props.highlight.includes(hub.country)
     return {
       ...hub,
       x,

@@ -327,7 +327,10 @@ const RAIL = [
               <span class="flex-1 border-t border-outline-gray-1" />
             </div>
 
-            <div class="mt-4 flex items-start justify-between gap-6">
+            <!-- `figure`, not `div`: a `figcaption` is only valid inside one,
+                 and Vue's compiler warns about it otherwise. It's also the right
+                 element — a quote and its attribution are one unit. -->
+            <figure class="mt-4 flex items-start justify-between gap-6">
               <div class="min-w-0 flex-1">
                 <!-- 15px: the body size. A pull quote set larger than the page
                      it sits in reads as a headline, and this is somebody
@@ -341,7 +344,7 @@ const RAIL = [
                 </figcaption>
               </div>
               <Avatar class="size-16 shrink-0" :image="portrait" :label="TESTIMONIAL.name" />
-            </div>
+            </figure>
 
             <div class="mt-4 flex items-center gap-3">
               <span class="flex-1 border-t border-outline-gray-1" />

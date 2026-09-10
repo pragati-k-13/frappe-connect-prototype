@@ -3,7 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, FormControl } from 'frappe-ui'
 import AuthShell from '../components/AuthShell.vue'
-import { COUNTRY_OPTIONS, INFERRED_COUNTRY, regionForCountry } from '../data/countries'
+import { REGIONS } from '../data/quiz'
 import { isEmail, useAuthExit } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 
@@ -15,10 +15,10 @@ import { useConnectStore } from '../stores/connect'
 // email and nothing that can wait for a later screen. Name and email are that.
 //
 // Country is the exception, and it earns its place: it's the only answer here
-// the PRODUCT uses rather than the account. Region prices the packs and is one
-// of the two dimensions partners are matched on, and it's already known from
-// the request's IP — so asking is really asking someone to confirm a guess,
-// which is a cheaper question than it looks. See `data/countries.js`.
+// the PRODUCT uses rather than the account. It is half of the geo dimension the
+// listing filters on — `filters.countries`, the granular half, with regions as
+// the other — and it's already known from the request's IP, so asking is really
+// asking someone to confirm a guess.
 //
 // ⚠️ There is no password, and that's not an omission. The next step in the
 // flow is `verify`, which means an emailed code or link — so the address is the
@@ -33,12 +33,30 @@ const store = useConnectStore()
 const route = useRoute()
 const router = useRouter()
 
+// ⚠️ Stands in for GeoIP, the same way `inferredRegion` does in the store. A
+// real build resolves this server-side on first paint; hardcoding the common
+// case is what makes the interaction — an answer already made, which you can
+// change — reviewable at all.
+const INFERRED_COUNTRY = 'India'
+
+// Every country the programme covers, from the directory's own per-region
+// lists — one taxonomy, not a second one invented for this form.
+//
+// India first, then the rest alphabetically. It leads rather than sitting under
+// I because it's the pre-selected answer and the only market whose pack pricing
+// is real; a reader should find the current value at the top, not two thirds of
+// the way down.
+const COUNTRY_OPTIONS = (() => {
+  const all = [...new Set(REGIONS.flatMap((r) => r.countries))]
+  return [
+    INFERRED_COUNTRY,
+    ...all.filter((c) => c !== INFERRED_COUNTRY).sort((a, b) => a.localeCompare(b)),
+  ]
+})()
+
 const form = reactive({
   name: '',
   email: '',
-  // Pre-filled rather than blank. In production the country comes from the
-  // request's IP; here it's hardcoded to the common case so the interaction —
-  // an answer already made, which you can change — is reviewable.
   country: INFERRED_COUNTRY,
 })
 
@@ -69,7 +87,7 @@ const submit = () => {
   store.signUp({
     name: form.name.trim(),
     email: form.email.trim(),
-    region: regionForCountry(form.country),
+    country: form.country,
   })
   // `email` in the query as well as the store, so a reload on the verify screen
   // still knows where the code went. `next` rides along so the gate's errand

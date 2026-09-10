@@ -63,55 +63,23 @@
   max-height: 5rem;
 }
 
-/* Map panel stat row.
-   Six labelled counts that read as one claim about the network's size — broken
-   across lines unevenly, they read as several. What decides whether they fit on
-   one line is the PANEL's width, not the window's, and the panel is NARROWEST
-   at 1024px, where the layout turns two-column and the map hands most of its
-   width to the quiz (316px of usable room there, against 956px at 1600px). A
-   viewport breakpoint therefore gets this exactly backwards; the query below
-   measures the panel instead.
-   Hand-written because Tailwind 3 needs a plugin for @container and this is the
-   only place that wants one. */
-.fc-map-panel {
-  container-type: inline-size;
-}
+/* ⚠️ Neutralises `SidebarItem`'s own collapsed-state tooltip, which is REPLACED
+   by one of ours in `ConnectShell` — see the note there.
 
-/* Grid, not flex, and every column gets the same floor. Left to size
-   themselves the six cells run 26px ("Asia") to 71px ("Middle East"), so a
-   uniform gap lands the numbers at wildly uneven intervals and the row reads as
-   six unrelated facts. The floor pulls the short ones up — the range closes to
-   48-71px — without stretching the columns to equal `1fr` widths, which at a
-   956px panel would fling them back out to the edges.
-   Narrow panel: 3 x 2. */
-.fc-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(48px, max-content));
-  justify-content: center;
-  column-gap: 1.5rem;
-  row-gap: 1.25rem;
-}
+   Why it has to be neutralised rather than configured: SidebarItem hardcodes
+   `<Tooltip placement="right">`, and `Tooltip`'s prop is `side`. It also sets
+   `inheritAttrs: false`, so `placement` isn't applied to anything either — it is
+   simply dropped, and the tooltip falls back to the default `side: 'top'`. Every
+   collapsed rail item therefore pops its label UP, over the item above it,
+   inside the 48px rail. Nothing errors; it just covers the sidebar.
 
-/* Wide enough for one row at that floor. Four of the six sit at 48px, "Middle
-   East" needs 71 and "Americas" 57, so the columns come to 320px and each tier
-   below is that plus its gaps. These widths are the panel's CONTENT box, which
-   is what @container measures: at `p-8` that's 64px less than the panel's own
-   width. */
-@container (min-width: 380px) {
-  .fc-stats {
-    grid-template-columns: repeat(6, minmax(48px, max-content));
-    column-gap: 0.75rem; /* 380px */
-  }
-}
-@container (min-width: 420px) {
-  .fc-stats {
-    column-gap: 1.25rem; /* 420px */
-  }
-}
-@container (min-width: 480px) {
-  .fc-stats {
-    column-gap: 2rem; /* 480px */
-  }
+   `data-grace-area-trigger` is reka-ui's own marker on a tooltip trigger, which
+   is the icon wrapper span here. Killing pointer events on it means that trigger
+   never sees a hover, so the built-in bubble never opens. The row stays fully
+   interactive: pointer events over a `pointer-events: none` child are targeted
+   at its parent, and the parent is the row's `<a>` / `<button>`. */
+.fc-sidebar [data-slot='sidebar-item'] [data-grace-area-trigger] {
+  pointer-events: none;
 }
 
 /* frappe-ui's `Avatar` hardcodes `object-cover` on its <img>, which is right for

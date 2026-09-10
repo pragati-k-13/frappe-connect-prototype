@@ -225,8 +225,11 @@ const BODY_STRIDES = [1, 3, 7, 9]
 export const SHOWN = 4
 
 export const reviewsFor = (partner) => {
-  const names = NAMES[partner.region] ?? NAMES.india
-  const suffix = SUFFIX[partner.region] ?? 'Ltd'
+  // `market`, not `region`: India is a country inside Asia for the filter, and
+  // a pool of its own here — see `marketOf` in `data/partners.js`. A Chennai
+  // partner reviewed by "Lim Wei Sheng" is the tell that this read `region`.
+  const names = NAMES[partner.market] ?? NAMES.india
+  const suffix = SUFFIX[partner.market] ?? 'Ltd'
   const nameSeed = seedFor(partner.id, 'name')
   const bodySeed = seedFor(partner.id, 'body')
   const tradeSeed = seedFor(partner.id, 'trade')

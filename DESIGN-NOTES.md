@@ -28,10 +28,10 @@ that is part of a component's anatomy stays:
 The test is whether removing it loses information about _what something is_, rather than
 just removing a line between two things that are already apart.
 
-**One auth CTA, on every screen: the ghost "Log in or create account".** This used to
-promote to a solid "Create account" on the results and profile screens. A solid button in
-the app chrome outranks the page's own primary action — on the profile it read louder
-than Contact, which is the entire point of the page.
+⚠️ **Sign-in does not work right now.** `LoginDialog` has been removed and a new design is
+coming; nothing has replaced it, deliberately. The top bar's "Log in or create account"
+stays and names the gap in a toast, and every gated action — Save, Contact — simply runs.
+See "Sign-in" below for what came out, what stayed, and where the new one plugs in.
 
 **Connect does not open on a listing.** The hero _is_ the qualifier. The list is what you
 get for answering. Everything below the fold — starter packs, success stories, footer CTA
@@ -43,11 +43,47 @@ reads as "no constraint" — identical to never having been asked. So skip needs
 handling downstream, and if it gets cut later only the quiz page changes.
 
 **Q1 branches, whichever group you pick.** All four industry groups have real sub-segments
-in the directory's taxonomy, so choosing any of them reveals a required segment dropdown
-inline, under the selected radio, rather than as a fourth step — the count stays 3/3.
-Continue is blocked until a segment is picked, with Skip as the honest escape hatch. The
-quiz asks for one segment; the store holds an array, because the results filter merges
-industry and segment into a single multi-select that can widen it.
+in the directory's taxonomy, so choosing any of them reveals a segment dropdown inline,
+under the selected radio, rather than as a fourth step — the count stays 3/3.
+
+**The segment is optional, and picking an industry selects all of them.** This is the part
+worth reading, because the obvious implementation is wrong: `answers.industry` does not
+filter anything (partners are tagged at the segment level — see below), so an industry with
+an empty `segments` would mean "no constraint at all", and Continue would land you on the
+same unfiltered list as Skip. So choosing "Services" writes **all fourteen** of its
+segments. The results filter unions segments, so a group's full set is exactly what that
+group means as a filter — and the filter bar collapses a whole group back to its label, so
+the listing reads "Services" rather than "14 selected". Picking one segment from the
+dropdown narrows that set to the one.
+
+⚠️ The Select therefore shows a value only when **exactly one** segment is held; any other
+length is the implicit whole-group set. Rendering `segments[0]` would show "Aviation
+Industry" as picked the instant someone chose Services. Its placeholder reads **"All
+segments"**, not "Pick a segment" — an empty-looking control here is not an unanswered
+question, it's the widest answer.
+
+⚠️ **No partner count on the segment options**, and that's a decision rather than an
+omission — one was built and taken out. Three things against it, and the third is the one
+that decided it:
+
+- The numbers come from the mock's thirteen partners over an **invented** partner→segment
+  mapping, so they'd sit two questions away from the region chips whose counts _are_ real
+  directory figures — 71 there against 5 here, same-looking number, different provenance.
+- Eleven of the thirty-five segments come out at **zero**.
+- A bare number here **has no obvious referent**. "India 71" reads as partners because the
+  question is literally about where partners are; "Education 3" doesn't, because this
+  question is about the visitor's own industry. Labelling it ("3 partners") would have
+  fixed that, and would also have fixed the screen-reader announcement — but not for a
+  figure this soft, and not at fourteen repetitions of the word.
+
+The region chips keep their counts. The question there does the explaining.
+
+⚠️ **There is no error state anywhere in the quiz.** Continue is simply disabled until the
+step has an answer, with Skip beside it as the escape hatch. Q1 used to keep Continue
+enabled with no segment and then _refuse the press_, raising "Pick a segment, or skip the
+question." An enabled button that doesn't do the thing is worse than a disabled one, and
+the sentence only repeated the Select's own placeholder in red after you'd been rejected
+once. Both are gone.
 
 **Region takes more than one answer.** It's the only multi-answer question: businesses
 routinely work with partners in more than one region, and each region has enough partners
@@ -93,8 +129,9 @@ that group's label ("Manufacturing"), anything else reads "N segments" — so a 
 selection doesn't hide behind "12 selected".
 
 `answers.industry` survives as the answer to Q1 and **nothing more — it does not filter**.
-`answers.segments` is the whole constraint: the quiz writes the one segment it asked for,
-and the bar can widen that to any set across any groups.
+`answers.segments` is the whole constraint: the quiz writes either the chosen segment or
+the whole group's set (see Q1 above), and the bar can widen that to any set across any
+groups.
 
 ⚠️ `implementation: 'standard'` is meant to exclude partners who sell no starter packs —
 but all 13 partners in the roster have at least one, so on this data it narrows nothing.
@@ -107,9 +144,15 @@ ignore.
 
 ## Partner profile — the top section
 
-⚠️ **Down to Marketplace contributions.** The header, media gallery, client strip, the
-About / Services and Expertise card, Partner vision, Pricing, Reviews, Success stories and
-Marketplace contributions are built. Anything below that is the next pass.
+**The whole page is built.** Header, media gallery, client strip, the About / Services and
+Expertise card, Partner vision, Pricing, Reviews, Success stories, Marketplace
+contributions, and "How they got started" as the closing section.
+
+**`pb-48` at the foot, against the top's `pt-8`.** The page ends on the founding story,
+the one thing here meant to be read straight through rather than scanned, and 32px of tail
+put the browser edge directly under the last line — the passage read as cut off rather than
+finished. 192px is twice the 96px between sections, which is the smallest gap that reads as
+"nothing follows" rather than as another section break.
 
 **The subtitle is the partner's own strapline.** It used to be a generated
 "city · N success stories" line, which restated two things the page already shows — the
@@ -122,8 +165,13 @@ as a last resort, so a partner added without a tagline doesn't render a blank li
 solid button because it's the outcome the whole directory exists to produce; Book a slot
 and Save are `subtle` and icon-only so they don't compete with it. Save uses the same
 word and the same stateful `aria-label` as the row's bookmark — one control, one
-vocabulary, and the same word the sidebar's "Saved partners" uses. (It read "Shortlist"
-until the vocabulary was settled on "Save".)
+vocabulary. (It read "Shortlist" until the vocabulary was settled on "Save".)
+
+⚠️ Save now has **nowhere to go**. The rail's "Saved partners" item has been removed, so
+the list lives on the store (`connect.saved`) and is read only by the bookmark icons that
+write to it. The gesture works and survives across the row and the profile; there is just
+no screen that shows the result. `savedToast` stays deliberately silent about a
+destination rather than naming one that doesn't exist.
 
 **Everything on this page sits in one 800px column**, including the media gallery. The
 client strip is capped narrower still, at 600px: five marks stretched across the full
@@ -222,8 +270,10 @@ got truncated into `+2` would be hiding the one fact the visitor came for. Indus
 match `answers.segments`, apps match `filters.app`. Skip the quiz and nothing is checked,
 which is correct: there's no requirement to match against.
 
-The `+2` overflow carries the remaining names in a tooltip rather than just a count, the
-same way the listing row's "+2 more" does. Tridots Tech was given **seven** industries so
+The `+2` overflow carries the remaining names in a tooltip rather than just a count. The
+listing row solves the same problem differently — it has no room for a tooltip on a single
+line, so it spells the tail out as part of the sentence instead ("…, Retail, Healthcare,
+and 4 more"). See the listing-row note below. Tridots Tech was given **seven** industries so
 that state is reviewable — every other partner sits at or under the cap.
 
 **The chips are `Badge`** — `theme="gray" variant="subtle" size="md"`, which is 20px
@@ -254,10 +304,20 @@ renders the partner's real app list instead.
 design shows the label and an info icon, not the tooltip. One line to correct, in
 `PartnerAboutCard.vue`.
 
-**Address and accolades are real or absent — never invented.** Inventing a street address
-or an award for a real, named company asserts something about a real business. Tridots
-Tech has both because both came out of the design file; the other twelve have no
-accolade, and their address falls back to `city`. Same rule `tagline` already follows.
+**⚠️ Accolades are real or absent. Addresses no longer are.** Only Tridots Tech's award
+came out of the design file, and the other twelve partners still have none — inventing an
+award for a real, named company asserts something about a real business.
+
+Addresses used to follow the same rule and fall back to `city`. They don't now: all
+thirteen carry a full street address, and twelve of them are invented. Each is plausible
+for that partner's real city and set in that country's own postal conventions — unit
+before building in India, street number after the street in Germany, a PO Box in the UAE,
+the `#14-11` floor-unit form in Singapore — because thirteen firms across six regions all
+formatted like a US address would look wrong to everyone who lives in one of them. The
+districts are real; the **buildings are made up**, deliberately, so none of them points at
+a real occupied suite. They are still an invented fact about a real company, and they sit
+alongside `tagline`, `founding` and the `VISION` copy on the list of things to replace
+first.
 `pmm` is derived from tier (gold 5, silver 3, bronze 2) so the two can't contradict each
 other, and `countries` comes from the scraped `city`. `migrations` is invented and uniform
 by region. Certification counts are invented too, but kept as an explicit per-partner
@@ -363,8 +423,19 @@ two lines.
 `project.modules` (app → module keys) rather than on a partner: it's the same work whoever
 quotes it. Only apps in `project.modules` ∩ `partner.apps` are priced — the modal is an
 estimate of what this partner would do, not an audit of what they don't. Tridots reads
-73 hrs (ERPNext 5 modules + CRM 2) at $85/hr = $6,205; Greycube reads 63 hrs at $75/hr =
-$4,725, ERPNext only.
+73 hrs (ERPNext 5 modules + CRM 2) at $85/hr = $6,205; Greycube reads 63 hrs at $74/hr =
+$4,662, ERPNext only.
+
+**⚠️ Three partners publish no rate at all** (`rate: null` — New Indictrans, Hybrowlabs,
+Kingstech Services), and the modal has nothing to multiply by for them. It is never opened
+for one: `PartnerPricingSection` gates both the button and the dialog on the rate, and the
+standard-implementation card offers **Ask for pack pricing** instead — the pack hours are
+still the partner's own and don't depend on a rate. The label deliberately isn't "Contact
+us", which is already the Custom card's action right beside it; two identical buttons would
+make the split between a fixed scope and a bespoke one look like a distinction without a
+difference. In the listing row the same partners read **Rate undisclosed** in `ink-gray-5`,
+keeping the slot and the icon — dropping the fact would close the gap and leave the row
+looking complete, with nothing to say which of the three facts went missing.
 
 **The scrim behind every dialog is `black-overlay-400`** (45% black), not the
 `black-overlay-200` (27%) frappe-ui ships — at 27% the page behind stayed legible enough to
@@ -812,16 +883,23 @@ Services, Hybrowlabs — and a bare `${name}'s` gave "Greycube Technologies's".
 #### ⚠️ The starter packs were repriced
 
 They used to be rupee strings: ₹80,000 for the 40-hour pack, i.e. ₹2,000/hr, about $24.
-Partner rates are $60–140/hr, so the estimator would have quoted three to six times the
+Partner rates are $72–145/hr, so the estimator would have quoted three to six times the
 pack price for identical hours **in the same section of the same page**. Converting the
 symbol wouldn't have fixed that — ₹80,000 for 40 hours of consulting isn't plausible in any
 currency.
 
-Each pack is now `hours × $70`, a benchmark below every partner's rate, so a pack reads as
+Each pack is now `hours × $70`, a benchmark below every partner's published rate, so a pack reads as
 the discounted fixed-scope product it is: Core ERPNext `$2,800`, Manufacturing `$4,900`,
 All in one `$7,000`, Frappe HR `$2,100`. Tridots at $85 estimates $3,400 bespoke against
 the $2,800 pack for the same 40 hours. `hours` is the number both surfaces derive from, so
 they can't drift. There is no `₹` left in `src/`.
+
+⚠️ **$70 sitting under every rate is load-bearing**, and it's the constraint to check when
+editing the `rate` column. A partner priced beneath the benchmark would have the estimator
+quoting less than the pack sitting next to it, which reads as the pack being a bad deal
+rather than a discount. The rates were spread out deliberately — $72 to $145, no longer
+all round tens — and the floor was raised to clear $70, which it previously didn't: two
+partners used to sit at $60 and $65.
 
 ### Success stories
 
@@ -865,36 +943,45 @@ never have done. The clients are the same deliberately-fictional companies as th
 with" strip (`CLIENTS` in `data/media.js`), which is the one thing keeping them from
 reading as real references.
 
-**The middle stat has been through two rewrites, and the reasoning is worth keeping.** It
-started as a client-retention rate: a claim nobody can check without asking the partner
-for their books, so the wrong thing for a directory profile. Then it was the certification
-count — verifiable, since Frappe issues the certificates, but it says what a partner _is
-qualified for_, not whether the work went well, which is the one thing this section is
-about.
+**The three stat tiles are gone.** "800+ FC sites", "75% Would recommend" and "17y Years
+operating" used to sit between the heading and the stories. Removed, along with
+`statsFor()` and the `STATS` table behind them, so nothing invented is left lying around
+unrendered.
 
-It's now **the share of reviewers who would recommend them**: a success signal, computed
-from reviews the platform already holds, needing no validation. Over _all_ of a partner's
-reviews, not the four the profile renders — `reviewsFor()` generates the full set and the
-component slices it, so the percentage matches its own label. A partner with no reviews
-drops the card rather than showing a hopeful 0%.
+Worth recording why, because the middle tile had already been rewritten twice and the
+reasoning that killed it applies to any replacement:
 
-⚠️ **The rating and the recommend rate disagree, because they're two independently
-invented numbers.** Stored ratings run 4.2–4.7 while the generated rates run 63–75% — so
-Tridots reads "4.5 ★" in Reviews and "75% Would recommend" two sections later. The fix is
-to derive `partner.rating` from the generated review set instead of storing it, which
-makes the headline, the visible stars and the rate one consistent set. Not done yet
-because it moves every listing row's rating.
+- It started as a **client-retention rate** — a claim nobody can check without asking the
+  partner for their books, so the wrong thing for a directory profile.
+- Then the **certification count** — verifiable, since Frappe issues the certificates, but
+  it says what a partner _is qualified for_, not whether the work went well.
+- Then the **share of reviewers who would recommend them**, computed over all of a
+  partner's reviews rather than the four the profile renders. Sound on its own terms, and
+  it still had to go: it openly disagreed with the Reviews section two sections below, where
+  Tridots reads 4.5★ against 75%. The two numbers were generated independently and there
+  was no reason for them to agree.
 
-⚠️ `fcSites` and the tenure are still invented per partner, in an explicit table. The
-tenure's label is now "Years operating" — the design's "Operating since" paired a
-duration with a label that wants a year.
+The other two were `fcSites` and a tenure, both invented per partner in an explicit table,
+and both claims the directory would have had to source. The section is about the write-ups;
+the tiles were a scoreboard bolted to the top of it, and two thirds of it was unsourceable.
+
+⚠️ `partner.rating` is still a stored number rather than one derived from the generated
+review set, so the headline figure and the visible stars in Reviews are independent of each
+other. That was always the underlying problem the recommend-rate tile made visible.
+Deriving it is still the fix; not done because it moves every listing row's rating.
 
 ### Marketplace contributions
 
-Last on the page, and it renders for only **eight of the thirteen** partners. What a
-partner has published to the marketplace isn't about the engagement you're weighing up —
-it's evidence of what they build when nobody has hired them to — so it comes after
-everything that is.
+Second to last on the page, and it renders for only **eight of the thirteen** partners.
+What a partner has published to the marketplace isn't about the engagement you're weighing
+up — it's evidence of what they build when nobody has hired them to — so it comes after
+everything that is. Only "How they began" follows it.
+
+**600px, not the page's 800**, so it shares a left edge with the founding story below it
+and the client strip above. A row here is a 40px mark, a name, a rating and one button;
+at full width the button sat a third of a metre from the app it belongs to with nothing
+in between, and two of those read as a table missing its middle columns rather than as a
+short list.
 
 ⚠️ Every app, rating and review count is **invented** — see `data/marketplace.js`. This is
 the most attributable placeholder data in the mock after the reviews: it credits a real,
@@ -926,17 +1013,28 @@ from a wrapper in the page. An empty `<div class="mt-24">` still contributes its
 block with no height, border or padding collapses its margins _through_ itself — which left
 96px of dead space at the foot of five profiles.
 
-⚠️ **`text-ink-amber-5` is the only live shade of that scale.** `text-ink-amber-1` through
-`-4` compile to nothing and render black; all five were checked in the browser before one
-was used. It lands on `#E09310`, within a hair of the `#E79913` the tier seals take from
-Frappe's own badge artwork.
+⚠️ **Most of the `ink-amber-*` scale isn't live.** Only the shades something in the app
+actually uses get a utility — `-5` and `-7` (the accolade trophy) do; `-1` to `-4`, `-6`
+and `-8` compile to nothing and render black. Check the exact shade in the browser before
+reaching for it. `ink-amber-5` lands on `#E09310`, within a hair of the `#E79913` the tier
+seals take from Frappe's own badge artwork.
 
-⚠️ **Two star treatments now share the page.** Reviews shows a single star in `ink-gray-5`
-— a deliberate change, to stop a solid black star being the loudest thing in a review row —
-and this section shows five amber stars, straight from the design reference. The
-justification is that they say different things: one partner's own score versus a
-marketplace listing's. If that reads as an inconsistency rather than a distinction, the
-Reviews star is the one to move.
+**Amber and filled wherever the star IS the rating.** That's this section's five-star rows
+(always amber, straight from the design reference), the Reviews aggregate, and the score on
+each individual review. `ink-amber-5` is also frappe-ui's own answer — its `Rating`
+component fills at `yellow-500`, the same step of the same ramp.
+
+⚠️ **The listing row is the exception, deliberately.** Its star is a plain outline in
+`ink-gray-6`, matching the dollar sign and the clock either side of it. That row is three
+unlike facts on one line and the icons are labels telling them apart, not marks in their
+own right — a filled amber star there is the loudest thing in the row, thirteen rows over.
+It was briefly amber, and that is what it looked like.
+
+So the rule isn't "one treatment per app", it's **what the glyph is doing**: labelling a
+figure, or being the figure.
+
+⚠️ What the stars **don't** carry is a number the app derives — `partner.rating` is stored,
+not computed from the reviews. See the note above under Success stories.
 
 ⚠️ Ratings are made **distinct within a partner**. There are only fifteen possible values,
 so two of a partner's apps landing on the same one is a one-in-fifteen event — and it
@@ -950,45 +1048,94 @@ read as a copy-paste bug. The cost is that a single-partner region gets an
 arbitrary-but-plausible pick from its pool rather than the most characteristic one; pinning
 a specific app to a specific partner is a one-line change.
 
-### The login prompt
+### How they began
 
-`LoginDialog.vue`, opened through `store.requireLogin()`. "Log in via Frappe
-Cloud" spins for 1.4s and signs you in; "Sign up" is ⚠️ inert, because signing
-up is a Frappe Cloud flow that lives outside this app and stubbing it here would
-invent an account-creation screen nobody has designed.
+The last section on the profile, and the only one on the page that isn't a specification.
 
-**One dialog for the whole app**, mounted in `ConnectShell` because that wraps
-every in-app screen. The alternative — a dialog per gated control — puts thirteen
-copies of the same modal on the results page, one per partner row.
+**Founding story only.** Values, mission and working style are already the Partner vision
+section's three questions, asked identically of every partner so they can be compared.
+Restating any of it at the foot of the same page would make both sections read as filler,
+so this one is strictly historical: when the firm started, what it was reacting to, where
+that got it. Two paragraphs, and the break between them is the beat between the two.
 
-**The gate holds what you were doing.** `requireLogin(action)` runs the action
-outright when you're signed in; signed out it opens the prompt and keeps the
-action until `completeLogin`. So pressing Save on a partner signs you in and
-_saves that partner_ — you land on the thing you wanted, not back on the button.
-Dismissing drops the held action, because running it afterwards would be the app
-doing something you cancelled. The callback is a module-level variable rather
-than store state: it's a function, which is both pointless to make reactive and
-awkward to serialise.
+**It looks nothing like the sections above it, on purpose.** Everything else on the
+profile is full 800px width with a 14px semibold label, laid out to be scanned — chips,
+rules, two-column question-and-answer, a table of packs. That is right for everything a
+visitor is comparing partners on. This isn't being compared, so what marks it out is the
+**shape**: one column at `max-w-[600px]` against the page's 800, and no frame, icon, chip
+or rule anywhere in it. Everything else on the page runs full width and is built out of
+parts; this is one narrow column of prose.
 
-⚠️ **Cancelling mid-spin cancels the timer.** Without that, closing the panel a
-beat after pressing the button still signs you in a second later, with no panel
-left to explain why.
+⚠️ The type is deliberately **not** doing the work. Body copy is `text-p-base
+text-ink-gray-6`, the same as every other paragraph in the app. It was briefly set a step
+larger (`p-lg`, `ink-gray-7`) on the theory that a section meant to be read should be
+sized up; it read as shouting rather than as talking, and the narrowed column was already
+saying it on its own.
 
-**Gated today:** the top bar's own "Log in or create account", Contact and Save
-on the profile, and Save on every listing row. **Not gated:** "Write a review",
-which needs a _completed project_ rather than an account — a different gate,
-noted below — and the estimate modal's "Contact partner", which sits behind a
-modal that is itself meant to be gated on `store.hasProject`, so you can't reach
-it signed out in the first place.
+The heading is `text-lg` against the other sections' `text-base` — the biggest heading in
+the body of the page — and still under the 17px of the partner's name in the header, which
+it shouldn't outrank.
 
-The subtitle names what an account is for rather than what you just pressed. Four
-different strings saying the same thing would be four strings to maintain, and
-the visitor already knows which button they hit.
+**"How they got started"**, not "How \<partner\> began". Every other heading on the page is
+a noun-phrase label — About, Pricing, Reviews — and this is the section that isn't a label,
+so it's allowed to sound like a person introducing the thing. "They" rather than the name:
+the name is already in the breadcrumb, the h1, the tagline and the sentence immediately
+below it, and a fifth is the formal register the heading is trying to get out of.
 
-⚠️ There is no auth. The 1.4s delay exists so the pending state is reviewable —
-a button that swaps to "Logging you in" and back inside one frame can't be
-designed against. A real build replaces the timer with the Frappe Cloud OAuth
-round trip and keeps everything else.
+**It owns its own `mt-24`**, no wrapper, for the same reason the marketplace section does:
+it can be absent, and an empty `<div class="mt-24">` collapses its margins through itself
+and leaves the 96px gap behind.
+
+⚠️⚠️ **Every word of the copy is invented**, on the same footing as the `VISION` block.
+Two things keep it as harmless as invented copy about a real company can be. The stories
+**name no people** — "two engineers", "the founders", "a team that had been doing X" —
+which is the same line `VISION.author` had to stop at. And the year is the one figure a
+reader could take as fact, so the prose keeps it vague ("the mid-2000s", "a decade in")
+and the section states it once, plainly, as a labelled date rather than a claim the copy
+makes. Where a `tagline` already carries a founding year — Tridots Tech's real "Since
+2006", Software@Work's invented "since 2011" — the `FOUNDING` year matches it, so the page
+can't contradict itself in the place a reader is most likely to check.
+
+### Sign-in — removed, pending a new design
+
+⚠️ **`LoginDialog.vue` is gone**, along with `loginOpen`, `completeLogin`, `dismissLogin`
+and the module-level `pendingAction` that held a gated action across the prompt. Nothing
+stands in for it. A new sign-in design is coming and a stub would only be something to
+argue with.
+
+**`store.requireLogin(action)` stayed, and it now just runs the action** — signed in or
+not. So every gated control works for everyone: Save fills the bookmark and toasts, Contact
+raises the messages toast, nothing is blocked.
+
+Keeping the function rather than deleting it, with all five call sites still wrapped, is
+the point. It is the **one seam** the new prompt plugs into. Unwrapping the callers now
+would mean rewriting all five again later, and would lose the record of which actions were
+meant to need an account: **Save** on the listing row and on the profile, and **Contact**
+on the profile (header and top bar). To re-gate, open the new prompt inside `requireLogin`
+when `!signedIn`, stash the action, and run it once the visitor is in.
+
+Two rules from the old implementation worth carrying into the new one:
+
+- **The gate held what you were doing.** Pressing Save signed you in and _saved that
+  partner_ — you landed on the thing you wanted, not back on the button.
+- **Dismissing dropped the held action**, because running it afterwards is the app doing
+  something you cancelled.
+
+**The top bar's auth CTA stays.** The ghost "Log in or create account" is still there and
+still the only control in that corner — it just has nowhere to send anyone, so it raises
+`signInToast` instead of opening a dialog. Same treatment Contact gets for the messages
+screen that doesn't exist: a button that swallows a click reads as broken, one that names
+the gap reads as unfinished, which is the truth. The toast also points at the demo control,
+which is where account state actually moves right now. It shares `id: 'auth'` with the
+"Logged out" toast, so the two halves of that story never stack. When the new prompt lands,
+put the button back to `store.requireLogin()` and delete `signInToast`.
+
+**Account state is still switchable** — from the demo control in the corner, which sets
+visitor / client / ongoing-project directly. So the signed-in surfaces (the sidebar
+subtitle, Log out in the header menu) are all still reachable for review.
+
+⚠️ **Not gated, and still not:** "Write a review", which needs a _completed project_ rather
+than an account — a different gate, noted below.
 
 ### Reviews
 
@@ -1085,7 +1232,7 @@ hand-rolled:
 
 | Surface                           | Component                                                                                                     |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| App chrome                        | `Sidebar` + `SidebarHeader` / `SidebarLabel` / `SidebarItem`                                                  |
+| App chrome                        | `Sidebar` + `SidebarHeader` / `SidebarLabel` / `SidebarItem`, `PageHeader` for the top bar                    |
 | Q1, Q3                            | `RadioGroup` + `Radio` (`padded`, label only)                                                                 |
 | Q1 branch, implementation filter  | `Select`                                                                                                      |
 | Book a slot                       | `Dialog` + `DialogDescription` (reka-ui)                                                                      |
@@ -1101,9 +1248,59 @@ hand-rolled:
 | Partner tiers                     | `components/TierIcon.vue` — the real Frappe badge seal                                                        |
 | Demo switcher                     | `components/DemoSwitch.vue` — `Dropdown` + `Button`, bottom-right (toasts cover it while visible)             |
 | Everything pressable              | `Button`                                                                                                      |
+| Screen 1's "Find a partner" CTA   | `Button` (`solid` / `md`) with `link`, which renders an `<a target="_blank">`                                 |
 
 `Sidebar` owns its own collapse, including the auto-collapse below `sm`, so
 there is no responsive branch to maintain in `ConnectShell`.
+
+### The top bar
+
+**`PageHeader`, not a hand-rolled `<header>`.** It was the latter, and it had drifted: the
+strip's metrics are the design system's — `min-h-12` (matching `SidebarHeader`'s fixed 48px
+region, so the two line up across the seam), `px-3 sm:px-5`, and the bottom rule — and the
+copy here had `px-4` below `sm`, 4px wider than the system's figure. At desktop widths the
+two were identical, which is exactly why it survived: the deviation only existed on small
+screens. `shrink-0` falls through onto PageHeader's root and is what keeps the bar from
+being squeezed by the `ScrollArea` below it.
+
+The bar stays a flex sibling of the scroll region rather than `sticky top-0` inside it, so
+nothing scrolls under it and it can't drift. The bottom rule is the edge of the chrome, not
+a section divider — `PageHeader` draws it, at the same `outline-gray-1` the hand-rolled one
+specified (plain `border-b` resolves to that token).
+
+**The breadcrumb copies frappe-ui's `Breadcrumbs` metrics without using it.**
+`text-lg-medium`, a `/` at `text-ink-gray-4`, `px-0.5 py-1` per crumb, the trail in
+`ink-gray-5` and the current page in `ink-gray-9` — all lifted from the component. Its
+markup is not: it renders a bare `<div>` of `<button>`s, with no `<nav>` landmark, no
+`aria-current`, and the page you're already on as a focusable control that does nothing.
+This bar is two crumbs deep at most and will never need the component's overflow dropdown,
+so the semantics are worth more than the component. Revisit if the directory ever nests
+further.
+
+**The trailing control is a slot.** `#action` on `ConnectShell`; the fallback is the auth
+CTA the list screens get. The partner profile takes it over with a ghost **Contact →** —
+the page's own solid Contact sits in the header at the very top, which is off screen for
+most of a profile this long, and the chrome's copy doesn't scroll away.
+
+⚠️ A page filling the slot **replaces** the auth CTA rather than joining it: the bar holds
+one control, and two ghost buttons side by side in a 48px strip is a choice nobody is
+asking the visitor to make. The fallback CTA no longer opens a dialog — see "Sign-in"
+above — so a page taking the slot is no longer taking on a sign-in path with it.
+
+⚠️ The `v-if` goes on the profile's `<template #action>`, not on the Button inside it. It
+has to be the SLOT that disappears on the 404 branch, or the shell sees a slot, skips its
+fallback, and someone who followed a dead link gets a bar with no control at all.
+
+⚠️ The slots are documented in a comment, not with `defineSlots()`. That's a types-only
+macro — in a plain JS `<script setup>` it has no runtime argument to accept, and passing it
+an object is a **compile error**, not a warning.
+
+**`-mr-2` on the trailing button**, whichever one it is. A ghost Button has no visible
+fill, so what reads as the bar's right padding is where its _label_ stops — 28px in,
+against the crumb's 20 on the left. Pulling the box back by its own 8px of padding lands the ink on the same 20px the
+header pads to. frappe-ui's own `PageHeader` example gets this for free because its trailing
+action is solid; the same correction is what `-ml-2` does for the profile page's ghost
+buttons.
 
 ### The sidebar
 
@@ -1126,6 +1323,133 @@ under `/connect` is the partner directory, so the match is a prefix.
 **Rows carry `space-y-0.5` inside a `nav` per group**, as in frappe-ui's own
 reference sidebar. They were flush before, which reads denser than the component
 intends and puts an active row's fill hard against its neighbours.
+
+**What's in it.** Five rows, no group labels:
+
+| Position             | Items                                        |
+| -------------------- | -------------------------------------------- |
+| _(top)_              | Messages, Notifications                      |
+| _(after a 28px gap)_ | Find partners, Starter packs, Implementation |
+
+"Saved partners" and "Requests" were removed. **Messages** and **Notifications** replaced
+them.
+
+Messages is the least speculative item in the rail — every Contact button in the product
+already toasts "the in-app messages screen, which doesn't exist yet", so this is the screen
+those toasts have been pointing at all along. It takes an **inbox** icon rather than a
+message bubble: the bubble belongs to the controls that write into that screen, and this is
+the pile the threads land in. `lucide-inbox` is frappe-ui's own choice for the row too —
+see the Sidebar `Collapsed` story.
+
+Everything except "Find partners" is inert, deliberately: the rail shows where the rest of
+the product lands without stubbing screens nobody has designed.
+
+### No group labels
+
+There were two — `Discover` over Find partners and Starter packs, `Your projects` over
+Implementation — and the second was a heading for a group of one. That labels a section
+that doesn't exist yet rather than the row that's actually there, and the fix isn't a
+better word: five rows need no taxonomy. Both are gone and the destinations are one flat
+list, which is also Helpdesk's shape — a personal pair above a single unlabelled list.
+
+⚠️ **`mt-7` on the list replaces the `Discover` label exactly.** `SidebarLabel` is `h-7`
+with no margins of its own, so the 28px it occupied _was_ the whole gap between the pair
+and the list; the spacing is unchanged, only the words are gone. Collapsed, that 28px was
+already blank rail — the label hides its text and draws no rule unless you pass `divider` —
+so the collapsed rail is pixel-identical to before.
+
+### Messages and Notifications sit apart from the rest
+
+They're a **pair directly under the header**, above everything you can navigate to, with a
+gap between them and the destinations. The pattern is **Helpdesk's**, which puts Search and
+Notifications in exactly that position — and the reason generalises: these are not places
+in the app, they're what is waiting for **you**. The gap is the only thing saying so now
+that the labels are gone, which is enough: two rows, then a break, then everywhere you can
+go.
+
+They were briefly filed as nav rows in a "Your activity" group, and Notifications was
+briefly pinned to the FOOT of the sidebar instead (frappe-ui's `RailItem` docs name Search
+and Notifications as the examples for `variant="ghost"`, and its Rail story anchors them at
+the bottom beside the user avatar). Top and bottom are the same argument reaching different
+conclusions about placement; Helpdesk is the closer reference because it is a Sidebar app
+rather than a Rail one, and this app has no `Rail`.
+
+⚠️ With Messages gone from it, the second group briefly read "Your projects" again and then
+lost its label along with the first — see above.
+
+**Separation is the "Discover" label's own `h-7`** doing the work of a gap — the same 28px
+that already separates the two groups below it, so the rail has one spacing rule rather
+than a special case at the top. Collapsed, the label's text hides and the 28px stays as
+blank rail, which is how the existing groups already read.
+
+⚠️ **The unread badge needs two forms, because `SidebarItem` hides its suffix when
+collapsed** (`w-0 opacity-0`) and this app OPENS collapsed. A count pill in `#suffix` alone
+would make the signal invisible in exactly the state it exists for. So: an 8px dot on the
+bell when collapsed, a count pill when expanded. The dot's treatment is lifted from
+`RailItemBadge` — `surface-red-6` with a `--surface-base` ring, so it reads against the
+glyph underneath. Measured against the scroll viewport: at `-right-1 -top-1` on the second
+row it clears all three edges, so the ScrollArea root's `overflow-hidden` can't clip it.
+
+⚠️ **The two badges take different variants on purpose.** The expanded pill is
+`red / subtle`, not `solid` — a solid red pill was the most saturated thing on the whole
+screen, louder than the page's own primary button, sitting in a grey-on-grey rail to report
+a count of three. Subtle keeps the red (so it still reads as _unread_ rather than as a
+total) at roughly the weight of the "Gold" tier badge in the listing. The collapsed dot
+stays solid: at 8px there is no room for a fill and a label to share the work, the
+saturation is the entire signal, and in a 48px rail it is the only mark on screen. Loudness
+here is a function of size, not of colour.
+
+⚠️ **No unreads without a project.** A signed-out visitor gets no badge at all, and neither
+would someone who had just made an account: notifications come from something _happening_ —
+a partner replying, an implementation moving — so a badge on a first screen would be
+advertising mail that cannot exist.
+
+It's keyed on `hasProject`, not `signedIn`, even though the two are identical today (the
+enum is `visitor | client`, and `client` means "signed in, mid-implementation"). Hanging it
+off the **project** rather than the account is what makes a future "signed up, nothing
+started yet" state come out at zero without anyone remembering to handle it. The `sr-only`
+count is conditional too — "Notifications — 0 unread" is not a sentence anyone needs read
+to them on every pass through the rail.
+
+⚠️ The count itself is **invented and static** (`3` when there's a project). Nothing
+generates events and there's no screen to read them on, so it never clears; it exists so
+all three badge states are reviewable — dot, pill, and nothing. `RailItem` caps its own
+badge at "99+" — worth matching if this is ever wired to something that can exceed two
+digits.
+
+### Collapsed-rail tooltips
+
+Every row's tooltip is **ours**, not `SidebarItem`'s, and it sits to the **right of the
+rail** with its arrow tip on the sidebar's outer edge — the Gameplan treatment. Nothing in
+the sidebar is covered.
+
+⚠️ **frappe-ui's built-in one pops UP, over the sidebar.** `SidebarItem` renders
+`<Tooltip placement="right">` and `Tooltip`'s prop is `side`; with `inheritAttrs: false` the
+`placement` is dropped rather than applied, the default `side: 'top'` wins, and each label
+paints across the item above it inside a 48px rail. Confirmed by reading `data-side` off the
+bubble. Nothing errors. Written up in [FRAPPE-UI-NOTES.md](FRAPPE-UI-NOTES.md).
+
+It can't be configured from outside (no prop reaches it) and it can't be disabled from
+outside either — its `disabled` is `!isCollapsed || !tooltipText`, and `tooltipText` falls
+back to the row's own rendered text, so any row with a visible label has one. So it's
+switched off in CSS by killing pointer events on reka-ui's own trigger marker
+(`[data-grace-area-trigger]`, in `index.css`) and replaced with a frappe-ui `Tooltip`
+wrapped around the whole row.
+
+**`:offset="8"` is arithmetic, not taste.** The row spans x=8–40 inside the 48px rail (the
+ScrollArea viewport's `px-2`), and reka measures `sideOffset` to the ARROW's tip rather than
+to the bubble. 40 + 8 = 48 — the rail's right edge exactly, so the tip meets the seam and the
+bubble begins 4px beyond it. Measured, not guessed: the arrow's own rect reports `left: 48`
+against a rail whose `right` is 48. ⚠️ Tied to that `px-2` and to the 48px collapsed width;
+move either and this wants recomputing rather than nudging.
+
+`:disabled="!collapsed"` — an expanded row already shows its label, and a tooltip repeating
+a visible label is noise.
+
+⚠️ Hover only, not focus. reka merges its trigger onto the row's outer `<div>`, which isn't
+focusable, and `focus` doesn't bubble up from the control inside it. The built-in tooltip had
+the same hole for the same reason, so it isn't a regression — and it isn't a gap in the
+accessible name either, since `SidebarItem` puts `aria-label` on the control itself.
 
 ⚠️ **Don't try to align the logo with the nav icons.** `SidebarHeader` indents
 its logo frame 10px from the rail edge (a `px-1` region holding a `px-1.5`
@@ -1220,9 +1544,23 @@ of the six in a row that has to line up.
 not per-app partner counts, and invented numbers sitting next to real app names
 read as fact. The list went from 4 apps to the real 11.
 
-Region counts now total 156, matching the directory's "155+ Partners", and
-`MAP_REGIONS` is derived from `REGIONS` so the map and the chips can't drift
-apart.
+Region counts total 156, matching the directory's "155+ Partners". They live on
+`REGIONS` and are shown once, on the region question's own chips.
+
+⚠️ **The map panel's stat row is gone**, along with `MAP_REGIONS`, `.fc-stats`
+and `.fc-map-panel`. Six labelled counts — "71 India, 19 Asia, …" — used to sit
+pinned to the bottom of the map panel, and they were the same six numbers the
+region chips carry a few hundred pixels to the left, both on screen at once. One
+of the two had to go and it wasn't going to be the one attached to the control
+you answer with. The panel is now the map, vertically centred in whatever height
+it gets.
+
+That row was also the only `@container` query in the codebase — hand-written,
+because Tailwind 3 needs a plugin for one, and needed because what decided
+whether six cells fit on a line was the PANEL's width rather than the window's
+(the panel is narrowest at 1024px, where the layout turns two-column and the map
+hands most of its width to the quiz). Worth knowing that the technique was here
+and why, if a panel-width decision ever comes back.
 
 Partners carry real segment names, and the results filter matches them directly:
 the industry group is a label in the merged filter, not a constraint of its own,
@@ -1230,6 +1568,34 @@ so there is no mapping step and "Others" is as real a constraint as any other
 group. `GROUP_OF_SEGMENT` is still exported from `data/quiz.js` and the store no
 longer imports it — it's what a group-level filter would need if one is ever
 wanted again.
+
+## The listing row's industry line
+
+One line, always. `6 success stories across Textile Manufacturing, Retail, Healthcare, and
+4 more`. Wrapping to two lines made rows uneven heights and pushed the whole list taller
+than it needs to be.
+
+**Two spans, not one string**, and that's what makes the single line survivable: the named
+industries carry `min-w-0 truncate` and are the part allowed to give way, while the tail is
+`shrink-0` and stays readable at any width. (`min-w-0` is load-bearing — a flex item
+defaults to `min-width:auto` and refuses to shrink below its own text, so `truncate` has
+nothing to do without it.)
+
+**The tail is part of the sentence, not a chip.** It reads "and 4 more", with the joining
+comma parked at the end of the LEAD so it disappears along with the names it belongs to
+when the line truncates. It used to be `+4 more`, which read as a badge stuck on the row —
+and a badge sitting right after an ellipsis invites the reading that it's counting whatever
+just got clipped. It never was: the count is `industries.length - 3`, the span renders only
+when that's non-zero, and it's the same figure whether or not the text happens to fit at
+this width. Saying it in words is what makes that legible.
+
+**No count when there's nothing more.** Six of the thirteen partners name three industries
+or fewer and their line simply ends.
+
+**The lead is conditional on stories.** Two partners have published none, so it can't
+always open with a count: "0 success stories across Retail" reads as a failure rather than
+as "here's what they work in", which is the line's actual job. Those get "Works across …".
+One story takes the singular.
 
 ## The listing row's hover state
 
@@ -1571,6 +1937,17 @@ resets the question to 1 on its own.
 Worth knowing when demoing repeatedly: restarting lands you on the marketing
 page, and its CTA opens Connect in a **new tab** by design — so a few runs
 through the flow will leave a few tabs open.
+
+⚠️ That CTA is the one frappe-ui control on screen 1, which otherwise avoids the
+app's chrome on purpose. It used to be a hand-rolled anchor at `px-4 py-2.5` —
+roughly 40px tall with 16px flanks, a size not on the frappe-ui scale at all,
+and it read as oversized against the sentence beside it. It's now `Button`
+(`solid`, `md` = the 32px step) with the `link` prop rather than `route`, which
+is what preserves the new-tab behaviour: frappe-ui renders `link` as an
+`<a target="_blank" rel="noreferrer noopener">` while `route` would give a
+same-tab RouterLink. The button is allowed to be the exception because it's the
+seam — it's the control that takes you into the product. The rest of the page
+shouldn't follow it.
 
 It's mounted in `App.vue`, not in `ConnectShell` — screen 1 is the marketing
 page and has no app chrome at all, so the switch has to sit above the router to

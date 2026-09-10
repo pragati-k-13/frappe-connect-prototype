@@ -102,10 +102,22 @@ const REGION_RATES = {
 // typed again here — the quiz, the map, the results filter and now the pack
 // prices all have to call India "India" and the Middle East "Middle East", and
 // two lists of the same six labels is one list too many.
+// ⚠️ India is a PRICING MARKET here, not a region. The directory's taxonomy
+// moved it inside Asia as a country (`REGIONS` in `data/quiz.js`), but the rate
+// card is still per market and India's is the only real one — so this table
+// keeps its own key and carries its own label rather than looking one up that
+// no longer exists. The other five are region values and do resolve, but they
+// are named here too: a price label should not go blank because a filter's
+// taxonomy was reorganised.
+const REGION_LABELS = { india: 'India' }
+
 export const REGION_PRICING = Object.fromEntries(
   Object.entries(REGION_RATES).map(([value, rate]) => [
     value,
-    { ...rate, label: REGIONS.find((r) => r.value === value)?.label ?? value },
+    {
+      ...rate,
+      label: REGION_LABELS[value] ?? REGIONS.find((r) => r.value === value)?.label ?? value,
+    },
   ]),
 )
 

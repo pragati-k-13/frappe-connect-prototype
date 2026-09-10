@@ -69,7 +69,10 @@ const shownIndustries = computed(() =>
 )
 const industryOverflow = computed(() => shownIndustries.value.slice(CHIP_LIMIT))
 
-// Address is real or absent — never invented. See `data/partners.js`.
+// ⚠️ Every address but Tridots Tech's is INVENTED — a plausible one for that
+// partner's real city, in that country's own postal conventions. See the
+// warning on `address` in `data/partners.js`. City is the fallback for a
+// partner added without one.
 const address = computed(() => props.partner.address ?? props.partner.city)
 </script>
 
@@ -85,7 +88,23 @@ const address = computed(() => props.partner.address ?? props.partner.city)
         <h2
           class="flex items-center gap-2 border-b border-outline-gray-2 px-4 py-3 text-base font-medium text-ink-gray-8"
         >
-          <LucideInfo class="size-4 shrink-0 text-ink-gray-6" />
+          <!-- A building: this column is the COMPANY — its maturity level, its
+               certifications, its awards, its address — against the briefcase
+               next door, which is the WORK. Who they are, then what they do.
+               Two concrete objects at the same weight, and the pairing does the
+               explaining rather than either glyph having to.
+
+               ⚠️ Not the info circle it started as. That was the same glyph as
+               the PMM row's tooltip trigger two lines below it, and that one is
+               a real affordance — a thing you hover to get an explanation. A
+               heading wearing the same mark makes the affordance unreadable:
+               two identical circles in one narrow column, only one of which
+               does anything. (An ID card was tried in between; too literal.)
+
+               Same icon as the sidebar's "Find partners", deliberately: there
+               it means the directory of partner companies, here it means this
+               one. Consistent, not colliding. -->
+          <LucideBuilding2 class="size-4 shrink-0 text-ink-gray-6" />
           About
         </h2>
 
@@ -197,7 +216,11 @@ const address = computed(() => props.partner.address ?? props.partner.city)
           </div>
 
           <div class="py-3.5">
-            <dt class="text-p-sm text-ink-gray-7">Frappe apps</dt>
+            <!-- "Apps", not "Frappe apps". Every app in this directory is a
+                 Frappe app and the page is a Frappe partner's profile, so the
+                 qualifier only restated the context — and it made this the one
+                 row label in the card carrying a brand name. -->
+            <dt class="text-p-sm text-ink-gray-7">Apps</dt>
             <dd class="mt-1.5 flex flex-wrap gap-1.5">
               <Badge v-for="a in apps" :key="a.value" v-bind="CHIP" :label="a.label">
                 {{ a.label }}
