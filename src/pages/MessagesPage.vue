@@ -426,26 +426,23 @@ watch(open, toBottom)
                      grade of editor: bold, italic, strike, the two lists, link.
                      No avatar beside the field — the message already carries a
                      name above it, and the thread is between two parties. -->
-                <div class="mt-2 flex items-center justify-between gap-2">
-                  <!-- ⚠️ Hidden until the field has focus, and by CSS rather
-                       than by `v-if`. The toolbar lives INSIDE the box that
-                       `focus-within` watches, so clicking a button keeps the
-                       group focused and the toolbar on screen; removing it from
-                       the DOM on blur would take the button out from under the
-                       pointer between mousedown and mouseup, and the click
-                       would never land. Send holds the row's right edge either
-                       way, so nothing moves when the toolbar appears. -->
-                  <EditorFixedMenu
-                    class="hidden group-focus-within:flex"
-                    :items="commentToolbar"
-                    button-size="sm"
-                  />
-                  <!-- ⚠️ `ml-auto`, not the row's `justify-between`: with the
-                       toolbar hidden Send is the only child, and
-                       space-between parks a lone child at the START. -->
+                <!-- ⚠️ At rest the composer is ONE ROW: the line you type
+                     into, nothing else. Focus opens the rest of it.
+                     Two conditions, and the second one matters. Hidden by CSS
+                     rather than `v-if` so that clicking inside keeps
+                     `focus-within` true and the control stays under the
+                     pointer; and held open whenever there is something to send,
+                     because Safari does not focus a button on click — with a
+                     draft in hand, a blur-driven collapse would pull Send out
+                     from under the pointer between mousedown and mouseup. -->
+                <div
+                  class="mt-2 items-center gap-2"
+                  :class="isEmpty ? 'hidden group-focus-within:flex' : 'flex'"
+                >
+                  <EditorFixedMenu :items="commentToolbar" button-size="sm" />
                   <Button
                     class="ml-auto"
-                    variant="solid"
+                    variant="subtle"
                     size="sm"
                     label="Send"
                     :disabled="isEmpty"
