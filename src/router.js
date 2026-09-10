@@ -45,6 +45,15 @@ const routes = [
     name: 'confirm',
     component: () => import('./pages/ConfirmPage.vue'),
   },
+  // The end of the journey: who Frappe assigned you, and what happens next.
+  // Both `?pack=` and `?partner=` are in the URL — this is the screen someone
+  // screenshots or forwards, and an assignment that changed on reload would be
+  // worse than one never shown.
+  {
+    path: '/connect/confirmed',
+    name: 'confirmed',
+    component: () => import('./pages/ConfirmedPage.vue'),
+  },
   // The last step of signing up, and sign-up only — a returning customer
   // answered these once, so `login-verify` goes straight to `next`. This is
   // where the account actually lands: see the note at the top of the page.

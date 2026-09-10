@@ -37,6 +37,15 @@ export const savedToast = (partner, saved, undo) => {
 // so this names the gap instead of letting the click vanish. A button that
 // swallows a click reads as broken; one that says what it would have done reads
 // as unfinished, which is the truth.
+// The messages screen, reached from somewhere other than a specific partner —
+// the "sent via Messaging" line on the confirmed booking. Same gap as
+// `contactToast` names, without a partner to name alongside it.
+export const messagesToast = () =>
+  toast.info('Messages are not built yet', {
+    id: 'contact',
+    description: 'This is where your thread with the partner would open.',
+  })
+
 export const contactToast = (partner) =>
   toast.info('Messages are not built yet', {
     id: 'contact',

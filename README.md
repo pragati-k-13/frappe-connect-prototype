@@ -28,6 +28,7 @@ Then open <http://localhost:5173>.
 | 3d  | `/connect/*/verify`     | The 6-digit code. Both forms hand off here; nobody is signed in before | Yes                           |
 | 3e  | `/connect/signup/company` | Onboarding. Sign-up only, and where the account actually lands       | Yes                           |
 | 3f  | `/connect/confirm`      | Confirm the pack and book the call; `?scope=1` opens the scope panel   | Yes                           |
+| 3g  | `/connect/confirmed`    | Who Frappe assigned you, and what happens next. End of the journey    | Yes                           |
 | 4   | `/connect/partners/:id` | A partner's profile — **top section only so far**                      | Yes                           |
 
 Screen 1 is a deliberately light stand-in. It's here so the entry point isn't imaginary
