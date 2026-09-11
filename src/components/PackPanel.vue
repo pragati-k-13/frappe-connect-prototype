@@ -37,18 +37,35 @@ const facts = computed(() => [
   { icon: IconDelivery, text: `${props.pack.validity} delivery time` },
 ])
 
-// One row per module the pack is made of, straight out of the scope document.
+// One row per module the pack is made of, straight out of the scope document,
+// and one row per THING INSIDE each module. Same shape `PackScope` builds for
+// the catalogue's panel, so the two renderings of one document can't drift.
+//
 // ⚠️ Each module carries its own carve-outs (`excluded`), and they stay INSIDE
 // the module they belong to: "not in scope" only means anything next to the
-// thing it is being excluded from.
+// thing it is being excluded from. They sort last, after what IS covered.
 const modules = computed(() =>
   props.pack.areas.map((key) => {
     const area = PACK_SCOPE[key]
+    const excluded = area.rows.filter((r) => r.excluded).flatMap((r) => r.items)
     return {
       key,
       label: area.label,
-      rows: area.rows.filter((r) => !r.excluded),
-      excluded: area.rows.filter((r) => r.excluded).flatMap((r) => r.items),
+      rows: [
+        ...area.rows
+          .filter((r) => !r.excluded)
+          .map((r) => ({ key: r.area, label: r.area, items: r.items, excluded: false })),
+        ...(excluded.length
+          ? [
+              {
+                key: 'not-in-scope',
+                label: `Not in scope (${excluded.length})`,
+                items: excluded,
+                excluded: true,
+              },
+            ]
+          : []),
+      ],
     }
   }),
 )
@@ -135,18 +152,37 @@ const terms = computed(() => [
             {{ m.label }}
           </summary>
 
-          <div class="pb-2 pl-5">
-            <!-- A comma run, not bullets: these are doctype names six and seven
-                 to a line, and as a list each becomes a column of one-word
-                 rows. -->
-            <p v-for="row in m.rows" :key="row.area" class="mt-1 text-p-sm text-ink-gray-6">
-              <span class="font-medium text-ink-gray-7">{{ row.area }}:</span>
-              {{ row.items.join(', ') }}
-            </p>
-            <p v-if="m.excluded.length" class="mt-1 text-p-sm text-ink-gray-5">
-              <span class="font-medium">Not in scope ({{ m.excluded.length }}):</span>
-              {{ m.excluded.join(', ') }}
-            </p>
+          <!-- ⚠️ Nested accordions, the same device one level down: a module
+               opens to WHAT IT IS MADE OF (Masters, Transactions, Reports,
+               Settings), and each of those opens to its doctypes. Printed flat
+               they were four paragraphs of comma-separated names in a 320px
+               column, which is the scope document as a wall rather than as
+               something you can look one thing up in. -->
+          <div class="pb-1 pl-5">
+            <details v-for="row in m.rows" :key="row.key" class="group/row">
+              <summary
+                class="flex cursor-pointer list-none items-center gap-1.5 py-1 text-p-sm font-medium text-ink-gray-7 [&::-webkit-details-marker]:hidden"
+                :class="row.excluded && 'font-normal text-ink-gray-5'"
+              >
+                <IconChevron
+                  class="size-3 shrink-0 text-ink-gray-5 motion-safe:transition-transform group-open/row:rotate-90"
+                />
+                {{ row.label }}
+              </summary>
+
+              <!-- A comma run for what's covered: these are doctype names six
+                   and seven to a row, and as bullets each becomes a column of
+                   one-word lines. The carve-outs stay a list — they are read
+                   one at a time, to check for a specific thing. -->
+              <p v-if="!row.excluded" class="pb-2 pl-[18px] text-p-sm text-ink-gray-6">
+                {{ row.items.join(', ') }}
+              </p>
+              <ul v-else class="space-y-0.5 pb-2 pl-[18px]">
+                <li v-for="item in row.items" :key="item" class="text-p-sm text-ink-gray-5">
+                  {{ item }}
+                </li>
+              </ul>
+            </details>
           </div>
         </details>
 
