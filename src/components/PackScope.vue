@@ -1,15 +1,9 @@
 <script setup>
 import { computed } from 'vue'
 import { PACK_SCOPE } from '../data/packs'
-// Imported rather than written as tags, because the modules are a data list and
-// the icon has to travel with the row — same pattern as `PartnerVisionSection`.
-import IconAccounting from '~icons/lucide/landmark'
-import IconSelling from '~icons/lucide/trending-up'
-import IconBuying from '~icons/lucide/shopping-cart'
-import IconInventory from '~icons/lucide/warehouse'
-import IconManufacturing from '~icons/lucide/factory'
-import IconHrms from '~icons/lucide/users'
-import IconPayroll from '~icons/lucide/banknote'
+// ⚠️ Shared with the booking panel, which labels the same modules. See
+// `src/scopeIcons.js` — one mapping, so one module can't become two glyphs.
+import { SCOPE_ICONS } from '../scopeIcons'
 
 // A Starter Pack's scope, rendered from the scope document in `data/packs.js`.
 //
@@ -40,16 +34,6 @@ const props = defineProps({
 
 // Presentation, so it lives here rather than in `data/packs.js` — the scope
 // document has no icons in it.
-const ICONS = {
-  accounting: IconAccounting,
-  selling: IconSelling,
-  buying: IconBuying,
-  inventory: IconInventory,
-  manufacturing: IconManufacturing,
-  hrms: IconHrms,
-  payroll: IconPayroll,
-}
-
 // The carve-outs as a single row's worth of items, or nothing at all where a
 // module excludes nothing — Inventory is the one the document carves nothing
 // out of, and an empty disclosure there would read as a broken control.
@@ -67,7 +51,7 @@ const areas = computed(() =>
     return {
       key,
       label: area.label,
-      icon: ICONS[key],
+      icon: SCOPE_ICONS[key],
       // One list, so the carve-outs are a row of the module like any other
       // rather than a differently-shaped thing bolted underneath it. `excluded`
       // only changes how the open contents read, not the row.

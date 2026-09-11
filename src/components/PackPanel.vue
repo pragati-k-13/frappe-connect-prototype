@@ -6,6 +6,8 @@ import IconPrice from '~icons/lucide/circle-dollar-sign'
 import IconEffort from '~icons/lucide/hourglass'
 import IconDelivery from '~icons/lucide/calendar'
 import IconChevron from '~icons/lucide/chevron-right'
+import IconExcluded from '~icons/lucide/circle-slash'
+import { SCOPE_ICONS } from '../scopeIcons'
 import {
   CUSTOMER_RESPONSIBILITIES,
   PACK_SCOPE,
@@ -51,6 +53,9 @@ const modules = computed(() =>
     return {
       key,
       label: area.label,
+      // ⚠️ The same mark the catalogue's scope panel puts on this module. See
+      // `src/scopeIcons.js`.
+      icon: SCOPE_ICONS[key],
       rows: [
         ...area.rows
           .filter((r) => !r.excluded)
@@ -142,14 +147,20 @@ const terms = computed(() => [
       <h3 class="text-base font-medium text-ink-gray-8">Modules covered</h3>
 
       <div class="mt-2">
+        <!-- ⚠️ The chevron sits on the RIGHT at this level and on the LEFT one
+             level down. The prefix slot belongs to the module's own mark, and
+             the two positions are what keep the levels apart once several are
+             open: a module's rows indent under it, and their chevrons line up
+             in a column of their own. -->
         <details v-for="m in modules" :key="m.key" class="group">
           <summary
-            class="flex cursor-pointer list-none items-center gap-1.5 py-1.5 text-p-base text-ink-gray-7 [&::-webkit-details-marker]:hidden"
+            class="flex cursor-pointer list-none items-center gap-2 py-1.5 text-p-base text-ink-gray-7 [&::-webkit-details-marker]:hidden"
           >
+            <component :is="m.icon" class="size-4 shrink-0 text-ink-gray-6" />
+            <span class="min-w-0 flex-1">{{ m.label }}</span>
             <IconChevron
               class="size-3.5 shrink-0 text-ink-gray-5 motion-safe:transition-transform group-open:rotate-90"
             />
-            {{ m.label }}
           </summary>
 
           <!-- ⚠️ Nested accordions, the same device one level down: a module
@@ -186,14 +197,17 @@ const terms = computed(() => [
           </div>
         </details>
 
+        <!-- A sibling of the modules, so it carries a mark like they do: without
+             one its label would start 24px left of every row above it. -->
         <details class="group">
           <summary
-            class="flex cursor-pointer list-none items-center gap-1.5 py-1.5 text-p-base text-ink-gray-7 [&::-webkit-details-marker]:hidden"
+            class="flex cursor-pointer list-none items-center gap-2 py-1.5 text-p-base text-ink-gray-7 [&::-webkit-details-marker]:hidden"
           >
+            <IconExcluded class="size-4 shrink-0 text-ink-gray-6" />
+            <span class="min-w-0 flex-1">Not in scope ({{ notInScope.length }})</span>
             <IconChevron
               class="size-3.5 shrink-0 text-ink-gray-5 motion-safe:transition-transform group-open:rotate-90"
             />
-            Not in scope ({{ notInScope.length }})
           </summary>
           <!-- These stay a LIST: they are read one at a time, to check for a
                specific thing you were hoping was included. -->
