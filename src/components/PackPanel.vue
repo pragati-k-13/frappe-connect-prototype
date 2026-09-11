@@ -169,7 +169,11 @@ const terms = computed(() => [
                they were four paragraphs of comma-separated names in a 320px
                column, which is the scope document as a wall rather than as
                something you can look one thing up in. -->
-          <div class="pb-1 pl-5">
+          <!-- ⚠️ Flush with the module's ICON, not indented under its label.
+               The module's mark is the left edge of the group, so its contents
+               start there; indenting them further pushed a third margin into a
+               320px column for no gain. -->
+          <div class="pb-1">
             <details v-for="row in m.rows" :key="row.key" class="group/row">
               <summary
                 class="flex cursor-pointer list-none items-center gap-1.5 py-1 text-p-sm font-medium text-ink-gray-7 [&::-webkit-details-marker]:hidden"
