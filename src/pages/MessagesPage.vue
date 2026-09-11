@@ -406,8 +406,14 @@ watch(open, toBottom)
                     <IconCalendar class="size-full" />
                   </Avatar>
                   <div class="min-w-0">
+                    <!-- ⚠️ "Scheduled" only when there IS a time. Booking no
+                         longer asks for a slot, so the card would otherwise say
+                         a call was scheduled and then that the time is still to
+                         be confirmed, in two lines that contradict each other. -->
                     <p class="text-base font-medium text-ink-gray-8">
-                      Scheduled an introduction call
+                      {{
+                        m.when ? 'Scheduled an introduction call' : 'Requested an introduction call'
+                      }}
                     </p>
                     <p class="mt-0.5 text-p-base text-ink-gray-6">{{ callWhen(m.when) }}</p>
                   </div>

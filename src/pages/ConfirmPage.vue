@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Avatar, Button, FormControl, toast } from 'frappe-ui'
+import { Avatar, Button, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import SelectedServiceCard from '../components/SelectedServiceCard.vue'
 import { PARTNERS } from '../data/partners'
@@ -67,11 +67,6 @@ const STEPS = [
   { title: 'Coordinate with partner', body: 'Share data and processes' },
 ]
 
-// ⚠️ A free datetime, because that's the component asked for. Real slot booking
-// offers the partner's OPEN times as a list — a picker that accepts 3am on a
-// Sunday is promising something the calendar can't keep.
-const slot = ref(null)
-
 const booking = ref(false)
 
 const confirm = () => {
@@ -92,7 +87,11 @@ const confirm = () => {
     // The conversation the next screen promises. Booking is the only thing in
     // the app that opens one, so it happens here rather than on arrival: the
     // confirmed screen links to a thread that already exists.
-    store.startBooking({ partner: assigned, pack: pack.value, slot: slot.value })
+    // ⚠️ No time. The slot picker is gone from this screen, so the call is
+    // requested here and scheduled afterwards — `bookingThread` renders the
+    // card without one, and the field stays in the model for the build that
+    // does have a time to put in it.
+    store.startBooking({ partner: assigned, pack: pack.value, slot: null })
     toast.success('Call booked', {
       description: `You will get an email with the details and an introduction to ${assigned.name}.`,
     })
@@ -131,9 +130,7 @@ const confirm = () => {
           <!-- ⚠️ Not the wireframe's subtitle, which read "This will connect
                you with the ideal Partner for your needs" — also the onboarding
                screen's line, two navigations earlier. -->
-          <p class="mt-1 text-p-base text-ink-gray-6">
-            Pick a slot, and we will assign your Partner.
-          </p>
+          <p class="mt-1 text-p-base text-ink-gray-6">Confirm, and we will assign your Partner.</p>
 
           <ol class="mt-6 space-y-5">
             <li v-for="(step, i) in STEPS" :key="step.title" class="flex items-start gap-3">
@@ -144,16 +141,6 @@ const confirm = () => {
               <div class="min-w-0 flex-1">
                 <p class="text-base font-medium text-ink-gray-8">{{ step.title }}</p>
                 <p v-if="step.body" class="mt-1 text-p-base text-ink-gray-6">{{ step.body }}</p>
-                <!-- Only the first step has one: it is the step this screen
-                     exists to complete. -->
-                <FormControl
-                  v-if="i === 0"
-                  v-model="slot"
-                  type="datetime"
-                  size="sm"
-                  class="mt-2 max-w-[320px]"
-                  placeholder="Pick a slot"
-                />
               </div>
             </li>
           </ol>
