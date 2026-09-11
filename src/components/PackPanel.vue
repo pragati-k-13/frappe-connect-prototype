@@ -67,11 +67,21 @@ const terms = computed(() => [
 
 <template>
   <div>
+    <!-- ── The panel's own header ───────────────────────────────────────
+         A strip, not a line of text above the content: it names the whole
+         panel, so it belongs to the frame rather than to the first section.
+         `min-h-12` is `PageHeader`'s own height, so it sits at the same rhythm
+         as the bar above it, and it sticks while the scope scrolls under it —
+         a panel whose modules are open is long enough to lose its title. -->
+    <header
+      class="sticky top-0 z-10 flex min-h-12 items-center border-b border-outline-gray-1 bg-surface-base px-5"
+    >
+      <h2 class="text-base font-medium text-ink-gray-8">{{ heading }}</h2>
+    </header>
+
     <!-- ── What you are buying ──────────────────────────────────────────── -->
     <section class="px-5 py-5">
-      <h2 class="text-base font-medium text-ink-gray-8">{{ heading }}</h2>
-
-      <div class="mt-4 flex items-start gap-3">
+      <div class="flex items-start gap-3">
         <!-- Placeholder for the pack illustration, same tile the catalogue's
              rows will take. ⚠️ `layers`, not `package`: package is already a
              fact icon in this panel, and one card should not print the same
