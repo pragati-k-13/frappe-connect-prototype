@@ -233,6 +233,13 @@ export const useConnectStore = defineStore('connect', {
     // ⚠️ `operations` and `problems` are free text and optional. They're what a
     // partner reads before the first call; nothing in the app renders them yet.
     company: { name: '', employees: '', segments: [], operations: '', problems: '' },
+    // The implementation itself, once a pack is booked: which pack, which
+    // partner, what stage it is at and when it started. Null until then.
+    //
+    // ⚠️ The confirmed screen can also be reached by URL with no store behind
+    // it (`?pack=&partner=`), so every reader treats this as optional and falls
+    // back to the first stage — see `stageOf` in `data/project.js`.
+    project: null,
     // Every conversation the viewer can open, newest activity last within each
     // thread. Two ways in and no third: the demo switch seeds the exploring
     // viewer's inbox, and booking a pack adds the thread the confirmed screen
@@ -405,6 +412,14 @@ export const useConnectStore = defineStore('connect', {
     // Idempotent by partner: confirming twice with the same partner reopens the
     // thread rather than stacking a second copy of it.
     startBooking({ partner, pack, slot }) {
+      // The booking IS the project: one gesture starts both, so nothing else
+      // has to remember to create the second one.
+      this.project = {
+        pack: pack.value,
+        partnerId: partner.id,
+        stage: 'confirmed',
+        at: Date.now(),
+      }
       const existing = this.threads.find((t) => t.partnerId === partner.id)
       if (existing) return existing.id
       this.threads = [...this.threads, bookingThread({ partner, pack, slot })]
@@ -442,8 +457,10 @@ export const useConnectStore = defineStore('connect', {
     logOut() {
       const cleared = this.saved.length
       this.saved = []
-      // Conversations belong to the account, same as the saved list.
+      // Conversations and the project belong to the account, same as the
+      // saved list.
       this.threads = []
+      this.project = null
       this.setAccount('visitor')
       return cleared
     },

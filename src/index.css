@@ -395,43 +395,28 @@ textarea[data-slot='control'] {
   @apply text-p-sm;
 }
 
-/* The confirmation screen: what you are doing on the left, what you are buying
-   on the right.
-
-   A container query, not a viewport one, for the same reason `.fc-col-*` are:
-   the scope panel narrows this column without the window changing, so at
-   `md:` the card would stay beside the steps in half the room. Below 900px of
-   COLUMN it stacks, which is what happens the moment the panel opens. */
-.fc-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 2rem;
+/* The reading column on the two booking screens.
+ *
+ * The pack panel is a real column of the page now, so the grid that used to
+ * place both of them is gone and only the reading side needs a rule: 600px,
+ * and a left margin that takes half the leftover so the column sits between the
+ * sidebar and the panel rather than hard against one of them.
+ * ⚠️ Up to a point. `min(4rem, …)` stops that share at 64px, because past
+ * roughly a 1200px page the halves get big enough that the text drifts into the
+ * middle of the screen; beyond the cap the column holds still near the left and
+ * the gutter takes the rest, which is the right way round since the reading
+ * column is what the eye returns to.
+ *
+ * A container query, not a viewport one: with the panel beside it the content
+ * column is narrower than the window, so a viewport breakpoint would answer the
+ * wrong question. `.fc-content` is the container — see `ConnectShell`. */
+.fc-reading {
+  width: 100%;
+  max-width: 600px;
 }
 @container content (min-width: 900px) {
-  .fc-split {
-    /* The reading column is CAPPED, not fractional, and `space-between` hands
-       the leftover to the gutter, so the card sits against the page's right
-       padding rather than the column stretching and dragging it inward.
-       The padding centres the column between the two: it takes half the
-       leftover onto the left and leaves the other half as the gutter, so the
-       gap to the sidebar and the gap to the card match.
-       ⚠️ Up to a point. `min(4rem, …)` stops that share at 64px, because past
-       roughly a 1200px page the halves get big enough that the text drifts into
-       the middle of the screen. Beyond the cap the column holds still near the
-       left and the gutter takes the rest — which is the right way round, since
-       the reading column is what the eye returns to.
-       `100%` here resolves against the wrapper's content box (the page width
-       less its 80px of horizontal padding), which is why the constant is 960
-       rather than 920 — 920 of columns plus the 40px of left padding already
-       spent. `max()` keeps it at 0 when there is nothing left to share, which
-       is everything under about a 1030px page: the two columns and their gap
-       fill the row exactly there.
-       ⚠️ The two constants move together: the card's width is in the template
-       above and again inside this `calc`. Change one and the column stops
-       being equidistant. */
-    grid-template-columns: minmax(0, 600px) 320px;
-    justify-content: space-between;
-    padding-left: min(4rem, max(0px, calc((100% - 960px) / 2)));
+  .fc-reading {
+    margin-left: min(4rem, max(0px, calc((100% - 600px) / 2)));
   }
 }
 

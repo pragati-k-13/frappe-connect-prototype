@@ -1,9 +1,9 @@
 <script setup>
 import { computed, ref, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Avatar, Button, toast } from 'frappe-ui'
+import { Avatar, Button, ScrollArea, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
-import SelectedServiceCard from '../components/SelectedServiceCard.vue'
+import PackPanel from '../components/PackPanel.vue'
 import { PARTNERS } from '../data/partners'
 import { STARTER_PACKS, marketFor, DEFAULT_REGION } from '../data/packs'
 import { useConnectStore } from '../stores/connect'
@@ -108,63 +108,82 @@ const confirm = () => {
 </script>
 
 <template>
-  <ConnectShell root-label="Starter packs" root-to="/connect/packs" crumb="Confirm selection">
-    <!-- Full width to 1440. The card rides the page's right padding and the
-         600px reading column is placed by `.fc-split`'s own left padding, so
-         this cap only decides where the gutter stops growing. -->
-    <div class="mx-auto w-full max-w-[1440px] px-5 py-8 lg:px-10">
-      <!-- No pack in the store: someone reached this by URL rather than by
+  <!-- ⚠️ `flush`: the pack panel is chrome, not a card in the page. It runs the
+       full height beside the content with its own scroll, and it is the SAME
+       panel the screen after this one shows — only the heading changes, from
+       selected to booked. -->
+  <ConnectShell flush root-label="Starter packs" root-to="/connect/packs" crumb="Confirm selection">
+    <div class="flex min-h-0 min-w-0 flex-1">
+      <ScrollArea class="min-h-0 min-w-0 flex-1">
+        <div class="w-full px-5 py-8 lg:px-10">
+          <!-- No pack in the store: someone reached this by URL rather than by
            choosing. Sending them to the catalogue is the only honest answer —
            there is nothing to confirm. -->
-      <div v-if="!pack" class="py-20 text-center">
-        <p class="text-p-lg font-medium text-ink-gray-8">No pack selected</p>
-        <p class="mx-auto mt-1.5 max-w-sm text-p-base text-ink-gray-6">
-          This link doesn't name a pack. Pick one and this is where you'll confirm it.
-        </p>
-        <Button class="mt-4" variant="solid" label="See the packs" :route="'/connect/packs'" />
-      </div>
+          <div v-if="!pack" class="py-20 text-center">
+            <p class="text-p-lg font-medium text-ink-gray-8">No pack selected</p>
+            <p class="mx-auto mt-1.5 max-w-sm text-p-base text-ink-gray-6">
+              This link doesn't name a pack. Pick one and this is where you'll confirm it.
+            </p>
+            <Button class="mt-4" variant="solid" label="See the packs" :route="'/connect/packs'" />
+          </div>
 
-      <div v-else class="fc-split">
-        <!-- ── What you are doing ─────────────────────────────────────── -->
-        <div class="min-w-0">
-          <h1 class="text-lg font-semibold text-ink-gray-8">Confirm selection</h1>
-          <!-- ⚠️ Not the wireframe's subtitle, which read "This will connect
+          <!-- ── What you are doing ───────────────────────────────────────── -->
+          <div v-else class="fc-reading">
+            <h1 class="text-lg font-semibold text-ink-gray-8">Confirm selection</h1>
+            <!-- ⚠️ Not the wireframe's subtitle, which read "This will connect
                you with the ideal Partner for your needs" — also the onboarding
                screen's line, two navigations earlier. -->
-          <p class="mt-1 text-p-base text-ink-gray-6">Confirm, and we will assign your Partner.</p>
+            <p class="mt-1 text-p-base text-ink-gray-6">
+              Confirm, and we will assign your Partner.
+            </p>
 
-          <ol class="mt-6 space-y-5">
-            <li v-for="(step, i) in STEPS" :key="step.title" class="flex items-start gap-3">
-              <!-- `label` renders only its first character, so a digit needs no
+            <ol class="mt-6 space-y-5">
+              <li v-for="(step, i) in STEPS" :key="step.title" class="flex items-start gap-3">
+                <!-- `label` renders only its first character, so a digit needs no
                    slot of its own. Same treatment as "How it works" on the
                    catalogue, so the two numbered lists read as one device. -->
-              <Avatar size="lg" :label="String(i + 1)" class="shrink-0" />
-              <div class="min-w-0 flex-1">
-                <p class="text-base font-medium text-ink-gray-8">{{ step.title }}</p>
-                <p v-if="step.body" class="mt-1 text-p-base text-ink-gray-6">{{ step.body }}</p>
-              </div>
-            </li>
-          </ol>
+                <Avatar size="lg" :label="String(i + 1)" class="shrink-0" />
+                <div class="min-w-0 flex-1">
+                  <p class="text-base font-medium text-ink-gray-8">{{ step.title }}</p>
+                  <p v-if="step.body" class="mt-1 text-p-base text-ink-gray-6">{{ step.body }}</p>
+                </div>
+              </li>
+            </ol>
 
-          <div class="mt-8 flex items-center gap-2">
-            <!-- ⚠️ "Confirm", not "Confirm and book call". Nothing here books
+            <div class="mt-8 flex items-center gap-2">
+              <!-- ⚠️ "Confirm", not "Confirm and book call". Nothing here books
                  a call any more: the slot picker is gone, so the button would
                  have promised a time it does not collect. What is being
                  confirmed is on the screen and in the card beside it, and
                  Cancel sits next to it, so one word carries the whole meaning. -->
-            <Button
-              variant="solid"
-              label="Confirm"
-              :loading="booking"
-              loading-text="Confirming"
-              @click="confirm"
-            />
-            <Button variant="subtle" label="Cancel" :route="'/connect/packs'" />
+              <Button
+                variant="solid"
+                label="Confirm"
+                :loading="booking"
+                loading-text="Confirming"
+                @click="confirm"
+              />
+              <Button variant="subtle" label="Cancel" :route="'/connect/packs'" />
+            </div>
+
+            <!-- Below `lg` the panel stacks under the page instead of beside it.
+               `-mx-5` cancels the page padding so its own rules run edge to
+               edge. -->
+            <div class="-mx-5 mt-8 border-t border-outline-gray-1 lg:hidden">
+              <PackPanel :pack="pack" :region="region" />
+            </div>
           </div>
         </div>
+      </ScrollArea>
 
-        <SelectedServiceCard :pack="pack" :region="region" />
-      </div>
+      <aside
+        v-if="pack"
+        class="hidden w-[360px] shrink-0 flex-col border-l border-outline-gray-1 lg:flex"
+      >
+        <ScrollArea class="min-h-0 flex-1">
+          <PackPanel :pack="pack" :region="region" />
+        </ScrollArea>
+      </aside>
     </div>
   </ConnectShell>
 </template>
