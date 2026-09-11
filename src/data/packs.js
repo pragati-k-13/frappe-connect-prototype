@@ -30,7 +30,14 @@ export const STARTER_PACKS = [
     name: 'Core ERPNext',
     // The one-line version, for the marketing page and the comparison table.
     modules: 'Finance + Sales + Purchase + Inventory',
+    // ⚠️ `tagline` says what is IN the pack, `pitch` says what it is FOR. Three
+    // of the four taglines describe contents ("Everything in Core ERPNext, plus
+    // production"), which reads as a summary of the module list rather than a
+    // reason to buy — fine on a catalogue row where the modules aren't shown,
+    // wrong in the booking panel where they are listed six lines below. The
+    // panel takes `pitch`; everywhere else still takes `tagline`.
     tagline: 'Where most businesses start',
+    pitch: 'Run the business without spreadsheets.',
     moduleList: 'Finance, Sales, Purchase and Inventory modules',
     areas: ['accounting', 'selling', 'buying', 'inventory'],
     apps: ['erpnext'],
@@ -43,6 +50,7 @@ export const STARTER_PACKS = [
     name: 'Manufacturing',
     modules: 'Core ERPNext + Manufacturing',
     tagline: 'Everything in Core ERPNext, plus production',
+    pitch: 'Plan production against real stock.',
     moduleList: 'Finance, Sales, Purchase, Inventory and Manufacturing modules',
     areas: ['accounting', 'selling', 'buying', 'inventory', 'manufacturing'],
     apps: ['erpnext'],
@@ -55,6 +63,7 @@ export const STARTER_PACKS = [
     name: 'All in one',
     modules: 'Core ERPNext + Manufacturing + Frappe HR',
     tagline: 'Everything in Manufacturing, plus HR and payroll',
+    pitch: 'Run operations and payroll in one place.',
     moduleList: 'Finance, Sales, Purchase, Inventory, Manufacturing and Frappe HR modules',
     areas: ['accounting', 'selling', 'buying', 'inventory', 'manufacturing', 'hrms', 'payroll'],
     apps: ['erpnext', 'frappe-hr'],
@@ -67,6 +76,7 @@ export const STARTER_PACKS = [
     name: 'Frappe HR',
     modules: 'HRMS + Payroll',
     tagline: 'HR and payroll, on their own',
+    pitch: 'Pay people on time, every month.',
     moduleList: 'HRMS and Payroll modules',
     areas: ['hrms', 'payroll'],
     apps: ['frappe-hr'],

@@ -86,7 +86,11 @@ const terms = computed(() => [
             </span>
             <Badge variant="subtle" theme="gray" size="sm" label="Starter Pack" />
           </div>
-          <p class="mt-1 text-p-base text-ink-gray-6">{{ pack.tagline }}</p>
+          <!-- ⚠️ `pitch`, not `tagline`. The tagline describes what is in the
+               pack, and "Modules covered" lists exactly that a few lines down;
+               this line is the only place in the panel that says what the pack
+               is FOR. -->
+          <p class="mt-1 text-p-base text-ink-gray-6">{{ pack.pitch }}</p>
         </div>
       </div>
 
