@@ -143,7 +143,7 @@ const confirm = () => {
   <ConnectShell flush root-label="Starter packs" root-to="/connect/packs" crumb="Confirm selection">
     <div class="flex min-h-0 min-w-0 flex-1">
       <ScrollArea class="min-h-0 min-w-0 flex-1">
-        <div class="w-full px-5 py-8 lg:px-10">
+        <div class="w-full px-10 py-8">
           <!-- No pack in the store: someone reached this by URL rather than by
            choosing. Sending them to the catalogue is the only honest answer —
            there is nothing to confirm. -->
@@ -156,7 +156,7 @@ const confirm = () => {
           </div>
 
           <!-- ── What you are doing ───────────────────────────────────────── -->
-          <div v-else class="fc-reading">
+          <div v-else class="w-full">
             <h1 class="text-lg font-semibold text-ink-gray-8">How this works</h1>
             <!-- ⚠️ Not the wireframe's subtitle, which read "This will connect
                you with the ideal Partner for your needs" — also the onboarding
@@ -210,7 +210,7 @@ const confirm = () => {
             <!-- Below `lg` the panel stacks under the page instead of beside it.
                `-mx-5` cancels the page padding so its own rules run edge to
                edge. -->
-            <div class="-mx-5 mt-8 border-t border-outline-gray-1 lg:hidden">
+            <div class="-mx-10 mt-8 border-t border-outline-gray-1 lg:hidden">
               <PackPanel :pack="pack" :region="region" />
             </div>
           </div>

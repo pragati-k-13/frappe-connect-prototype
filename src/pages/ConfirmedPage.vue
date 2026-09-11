@@ -135,7 +135,7 @@ const cancel = () =>
   <ConnectShell flush root-label="Starter packs" root-to="/connect/packs" crumb="Confirmed">
     <div class="flex min-h-0 min-w-0 flex-1">
       <ScrollArea class="min-h-0 min-w-0 flex-1">
-        <div class="w-full px-5 py-8 lg:px-10">
+        <div class="w-full px-10 py-8">
           <div v-if="!pack || !partner" class="py-20 text-center">
             <p class="text-p-lg font-medium text-ink-gray-8">Nothing to show here</p>
             <p class="mx-auto mt-1.5 max-w-sm text-p-base text-ink-gray-6">
@@ -144,7 +144,7 @@ const cancel = () =>
             <Button class="mt-4" variant="solid" label="See the packs" :route="'/connect/packs'" />
           </div>
 
-          <div v-else class="fc-reading">
+          <div v-else class="w-full">
             <h1 class="text-lg font-semibold text-ink-gray-8">Confirmed!</h1>
             <!-- Two short sentences, and the second one's job is to hand off to
                the card rather than to summarise it.
@@ -330,7 +330,7 @@ const cancel = () =>
             <!-- Below `lg` the panel stacks under the page instead of beside it:
                a 360px column next to a 360px column is not a layout. `-mx-5`
                cancels the page padding so its own rules run edge to edge. -->
-            <div class="-mx-5 mt-8 border-t border-outline-gray-1 lg:hidden">
+            <div class="-mx-10 mt-8 border-t border-outline-gray-1 lg:hidden">
               <PackPanel heading="Booked service" :pack="pack" :region="region" />
             </div>
           </div>

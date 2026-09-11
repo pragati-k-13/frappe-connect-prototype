@@ -395,31 +395,6 @@ textarea[data-slot='control'] {
   @apply text-p-sm;
 }
 
-/* The reading column on the two booking screens.
- *
- * The pack panel is a real column of the page now, so the grid that used to
- * place both of them is gone and only the reading side needs a rule: 600px,
- * and a left margin that takes half the leftover so the column sits between the
- * sidebar and the panel rather than hard against one of them.
- * ⚠️ Up to a point. `min(4rem, …)` stops that share at 64px, because past
- * roughly a 1200px page the halves get big enough that the text drifts into the
- * middle of the screen; beyond the cap the column holds still near the left and
- * the gutter takes the rest, which is the right way round since the reading
- * column is what the eye returns to.
- *
- * A container query, not a viewport one: with the panel beside it the content
- * column is narrower than the window, so a viewport breakpoint would answer the
- * wrong question. `.fc-content` is the container — see `ConnectShell`. */
-.fc-reading {
-  width: 100%;
-  max-width: 600px;
-}
-@container content (min-width: 900px) {
-  .fc-reading {
-    margin-left: min(4rem, max(0px, calc((100% - 600px) / 2)));
-  }
-}
-
 /* The messages composer and the bubbles it writes.
  *
  * `frappe-ui/editor` ships prose styles for the editing surface, and they are
