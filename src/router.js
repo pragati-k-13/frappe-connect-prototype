@@ -9,11 +9,77 @@ import { createRouter, createWebHistory } from 'vue-router'
 const routes = [
   { path: '/', name: 'website', component: () => import('./pages/FrappeSitePage.vue') },
   { path: '/connect', name: 'connect', component: () => import('./pages/ConnectLandingPage.vue') },
+  // The two auth screens. Routes rather than a dialog, and outside
+  // `ConnectShell`: sign-up is the first of four steps (create account, verify,
+  // company info, project info), and a four-screen sequence needs a URL per
+  // step so Back works and a half-finished signup can be resumed.
+  //
+  // Both accept `?next=` — an in-app path to return to once the visitor is in,
+  // so a gated control can send someone here and get them back. The pages
+  // reject anything that isn't a relative path; see the note on `next` there.
+  { path: '/connect/login', name: 'login', component: () => import('./pages/LoginPage.vue') },
+  { path: '/connect/signup', name: 'signup', component: () => import('./pages/SignupPage.vue') },
+  // The code step both forms hand off to. ONE component behind two routes:
+  // sign-up and log-in reach the identical screen, and only the heading, the
+  // toast and where "Use a different email" goes back to differ. The route NAME
+  // is what tells them apart, which is also how `useAuthExit` knows this hop is
+  // still inside the auth flow rather than someone backing out of it.
+  {
+    path: '/connect/signup/verify',
+    name: 'signup-verify',
+    component: () => import('./pages/VerifyPage.vue'),
+  },
+  {
+    path: '/connect/login/verify',
+    name: 'login-verify',
+    component: () => import('./pages/VerifyPage.vue'),
+  },
+  // Where the booking flow stops: confirm the pack and book the call.
+  //
+  // `?pack=` names what is being confirmed. It is in the URL rather than read
+  // from the store alone because the store is in memory: reloading this screen
+  // used to lose the selection, and a confirmation page is the one you might
+  // refresh or send on before paying.
+  {
+    path: '/connect/confirm',
+    name: 'confirm',
+    component: () => import('./pages/ConfirmPage.vue'),
+  },
+  // The end of the journey: who Frappe assigned you, and what happens next.
+  // Both `?pack=` and `?partner=` are in the URL — this is the screen someone
+  // screenshots or forwards, and an assignment that changed on reload would be
+  // worse than one never shown.
+  {
+    path: '/connect/confirmed',
+    name: 'confirmed',
+    component: () => import('./pages/ConfirmedPage.vue'),
+  },
+  // The last step of signing up, and sign-up only — a returning customer
+  // answered these once, so `login-verify` goes straight to `next`. This is
+  // where the account actually lands: see the note at the top of the page.
+  {
+    path: '/connect/signup/company',
+    name: 'signup-company',
+    component: () => import('./pages/CompanyPage.vue'),
+  },
+  // The inbox. `?thread=` names the open conversation, for the same reason
+  // `?pack=` names the pack two screens earlier: reloading should not lose
+  // which one you were reading, and a thread should be linkable.
+  {
+    path: '/connect/messages',
+    name: 'messages',
+    component: () => import('./pages/MessagesPage.vue'),
+  },
   {
     path: '/connect/partners',
     name: 'results',
     component: () => import('./pages/ResultsPage.vue'),
   },
+  // The pack catalogue. A pack's detail opens as a dialog OVER this screen and
+  // carries its id in `?pack=`, so a detail view is linkable, Back closes it,
+  // and a shared link opens the right pack — none of which a dialog with no
+  // route can do.
+  { path: '/connect/packs', name: 'packs', component: () => import('./pages/PacksPage.vue') },
   // Nested under the listing so the URL carries the depth the breadcrumb shows.
   // `:id` is the partner slug — the same id that resolves their logo file.
   {

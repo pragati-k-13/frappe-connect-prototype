@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
 import { PARTNERS } from '../data/partners'
-// For `industryCounts` only — the group totals on the industry filter's
-// headings, which need to know which segments belong to which group.
+// Two consumers: `industryCounts`, the group totals on the industry filter's
+// headings, and `saveCompany`, which derives a segment's group. Both need to
+// know which segments belong to which group.
+import { bookingThread, discoveryThreads } from '../data/messages'
 import { INDUSTRIES } from '../data/quiz'
 
 // A skipped question stores `null`, which every filter below reads as "no
@@ -31,15 +33,31 @@ const emptyAnswers = () => ({
 // (business or partner). `account` is, for the business side, where the viewer
 // stands with it:
 //
-//   visitor  no account. Browsing the directory signed out.
-//   client   has an account, and an implementation already under way.
+//   visitor    no account. Browsing the directory signed out.
+//   exploring  has an account, no project yet. Partway through choosing, with
+//              several conversations open — the messages screen's other viewer.
+//   client     has an account, and an implementation already under way.
 //
-// ⚠️ Nothing in the product reads `account` yet — every screen is built for the
-// visitor. The states are here so the switcher can offer them and so the seam
-// has a name. Components should read the `signedIn` / `hasProject` getters
-// rather than comparing the string, which is what makes a third state (an
-// account with no project yet) a change in this file alone.
-const ACCOUNT_STATES = ['visitor', 'client']
+// The third state is the one this file's own note said would be needed one day
+// ("an account with no project yet"), and it arrived with the messages screen:
+// signing up and booking are different moments, and only the second one gives
+// you a thread.
+//
+// Components should read the `signedIn` / `hasProject` getters rather than
+// comparing the string, which is what keeps the enum here.
+const ACCOUNT_STATES = ['visitor', 'exploring', 'client']
+
+// What the visitor was trying to do when the gate interrupted them, so it can be
+// finished once they're in. Module scope rather than store state on purpose:
+// it's a callback, and a function sitting in reactive state is both pointless to
+// track and awkward to serialise.
+//
+// ⚠️ It survives a route change, which is the whole reason it can work at all
+// now that the gate NAVIGATES rather than opening a modal over the page. The
+// component that set it is unmounted by the time it runs, so an action that
+// touches component-local state is not safe to hold — every current one goes
+// through the store, which is.
+let pendingAction = null
 
 // The answers and filters as they were immediately before the last `reset()`,
 // so Undo on the cleared-filters toast can put them back. Module scope rather
@@ -199,6 +217,37 @@ export const useConnectStore = defineStore('connect', {
         erpnext: ['finance', 'sales', 'purchase', 'inventory', 'manufacturing', 'hr'],
       },
     },
+    // The pack the visitor pressed Get started on, by `value`. It lives here
+    // rather than in the URL because the gate fires BEFORE the panel opens —
+    // there is no `?pack=` yet at the moment of the click — and the onboarding
+    // screen two navigations later still has to name it.
+    //
+    // ⚠️ Null when they arrived by another door (saving a partner, the top-bar
+    // CTA). Onboarding's subtitle then reads generically rather than guessing
+    // a pack they never chose.
+    pack: null,
+    // What the onboarding screen collected. `name` is the company's, which is
+    // also mirrored onto `viewer.company` — the sidebar and the quote header
+    // read the viewer, and two names for one company drift apart.
+    //
+    // ⚠️ `operations` and `problems` are free text and optional. They're what a
+    // partner reads before the first call; nothing in the app renders them yet.
+    company: { name: '', employees: '', segments: [], operations: '', problems: '' },
+    // The implementation itself, once a pack is booked: which pack, which
+    // partner, what stage it is at and when it started. Null until then.
+    //
+    // ⚠️ The confirmed screen can also be reached by URL with no store behind
+    // it (`?pack=&partner=`), so every reader treats this as optional and falls
+    // back to the first stage — see `stageOf` in `data/project.js`.
+    project: null,
+    // Every conversation the viewer can open, newest activity last within each
+    // thread. Two ways in and no third: the demo switch seeds the exploring
+    // viewer's inbox, and booking a pack adds the thread the confirmed screen
+    // promises ("Project details sent via Messaging"). A fresh account has
+    // none, which is why the screen has a real empty state.
+    //
+    // ⚠️ In memory, like everything else here. Reloading loses what you typed.
+    threads: [],
     // Filters on the results page. `app` starts unset — it's a refinement
     // offered mid-list, not a qualifier.
     // `countries` is the granular half of the region dimension. Empty reads as
@@ -349,6 +398,50 @@ export const useConnectStore = defineStore('connect', {
       this.account = account
     },
 
+    // The demo switch's version of `setAccount`: it also loads the inbox that
+    // belongs to the persona being switched to. Separate from `setAccount`
+    // because `completeLogin` calls that one the moment onboarding finishes,
+    // and a brand new account must NOT be handed threads it never started.
+    demoAccount(account) {
+      if (!ACCOUNT_STATES.includes(account)) return
+      this.setAccount(account)
+      this.threads = account === 'exploring' ? discoveryThreads() : []
+    },
+
+    // Booking a pack is the one thing in the app that starts a conversation.
+    // Idempotent by partner: confirming twice with the same partner reopens the
+    // thread rather than stacking a second copy of it.
+    startBooking({ partner, pack, slot }) {
+      // The booking IS the project: one gesture starts both, so nothing else
+      // has to remember to create the second one.
+      this.project = {
+        pack: pack.value,
+        partnerId: partner.id,
+        stage: 'confirmed',
+        at: Date.now(),
+      }
+      const existing = this.threads.find((t) => t.partnerId === partner.id)
+      if (existing) return existing.id
+      this.threads = [...this.threads, bookingThread({ partner, pack, slot })]
+      return partner.id
+    },
+
+    // Appends to the thread and returns nothing: the screen reads the store
+    // back rather than being told what it just sent.
+    sendMessage(threadId, body) {
+      const text = body.trim()
+      if (!text) return
+      const thread = this.threads.find((t) => t.id === threadId)
+      if (!thread) return
+      thread.messages.push({
+        id: `m-${Date.now()}`,
+        from: 'you',
+        at: Date.now(),
+        kind: 'text',
+        body: text,
+      })
+    },
+
     // Returns the state it moved TO, so the caller can name which way it went
     // without re-reading the store to find out.
     toggleSaved(id) {
@@ -364,35 +457,107 @@ export const useConnectStore = defineStore('connect', {
     logOut() {
       const cleared = this.saved.length
       this.saved = []
+      // Conversations and the project belong to the account, same as the
+      // saved list.
+      this.threads = []
+      this.project = null
       this.setAccount('visitor')
       return cleared
     },
 
-    // The gate. Wrap any action that needs an account:
+    // The three halves of the gate. `useAuthGate` in `utils/auth.js` is what
+    // components call; these are what it and the auth screens use.
     //
-    //   @click="store.requireLogin(() => (saved = !saved))"
-    //
-    // ⚠️ CURRENTLY OPEN. `LoginDialog` has been removed — a new sign-in design
-    // is coming — so there is nothing to hold the action for and this just runs
-    // it, signed in or not. Every gated control therefore works for everyone
-    // right now.
-    //
-    // It is kept as a function rather than deleted, and the call sites are left
-    // wrapped, deliberately: this is the ONE seam the new prompt plugs into.
-    // Unwrapping the five callers now would mean rewriting all five again later,
-    // and losing the record of which actions were meant to need an account —
-    // saving a partner, and contacting one.
-    //
-    // To re-gate: open the new prompt here when `!this.signedIn`, stash `action`
-    // and run it once the visitor is in. The old version held it in a
-    // module-level `pendingAction` and dropped it on dismiss, because running a
-    // held action after someone deliberately backed out is the app doing what
-    // they cancelled. Worth keeping that rule.
-    //
-    // Returns whether it ran, for callers that care.
-    requireLogin(action) {
+    // ⚠️ Holding is deliberately NOT the same step as running. The gate now
+    // sends the visitor to a screen of its own, so between the two there is a
+    // full navigation: the action has to run once the app is back on the page
+    // it interrupted, not while the auth screen is still mounted. See
+    // `runPending`.
+    holdUntilLogin(action) {
+      pendingAction = action ?? null
+    },
+
+    // Run the held action. Called by an auth screen AFTER it has navigated back
+    // to `next`, so the action lands on a mounted page and isn't clobbered by
+    // the navigation that would otherwise follow it.
+    runPending() {
+      const action = pendingAction
+      pendingAction = null
       action?.()
-      return true
+    },
+
+    // Backing out drops it. An auth screen the visitor left without finishing
+    // must not leave an action armed — otherwise signing in from somewhere else
+    // an hour later silently saves the partner they walked away from.
+    dropPending() {
+      pendingAction = null
+    },
+
+    // Which pack the visitor is buying. Set at the moment Get started is
+    // pressed, so it survives the gate, the two auth screens and the verify
+    // step to reach onboarding.
+    selectPack(value) {
+      this.pack = value
+    },
+
+    // What the onboarding screen collected. The segments land where the quiz
+    // would have put them, which is the whole point: `matches()` filters on
+    // `answers.segments`, so answering here narrows the partner list the same
+    // way answering the quiz does.
+    //
+    // ⚠️ ORDER MATTERS. `answer('industry', …)` CLEARS segments — changing the
+    // group is meant to drop the choices made under the old one — so the group
+    // has to be written first and the segments after it. Reversed, this method
+    // would silently throw away everything it just collected.
+    //
+    // The group is derived rather than asked for: the control is grouped, so
+    // the first pick's heading is the industry. Segments spanning two groups
+    // keep the first, since the quiz's own field holds exactly one.
+    saveCompany({ name, employees, segments, operations, problems }) {
+      this.company = { name, employees, segments, operations, problems }
+      this.viewer = { ...this.viewer, company: name }
+      const group = INDUSTRIES.find((i) => i.segments.includes(segments?.[0]))
+      if (group) this.answer('industry', group.value)
+      this.answers.segments = segments ?? []
+    },
+
+    // What the two auth FORMS record. Neither signs anyone in: the code comes
+    // back on the verify screen, and `completeLogin` is that screen's. Recorded
+    // early all the same, so verify can name the address it sent a code to.
+    //
+    // Sign-up collected a name, an address and a country. All three replace the
+    // seeded demo viewer, because a form that asks who you are and then shows
+    // you someone else's name reads as the answers having been discarded.
+    //
+    // The country lands in `filters.countries`, the granular half of the geo
+    // dimension — the same field the quiz's India chip writes through
+    // `toggleGeo`, so an answer given here arrives at the listing ticked under
+    // its region with nothing to translate. It replaces rather than appends:
+    // this is where the business IS, not a filter they are widening.
+    //
+    // `regionInferred` clears for the same reason `toggleGeo` clears it — the
+    // location was a guess until someone confirmed it, and confirming it is
+    // exactly what this screen did.
+    signUp({ name, email, country }) {
+      this.viewer = { ...this.viewer, name, email }
+      if (country) {
+        this.filters.countries = [country]
+        this.regionInferred = false
+      }
+    },
+
+    // Logging in knows only the address. The name stays whatever the store
+    // already holds — a real build reads it back from the account, and deriving
+    // one from the email would be a guess dressed up as a fact.
+    logIn({ email }) {
+      this.viewer = { ...this.viewer, email }
+    },
+
+    // ⚠️ Signs the visitor in and nothing else. Called by the VERIFY screen,
+    // once the code is back — not by either form. It does NOT run the held
+    // action either; `runPending` does, once the caller has navigated.
+    completeLogin() {
+      this.setAccount('client')
     },
 
     answer(key, value) {

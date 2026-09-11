@@ -12,7 +12,8 @@ import {
   toast,
   Tooltip,
 } from 'frappe-ui'
-import { signInToast } from '../feedback'
+import ConnectMark from './ConnectMark.vue'
+import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 
 // Collapsed on arrival: the quiz and the map are the point of this screen, and
@@ -22,6 +23,7 @@ import { useConnectStore } from '../stores/connect'
 const collapsed = ref(true)
 
 const store = useConnectStore()
+const { requireAccount } = useAuthGate()
 
 // ⚠️ `SidebarItem` infers its active state by comparing the WHOLE path
 // (`current.path === target.path`), so a child route lights nothing at all.
@@ -30,7 +32,24 @@ const store = useConnectStore()
 // and the two you spend the most time on. Every route under /connect is the
 // partner directory, so the match is a prefix.
 const route = useRoute()
-const inDirectory = computed(() => route.path.startsWith('/connect'))
+// ⚠️ The pack flow is excluded from the directory. Every route under /connect
+// used to be the directory; the catalogue was the first that wasn't, and
+// without this both rail rows light up at once.
+//
+// ⚠️ NAMES, not a path prefix. The flow leaves `/connect/packs` after the
+// catalogue — confirming and the booked screen are `/connect/confirm` and
+// `/connect/confirmed` — so a prefix lit "Find partners" on the last two
+// screens of buying a pack, while their own breadcrumb read "Starter packs".
+// The rail and the breadcrumb should never disagree about which section you
+// are in. A new screen in this flow belongs in this set.
+const PACK_ROUTES = new Set(['packs', 'confirm', 'confirmed'])
+const inPacks = computed(() => PACK_ROUTES.has(route.name))
+const inMessages = computed(() => route.name === 'messages')
+// ⚠️ Everything under /connect that isn't one of the other sections. Each new
+// destination has to be subtracted here too, or the rail lights two rows.
+const inDirectory = computed(
+  () => route.path.startsWith('/connect') && !inPacks.value && !inMessages.value,
+)
 
 // The header is already a Dropdown trigger — `SidebarHeader` takes `menuItems`
 // and renders the chevron itself, so clicking the logo opens this rather than
@@ -41,9 +60,7 @@ const inDirectory = computed(() => route.path.startsWith('/connect'))
 // demo control in the corner. Nothing to offer a signed-out visitor, so the
 // menu is empty and the chevron doesn't appear.
 const logoMenu = computed(() =>
-  store.signedIn
-    ? [{ label: 'Log out', icon: 'lucide-log-out', onClick: logOut }]
-    : [],
+  store.signedIn ? [{ label: 'Log out', icon: 'lucide-log-out', onClick: logOut }] : [],
 )
 
 // `store.logOut()` rather than `setAccount('visitor')`: logging out has to drop
@@ -100,8 +117,19 @@ const onRailMove = (e) => {
 // there's no responsive handling to write here.
 defineProps({
   // Trailing breadcrumb label. Unset on the list screens, where the bar just
-  // reads "Partners".
+  // reads the root.
   crumb: { type: String, default: null },
+  // The root crumb. "Partners" everywhere except the pack catalogue, which is
+  // its own top-level destination rather than a level under the directory —
+  // hard-coding "Partners" filed it as one.
+  rootLabel: { type: String, default: 'Partners' },
+  rootTo: { type: String, default: '/connect/partners' },
+  // Hand the content region to the page at full height, with no scrolling of
+  // its own. For a screen whose panes scroll separately — messages, where the
+  // thread list and the conversation each keep their own position and the
+  // composer stays put at the bottom. A page that scrolls as one document
+  // wants the default.
+  flush: { type: Boolean, default: false },
 })
 
 // Slots: `default` is the screen. `#action` is optional and replaces the top
@@ -125,10 +153,11 @@ defineProps({
         :subtitle="store.signedIn ? store.viewer.name : undefined"
         :menu-items="logoMenu"
       >
+        <!-- `lg` is 28px, exactly SidebarHeader's own logo frame
+             (`size-7 rounded-[6px]`), so the mark fills it rather than sitting
+             in it. One definition for the app — see `ConnectMark`. -->
         <template #prefix>
-          <div class="flex size-full items-center justify-center bg-surface-gray-7 text-white">
-            <LucideBlocks class="size-4" />
-          </div>
+          <ConnectMark size="lg" />
         </template>
       </SidebarHeader>
 
@@ -196,12 +225,13 @@ defineProps({
                threads land in. `lucide-inbox` is frappe-ui's own choice for the
                row too — see the Sidebar `Collapsed` story.
 
-               It's also the least speculative item in the rail: every Contact
-               button in the product toasts "the in-app messages screen, which
-               doesn't exist yet", and this is the screen those toasts point
-               at. -->
+               It was the least speculative item in the rail, and it is now the
+               only live one: the screen exists. ⚠️ The Contact buttons in the
+               listing and on the profiles still toast rather than opening a
+               thread — starting a conversation from there needs a rule for
+               what a brand new thread says, which is a separate decision. -->
           <Tooltip text="Messages" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Messages">
+            <SidebarItem label="Messages" to="/connect/messages" :active="inMessages">
               <template #prefix><LucideInbox class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>
@@ -288,7 +318,7 @@ defineProps({
             </SidebarItem>
           </Tooltip>
           <Tooltip text="Starter packs" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Starter packs">
+            <SidebarItem label="Starter packs" to="/connect/packs" :active="inPacks">
               <template #prefix><LucidePackage class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>
@@ -302,7 +332,6 @@ defineProps({
           </Tooltip>
         </nav>
       </ScrollArea>
-
     </Sidebar>
 
     <div class="relative flex min-w-0 flex-1 flex-col">
@@ -372,10 +401,10 @@ defineProps({
              runs straight into the auth control at narrow widths. -->
         <nav v-if="crumb" class="flex min-w-0 items-center pr-3" aria-label="Breadcrumb">
           <RouterLink
-            to="/connect/partners"
-            class="shrink-0 rounded-4 px-0.5 py-1 text-lg-medium text-ink-gray-5 transition-colors hover:text-ink-gray-7"
+            :to="rootTo"
+            class="shrink-0 whitespace-nowrap rounded-4 px-0.5 py-1 text-lg-medium text-ink-gray-5 transition-colors hover:text-ink-gray-7"
           >
-            Partners
+            {{ rootLabel }}
           </RouterLink>
           <span class="mx-0.5 text-base text-ink-gray-4" aria-hidden="true">/</span>
           <span
@@ -385,7 +414,9 @@ defineProps({
             {{ crumb }}
           </span>
         </nav>
-        <span v-else class="px-0.5 py-1 text-lg-medium text-ink-gray-9">Partners</span>
+        <span v-else class="whitespace-nowrap px-0.5 py-1 text-lg-medium text-ink-gray-9">
+          {{ rootLabel }}
+        </span>
 
         <!-- The trailing control. A page fills it through `#action` — the
              profile does, with its own Contact.
@@ -409,17 +440,10 @@ defineProps({
                screen, but a solid button in the chrome outranks the page's own
                primary action.
 
-               ⚠️ It no longer opens anything. `LoginDialog` has been removed
-               and a new sign-in design is coming, so this raises a toast naming
-               the gap instead — the same treatment Contact gets for the
-               messages screen that doesn't exist. A button that swallows a
-               click reads as broken; one that says what it would have done
-               reads as unfinished, which is the truth.
-
-               When the new prompt lands, put this back to
-               `store.requireLogin()` and drop `signInToast` — `requireLogin` is
-               the one seam the prompt plugs into, and every gated control in
-               the app already runs through it.
+               It goes through `requireAccount`, the gate in `utils/auth.js`:
+               signed out, it navigates to the sign-up screen carrying `?next=`
+               back to here. This is the seam the removed `LoginDialog` used to
+               fill and that `signInToast` stood in for; both are gone.
 
                Signed in: nothing here. The account surface isn't designed yet,
                so the bar shows the absence of the CTA rather than a stand-in
@@ -432,7 +456,7 @@ defineProps({
             variant="ghost"
             class="-mr-2"
             label="Log in or create account"
-            @click="signInToast"
+            @click="requireAccount()"
           >
             <template #suffix><LucideArrowRight class="size-4" /></template>
           </Button>
@@ -442,12 +466,48 @@ defineProps({
       <!-- frappe-ui's ScrollArea: overlay scrollbars that fade in on hover or
            scroll, instead of a permanent native gutter. Same primitive
            DesktopShell uses for its content region. -->
-      <ScrollArea class="min-h-0 flex-1">
-        <main class="min-w-0">
+      <!-- ⚠️ `fc-content` makes the content column a container-query root, so a
+           page inside it can respond to ITS width rather than the viewport's.
+           That matters here and nowhere else: with a panel open the column's
+           width changes without the window changing, so viewport breakpoints
+           inside a page would answer the wrong question. See `index.css`. -->
+      <div class="flex min-h-0 flex-1">
+        <!-- ⚠️ Two content regions, one slot. The default wraps the page in a
+             ScrollArea and lets it be as tall as it likes; `flush` hands over
+             the region at exactly the height left under the top bar and
+             scrolls nothing, so a page can put its own scrollers inside it.
+             `min-h-0` on both is what lets a child actually scroll instead of
+             stretching this box. -->
+        <main v-if="flush" class="fc-content flex min-h-0 min-w-0 flex-1">
           <slot />
         </main>
-      </ScrollArea>
-    </div>
+        <ScrollArea
+          v-else
+          class="fc-content min-h-0 min-w-0 flex-1"
+          :class="$slots.panel ? 'hidden md:block' : ''"
+        >
+          <main class="min-w-0">
+            <slot />
+          </main>
+        </ScrollArea>
 
+        <!-- ⚠️ The width lives in `.fc-panel` (index.css), not in Tailwind
+             classes here, because it is the thing that ANIMATES: the panel
+             pushes the content column aside rather than appearing beside it, so
+             the page and the panel are one motion. `fc-panel-inner` holds the
+             contents at full width so nothing inside re-wraps while the box is
+             still growing. -->
+        <Transition name="panel">
+          <aside
+            v-if="$slots.panel"
+            class="fc-panel flex shrink-0 border-l border-outline-gray-1 bg-surface-base"
+          >
+            <div class="fc-panel-inner flex min-w-0 flex-col">
+              <slot name="panel" />
+            </div>
+          </aside>
+        </Transition>
+      </div>
+    </div>
   </div>
 </template>

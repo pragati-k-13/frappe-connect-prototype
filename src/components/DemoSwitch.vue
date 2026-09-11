@@ -60,8 +60,12 @@ function switchTo(role) {
 // It's a property of the viewer rather than a different demo, so flipping it
 // should re-render the screen you're on rather than throw you back to the
 // start of the flow — that's the comparison a reviewer wants to make.
+// ⚠️ `demoAccount`, not `setAccount`: it also loads the inbox that belongs to
+// the persona. `setAccount` alone is what the app calls when someone finishes
+// signing up, and a new account must not be handed conversations it never
+// started.
 function setAccount(account) {
-  store.setAccount(account)
+  store.demoAccount(account)
 }
 
 // Frappe Cloud's convention for a radio-style menu group: check on the active
@@ -108,6 +112,16 @@ const options = computed(() => [
               description: 'Signed out — every screen as built today',
               icon: checkAccount('visitor'),
               onClick: () => setAccount('visitor'),
+            },
+            {
+              // The messages screen's other viewer: signed in, no booking, and
+              // four conversations open with two of them gone quiet. It is the
+              // only way to see the active/inactive filter do anything, because
+              // a booking gives you exactly one thread.
+              label: 'Exploring partners',
+              description: 'Signed in, no project, several chats open',
+              icon: checkAccount('exploring'),
+              onClick: () => setAccount('exploring'),
             },
             {
               label: 'Ongoing project',

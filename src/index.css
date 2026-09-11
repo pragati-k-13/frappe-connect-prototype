@@ -3,6 +3,13 @@
 @tailwind utilities;
 
 /* Text selection inverts the foreground, matching the rest of the Frappe apps. */
+/* Ionic's iOS drawer curve. The built-in easings are too weak to read as
+   intentional, and this one front-loads the movement so a panel is essentially
+   in place by the time you've registered it. */
+:root {
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
 ::selection {
   background-color: var(--ink-gray-9);
   color: var(--surface-elevation-1);
@@ -186,4 +193,230 @@
    partner row's divider suppression. */
 .dialog-content:has(.fc-estimate) div:has(+ .fc-estimate) {
   margin-bottom: 16px;
+}
+
+/* The in-app content column, as a container-query root.
+   A screen can open a side panel (see `ConnectShell`'s `panel` slot), and when
+   it does the column narrows WITHOUT the window changing size. Viewport
+   breakpoints inside a page therefore answer the wrong question: `sm:grid-cols-3`
+   stays three-across in a 600px column on a 1400px screen, and the columns
+   collapse into each other.
+   The `.fc-col-*` rules below are the container-query equivalents of the grids
+   that have to react to this. Hand-written because Tailwind 3 needs a plugin
+   for `@container`, and this and the map panel are the only places that want
+   one. Padding lives here too, for the same reason the grid does — a `sm:px-6`
+   on the cells would key off the window and undo the point. */
+.fc-content {
+  container-type: inline-size;
+  container-name: content;
+}
+
+/* Three across when the column can hold it, stacked when it can't. 640px is
+   where three columns still leave the middle one — the only one padded on both
+   sides — enough for its longest label. Measured; see `PacksPage`. */
+.fc-col-3 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.fc-col-3 > * {
+  padding-block: 1rem;
+}
+.fc-col-3 > * + * {
+  border-top: 1px solid var(--outline-gray-1);
+}
+@container content (min-width: 640px) {
+  .fc-col-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .fc-col-3 > * {
+    padding-block: 0;
+    padding-inline: 1.5rem;
+  }
+  /* The outer edges stay flush, so the first column lines up with the heading
+     above it and the row ends where the section does. */
+  .fc-col-3 > :first-child {
+    padding-left: 0;
+  }
+  .fc-col-3 > :last-child {
+    padding-right: 0;
+  }
+  .fc-col-3 > * + * {
+    border-top: 0;
+    border-left: 1px solid var(--outline-gray-1);
+  }
+}
+
+/* Two across for the included / not-included ledger, with the rule on the
+   midline and the same 2rem of air either side of it. */
+.fc-col-2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 1.5rem;
+}
+@container content (min-width: 560px) {
+  .fc-col-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 0;
+  }
+  .fc-col-2 > :first-child {
+    padding-right: 2rem;
+  }
+  .fc-col-2 > :last-child {
+    padding-left: 2rem;
+    border-left: 1px solid var(--outline-gray-1);
+  }
+}
+
+/* ── The scope panel, and the page making room for it ──────────────────────
+ *
+ * WHAT WAS WRONG: the panel faded in while the page BESIDE it jumped. Measured
+ * at 1440px, the content block keeps its 800px measure and moves 190px left in
+ * a single frame — a pure translation, no re-wrap. Softening the panel and
+ * leaving that jump animated the small half of the change and not the loud one.
+ *
+ * WHAT MOVES NOW: the panel's own width, 0 → 340/380px. Everything else follows
+ * from the flex layout for free — the content column widens and narrows, and
+ * the 800px block re-centres — so the page and the panel are one motion rather
+ * than two events. It also makes CLOSING work: a FLIP transform on the content
+ * can't handle it, because the panel stays in the DOM for its whole leave and
+ * the column doesn't widen until it's gone.
+ *
+ * ⚠️ This animates `width`, which is layout, against the usual rule of moving
+ * only transform and opacity. It's the deliberate exception, on three
+ * conditions: the interaction is occasional, the subtree is small, and — the
+ * one that actually matters — `fc-panel-inner` holds the panel's contents at a
+ * FIXED width so nothing inside re-wraps while the container animates. Without
+ * it every frame re-lays-out the panel's text and the tagline visibly re-wraps.
+ * The `overflow: hidden` is what turns the growing box into a reveal: the inner
+ * column is anchored at the left edge, so it slides in from the right the way a
+ * drawer should, rather than being squashed and stretched.
+ *
+ * No fade and no offset on top of it. The push IS the motion, and a fade laid
+ * over a physical movement is the "look at me" version of this.
+ *
+ * Enter 280ms, leave 200ms — the system should respond faster than it
+ * announces. `--ease-drawer` is Ionic's iOS curve, which is the one that reads
+ * as weight rather than as a slide.
+ *
+ * Below `md` there is no push to animate: the content column steps aside
+ * entirely (`hidden md:block`) and the panel takes the width, so a 0 → 100%
+ * wipe would be motion describing something that isn't happening. It fades
+ * instead.
+ */
+.fc-panel {
+  --fc-panel-w: 100%;
+  width: var(--fc-panel-w);
+  overflow: hidden;
+}
+.fc-panel-inner {
+  width: var(--fc-panel-w);
+  flex: none;
+}
+@media (min-width: 768px) {
+  .fc-panel {
+    --fc-panel-w: 340px;
+  }
+}
+@media (min-width: 1024px) {
+  .fc-panel {
+    --fc-panel-w: 380px;
+  }
+}
+
+.panel-enter-active {
+  transition: opacity 0.28s var(--ease-drawer);
+}
+.panel-leave-active {
+  transition: opacity 0.2s var(--ease-drawer);
+}
+.panel-enter-from,
+.panel-leave-to {
+  opacity: 0;
+}
+
+@media (min-width: 768px) {
+  .panel-enter-active {
+    transition: width 0.28s var(--ease-drawer);
+  }
+  .panel-leave-active {
+    transition: width 0.2s var(--ease-drawer);
+  }
+  .panel-enter-from,
+  .panel-leave-to {
+    width: 0;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-enter-active,
+  .panel-leave-active {
+    transition-duration: 0.01ms;
+  }
+}
+
+/* Frappe Connect's mark, painted over `Avatar`'s theme.
+ *
+ * Avatar's six themes are all `-2` backgrounds with `-7` ink — pale tiles meant
+ * to sit behind a person's initials. A product mark wants the saturated fill,
+ * and the component offers none, so this overrides exactly that one pairing and
+ * leaves the box, the corner and the icon well to `Avatar`.
+ *
+ * A descendant rule rather than a class on the component, and not by choice:
+ * Avatar paints the colour on an inner `h-full w-full` div, so anything set on
+ * the root is simply covered by it. `> div` is that inner div, and its 0,1,1
+ * beats the theme utility's 0,1,0.
+ */
+.fc-mark > div {
+  /* ⚠️ A literal hex, and deliberately: #2F3E9D is Connect's brand blue and
+   * frappe-ui has no token for it. Every other colour in the app is a token —
+   * if this one ever gets a `--surface-*` variable, it belongs there instead. */
+  @apply bg-[#2F3E9D] text-white;
+}
+
+/* ⚠️ WORKAROUND — delete when frappe-ui moves past 1.0.0-beta.55.
+ *
+ * beta.55's `Textarea` scales FONT SIZE with the `size` prop — sm 14px, md
+ * 16px, lg 18px — while `TextInput` and `Select` hold at 14px for sm and md.
+ * Upstream does not: every textarea size on ui.frappe.io renders `text-p-sm` at
+ * 13px and only the padding changes, 6/8/10/12px across xs/sm/md/lg. Measured
+ * there, not inferred.
+ *
+ * So this pins what the library already intends, which is why it can be deleted
+ * outright on upgrade rather than reconciled.
+ *
+ * `textarea[data-slot='control']` — `data-slot` is frappe-ui's own attribute, so
+ * this reaches its textareas and no hand-rolled one, and its 0,1,1 beats the
+ * component's own `text-p-*` utility. The class has to land on the element
+ * itself: `FormControl` forwards a `class` to the labeling WRAPPER, so a
+ * utility passed in would sit on the div and lose.
+ */
+textarea[data-slot='control'] {
+  @apply text-p-sm;
+}
+
+/* The messages composer and the bubbles it writes.
+ *
+ * `frappe-ui/editor` ships prose styles for the editing surface, and they are
+ * the right typography for a message too — but the bubble is not an editor, so
+ * the two rules it actually needs are here rather than pulling `prose` onto a
+ * paragraph of chat. Paragraph gaps only BETWEEN paragraphs, so a one-line
+ * message has no stray margin inside its bubble. */
+/* ⚠️ `.fc-composer` IS the ProseMirror element — `EditorContent`'s root and the
+ * editable node are the same div — so these are element rules, not descendant
+ * ones. It also arrives carrying `prose prose-v3`, which sizes text at 15px and
+ * puts margins on every paragraph; a composer is one field in a form, and it
+ * has to read at the same size as the messages above it. */
+.fc-composer {
+  @apply text-p-base text-ink-gray-8;
+}
+.fc-composer:focus {
+  @apply outline-none;
+}
+.fc-composer p {
+  @apply !my-0;
+}
+.fc-message > * + *,
+.fc-composer > * + * {
+  @apply mt-2;
 }

@@ -32,30 +32,13 @@ export const savedToast = (partner, saved, undo) => {
   })
 }
 
-// ⚠️ Every Contact in the app lands here. The in-app messages screen doesn't
-// exist yet and is deliberately not stubbed — see the comment at each button —
-// so this names the gap instead of letting the click vanish. A button that
-// swallows a click reads as broken; one that says what it would have done reads
-// as unfinished, which is the truth.
+// ⚠️ Every Contact in the app lands here. The messages SCREEN now exists, but
+// starting a conversation from a listing row does not: a new thread needs a
+// rule for what it opens with, and that is a decision nobody has made. So this
+// still names the gap rather than letting the click vanish, and the copy says
+// what is missing now — the thread, not the screen.
 export const contactToast = (partner) =>
-  toast.info('Messages are not built yet', {
+  toast.info('Starting a thread is not built yet', {
     id: 'contact',
-    description: `This is where the thread with ${partner.name} would open.`,
-  })
-
-// The top bar's "Log in or create account". ⚠️ `LoginDialog` has been removed
-// and a new sign-in design is coming, so the button has nowhere to send anyone
-// — same situation as Contact above, and the same answer: name the gap rather
-// than let the click vanish.
-//
-// When the new prompt lands this goes away and the button goes back to
-// `store.requireLogin()`, which is where the prompt plugs in.
-//
-// `id: 'auth'` is shared with the "Logged out" toast in `ConnectShell` on
-// purpose: they are the two halves of the same story and you should never see
-// both stacked, so the later one replaces the earlier.
-export const signInToast = () =>
-  toast.info('Sign in is being redesigned', {
-    id: 'auth',
-    description: 'Switch account state from the demo control meanwhile.',
+    description: `Booking a Starter Pack opens one with ${partner.name}.`,
   })

@@ -15,7 +15,11 @@ import DottedWorldMap from '../components/DottedWorldMap.vue'
 import FilterChip from '../components/FilterChip.vue'
 import { useConnectStore } from '../stores/connect'
 import { INDUSTRIES, GEO_CHOICES, IMPLEMENTATION_TYPES } from '../data/quiz'
-import { STARTER_PACKS, SUCCESS_STORIES } from '../data/partners'
+import { SUCCESS_STORIES } from '../data/partners'
+// Pack pricing is per region now. This table has no region to read — the quiz
+// asks for one, but a visitor can skip it — so it quotes the default, India,
+// and says so in the line above it.
+import { STARTER_PACKS, priceFor, pricingFor, DEFAULT_REGION } from '../data/packs'
 
 const store = useConnectStore()
 const router = useRouter()
@@ -173,7 +177,9 @@ const restartQuiz = () => {
                 <legend class="text-p-base font-semibold text-ink-gray-9">
                   Which industry do you work in?
                 </legend>
-                <span class="shrink-0 text-p-sm tabular-nums text-ink-gray-5">{{ step }} / {{ TOTAL }}</span>
+                <span class="shrink-0 text-p-sm tabular-nums text-ink-gray-5">
+                  {{ step }} / {{ TOTAL }}
+                </span>
               </div>
 
               <RadioGroup
@@ -230,7 +236,7 @@ const restartQuiz = () => {
 
               <div class="mt-5 flex items-center justify-between">
                 <Button variant="solid" label="Continue" :disabled="!hasAnswer" @click="next" />
-<Button variant="ghost" label="Skip" @click="skip" />
+                <Button variant="ghost" label="Skip" @click="skip" />
               </div>
             </fieldset>
 
@@ -256,7 +262,9 @@ const restartQuiz = () => {
                 <legend class="text-p-base font-semibold text-ink-gray-9">
                   Where can your partner be based?
                 </legend>
-                <span class="shrink-0 text-p-sm tabular-nums text-ink-gray-5">{{ step }} / {{ TOTAL }}</span>
+                <span class="shrink-0 text-p-sm tabular-nums text-ink-gray-5">
+                  {{ step }} / {{ TOTAL }}
+                </span>
               </div>
 
               <!-- mt-3 against the radio steps' mt-1.5: chips have no internal
@@ -288,7 +296,7 @@ const restartQuiz = () => {
                   <Button variant="solid" label="Continue" :disabled="!hasAnswer" @click="next" />
                   <Button variant="subtle" label="Back" @click="back" />
                 </div>
-<Button variant="ghost" label="Skip" @click="skip" />
+                <Button variant="ghost" label="Skip" @click="skip" />
               </div>
             </fieldset>
 
@@ -298,7 +306,9 @@ const restartQuiz = () => {
                 <legend class="text-p-base font-semibold text-ink-gray-9">
                   What kind of implementation are you looking for?
                 </legend>
-                <span class="shrink-0 text-p-sm tabular-nums text-ink-gray-5">{{ step }} / {{ TOTAL }}</span>
+                <span class="shrink-0 text-p-sm tabular-nums text-ink-gray-5">
+                  {{ step }} / {{ TOTAL }}
+                </span>
               </div>
 
               <RadioGroup
@@ -319,10 +329,15 @@ const restartQuiz = () => {
 
               <div class="mt-5 flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                  <Button variant="solid" label="Find partners" :disabled="!hasAnswer" @click="next" />
+                  <Button
+                    variant="solid"
+                    label="Find partners"
+                    :disabled="!hasAnswer"
+                    @click="next"
+                  />
                   <Button variant="subtle" label="Back" @click="back" />
                 </div>
-<Button variant="ghost" label="Skip" @click="skip" />
+                <Button variant="ghost" label="Skip" @click="skip" />
               </div>
             </fieldset>
           </Transition>
@@ -367,17 +382,18 @@ const restartQuiz = () => {
         </h2>
         <p class="mt-1.5 max-w-2xl text-p-base text-ink-gray-6">
           Fixed scope, fixed price, delivered by any certified partner. Pick one now or let the
-          questions above narrow it down for you.
+          questions above narrow it down for you. Prices for India, before
+          {{ pricingFor(DEFAULT_REGION).tax }}.
         </p>
 
-        <ScrollArea
-          orientation="horizontal"
-          class="mt-5 rounded-6 border border-outline-gray-2"
-        >
+        <ScrollArea orientation="horizontal" class="mt-5 rounded-6 border border-outline-gray-2">
           <table class="w-full min-w-[640px] border-collapse text-p-base">
             <thead>
               <tr class="bg-surface-gray-1">
-                <th scope="col" class="w-40 px-4 py-3 text-left text-p-sm font-medium uppercase tracking-wide text-ink-gray-5">
+                <th
+                  scope="col"
+                  class="w-40 px-4 py-3 text-left text-p-sm font-medium uppercase tracking-wide text-ink-gray-5"
+                >
                   <span class="sr-only">Attribute</span>
                 </th>
                 <th
@@ -392,27 +408,49 @@ const restartQuiz = () => {
             </thead>
             <tbody>
               <tr class="border-t border-outline-gray-2">
-                <th scope="row" class="px-4 py-3.5 text-left font-normal text-ink-gray-7">Modules</th>
-                <td v-for="p in STARTER_PACKS" :key="p.value" class="px-4 py-3.5 text-center text-ink-gray-8">
+                <th scope="row" class="px-4 py-3.5 text-left font-normal text-ink-gray-7">
+                  Modules
+                </th>
+                <td
+                  v-for="p in STARTER_PACKS"
+                  :key="p.value"
+                  class="px-4 py-3.5 text-center text-ink-gray-8"
+                >
                   {{ p.modules }}
                 </td>
               </tr>
               <tr class="border-t border-outline-gray-2">
-                <th scope="row" class="px-4 py-3.5 text-left font-normal text-ink-gray-7">Total hours</th>
-                <td v-for="p in STARTER_PACKS" :key="p.value" class="px-4 py-3.5 text-center tabular-nums text-ink-gray-8">
+                <th scope="row" class="px-4 py-3.5 text-left font-normal text-ink-gray-7">
+                  Total hours
+                </th>
+                <td
+                  v-for="p in STARTER_PACKS"
+                  :key="p.value"
+                  class="px-4 py-3.5 text-center tabular-nums text-ink-gray-8"
+                >
                   {{ p.hours }}
                 </td>
               </tr>
               <tr class="border-t border-outline-gray-2">
-                <th scope="row" class="px-4 py-3.5 text-left font-normal text-ink-gray-7">Validity</th>
-                <td v-for="p in STARTER_PACKS" :key="p.value" class="px-4 py-3.5 text-center text-ink-gray-8">
+                <th scope="row" class="px-4 py-3.5 text-left font-normal text-ink-gray-7">
+                  Validity
+                </th>
+                <td
+                  v-for="p in STARTER_PACKS"
+                  :key="p.value"
+                  class="px-4 py-3.5 text-center text-ink-gray-8"
+                >
                   {{ p.validity }}
                 </td>
               </tr>
               <tr class="border-t border-outline-gray-2">
                 <th scope="row" class="px-4 py-3.5 text-left font-normal text-ink-gray-7">Cost</th>
-                <td v-for="p in STARTER_PACKS" :key="p.value" class="px-4 py-3.5 text-center font-medium tabular-nums text-ink-gray-9">
-                  {{ p.cost }}
+                <td
+                  v-for="p in STARTER_PACKS"
+                  :key="p.value"
+                  class="px-4 py-3.5 text-center font-medium tabular-nums text-ink-gray-9"
+                >
+                  {{ priceFor(p, DEFAULT_REGION) }}
                 </td>
               </tr>
             </tbody>
@@ -438,7 +476,9 @@ const restartQuiz = () => {
                 role="img"
                 :aria-label="`Cover image for: ${s.title}`"
               />
-              <p class="mt-3 text-p-sm font-medium uppercase tracking-wide text-ink-gray-5">{{ s.tag }}</p>
+              <p class="mt-3 text-p-sm font-medium uppercase tracking-wide text-ink-gray-5">
+                {{ s.tag }}
+              </p>
               <p class="mt-1 text-p-base leading-snug text-ink-gray-8 group-hover:underline">
                 {{ s.title }}
               </p>
@@ -453,8 +493,8 @@ const restartQuiz = () => {
       <div class="mx-auto w-full max-w-[800px] text-center">
         <h2 class="text-xl font-semibold text-ink-gray-9">Ready to find your partner?</h2>
         <p class="mx-auto mt-2 max-w-md text-p-base text-ink-gray-6">
-          Three questions, about thirty seconds. We'll narrow 156 certified partners down to the ones
-          who've done your kind of project.
+          Three questions, about thirty seconds. We'll narrow 156 certified partners down to the
+          ones who've done your kind of project.
         </p>
         <div class="mt-5">
           <Button variant="solid" size="md" label="Find a partner" @click="restartQuiz" />

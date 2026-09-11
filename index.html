@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="data:," />
+    <!-- Inter for the product UI, Newsreader for the marketing headline.
+         frappe-ui's Tailwind plugin sets the body to `InterVar, <sans stack>`
+         but ships no webfont, so without this the whole app renders in the
+         system sans and the serif headline in Georgia. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap"
+      rel="stylesheet"
+    />
     <title>Frappe Connect — design handoff mock</title>
   </head>
   <body>
