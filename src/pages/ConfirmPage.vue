@@ -46,18 +46,25 @@ const region = computed(
   () => marketFor(store.filters.countries[0]) ?? store.answers.region[0] ?? DEFAULT_REGION,
 )
 
-// ⚠️ What happens between picking a pack and the work starting. Steps 2 to 4
+// ⚠️ What happens between picking a pack and the work starting. Steps 2 and 3
 // describe, they don't act — only the first has a control, because booking the
 // call is the only thing this screen actually does.
+//
+// ⚠️ THREE steps, matching "How it works" on the catalogue exactly, titles and
+// all. There were four: a "Pick a slot for your introductory call" step above
+// "Introductory call", which listed the same call twice — once as the thing
+// being arranged and once as the thing that will happen — and dressed the
+// screen's own form up as a step in a sequence. The picker now sits under the
+// call it books, so the catalogue's promise and this screen tell one story with
+// the same numbers.
 //
 // ⚠️ The partner is unnamed. "Frappe assigns you a partner" is the whole model,
 // and the decision was to show who before any payment — but the wireframe names
 // nobody, so nothing here invents one. See the note in the PR.
 const STEPS = [
-  { title: 'Pick a slot for your introductory call' },
-  { title: 'Introductory call', body: 'Get acquainted with Partner' },
+  { title: 'Introductory call', body: 'Get to know your partner' },
   { title: 'Pay in full before kickoff', body: '3x faster to get started' },
-  { title: 'Co-ordinate with Partner', body: 'Share data and processes' },
+  { title: 'Coordinate with partner', body: 'Share data and processes' },
 ]
 
 // ⚠️ A free datetime, because that's the component asked for. Real slot booking
@@ -137,7 +144,8 @@ const confirm = () => {
               <div class="min-w-0 flex-1">
                 <p class="text-base font-medium text-ink-gray-8">{{ step.title }}</p>
                 <p v-if="step.body" class="mt-1 text-p-base text-ink-gray-6">{{ step.body }}</p>
-                <!-- Only the first step has one. -->
+                <!-- Only the first step has one: it is the step this screen
+                     exists to complete. -->
                 <FormControl
                   v-if="i === 0"
                   v-model="slot"
