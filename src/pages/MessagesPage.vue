@@ -204,7 +204,13 @@ watch(open, toBottom)
   <ConnectShell root-label="Messages" flush>
     <div class="flex min-h-0 min-w-0 flex-1">
       <!-- ── The inbox ──────────────────────────────────────────────────── -->
-      <aside class="flex w-[320px] shrink-0 flex-col border-r border-outline-gray-1">
+      <!-- ⚠️ No inbox at all until there is something in it. An empty list
+           beside an empty pane is two ways of saying nothing, and the rule and
+           the tabs draw a frame around the absence. -->
+      <aside
+        v-if="threads.length"
+        class="flex w-[320px] shrink-0 flex-col border-r border-outline-gray-1"
+      >
         <div class="shrink-0 px-4 pb-3 pt-4">
           <h1 class="text-base font-medium text-ink-gray-8">Inbox</h1>
           <!-- ⚠️ Not in the design, and asked for: without it a quiet thread
@@ -221,15 +227,7 @@ watch(open, toBottom)
         </div>
 
         <ScrollArea class="min-h-0 flex-1">
-          <!-- ⚠️ Service agnostic. A Starter Pack is one way a conversation
-               starts and not the only one: guided onboarding books the same
-               way, and a visitor can reach out to a partner from the directory
-               without buying anything. Naming the pack here made the inbox read
-               as belonging to that one product. -->
-          <p v-if="!threads.length" class="px-4 py-6 text-p-sm text-ink-gray-5">
-            No conversations yet. They start when you book a service or reach out to a partner.
-          </p>
-          <p v-else-if="!shown.length" class="px-4 py-6 text-p-sm text-ink-gray-5">
+          <p v-if="!shown.length" class="px-4 py-6 text-p-sm text-ink-gray-5">
             Nothing here.
             {{
               filter === 'active'
@@ -498,14 +496,14 @@ watch(open, toBottom)
       <section v-else class="flex min-h-0 min-w-0 flex-1 items-center justify-center px-6">
         <div class="max-w-sm text-center">
           <p class="text-p-lg font-medium text-ink-gray-8">No conversation open</p>
+          <!-- ⚠️ Service agnostic, and no CTA. A Starter Pack is one way a
+               conversation starts and not the only one: guided onboarding books
+               the same way, and a visitor can reach out to a partner from the
+               directory without buying anything. There is no single next step
+               to offer, and a button here would pick one of them for you. -->
           <p class="mt-1.5 text-p-base text-ink-gray-6">
             Conversations open here once you book a service or reach out to a partner.
           </p>
-          <!-- ⚠️ The directory, not the pack catalogue. The old CTA sent
-               everyone to Starter Packs, which is one of the ways a
-               conversation begins; the partners themselves are the common
-               starting point for all of them. -->
-          <Button class="mt-4" variant="solid" label="Find partners" :route="'/connect'" />
         </div>
       </section>
     </div>
