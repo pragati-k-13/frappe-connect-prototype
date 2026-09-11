@@ -2,6 +2,7 @@
 import { computed, ref, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Button, ScrollArea, toast } from 'frappe-ui'
+import IconPlus from '~icons/lucide/plus'
 import ConnectShell from '../components/ConnectShell.vue'
 import PackPanel from '../components/PackPanel.vue'
 import { PARTNERS } from '../data/partners'
@@ -47,26 +48,53 @@ const region = computed(
   () => marketFor(store.filters.countries[0]) ?? store.answers.region[0] ?? DEFAULT_REGION,
 )
 
-// ⚠️ What happens between picking a pack and the work starting. Steps 2 and 3
-// describe, they don't act — only the first has a control, because booking the
-// call is the only thing this screen actually does.
+// ⚠️ The whole sequence, from this click to the work starting — not just the
+// part Frappe does. Steps 5 to 7 are the CUSTOMER's, and they are lifted from
+// `CUSTOMER_RESPONSIBILITIES` in the scope document rather than invented: a
+// pack is fast because the buyer nominates someone, brings clean data and
+// approves without delay, and finding that out after paying is the complaint
+// this screen exists to prevent.
 //
-// ⚠️ THREE steps, matching "How it works" on the catalogue exactly, titles and
-// all. There were four: a "Pick a slot for your introductory call" step above
-// "Introductory call", which listed the same call twice — once as the thing
-// being arranged and once as the thing that will happen — and dressed the
-// screen's own form up as a step in a sequence. The picker now sits under the
-// call it books, so the catalogue's promise and this screen tell one story with
-// the same numbers.
+// ⚠️ Only the first step carries an action. Everything else describes; this
+// screen does exactly two things, add project details and confirm.
 //
-// ⚠️ The partner is unnamed. "Frappe assigns you a partner" is the whole model,
-// and the decision was to show who before any payment — but the wireframe names
-// nobody, so nothing here invents one. See the note in the PR.
+// ⚠️ The partner is unnamed, and cannot be named: nobody is assigned until this
+// screen is confirmed. "Frappe matches you" is the step, not a name.
 const STEPS = [
-  { title: 'Introductory call', body: 'Get to know your partner' },
+  {
+    title: 'Create and add Project details',
+    body: 'This helps us understand your needs and lets you track your Project updates',
+    action: 'Add Project details',
+  },
+  {
+    title: 'Frappe matches you with a Partner based on your needs',
+    body: 'Matched on your industry, your region and the modules in this pack',
+  },
+  {
+    title: 'Schedule a discovery call to get acquainted with your Partner',
+    body: 'Meet the people who would run the implementation, before any money changes hands',
+  },
   { title: 'Pay in full before kickoff', body: '3x faster to get started' },
-  { title: 'Coordinate with partner', body: 'Share data and processes' },
+  {
+    title: 'Nominate a Project Champion',
+    body: 'One person on your side who can answer questions and sign things off',
+  },
+  { title: 'Ensure data readiness', body: 'Clean Excel or CSV data, ready to import' },
+  {
+    title: 'Continue with approvals and training',
+    body: 'Approve internally without delay and keep your users available',
+  },
 ]
+
+// ⚠️ Inert, and saying so. The design greys Confirm out until this is done;
+// here Confirm stays live, because the form behind this button has not been
+// designed and a disabled Confirm would dead-end the only route to the screen
+// after this one.
+const addDetails = () =>
+  toast.info('Project details are not built yet', {
+    id: 'confirm',
+    description: 'This is where you would describe the project for your Partner.',
+  })
 
 const booking = ref(false)
 
@@ -129,7 +157,7 @@ const confirm = () => {
 
           <!-- ── What you are doing ───────────────────────────────────────── -->
           <div v-else class="fc-reading">
-            <h1 class="text-lg font-semibold text-ink-gray-8">Confirm selection</h1>
+            <h1 class="text-lg font-semibold text-ink-gray-8">How this works</h1>
             <!-- ⚠️ Not the wireframe's subtitle, which read "This will connect
                you with the ideal Partner for your needs" — also the onboarding
                screen's line, two navigations earlier. -->
@@ -147,6 +175,19 @@ const confirm = () => {
                   <p class="text-base font-medium text-ink-gray-8">{{ step.title }}</p>
                   <p v-if="step.body" class="mt-1 text-p-base text-ink-gray-6">{{ step.body }}</p>
                 </div>
+                <!-- The one step you can act on, and the action sits IN the step
+                     rather than under the list: it belongs to that line, not to
+                     the sequence. -->
+                <Button
+                  v-if="step.action"
+                  class="shrink-0"
+                  variant="subtle"
+                  size="sm"
+                  :label="step.action"
+                  @click="addDetails"
+                >
+                  <template #prefix><IconPlus class="size-4" /></template>
+                </Button>
               </li>
             </ol>
 
