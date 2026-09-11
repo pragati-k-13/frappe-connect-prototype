@@ -201,6 +201,20 @@ const cancel = () =>
                   </div>
                   <p class="mt-0.5 text-p-sm text-ink-gray-6">{{ partner.city }}</p>
                 </div>
+
+                <!-- ⚠️ Top right, on the identity row. It is the one thing the
+                     card sends you to, and at the bottom it sat under the facts
+                     as though it were about the last line it followed. Beside
+                     the name, it is plainly about the partner. -->
+                <Button
+                  class="shrink-0"
+                  variant="subtle"
+                  size="sm"
+                  label="View full profile"
+                  :route="`/connect/partners/${partner.id}`"
+                >
+                  <template #suffix><IconChevronRight class="size-4" /></template>
+                </Button>
               </div>
 
               <!-- Full width from here, flush with the avatar's left edge. -->
@@ -224,16 +238,6 @@ const cancel = () =>
                   and {{ expertise.rest }} more
                 </span>
               </p>
-
-              <Button
-                class="mt-4"
-                variant="subtle"
-                size="sm"
-                label="View full profile"
-                :route="`/connect/partners/${partner.id}`"
-              >
-                <template #suffix><IconChevronRight class="size-4" /></template>
-              </Button>
             </article>
 
             <!-- ⚠️ Book a slot is the PRIMARY action on this screen: the pack is
