@@ -8,11 +8,12 @@ import { PARTNERS } from '../data/partners'
 import { STARTER_PACKS, marketFor, DEFAULT_REGION } from '../data/packs'
 import { useConnectStore } from '../stores/connect'
 
-// SCREEN — confirm the pack and book the introductory call.
+// SCREEN — confirm the pack.
 //
 // The last screen of the booking flow, and where it stops: payment is mocked
-// and the partner-side surfaces don't exist, so "Confirm and book call" is the
-// end of what's been designed.
+// and the partner-side surfaces don't exist, so Confirm is the end of what's
+// been designed. The introductory call is requested here and scheduled
+// elsewhere; this screen collects no time for it.
 //
 // ⚠️ TITLE COPY IS PLACEHOLDER, per the wireframe: "Confirm selection" is the
 // drawing's word, not a decided one. The subtitle is not the wireframe's — it
@@ -92,7 +93,7 @@ const confirm = () => {
     // card without one, and the field stays in the model for the build that
     // does have a time to put in it.
     store.startBooking({ partner: assigned, pack: pack.value, slot: null })
-    toast.success('Call booked', {
+    toast.success('Pack confirmed', {
       description: `You will get an email with the details and an introduction to ${assigned.name}.`,
     })
     router.push({
@@ -146,11 +147,16 @@ const confirm = () => {
           </ol>
 
           <div class="mt-8 flex items-center gap-2">
+            <!-- ⚠️ "Confirm", not "Confirm and book call". Nothing here books
+                 a call any more: the slot picker is gone, so the button would
+                 have promised a time it does not collect. What is being
+                 confirmed is on the screen and in the card beside it, and
+                 Cancel sits next to it, so one word carries the whole meaning. -->
             <Button
               variant="solid"
-              label="Confirm and book call"
+              label="Confirm"
               :loading="booking"
-              loading-text="Booking"
+              loading-text="Confirming"
               @click="confirm"
             />
             <Button variant="subtle" label="Cancel" :route="'/connect/packs'" />

@@ -203,7 +203,10 @@ const shortName = computed(() => partner.value?.name.split(' ')[0] ?? 'Your part
             </li>
             <li class="flex items-start gap-2 text-p-base text-ink-gray-7">
               <IconCheck class="mt-0.5 size-4 shrink-0 text-ink-gray-6" />
-              <span>Introductory call booked</span>
+              <!-- ⚠️ "Requested", not "booked". Confirming no longer collects a
+                   time, so a receipt claiming the call is booked would promise
+                   a slot nobody picked. Same word the thread's own card uses. -->
+              <span>Introductory call requested</span>
             </li>
             <li class="flex items-start gap-2 text-p-base text-ink-gray-7">
               <IconCheck class="mt-0.5 size-4 shrink-0 text-ink-gray-6" />
