@@ -80,7 +80,7 @@ const terms = computed(() => [
     </header>
 
     <!-- ── What you are buying ──────────────────────────────────────────── -->
-    <section class="px-5 py-5">
+    <section class="px-5 py-4">
       <div class="flex items-start gap-3">
         <!-- Placeholder for the pack illustration, same tile the catalogue's
              rows will take. ⚠️ `layers`, not `package`: package is already a
@@ -121,7 +121,7 @@ const terms = computed(() => [
          ships no accordion, and the native element brings the open state, the
          keyboard behaviour and the semantics for free. Same device as
          `PackScope`, which renders the same document in the catalogue. -->
-    <section class="border-t border-outline-gray-1 px-5 py-5">
+    <section class="border-t border-outline-gray-1 px-5 py-4">
       <h3 class="text-base font-medium text-ink-gray-8">Modules covered</h3>
 
       <div class="mt-2">
@@ -172,7 +172,7 @@ const terms = computed(() => [
     </section>
 
     <!-- ── What you are agreeing to ─────────────────────────────────────── -->
-    <section class="border-t border-outline-gray-1 px-5 py-5">
+    <section class="border-t border-outline-gray-1 px-5 py-4">
       <h3 class="text-base font-medium text-ink-gray-8">Terms and conditions</h3>
 
       <div class="mt-2">
