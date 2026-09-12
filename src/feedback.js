@@ -31,14 +31,3 @@ export const savedToast = (partner, saved, undo) => {
     action: { label: 'Undo', onClick: undo },
   })
 }
-
-// ⚠️ Every Contact in the app lands here. The messages SCREEN now exists, but
-// starting a conversation from a listing row does not: a new thread needs a
-// rule for what it opens with, and that is a decision nobody has made. So this
-// still names the gap rather than letting the click vanish, and the copy says
-// what is missing now — the thread, not the screen.
-export const contactToast = (partner) =>
-  toast.info('Starting a thread is not built yet', {
-    id: 'contact',
-    description: `Booking a Starter Pack opens one with ${partner.name}.`,
-  })

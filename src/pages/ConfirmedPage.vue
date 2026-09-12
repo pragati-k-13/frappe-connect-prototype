@@ -135,7 +135,7 @@ const cancel = () =>
   <ConnectShell flush root-label="Starter packs" root-to="/connect/packs" crumb="Confirmed">
     <div class="flex min-h-0 min-w-0 flex-1">
       <ScrollArea class="min-h-0 min-w-0 flex-1">
-        <div class="w-full px-10 py-8">
+        <div class="w-full px-5 py-8 lg:px-8">
           <div v-if="!pack || !partner" class="py-20 text-center">
             <p class="text-p-lg font-medium text-ink-gray-8">Nothing to show here</p>
             <p class="mx-auto mt-1.5 max-w-sm text-p-base text-ink-gray-6">
@@ -144,7 +144,14 @@ const cancel = () =>
             <Button class="mt-4" variant="solid" label="See the packs" :route="'/connect/packs'" />
           </div>
 
-          <div v-else class="w-full">
+          <!-- ⚠️ Capped at 700px and centred in the column, rather than filling
+               it. The pane already has a fixed 352px panel taking the right,
+               so on a wide window the remaining column runs past 900px and the
+               subtitle, the expertise line and the activity entries all become
+               single lines of text stretched across it. `mx-auto` keeps the
+               block off the panel's edge instead of leaving all the slack on
+               one side. -->
+          <div v-else class="mx-auto w-full max-w-[700px]">
             <h1 class="text-lg font-semibold text-ink-gray-8">Confirmed!</h1>
             <!-- Two short sentences, and the second one's job is to hand off to
                the card rather than to summarise it.
@@ -171,7 +178,7 @@ const cancel = () =>
                radius, same three facts with the same icons, same 2/12/4 rhythm.
                16px of padding, and a border rather than the row's hover fill —
                nothing here is a list, so there is nothing to hover between. -->
-            <article class="mt-6 rounded-6 border border-outline-gray-2 p-4">
+            <article class="mt-4 rounded-6 border border-outline-gray-1 p-4">
               <!-- The identity: the mark and what it names. -->
               <div class="flex items-start gap-3">
                 <Avatar
@@ -210,7 +217,7 @@ const cancel = () =>
                   class="shrink-0"
                   variant="subtle"
                   size="sm"
-                  label="View full profile"
+                  label="Visit profile"
                   :route="`/connect/partners/${partner.id}`"
                 >
                   <template #suffix><IconChevronRight class="size-4" /></template>
@@ -243,7 +250,7 @@ const cancel = () =>
             <!-- ⚠️ Book a slot is the PRIMARY action on this screen: the pack is
                paid for later and the partner is already assigned, so the only
                thing left to do here is meet them. -->
-            <div class="mt-6 flex items-center gap-2">
+            <div class="mt-4 flex items-center gap-2">
               <Button variant="solid" label="Book a slot" @click="bookSlot" />
               <Button variant="subtle" label="Cancel" @click="cancel" />
             </div>
@@ -251,7 +258,15 @@ const cancel = () =>
             <!-- ── What has happened ───────────────────────────────────────
                A feed, not a checklist. The ticks said the same three things
                without saying when, and without the project they belong to. -->
-            <section class="mt-8">
+            <!-- ⚠️ `mt-14` (56px), against the 16px rhythm holding the block
+                 above together. Everything up to the buttons is ONE thing —
+                 what you booked, who you booked it with, and what you can do
+                 about it — and the activity feed is the project's history,
+                 which is a different subject with a different lifespan. At
+                 `mt-8` the feed read as a fourth item in that block; the gap
+                 has to be several times the internal one before it reads as a
+                 break rather than as more spacing. -->
+            <section class="mt-14">
               <h2 class="text-base font-medium text-ink-gray-8">Activity</h2>
 
               <ol class="mt-4">
@@ -304,7 +319,7 @@ const cancel = () =>
                        without leaving. -->
                     <div
                       v-if="row.card"
-                      class="mt-2 flex items-center gap-3 rounded-5 border border-outline-gray-2 px-3 py-2"
+                      class="mt-2 flex items-center gap-3 rounded-5 border border-outline-gray-1 px-3 py-2"
                     >
                       <span class="min-w-0 flex-1 truncate text-p-base text-ink-gray-7">
                         {{ row.card.label }}
@@ -332,9 +347,9 @@ const cancel = () =>
             </section>
 
             <!-- Below `lg` the panel stacks under the page instead of beside it:
-               a 360px column next to a 360px column is not a layout. `-mx-5`
+               a 352px column next to a 352px column is not a layout. `-mx-5`
                cancels the page padding so its own rules run edge to edge. -->
-            <div class="-mx-10 mt-8 border-t border-outline-gray-1 lg:hidden">
+            <div class="-mx-5 mt-8 border-t border-outline-gray-1 lg:hidden">
               <PackPanel heading="Booked service" :pack="pack" :region="region" />
             </div>
           </div>
@@ -343,7 +358,7 @@ const cancel = () =>
 
       <aside
         v-if="pack && partner"
-        class="hidden w-[360px] shrink-0 flex-col border-l border-outline-gray-1 lg:flex"
+        class="hidden w-[352px] shrink-0 flex-col border-l border-outline-gray-1 lg:flex"
       >
         <ScrollArea class="min-h-0 flex-1">
           <PackPanel heading="Booked service" :pack="pack" :region="region" />

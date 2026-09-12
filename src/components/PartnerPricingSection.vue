@@ -5,7 +5,7 @@ import IconPacks from '~icons/lucide/package'
 import IconCustom from '~icons/lucide/pencil-ruler'
 import EstimateQuoteDialog from './EstimateQuoteDialog.vue'
 import { STARTER_PACKS } from '../data/packs'
-import { contactToast } from '../feedback'
+import { useContactPartner } from '../utils/contact'
 
 // SCREEN 6, fourth section — "Pricing".
 //
@@ -22,6 +22,8 @@ const props = defineProps({
 // Tech offers Core ERPNext (40h), Manufacturing (70h) and All in one (100h),
 // which is where the design's "40-100 hrs" comes from. A partner offering one
 // pack gets a single figure rather than a range of one.
+const { contactPartner } = useContactPartner()
+
 const packHours = computed(() =>
   props.partner.packs
     .map((value) => STARTER_PACKS.find((p) => p.value === value)?.hours)
@@ -99,14 +101,14 @@ const estimating = ref(false)
                on — "Contact us" is already the Custom card's action, and two
                identical buttons side by side would make the split between a
                fixed scope and a bespoke one look like a distinction without a
-               difference. Same destination and same toast as every other
-               Contact on the page. -->
+               difference. Same destination as every other Contact on the page:
+               the conversation with this partner. -->
           <Button
             v-else
             variant="ghost"
             label="Ask for pack pricing"
             class="-ml-2 mt-2"
-            @click="contactToast(partner)"
+            @click="contactPartner(partner)"
           >
             <template #suffix><LucideChevronRight class="size-4" /></template>
           </Button>
@@ -129,14 +131,13 @@ const estimating = ref(false)
         <div class="min-w-0">
           <p class="text-base font-medium text-ink-gray-7">Custom solutions</p>
           <p class="mt-0.5 text-p-base text-ink-gray-6">Please contact us for a detailed quote</p>
-          <!-- ⚠️ Same destination as the header's Contact button — the in-app
-               messages screen, which doesn't exist yet — so it raises the same
-               toast rather than swallowing the click. -->
+          <!-- ⚠️ Same destination as the header's Contact button: the in-app
+               messages screen, opened on this partner's thread. -->
           <Button
             variant="ghost"
             label="Contact us"
             class="-ml-2 mt-2"
-            @click="contactToast(partner)"
+            @click="contactPartner(partner)"
           >
             <template #suffix><LucideChevronRight class="size-4" /></template>
           </Button>

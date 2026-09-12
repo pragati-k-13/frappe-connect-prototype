@@ -274,7 +274,7 @@
  * a single frame — a pure translation, no re-wrap. Softening the panel and
  * leaving that jump animated the small half of the change and not the loud one.
  *
- * WHAT MOVES NOW: the panel's own width, 0 → 340/380px. Everything else follows
+ * WHAT MOVES NOW: the panel's own width, 0 → 352px. Everything else follows
  * from the flex layout for free — the content column widens and narrows, and
  * the 800px block re-centres — so the page and the panel are one motion rather
  * than two events. It also makes CLOSING work: a FLIP transform on the content
@@ -314,12 +314,7 @@
 }
 @media (min-width: 768px) {
   .fc-panel {
-    --fc-panel-w: 340px;
-  }
-}
-@media (min-width: 1024px) {
-  .fc-panel {
-    --fc-panel-w: 380px;
+    --fc-panel-w: 352px;
   }
 }
 

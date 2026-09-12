@@ -3,9 +3,10 @@ import { computed } from 'vue'
 import { Avatar, Button, Tooltip } from 'frappe-ui'
 import TierIcon from './TierIcon.vue'
 import { logoFor } from '../data/logos'
-import { contactToast, savedToast } from '../feedback'
+import { savedToast } from '../feedback'
 import { useConnectStore } from '../stores/connect'
 import { useAuthGate } from '../utils/auth'
+import { useContactPartner } from '../utils/contact'
 
 const props = defineProps({
   partner: { type: Object, required: true },
@@ -13,6 +14,7 @@ const props = defineProps({
 
 const store = useConnectStore()
 const { requireAccount } = useAuthGate()
+const { contactPartner } = useContactPartner()
 
 // Read from the store, not a local `ref`. A real build writes to the visitor's
 // saved partners, which is the first thing an account actually buys you — and
@@ -235,11 +237,10 @@ const industryLine = computed(() => {
             </template>
           </Button>
         </Tooltip>
-        <!-- ⚠️ Still inert in the sense that matters — the messages screen
-             doesn't exist — but no longer silent: `contactToast` names the
-             destination rather than letting the click vanish. Ungated on
-             purpose, same as before: there is nothing behind it to gate. -->
-        <Button variant="subtle" label="Contact" @click="contactToast(partner)">
+        <!-- Opens the conversation with this partner and goes to it. Gated,
+             unlike before: there IS something behind it now, and a thread needs
+             an account to belong to — see `useContactPartner`. -->
+        <Button variant="subtle" label="Contact" @click="contactPartner(partner)">
           <!-- A message bubble, not an envelope: contact runs through in-app
              messages, and an envelope would promise email. -->
           <template #prefix><LucideMessageSquare class="size-4" /></template>

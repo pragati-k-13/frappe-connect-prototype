@@ -1,9 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useConnectStore } from './stores/connect'
 
 // One route per screen in the handoff.
 //
 // `/` is the frappe.io partners page — the discovery surface, not part of the
-// app. Its "Find a partner" CTA opens `/connect` in a NEW TAB, matching the
+// app. Every link it has into `/connect` opens in a NEW TAB, matching the
 // design: Frappe Connect is a separate destination, not a section of the
 // marketing site.
 const routes = [
@@ -53,6 +54,24 @@ const routes = [
     path: '/connect/confirmed',
     name: 'confirmed',
     component: () => import('./pages/ConfirmedPage.vue'),
+    // ⚠️ The one guarded route in the app. This screen says a pack is booked
+    // and names the partner assigned to you — both facts about an ACCOUNT — so
+    // a signed-out visitor reaching it by URL would be shown someone's booking
+    // or, worse, their own booking made without an account to keep it in.
+    //
+    // Sign-up rather than the catalogue, carrying `?next=`: someone on this URL
+    // is far more likely to be a customer who lost their session than a stranger
+    // guessing paths, and dropping them on the packs list would throw the link
+    // away. `useConnectStore()` is safe here — `main.js` installs Pinia before
+    // the router, so the store exists by the time any navigation resolves.
+    //
+    // ⚠️ This is the LAST line of defence, not the first. The gate that matters
+    // is on Confirm itself (see `ConfirmPage`), because booking a pack without
+    // an account creates a project and a conversation with nowhere to live.
+    beforeEnter: (to) => {
+      const store = useConnectStore()
+      return store.signedIn ? true : { name: 'signup', query: { next: to.fullPath } }
+    },
   },
   // The last step of signing up, and sign-up only — a returning customer
   // answered these once, so `login-verify` goes straight to `next`. This is

@@ -3,11 +3,13 @@ import { computed, ref, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Button, ScrollArea, toast } from 'frappe-ui'
 import IconPlus from '~icons/lucide/plus'
+import IconCalendar from '~icons/lucide/calendar'
 import ConnectShell from '../components/ConnectShell.vue'
 import PackPanel from '../components/PackPanel.vue'
 import { PARTNERS } from '../data/partners'
 import { STARTER_PACKS, marketFor, DEFAULT_REGION } from '../data/packs'
 import { useConnectStore } from '../stores/connect'
+import { useAuthGate } from '../utils/auth'
 
 // SCREEN — confirm the pack.
 //
@@ -21,6 +23,7 @@ import { useConnectStore } from '../stores/connect'
 // said "This will connect you with the ideal Partner for your needs", which was
 // also the onboarding screen's subtitle two navigations earlier.
 const store = useConnectStore()
+const { requireAccount } = useAuthGate()
 const route = useRoute()
 const router = useRouter()
 
@@ -60,29 +63,37 @@ const region = computed(
 //
 // ⚠️ The partner is unnamed, and cannot be named: nobody is assigned until this
 // screen is confirmed. "Frappe matches you" is the step, not a name.
+//
+// ⚠️ `when` is WHERE IN THE SEQUENCE, not a duration. "Next step" and "Week 1"
+// are positions on a timeline that starts at Confirm, which is the only clock
+// this screen can honestly read: nothing here knows a calendar date, and a
+// figure like "2-3 days" would be a promise the partner has not made yet.
+//
+// ⚠️ The last step is THREE of the original seven — nominating a champion,
+// getting data ready, and keeping approvals and training moving. They merged
+// because they are one thing from the customer's side: the work that stays with
+// you once the project is running, rather than three sequenced events.
 const STEPS = [
   {
     title: 'Create and add Project details',
     body: 'This helps us understand your needs and lets you track your Project updates',
-    action: 'Add Project details',
+    action: 'Add Project',
   },
   {
     title: 'Frappe matches you with a Partner based on your needs',
     body: 'Matched on your industry, your region and the modules in this pack',
+    when: 'Next step',
   },
   {
     title: 'Schedule a discovery call to get acquainted with your Partner',
     body: 'Meet the people who would run the implementation, before any money changes hands',
+    when: 'Week 1',
   },
-  { title: 'Pay in full before kickoff', body: '3x faster to get started' },
+  { title: 'Pay in full before kickoff', body: '3x faster to get started', when: 'Week 1' },
   {
-    title: 'Nominate a Project Champion',
-    body: 'One person on your side who can answer questions and sign things off',
-  },
-  { title: 'Ensure data readiness', body: 'Clean Excel or CSV data, ready to import' },
-  {
-    title: 'Continue with approvals and training',
-    body: 'Approve internally without delay and keep your users available',
+    title: 'Nominate a Project Champion and keep the project moving',
+    body: 'One decision maker, clean data, fast approvals',
+    when: 'Week 2+',
   },
 ]
 
@@ -100,6 +111,19 @@ const booking = ref(false)
 
 const confirm = () => {
   if (booking.value) return
+  // ⚠️ GATED, and gated BEFORE anything local changes. Booking creates a
+  // project and opens a conversation with the assigned partner — both of which
+  // belong to an account, and neither of which a signed-out visitor has
+  // anywhere to keep. Without this a stranger could book a pack, and the screen
+  // after this one would report a purchase nobody owns.
+  //
+  // ⚠️ Deliberately holds NO action. Every other gated control in the app hands
+  // `requireAccount` the thing to finish on return — see `useContactPartner` —
+  // but this one is a purchase. Completing it automatically because someone
+  // pressed Confirm before they had an account would spend their money on the
+  // far side of a sign-up form. They land back here, with Confirm ready, and
+  // press it deliberately.
+  if (!requireAccount()) return
   booking.value = true
   // ⚠️ THE ASSIGNMENT, mocked. "Frappe assigns you a partner" is the whole
   // model, and this is where it happens: the best match under the answers
@@ -143,7 +167,7 @@ const confirm = () => {
   <ConnectShell flush root-label="Starter packs" root-to="/connect/packs" crumb="Confirm selection">
     <div class="flex min-h-0 min-w-0 flex-1">
       <ScrollArea class="min-h-0 min-w-0 flex-1">
-        <div class="w-full px-10 py-8">
+        <div class="w-full px-5 py-8 lg:px-8">
           <!-- No pack in the store: someone reached this by URL rather than by
            choosing. Sending them to the catalogue is the only honest answer —
            there is nothing to confirm. -->
@@ -156,38 +180,82 @@ const confirm = () => {
           </div>
 
           <!-- ── What you are doing ───────────────────────────────────────── -->
-          <div v-else class="w-full">
+          <!-- ⚠️ Capped at 700px and centred, matching the confirmed screen
+               after it. The pane already gives 352px to the fixed panel, so the
+               remaining column runs past 900px on a wide window and every step
+               becomes one long line with its timeline label stranded far to the
+               right. `mx-auto` splits the slack rather than piling it against
+               the panel. -->
+          <div v-else class="mx-auto w-full max-w-[700px]">
+            <!-- ⚠️ No subtitle. The wireframe's ("This will connect you with
+                 the ideal Partner for your needs") was the onboarding screen's
+                 own line two navigations earlier, and the replacement said what
+                 the numbered list below says at length. A heading over a list
+                 that explains itself needs no second sentence. -->
             <h1 class="text-lg font-semibold text-ink-gray-8">How this works</h1>
-            <!-- ⚠️ Not the wireframe's subtitle, which read "This will connect
-               you with the ideal Partner for your needs" — also the onboarding
-               screen's line, two navigations earlier. -->
-            <p class="mt-1 text-p-base text-ink-gray-6">
-              Confirm, and we will assign your Partner.
-            </p>
 
-            <ol class="mt-6 space-y-5">
-              <li v-for="(step, i) in STEPS" :key="step.title" class="flex items-start gap-3">
+            <!-- ⚠️ No `space-y` any more. The rows are separated by a RULE, and
+                 the padding that holds it off the text has to live inside each
+                 row: `pt-5` above, `pb-5` below, so a step's text sits the same
+                 distance from the line above it as from the line below. -->
+            <ol class="mt-6">
+              <li
+                v-for="(step, i) in STEPS"
+                :key="step.title"
+                class="flex items-start gap-3 pt-5 first:pt-0"
+              >
                 <!-- `label` renders only its first character, so a digit needs no
                    slot of its own. Same treatment as "How it works" on the
                    catalogue, so the two numbered lists read as one device. -->
                 <Avatar size="lg" :label="String(i + 1)" class="shrink-0" />
-                <div class="min-w-0 flex-1">
-                  <p class="text-base font-medium text-ink-gray-8">{{ step.title }}</p>
-                  <p v-if="step.body" class="mt-1 text-p-base text-ink-gray-6">{{ step.body }}</p>
-                </div>
-                <!-- The one step you can act on, and the action sits IN the step
-                     rather than under the list: it belongs to that line, not to
-                     the sequence. -->
-                <Button
-                  v-if="step.action"
-                  class="shrink-0"
-                  variant="subtle"
-                  size="sm"
-                  :label="step.action"
-                  @click="addDetails"
+
+                <!-- ⚠️ The rule lives HERE, not on the `<li>`. This div starts
+                     where the text starts — after the avatar and the `gap-3` —
+                     so the line runs under the words and the trailing control
+                     only, and the numbers hang off its left in a clean column.
+                     A border on the row itself would strike through the avatar.
+                     Nothing after the last step, which ends the list rather
+                     than separating it from the buttons below. -->
+                <div
+                  class="flex min-w-0 flex-1 items-start gap-4"
+                  :class="i < STEPS.length - 1 ? 'border-b border-outline-gray-1 pb-5' : ''"
                 >
-                  <template #prefix><IconPlus class="size-4" /></template>
-                </Button>
+                  <div class="min-w-0 flex-1">
+                    <p class="text-base font-medium text-ink-gray-8">{{ step.title }}</p>
+                    <p v-if="step.body" class="mt-1 text-p-base text-ink-gray-6">{{ step.body }}</p>
+                  </div>
+
+                  <!-- The one step you can act on, and the action sits IN the
+                       step rather than under the list: it belongs to that line,
+                       not to the sequence. -->
+                  <Button
+                    v-if="step.action"
+                    class="shrink-0"
+                    variant="subtle"
+                    size="sm"
+                    :label="step.action"
+                    @click="addDetails"
+                  >
+                    <template #prefix><IconPlus class="size-4" /></template>
+                  </Button>
+
+                  <!-- Where the step falls on the timeline. Quiet by design: it
+                       is a label on the step, not a second thing to read — the
+                       calendar glyph is what lets the eye skip the column when
+                       it is reading the sequence instead of the schedule.
+
+                       ⚠️ `text-p-sm` (13px), a step BELOW the step's own body
+                       copy at `text-p-base` (14px). At the same size it read as
+                       a second sentence of the step rather than as a label on
+                       it, and the column has to lose to the words. -->
+                  <p
+                    v-else-if="step.when"
+                    class="flex shrink-0 items-center gap-1.5 text-p-sm text-ink-gray-5"
+                  >
+                    <IconCalendar class="size-4 shrink-0" />
+                    {{ step.when }}
+                  </p>
+                </div>
               </li>
             </ol>
 
@@ -210,7 +278,7 @@ const confirm = () => {
             <!-- Below `lg` the panel stacks under the page instead of beside it.
                `-mx-5` cancels the page padding so its own rules run edge to
                edge. -->
-            <div class="-mx-10 mt-8 border-t border-outline-gray-1 lg:hidden">
+            <div class="-mx-5 mt-8 border-t border-outline-gray-1 lg:hidden">
               <PackPanel :pack="pack" :region="region" />
             </div>
           </div>
@@ -219,7 +287,7 @@ const confirm = () => {
 
       <aside
         v-if="pack"
-        class="hidden w-[360px] shrink-0 flex-col border-l border-outline-gray-1 lg:flex"
+        class="hidden w-[352px] shrink-0 flex-col border-l border-outline-gray-1 lg:flex"
       >
         <ScrollArea class="min-h-0 flex-1">
           <PackPanel :pack="pack" :region="region" />

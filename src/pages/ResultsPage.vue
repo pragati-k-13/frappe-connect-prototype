@@ -7,13 +7,13 @@
 // an unset filter rather than a silent constraint.
 
 import { computed } from 'vue'
-import { Button, MultiSelect, Select, TextInput, toast } from 'frappe-ui'
+import { Button, MultiSelect, TextInput, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import PartnerRow from '../components/PartnerRow.vue'
 import FilterChip from '../components/FilterChip.vue'
 import { useConnectStore } from '../stores/connect'
 import { APPS } from '../data/partners'
-import { IMPLEMENTATION_TYPES, INDUSTRIES, REGIONS } from '../data/quiz'
+import { INDUSTRIES, REGIONS } from '../data/quiz'
 
 const store = useConnectStore()
 
@@ -88,12 +88,9 @@ const suggestionCopy = (key) => {
   }
 }
 
-// `undefined` clears a Select; the store wants `null` for "no constraint".
+// `undefined` clears a control; the store wants `null` for "no constraint".
 const setFilter = (key, value) => {
   store.filters[key] = value ?? null
-}
-const setAnswer = (key, value) => {
-  store.answer(key, value ?? null)
 }
 // Segments takes several answers, so its empty state is an empty array rather
 // than `null` — see the store. Region is handled by `setGeo` below, which owns
@@ -253,15 +250,6 @@ const segmentSummary = computed(() => {
   return whole ? whole.label : `${picked.length} segments`
 })
 
-// Q3's answer used to filter invisibly — no control in the bar, no entry in the
-// count — so the third control is the implementation question. The starter-pack
-// picker that used to sit here is gone: it asked about something the quiz never
-// raised, and a pack is a thing you choose on a partner's profile, not a way to
-// narrow the list of partners.
-const implementationOptions = computed(() =>
-  IMPLEMENTATION_TYPES.map((i) => ({ label: i.short, value: i.value })),
-)
-
 // Filters with no control of their own in the bar — just the app, which is set
 // from the chips mid-list. The controls beside this button speak for themselves,
 // so counting them here would report the same constraint twice.
@@ -353,9 +341,9 @@ const clearTooltip = computed(() => {
           @update:model-value="setFilter('search', $event)"
         >
           <!-- gray-4, not the gray-6 the row-metadata icons use: this one is a
-               control affordance, and its peers are the chevrons on the three
-               dropdowns beside it, which `Select` and `MultiSelect` both
-               hardcode at `text-ink-gray-4`. It's also the colour of the
+               control affordance, and its peers are the chevrons on the two
+               dropdowns beside it, which `MultiSelect` hardcodes at
+               `text-ink-gray-4`. It's also the colour of the
                placeholder it sits against — TextInput's own is
                `placeholder-ink-gray-4` — so an empty field reads as one thing.
                Passing no class at all would inherit the input's `text-ink-gray-8`
@@ -422,14 +410,6 @@ const clearTooltip = computed(() => {
             <span class="tabular-nums">{{ store.industryCounts[group.key] ?? 0 }}</span>
           </template>
         </MultiSelect>
-        <!-- Q3. Was missing entirely, so the answer filtered silently. -->
-        <Select
-          class="w-40"
-          :model-value="store.answers.implementation ?? undefined"
-          :options="implementationOptions"
-          placeholder="Implementation"
-          @update:model-value="setAnswer('implementation', $event)"
-        />
         <!-- The count is only for filters with no control of their own in this
              bar — currently the mid-list app chip. The Selects beside it already
              show their own state, so counting them here would double-report.

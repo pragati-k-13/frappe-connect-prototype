@@ -3,7 +3,7 @@ import { PARTNERS } from '../data/partners'
 // Two consumers: `industryCounts`, the group totals on the industry filter's
 // headings, and `saveCompany`, which derives a segment's group. Both need to
 // know which segments belong to which group.
-import { bookingThread, discoveryThreads } from '../data/messages'
+import { bookingThread, contactThread, discoveryThreads } from '../data/messages'
 import { INDUSTRIES } from '../data/quiz'
 
 // A skipped question stores `null`, which every filter below reads as "no
@@ -241,10 +241,11 @@ export const useConnectStore = defineStore('connect', {
     // back to the first stage — see `stageOf` in `data/project.js`.
     project: null,
     // Every conversation the viewer can open, newest activity last within each
-    // thread. Two ways in and no third: the demo switch seeds the exploring
-    // viewer's inbox, and booking a pack adds the thread the confirmed screen
-    // promises ("Project details sent via Messaging"). A fresh account has
-    // none, which is why the screen has a real empty state.
+    // thread. Three ways in: the demo switch seeds the exploring viewer's
+    // inbox, booking a pack adds the thread the confirmed screen promises
+    // ("Project details sent via Messaging"), and Contact opens an empty one
+    // from anywhere a partner is shown. A fresh account has none, which is why
+    // the screen has a real empty state.
     //
     // ⚠️ In memory, like everything else here. Reloading loses what you typed.
     threads: [],
@@ -408,9 +409,9 @@ export const useConnectStore = defineStore('connect', {
       this.threads = account === 'exploring' ? discoveryThreads() : []
     },
 
-    // Booking a pack is the one thing in the app that starts a conversation.
-    // Idempotent by partner: confirming twice with the same partner reopens the
-    // thread rather than stacking a second copy of it.
+    // Booking a pack starts a conversation carrying three things — see
+    // `bookingThread`. Idempotent by partner: confirming twice with the same
+    // partner reopens the thread rather than stacking a second copy of it.
     startBooking({ partner, pack, slot }) {
       // The booking IS the project: one gesture starts both, so nothing else
       // has to remember to create the second one.
@@ -423,6 +424,22 @@ export const useConnectStore = defineStore('connect', {
       const existing = this.threads.find((t) => t.partnerId === partner.id)
       if (existing) return existing.id
       this.threads = [...this.threads, bookingThread({ partner, pack, slot })]
+      return partner.id
+    },
+
+    // The other way a conversation starts: Contact, from anywhere a partner is
+    // shown. Chat is NOT downstream of booking — a visitor can have a question
+    // long before they are ready to buy a pack, and gating the only way to ask
+    // it behind a purchase is backwards.
+    //
+    // Idempotent by partner on the same terms as `startBooking`, and they share
+    // the keying (`thread.id` IS `partner.id`), so Contact on a partner you have
+    // already booked opens the booking thread rather than a second empty one
+    // beside it. Returns the id either way, so the caller can navigate to it.
+    openThread(partner) {
+      const existing = this.threads.find((t) => t.partnerId === partner.id)
+      if (existing) return existing.id
+      this.threads = [...this.threads, contactThread(partner)]
       return partner.id
     },
 

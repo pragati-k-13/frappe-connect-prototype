@@ -29,7 +29,8 @@ import BookSlotDialog from '../components/BookSlotDialog.vue'
 import { PARTNERS } from '../data/partners'
 import { logoFor } from '../data/logos'
 import { clientsFor, mediaFor } from '../data/media'
-import { contactToast, savedToast } from '../feedback'
+import { savedToast } from '../feedback'
+import { useContactPartner } from '../utils/contact'
 
 const route = useRoute()
 const router = useRouter()
@@ -52,6 +53,7 @@ const subtitle = computed(() => {
 
 const store = useConnectStore()
 const { requireAccount } = useAuthGate()
+const { contactPartner } = useContactPartner()
 
 // The same list the listing row reads, not a second copy. These two used to be
 // independent `ref(false)`s — the comment here said sharing them would imply
@@ -102,7 +104,7 @@ const booking = ref(false)
         variant="ghost"
         class="-mr-2"
         label="Contact"
-        @click="requireAccount(() => contactToast(partner))"
+        @click="contactPartner(partner)"
       >
         <template #suffix><LucideArrowRight class="size-4" /></template>
       </Button>
@@ -198,7 +200,7 @@ const booking = ref(false)
           <Button
             variant="solid"
             label="Contact"
-            @click="requireAccount(() => contactToast(partner))"
+            @click="contactPartner(partner)"
           >
             <!-- The same message bubble the listing row's Contact carries, not
                  the paper plane this used to have. One action, one mark: a
