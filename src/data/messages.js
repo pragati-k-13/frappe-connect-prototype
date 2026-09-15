@@ -15,7 +15,7 @@ import { PARTNERS } from './partners'
 // company — header, logo, profile link, all partner-level — and the badge
 // beside each name is what ties the person back to it.
 //
-// So: `REPS` below is fiction, deliberately. Nobody in it works anywhere.
+// So: `TEAMS` below is fiction, deliberately. Nobody in it works anywhere.
 
 const DAY = 24 * 60 * 60 * 1000
 
@@ -54,17 +54,42 @@ const msg = (from, at, rest) => ({ id: `m${++seq}`, from, at, kind: 'text', ...r
 // ⚠️ No pronouns anywhere, and no roles beyond "someone in sales who replied".
 // These are placeholders in a prototype; the less they assert about a person who
 // does not exist, the better.
-const REPS = {
-  'Tridots Tech': 'Anitha Balakrishnan',
-  '8848 Digital': 'Rohan Deshmukh',
-  Wahni: 'Nikhil Menon',
-  'Finbyz Tech': 'Parth Shah',
+// ⚠️ Now a TEAM per firm, not one name, because `BookSlotDialog` lists who
+// would actually be on the call and a call with one attendee named and the
+// rest implied is a worse fiction than naming them. Between one and three,
+// which is what a discovery call from an implementation partner looks like.
+//
+// Order matters: the FIRST name is the one who replies in Messages, so the
+// four that already existed stay first in their firm's list and no seeded
+// thread changes hands. `repFor` reads that position.
+//
+// Names are region-appropriate to the firm's city — a Munich partner fielding
+// only Indian names would be its own small false claim — and no name repeats
+// across firms.
+const TEAMS = {
+  'Tridots Tech': ['Anitha Balakrishnan', 'Suresh Karthik', 'Divya Raghavan'],
+  'Software@Work': ['Farhan Qureshi', 'Snehal Bhosale'],
+  'New Indictrans': ['Aditi Kulkarni'],
+  '8848 Digital': ['Rohan Deshmukh', 'Meghana Joshi'],
+  'Greycube Technologies': ['Vivek Nair', 'Prachi Sawant', 'Imran Shaikh'],
+  Wahni: ['Nikhil Menon', 'Ann Mary Thomas'],
+  Hybrowlabs: ['Tejas Pawar'],
+  'Finbyz Tech': ['Parth Shah', 'Krupa Mehta', 'Jigar Trivedi'],
+  ALYF: ['Lena Brandt', 'Tobias Kruger'],
+  'Craft Interactive': ['Omar Haddad', 'Reem Al Zaabi'],
+  'Kingstech Services': ['Wei Ling Tan'],
+  Navari: ['Wanjiru Kamau', 'Brian Otieno'],
+  Korecent: ['Dana Whitfield', 'Marcus Ellery', 'Priya Anand'],
 }
 
 // Falls back to the firm's own name, so a partner with no rep listed still
 // renders — as the company, which is exactly what this file used to do
 // everywhere.
-export const repFor = (partnerName) => REPS[partnerName] ?? partnerName
+export const repFor = (partnerName) => TEAMS[partnerName]?.[0] ?? partnerName
+
+// The whole call sheet. Falls back to a single entry so a partner added
+// without a team still renders one row rather than an empty list.
+export const teamFor = (partnerName) => TEAMS[partnerName] ?? [partnerName]
 
 // ── The discovery inbox ────────────────────────────────────────────────────
 // A business partway through choosing: several conversations open at once, two
