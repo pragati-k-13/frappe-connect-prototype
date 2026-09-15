@@ -173,18 +173,21 @@
 /* The scrim behind every dialog in the app, not just this one — two overlay
    densities on one product would be worse than the light one it replaces.
    frappe-ui ships `bg-black-overlay-200` (27% black), which leaves the page
-   behind legible enough to compete with the panel; this is `black-overlay-400`
-   (45%), the next step but one on the same scale.
+   behind legible enough to compete with the panel. This has been stepped down
+   the scale twice since: first to `-400` (45%), now to `-500` (54%). The
+   company-details dialog is the reason — it is the app's one BLOCKING dialog,
+   with no close button and no dismiss, so the scrim has to read as "deal with
+   this" rather than as a tint over a page you could still go back to.
 
    The literal rather than a token: the overlay scale exists as Tailwind palette
    entries only, with no CSS variables behind it — checked. The value is copied
-   from `frappe-ui/tailwind/generated/colors.json` → `overlay.black.400`.
+   from `frappe-ui/tailwind/generated/colors.json` → `overlay.black.500`.
 
    ⚠️ This also overrides frappe-ui's `dark:bg-black-overlay-700`. Nothing in
    `src/` uses dark mode today, but if that changes this rule needs its own dark
    half rather than a darker single value. */
 .dialog-overlay {
-  background-color: oklch(0 0 0 / 0.451);
+  background-color: oklch(0 0 0 / 0.541);
 }
 
 /* The gap under the title. frappe-ui puts `mb-6` on the Dialog's header block,

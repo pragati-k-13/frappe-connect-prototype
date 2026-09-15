@@ -1,3 +1,22 @@
+<!-- ⚠️ A plain `<script>` beside `<script setup>`: this block runs ONCE for the
+     module rather than once per component instance. See `step` below. -->
+<script>
+import { ref } from 'vue'
+
+// Which question the quiz is showing, deliberately at MODULE scope.
+//
+// ⚠️ Inside `setup` this was re-created on every mount, so leaving the page and
+// coming back rewound the quiz to question 1 — and asked an industry it already
+// had the answer to, with that answer still visibly selected in the radios. The
+// ANSWERS were never the problem; they live on the store and survive fine. The
+// position in the sequence was.
+//
+// Same reasoning and the same fix as the sidebar's `collapsed` in
+// `ConnectShell`. Session-only: a reload starts over, like everything else in
+// this prototype.
+const step = ref(1)
+</script>
+
 <script setup>
 // SCREENS 2–4 — the Frappe Connect landing page.
 //
@@ -25,12 +44,34 @@ const store = useConnectStore()
 const router = useRouter()
 
 const TOTAL = 2
-const step = ref(1)
 const quizTop = ref(null)
-// Location is pre-answered from "where we think you are" so this question costs
-// a confirmation instead of a decision. The hint under the chips says so —
-// a silently pre-filled answer would be the dishonest version of this.
-onMounted(() => store.seedInferredGeo())
+// Is question `n` already answered? Same two tests `hasAnswer` makes, asked of
+// a given step rather than the current one — see the note there for why the geo
+// question has to check both halves.
+const answeredAt = (n) =>
+  n === 1
+    ? Boolean(store.answers.industry)
+    : store.answers.region.length > 0 || store.filters.countries.length > 0
+
+// The first question still missing an answer, or the last one if none are.
+const firstGap = () => (!answeredAt(1) ? 1 : !answeredAt(2) ? 2 : TOTAL)
+
+onMounted(() => {
+  // Location is pre-answered from "where we think you are" so this question
+  // costs a confirmation instead of a decision. The hint under the chips says
+  // so — a silently pre-filled answer would be the dishonest version of this.
+  // FIRST, because the clamp below reads the answer it writes.
+  store.seedInferredGeo()
+
+  // ⚠️ `min`, not an assignment: never further along than the first unanswered
+  // question, but never pushed forward past where you actually left off.
+  //
+  // Resuming alone isn't enough, because `store.reset()` — Clear filters on the
+  // results screen — wipes the answers without touching this. Coming back after
+  // that would strand you on question 2 with nothing selected, Continue
+  // disabled, and no way back to question 1 short of the CTA below the fold.
+  step.value = Math.min(step.value, firstGap())
+})
 
 const selectedIndustry = computed(() => INDUSTRIES.find((i) => i.value === store.answers.industry))
 // All four groups branch — every one has real segments in the directory's

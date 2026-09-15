@@ -2,8 +2,6 @@
 import { computed, ref, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Button, ScrollArea, toast } from 'frappe-ui'
-import IconPlus from '~icons/lucide/plus'
-import IconCalendar from '~icons/lucide/calendar'
 import ConnectShell from '../components/ConnectShell.vue'
 import PackPanel from '../components/PackPanel.vue'
 import { PARTNERS } from '../data/partners'
@@ -58,16 +56,19 @@ const region = computed(
 // approves without delay, and finding that out after paying is the complaint
 // this screen exists to prevent.
 //
-// ⚠️ Only the first step carries an action. Everything else describes; this
-// screen does exactly two things, add project details and confirm.
+// ⚠️ NOTHING in the list is actionable. Step 1 carried an "Add Project" button
+// that opened a toast saying the form behind it was not built, which is a
+// control that exists to say it does nothing. The list describes what happens
+// after Confirm; Confirm is the only thing on this screen to press.
 //
 // ⚠️ The partner is unnamed, and cannot be named: nobody is assigned until this
 // screen is confirmed. "Frappe matches you" is the step, not a name.
 //
-// ⚠️ `when` is WHERE IN THE SEQUENCE, not a duration. "Next step" and "Week 1"
-// are positions on a timeline that starts at Confirm, which is the only clock
-// this screen can honestly read: nothing here knows a calendar date, and a
-// figure like "2-3 days" would be a promise the partner has not made yet.
+// ⚠️ NO TIMINGS. Each step carried a "Next step" / "Week 1" / "Week 2+" label
+// in a column down the right. They were positions on a timeline starting at
+// Confirm rather than durations — the only clock this screen could honestly
+// read — but a schedule printed beside an unassigned partner reads as a
+// commitment, and nobody has made one. The sequence is the numbers.
 //
 // ⚠️ The last step is THREE of the original seven — nominating a champion,
 // getting data ready, and keeping approvals and training moving. They merged
@@ -77,35 +78,26 @@ const STEPS = [
   {
     title: 'Create and add Project details',
     body: 'This helps us understand your needs and lets you track your Project updates',
-    action: 'Add Project',
   },
   {
     title: 'Frappe matches you with a Partner based on your needs',
     body: 'Matched on your industry, your region and the modules in this pack',
-    when: 'Next step',
   },
+  // ⚠️ NOT about money. This read "before any money changes hands", which made
+  // the call a hedge — the safe look before you pay — and pointed at the step
+  // below rather than saying what this one is for. It also put the money in the
+  // reader's head one line early, on the step where the answer is a person.
+  // Matches `BookSlotDialog`, which is where this call is actually booked.
   {
     title: 'Schedule a discovery call to get acquainted with your Partner',
-    body: 'Meet the people who would run the implementation, before any money changes hands',
-    when: 'Week 1',
+    body: 'Meet the people who would run the implementation, and decide whether you want to work with them',
   },
-  { title: 'Pay in full before kickoff', body: '3x faster to get started', when: 'Week 1' },
+  { title: 'Pay in full before kickoff', body: '3x faster to get started' },
   {
     title: 'Nominate a Project Champion and keep the project moving',
     body: 'One decision maker, clean data, fast approvals',
-    when: 'Week 2+',
   },
 ]
-
-// ⚠️ Inert, and saying so. The design greys Confirm out until this is done;
-// here Confirm stays live, because the form behind this button has not been
-// designed and a disabled Confirm would dead-end the only route to the screen
-// after this one.
-const addDetails = () =>
-  toast.info('Project details are not built yet', {
-    id: 'confirm',
-    description: 'This is where you would describe the project for your Partner.',
-  })
 
 const booking = ref(false)
 
@@ -211,50 +203,17 @@ const confirm = () => {
 
                 <!-- ⚠️ The rule lives HERE, not on the `<li>`. This div starts
                      where the text starts — after the avatar and the `gap-3` —
-                     so the line runs under the words and the trailing control
-                     only, and the numbers hang off its left in a clean column.
-                     A border on the row itself would strike through the avatar.
-                     Nothing after the last step, which ends the list rather
-                     than separating it from the buttons below. -->
+                     so the line runs under the words only, and the numbers hang
+                     off its left in a clean column. A border on the row itself
+                     would strike through the avatar. Nothing after the last
+                     step, which ends the list rather than separating it from
+                     the buttons below. -->
                 <div
-                  class="flex min-w-0 flex-1 items-start gap-4"
+                  class="min-w-0 flex-1"
                   :class="i < STEPS.length - 1 ? 'border-b border-outline-gray-1 pb-5' : ''"
                 >
-                  <div class="min-w-0 flex-1">
-                    <p class="text-base font-medium text-ink-gray-8">{{ step.title }}</p>
-                    <p v-if="step.body" class="mt-1 text-p-base text-ink-gray-6">{{ step.body }}</p>
-                  </div>
-
-                  <!-- The one step you can act on, and the action sits IN the
-                       step rather than under the list: it belongs to that line,
-                       not to the sequence. -->
-                  <Button
-                    v-if="step.action"
-                    class="shrink-0"
-                    variant="subtle"
-                    size="sm"
-                    :label="step.action"
-                    @click="addDetails"
-                  >
-                    <template #prefix><IconPlus class="size-4" /></template>
-                  </Button>
-
-                  <!-- Where the step falls on the timeline. Quiet by design: it
-                       is a label on the step, not a second thing to read — the
-                       calendar glyph is what lets the eye skip the column when
-                       it is reading the sequence instead of the schedule.
-
-                       ⚠️ `text-p-sm` (13px), a step BELOW the step's own body
-                       copy at `text-p-base` (14px). At the same size it read as
-                       a second sentence of the step rather than as a label on
-                       it, and the column has to lose to the words. -->
-                  <p
-                    v-else-if="step.when"
-                    class="flex shrink-0 items-center gap-1.5 text-p-sm text-ink-gray-5"
-                  >
-                    <IconCalendar class="size-4 shrink-0" />
-                    {{ step.when }}
-                  </p>
+                  <p class="text-base font-medium text-ink-gray-8">{{ step.title }}</p>
+                  <p v-if="step.body" class="mt-1 text-p-base text-ink-gray-6">{{ step.body }}</p>
                 </div>
               </li>
             </ol>

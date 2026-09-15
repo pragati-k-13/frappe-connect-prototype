@@ -243,16 +243,24 @@ const terms = computed(() => [
       <h3 class="text-base font-medium text-ink-gray-8">Terms and conditions</h3>
 
       <div class="mt-2">
+        <!-- ⚠️ Same mark and same side as the modules above: these are
+             top-level rows in their own section, so they take the top-level
+             treatment — down/up, held at the right edge. A chevron on the left
+             would set them a level below something that is not above them. -->
         <details v-for="t in terms" :key="t.key" class="group">
           <summary
-            class="flex cursor-pointer list-none items-center gap-1.5 py-1.5 text-p-base text-ink-gray-7 [&::-webkit-details-marker]:hidden"
+            class="flex cursor-pointer list-none items-center gap-2 py-1.5 text-p-base text-ink-gray-7 [&::-webkit-details-marker]:hidden"
           >
-            <IconChevron
-              class="size-3.5 shrink-0 text-ink-gray-5 motion-safe:transition-transform group-open:rotate-90"
+            <span class="min-w-0 flex-1">{{ t.label }}</span>
+            <IconChevronDown
+              class="size-3.5 shrink-0 text-ink-gray-5 motion-safe:transition-transform group-open:rotate-180"
             />
-            {{ t.label }}
           </summary>
-          <ul class="space-y-1 pb-2 pl-5 pt-1">
+          <!-- Bulleted: each line is a separate term you check one at a time,
+               and several wrap to two lines in a 320px column. Without a mark
+               a wrapped term and the next term look the same. The bullet is
+               the only indent — the summary above carries no leading mark. -->
+          <ul class="list-disc space-y-1 pb-2 pl-4 pt-1 marker:text-ink-gray-4">
             <li v-for="line in t.lines" :key="line" class="text-p-sm text-ink-gray-6">
               {{ line }}
             </li>
