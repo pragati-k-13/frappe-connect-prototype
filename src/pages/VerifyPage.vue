@@ -53,7 +53,37 @@ const verify = () => {
     //
     // Logging in has nothing left to ask, and finishes here as before.
     if (isSignup.value) {
-      router.replace({ name: 'signup-company', query: route.query })
+      // ⚠️ THE SECOND FORK, and it is about what the visitor was DOING.
+      //
+      // No errand — they pressed "Log in or create account" in the top bar, so
+      // signing up IS the errand. Nothing is waiting behind a dialog, and the
+      // company questions keep the full screen that lands the account itself.
+      if (!store.hasErrand) {
+        router.replace({ name: 'signup-company', query: route.query })
+        return
+      }
+
+      // An errand in hand: a pack half-bought, a partner half-saved, a message
+      // half-sent. Land the account HERE, put them back where they were, and
+      // ask over it — the thing they were doing stays on screen behind the card
+      // rather than being replaced by a form.
+      //
+      // ⚠️ `completeLogin` before the navigation, not after. The confirmed and
+      // confirm screens are gated on `signedIn`, so an account that lands after
+      // the push would be bounced straight back to sign-up by its own guard.
+      toast.success('Account created', { id: 'auth' })
+      store.completeLogin()
+      if (store.pack) {
+        await router.replace({ name: 'confirm', query: { pack: store.pack } })
+      } else {
+        // Same order as the log-in path below: navigate, THEN run what the gate
+        // was holding, since the action belongs to the screen it interrupted and
+        // often navigates itself.
+        await router.replace(next.value)
+        store.runPending()
+      }
+      // Last, so it opens over wherever the two lines above actually ended up.
+      store.openCompanyPrompt()
       return
     }
     // This toast before the held action, which raises one of its own — the pair

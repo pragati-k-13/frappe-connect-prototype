@@ -11,10 +11,18 @@
        toast twice. -->
   <ToastProvider />
   <RouterView />
+  <!-- ⚠️ Mounted at the ROOT, like the toaster above and for a related reason:
+       the company questions appear over whatever screen the auth gate
+       interrupted — the listing, a profile, the pack catalogue, the confirm
+       screen — so they cannot belong to any one page. It renders nothing until
+       `store.companyPrompt` is set; see `hasErrand` for which sign-ups get the
+       dialog and which get the full screen. -->
+  <CompanySignupDialog />
   <DemoSwitch />
 </template>
 
 <script setup>
 import { ToastProvider } from 'frappe-ui'
+import CompanySignupDialog from './components/CompanySignupDialog.vue'
 import DemoSwitch from './components/DemoSwitch.vue'
 </script>

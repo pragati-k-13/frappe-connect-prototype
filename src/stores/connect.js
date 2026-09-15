@@ -249,6 +249,17 @@ export const useConnectStore = defineStore('connect', {
     //
     // ⚠️ In memory, like everything else here. Reloading loses what you typed.
     threads: [],
+    // ⚠️ A REACTIVE MIRROR of `pendingAction` above, which is a module-level
+    // `let` and so invisible to any computed. Nothing reads the action itself
+    // from a template — only whether one is armed — and that question decides
+    // how sign-up ends: with an errand in hand the company questions are asked
+    // in a dialog over wherever the visitor was going, and without one they get
+    // the full screen. See `hasErrand`.
+    pendingHeld: false,
+    // Is the company-details dialog open? Store state rather than a page's own
+    // ref because the dialog is mounted at the app root — it has to be able to
+    // sit over any screen the gate interrupted, not just one.
+    companyPrompt: false,
     // Filters on the results page. `app` starts unset — it's a refinement
     // offered mid-list, not a qualifier.
     // `countries` is the granular half of the region dimension. Empty reads as
@@ -262,6 +273,16 @@ export const useConnectStore = defineStore('connect', {
     // The two questions a screen actually wants to ask. Everything that varies
     // by account state should go through these, so the enum stays in one place.
     signedIn: (state) => state.account !== 'visitor',
+    // Did the visitor arrive at sign-up in the middle of doing something?
+    //
+    // A pack means they pressed Get started; `pendingHeld` means a gated control
+    // (Save, Contact) is waiting to finish. Either way they were interrupted,
+    // so the company questions are asked in a dialog OVER where they were going
+    // rather than as a screen of their own — the errand stays visible behind it.
+    //
+    // Neither is true for the top bar's "Log in or create account": that is the
+    // one path where signing up IS the errand, and it keeps the full screen.
+    hasErrand: (state) => Boolean(state.pack) || state.pendingHeld,
     hasProject: (state) => state.account === 'client',
 
     // A function getter rather than a derived list: every caller asks about one
@@ -492,6 +513,7 @@ export const useConnectStore = defineStore('connect', {
     // `runPending`.
     holdUntilLogin(action) {
       pendingAction = action ?? null
+      this.pendingHeld = Boolean(pendingAction)
     },
 
     // Run the held action. Called by an auth screen AFTER it has navigated back
@@ -500,6 +522,7 @@ export const useConnectStore = defineStore('connect', {
     runPending() {
       const action = pendingAction
       pendingAction = null
+      this.pendingHeld = false
       action?.()
     },
 
@@ -508,6 +531,18 @@ export const useConnectStore = defineStore('connect', {
     // an hour later silently saves the partner they walked away from.
     dropPending() {
       pendingAction = null
+      this.pendingHeld = false
+    },
+
+    // ── The company-details dialog ───────────────────────────────────────
+    openCompanyPrompt() {
+      this.companyPrompt = true
+    },
+    // ⚠️ Only `saveCompany` should reach this. The dialog has no close button
+    // and is not dismissible: Frappe assigns the partner off these answers, so
+    // an account that skipped them is an account nothing can be matched for.
+    closeCompanyPrompt() {
+      this.companyPrompt = false
     },
 
     // Which pack the visitor is buying. Set at the moment Get started is
@@ -530,8 +565,21 @@ export const useConnectStore = defineStore('connect', {
     // The group is derived rather than asked for: the control is grouped, so
     // the first pick's heading is the industry. Segments spanning two groups
     // keep the first, since the quiz's own field holds exactly one.
-    saveCompany({ name, employees, segments, operations, problems }) {
-      this.company = { name, employees, segments, operations, problems }
+    // ⚠️ `apps` and `problems` changed shape with the dialog. `operations` and
+    // `problems` used to be free text from two textareas; they are now a chosen
+    // value and an array of them. `apps` is new and optional. Defaulted here so
+    // the full-screen `CompanyPage`, which still sends neither, keeps working.
+    saveCompany({ name, employees, segments, apps, appsOther, operations, problems }) {
+      this.company = {
+        name,
+        employees,
+        segments,
+        apps: apps ?? [],
+        // What "Something else" meant, when that was picked. Empty otherwise.
+        appsOther: appsOther ?? '',
+        operations: operations ?? null,
+        problems: problems ?? [],
+      }
       this.viewer = { ...this.viewer, company: name }
       const group = INDUSTRIES.find((i) => i.segments.includes(segments?.[0]))
       if (group) this.answer('industry', group.value)
