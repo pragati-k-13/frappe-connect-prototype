@@ -136,9 +136,9 @@ useAuthExit()
       To find the right Partner for your
       <template v-if="pack">
         <span class="font-medium whitespace-nowrap text-ink-gray-7">{{ pack.name }}</span>
-        pack.
+        pack
       </template>
-      <template v-else>needs.</template>
+      <template v-else>needs</template>
     </p>
 
     <form class="mt-6 space-y-4" novalidate @submit.prevent="submit">
@@ -188,7 +188,7 @@ useAuthExit()
         size="sm"
         :rows="3"
         label="Describe your current operations"
-        placeholder="e.g. Orders come in over email and WhatsApp, we track stock in spreadsheets, and invoicing runs through Tally."
+        placeholder="e.g. Orders come in over email and WhatsApp, we track stock in spreadsheets, and invoicing runs through Tally"
       />
       <FormControl
         v-model="form.problems"
@@ -196,7 +196,7 @@ useAuthExit()
         size="sm"
         :rows="3"
         label="What problems are you looking to solve?"
-        placeholder="e.g. Our spreadsheets and Tally don't talk to each other, so month-end reconciliation takes days and stock counts are often wrong."
+        placeholder="e.g. Our spreadsheets and Tally don't talk to each other, so month-end reconciliation takes days and stock counts are often wrong"
       />
 
       <!-- Full width, like the three screens before it. It was auto-width to

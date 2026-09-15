@@ -9,7 +9,7 @@
 // wrapper here, because an empty `<div class="mt-24">` collapses its margins
 // through itself and leaves the gap behind.
 
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Button, Tooltip } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
@@ -29,7 +29,8 @@ import BookSlotDialog from '../components/BookSlotDialog.vue'
 import { PARTNERS } from '../data/partners'
 import { logoFor } from '../data/logos'
 import { clientsFor, mediaFor } from '../data/media'
-import { contactToast, savedToast } from '../feedback'
+import { savedToast } from '../feedback'
+import { useContactPartner } from '../utils/contact'
 
 const route = useRoute()
 const router = useRouter()
@@ -52,6 +53,7 @@ const subtitle = computed(() => {
 
 const store = useConnectStore()
 const { requireAccount } = useAuthGate()
+const { contactPartner } = useContactPartner()
 
 // The same list the listing row reads, not a second copy. These two used to be
 // independent `ref(false)`s — the comment here said sharing them would imply
@@ -74,6 +76,44 @@ const toggleSave = () => {
 }
 
 const booking = ref(false)
+
+// ── Does the page's own Contact still show? ──────────────────────────────────
+// The chrome's Contact is a STAND-IN for the one in the page header, not a
+// second copy of it: two identical buttons a centimetre apart, both saying
+// Contact, is one button too many. So the chrome's only appears once the real
+// one has scrolled out of view.
+//
+// `IntersectionObserver` rather than a scroll handler: it fires only on the
+// crossing rather than on every frame of the scroll, and it needs no knowledge
+// of where the button sits or how tall the header above it is. Ancestor
+// overflow clipping counts as part of the intersection, which is what makes
+// `root: null` correct here even though the page scrolls inside the shell's
+// `ScrollArea` rather than the window.
+const pageContact = ref(null)
+const pageContactVisible = ref(true)
+
+// ⚠️ Watched rather than set up in `onMounted`. The ref is null on the 404
+// branch and is REPLACED when you navigate from one profile to another, which
+// reuses this component rather than remounting it — an observer bound once at
+// mount would be left watching a detached node from the previous partner.
+let observer = null
+watch(pageContact, (el) => {
+  observer?.disconnect()
+  observer = null
+  // Nothing to watch (the 404 branch): leave the chrome's button showing, since
+  // there is no page-level one to defer to.
+  const node = el?.$el ?? el
+  if (!node) {
+    pageContactVisible.value = false
+    return
+  }
+  observer = new IntersectionObserver(([entry]) => {
+    pageContactVisible.value = entry.isIntersecting
+  })
+  observer.observe(node)
+})
+
+onBeforeUnmount(() => observer?.disconnect())
 </script>
 
 <template>
@@ -98,14 +138,29 @@ const booking = ref(false)
          own Contact — which is what keeps the sign-in path intact on a screen
          that has taken the auth CTA out of the chrome. -->
     <template v-if="partner" #action>
-      <Button
-        variant="ghost"
-        class="-mr-2"
-        label="Contact"
-        @click="requireAccount(() => contactToast(partner))"
+      <!-- ⚠️ The `v-if` for the scroll state goes on the BUTTON, while the one
+           for the 404 stays on the template above. They are not
+           interchangeable: an absent SLOT makes the shell fall back to its auth
+           CTA, so putting the scroll test up there would swap "Contact" for
+           "Log in or create account" every time you scrolled back to the top.
+           An empty provided slot is what we want here — the page's own Contact
+           is on screen, so the bar should simply be quiet. -->
+      <Transition
+        enter-active-class="motion-safe:transition-opacity motion-safe:duration-150"
+        leave-active-class="motion-safe:transition-opacity motion-safe:duration-150"
+        enter-from-class="opacity-0"
+        leave-to-class="opacity-0"
       >
-        <template #suffix><LucideArrowRight class="size-4" /></template>
-      </Button>
+        <Button
+          v-if="!pageContactVisible"
+          variant="ghost"
+          class="-mr-2"
+          label="Contact"
+          @click="contactPartner(partner)"
+        >
+          <template #suffix><LucideArrowRight class="size-4" /></template>
+        </Button>
+      </Transition>
     </template>
 
     <!-- Unknown id: a real 404 rather than a blank page, with the way back. -->
@@ -169,8 +224,8 @@ const booking = ref(false)
         </div>
 
         <div class="flex shrink-0 items-center gap-2">
-          <Tooltip text="Book a slot">
-            <Button variant="subtle" aria-label="Book a slot" @click="booking = true">
+          <Tooltip text="Request a slot">
+            <Button variant="subtle" aria-label="Request a slot" @click="booking = true">
               <template #icon><LucideCalendar class="size-4" /></template>
             </Button>
           </Tooltip>
@@ -196,9 +251,10 @@ const booking = ref(false)
                Passing the toast as the gated action also means it fires after a
                sign-in that was triggered from this button. -->
           <Button
+            ref="pageContact"
             variant="solid"
             label="Contact"
-            @click="requireAccount(() => contactToast(partner))"
+            @click="contactPartner(partner)"
           >
             <!-- The same message bubble the listing row's Contact carries, not
                  the paper plane this used to have. One action, one mark: a

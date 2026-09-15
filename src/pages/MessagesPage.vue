@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Avatar, Button, ScrollArea, TabButtons, toast } from 'frappe-ui'
+import { Avatar, Badge, Button, ScrollArea, TabButtons, toast } from 'frappe-ui'
 // ⚠️ `frappe-ui/editor`, not the `TextEditor` parked in `frappe-ui/experimental`.
 // That one is the v0 family, kept only as an interim import path while apps
 // migrate off it ("Moved out of root (#974)"); this is the replacement, and it
@@ -14,6 +14,8 @@ import {
   EditorFixedMenu,
 } from 'frappe-ui/editor'
 import IconCalendar from '~icons/lucide/calendar'
+import IconEmoji from '~icons/lucide/smile-plus'
+import IconMore from '~icons/lucide/ellipsis'
 import IconExternal from '~icons/lucide/external-link'
 import IconSend from '~icons/lucide/send-horizontal'
 import ConnectShell from '../components/ConnectShell.vue'
@@ -51,9 +53,13 @@ const threads = computed(() =>
 // you click it, not after.
 const filter = ref('active')
 const shown = computed(() => threads.value.filter((t) => t.active === (filter.value === 'active')))
+// `count` is not a `TabButton` field — the component doesn't know about it. It
+// rides along on the option and comes back through the `#suffix` slot, which
+// forwards the whole `button` object. That's the documented place for a count on
+// a tab; see the `#suffix` usage in the template.
 const tabs = computed(() => [
-  { label: `Active ${threads.value.filter((t) => t.active).length}`, value: 'active' },
-  { label: `Inactive ${threads.value.filter((t) => !t.active).length}`, value: 'inactive' },
+  { label: 'Active', value: 'active', count: threads.value.filter((t) => t.active).length },
+  { label: 'Inactive', value: 'inactive', count: threads.value.filter((t) => !t.active).length },
 ])
 
 // The open conversation is in the URL, like the pack on the two screens before
@@ -94,7 +100,21 @@ watch(
 )
 
 const logo = computed(() => (open.value ? logoFor(open.value.partnerId) : null))
-const authorOf = (m) => (m.from === 'you' ? store.viewer.name : open.value.partner.name)
+// The name on a message. Partner-side replies come from a PERSON on that
+// partner's sales team — see the note at the top of `data/messages.js` — and
+// `author` is where their name lives.
+//
+// ⚠️ Falls back to the firm. Booking and Contact threads have no partner replies
+// in them at all today, but a message that ever arrives without an author should
+// render as the company rather than as a blank line.
+const authorOf = (m) =>
+  m.from === 'you' ? store.viewer.name : (m.author ?? open.value.partner.name)
+
+// The badge is on the PERSON, not on the message: it answers "who is this human
+// and why are they in my inbox", which is a question the company's own messages
+// never raised. So it is suppressed on the fallback above — "Tridots Tech" with
+// a badge reading "Tridots Tech" is the label repeating itself.
+const isPartnerPerson = (m) => m.from !== 'you' && Boolean(m.author)
 
 // Same day gets a clock, anything older gets a date: "12:16 pm" answers "how
 // long ago" only while today is still today.
@@ -129,6 +149,10 @@ const asText = (html) => {
 
 const preview = (thread) => {
   const m = thread.messages.at(-1)
+  // A thread opened from Contact has nothing in it yet. Say so, rather than
+  // reading `.kind` off `undefined` — and say it in the row's own voice, so the
+  // list doesn't show a blank line where every other row has a sentence.
+  if (!m) return 'No messages yet'
   const body =
     m.kind === 'company'
       ? 'Company details'
@@ -146,6 +170,22 @@ const openCalendar = () =>
   toast.info('This opens your calendar app', {
     id: 'calendar',
     description: 'The invite lives outside Frappe Connect.',
+  })
+
+// The two per-message actions, both inert by instruction — the same shape as
+// `openCalendar` above. A reaction needs somewhere to store it and a second
+// author to read it, and the overflow menu needs its items decided; neither
+// exists, so each names its own gap rather than letting the click vanish.
+const react = () =>
+  toast.info('Reactions are not built yet', {
+    id: 'react',
+    description: 'Nothing stores a reaction, and no one is on the other end to see it.',
+  })
+
+const messageActions = () =>
+  toast.info('Message actions are not built yet', {
+    id: 'message-actions',
+    description: 'Reply, copy and delete are the likely three, and none is decided.',
   })
 
 // ⚠️ HTML, not a string of text: the editor's format is `html`, so a message
@@ -211,19 +251,73 @@ watch(open, toBottom)
         v-if="threads.length"
         class="flex w-[320px] shrink-0 flex-col border-r border-outline-gray-1"
       >
-        <div class="shrink-0 px-4 pb-3 pt-4">
+        <!-- ⚠️ `pt-3` and the tabs' `mt-2` below are ARITHMETIC, not taste. The
+             tab track's bottom border and the conversation header's `border-b`
+             are two halves of one horizontal line across the screen, so they
+             have to land on the same y.
+
+             Right-hand header: `py-3` + a 41px avatar row = 65px, so its stroke
+             sits 65px down. Left: this `pt-3` (12) + the 16px heading + the
+             tabs' `mt-2` (8) + the 29px track (28 high, 1px border) = 65. The
+             two `py-3`s also put "Inbox" and the partner's logo on the same
+             top edge.
+
+             Change either header's padding and this stops lining up — there is
+             no token tying them together, only this note. -->
+        <div class="shrink-0 px-4 pb-3 pt-3">
           <h1 class="text-base font-medium text-ink-gray-8">Inbox</h1>
           <!-- ⚠️ Not in the design, and asked for: without it a quiet thread
                from two months ago sits in the same list as the conversation you
                are having today, and the list is sorted by recency, so the dead
                ones pile up at the bottom of the only view there is. -->
+          <!-- ⚠️ Still `TabButtons`, not `Tabs`, despite the underline. The two
+               are pixel-identical at the same `variant` and `size`; what differs
+               is the semantics they announce, and frappe-ui's own guidance is to
+               pick `TabButtons` when the control chooses a VALUE for a filter
+               (radiogroup) and `Tabs` when it switches panels (tablist). This
+               narrows one list, so it stays a radiogroup.
+
+               `fluid` is the component's own full-width mode — the two triggers
+               split the track evenly instead of hugging their labels.
+
+               ⚠️ Full width means the PADDED width. The underline variant draws
+               a rule along the bottom of the track, and it was briefly pulled
+               out to the pane's edges with `-mx-4` on the theory that the rule
+               is a divider and a divider should meet the frame. It shouldn't:
+               this block's `px-4` is the column the heading above and the rows
+               below both sit in, and a rule breaking that column reads as a
+               different element's edge rather than as this one's underline. -->
           <TabButtons
-            class="mt-3"
+            class="mt-2"
             :model-value="filter"
             :options="tabs"
+            variant="underline"
             size="sm"
+            fluid
             @update:model-value="setFilter"
-          />
+          >
+            <!-- The count as a badge rather than as part of the label. "Active
+                 2" was one string, so the number inherited the label's own
+                 weight and colour and read as part of the NAME of the tab; a
+                 badge says it is a quantity of what's in it.
+
+                 ⚠️ Bare `size="sm"`, everything else default (gray, subtle) —
+                 and identically on both tabs. A `solid` badge on the selected
+                 one was tried and is wrong twice over: the underline already
+                 says which tab is selected, so the fill is a second answer to a
+                 settled question, and a black pill is a lot of emphasis for a
+                 small number. It also diverges from frappe-ui's own count-badge
+                 examples, which are exactly `<Badge size="sm">{{ count }}</Badge>`
+                 on every tab — see `Tabs/stories/BrowserTabCounts.vue`.
+
+                 ⚠️ Rendered even at zero. An empty tab whose badge disappears
+                 looks like a tab that failed to load, and "0" is the answer to
+                 the question — which is why the counts were in the labels to
+                 begin with. -->
+            <template #suffix="{ button }">
+              <Badge size="sm" :label="button.count" />
+            </template>
+          </TabButtons>
         </div>
 
         <ScrollArea class="min-h-0 flex-1">
@@ -314,7 +408,11 @@ watch(open, toBottom)
                  A person is a circle and a company is a square, which is the
                  shape rule the rest of the app already follows — every partner
                  logo in the listing, the profile and the inbox is square. -->
-            <div v-for="m in open.messages" :key="m.id" class="mt-5 flex items-start gap-3">
+            <div
+              v-for="m in open.messages"
+              :key="m.id"
+              class="group/msg mt-5 flex items-start gap-3"
+            >
               <Avatar
                 v-if="m.from === 'you'"
                 :label="store.viewer.name"
@@ -341,8 +439,31 @@ watch(open, toBottom)
                 <!-- `gap-1.5` rather than a space in the markup: Vue drops the
                    whitespace between two elements on their own lines, which
                    welded the name to the separator. -->
-                <p class="flex items-baseline gap-1.5 text-p-sm">
+                <!-- ⚠️ `flex-wrap`. Without it these three shrink instead of
+                   wrapping, and in a narrow pane the NAME broke across two
+                   lines with the badge stranded in the gap. Wrapping moves
+                   whole items, so a long name stays one word per line and the
+                   badge follows it down intact. -->
+                <p class="flex flex-wrap items-baseline gap-x-1.5 text-p-sm">
                   <span class="font-medium text-ink-gray-8">{{ authorOf(m) }}</span>
+                  <!-- Which side of the conversation this person is on. The
+                       thread header names the company and links its profile, so
+                       the badge doesn't repeat the firm — it says the NAME above
+                       belongs to that firm's team rather than to the viewer's
+                       own. `gray`, because affiliation is a fact about the
+                       speaker and not a status: a coloured pill here would read
+                       as something having gone right or wrong.
+                       ⚠️ `self-center`, not baseline: the row is
+                       `items-baseline` so the name and the time sit on one line,
+                       and a pill dragged onto that baseline hangs below it. -->
+                  <Badge
+                    v-if="isPartnerPerson(m)"
+                    class="self-center"
+                    theme="gray"
+                    variant="subtle"
+                    size="sm"
+                    label="Partner team"
+                  />
                   <span class="text-ink-gray-5">·</span>
                   <span class="text-ink-gray-5">{{ time(m.at) }}</span>
                 </p>
@@ -400,7 +521,7 @@ watch(open, toBottom)
                    control: the invite is in a calendar this app doesn't own. -->
                 <div
                   v-else-if="m.kind === 'call'"
-                  class="mt-1.5 flex w-fit items-center gap-3 rounded-5 border border-outline-gray-2 p-3.5"
+                  class="mt-1.5 flex w-fit items-start gap-3 rounded-5 border border-outline-gray-2 p-3.5"
                 >
                   <Avatar size="2xl" shape="square" aria-hidden="true">
                     <IconCalendar class="size-full" />
@@ -426,6 +547,35 @@ watch(open, toBottom)
                     <template #icon><IconExternal class="size-4" /></template>
                   </Button>
                 </div>
+              </div>
+
+              <!-- ── Per-message actions ────────────────────────────────────
+                   Hidden until the row is hovered, so a conversation reads as
+                   text rather than as a column of controls repeated down the
+                   right edge.
+
+                   `opacity`, not `v-if`/`hidden`: the cluster keeps its width at
+                   all times, so revealing it can't reflow the message beside it
+                   — and an element that is only transparent is still in the tab
+                   order, which `group-focus-within` is what makes usable.
+
+                   ⚠️ A NAMED group (`group/msg`). The composer further down owns
+                   a plain `group` of its own; an unnamed one here would be the
+                   nearest ancestor for anything nested later and the two would
+                   quietly fight.
+
+                   ⚠️ Aligned to the top of the row, not centred on it: these act
+                   on the message as a whole, and a message is one line or ten.
+                   `mt-0.5` puts them on the meta line, level with the avatar. -->
+              <div
+                class="mt-0.5 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover/msg:opacity-100"
+              >
+                <Button variant="ghost" size="sm" aria-label="Add reaction" @click="react">
+                  <template #icon><IconEmoji class="size-4" /></template>
+                </Button>
+                <Button variant="ghost" size="sm" aria-label="More actions" @click="messageActions">
+                  <template #icon><IconMore class="size-4" /></template>
+                </Button>
               </div>
             </div>
           </div>

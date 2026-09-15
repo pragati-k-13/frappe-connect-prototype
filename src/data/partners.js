@@ -492,6 +492,30 @@ const countryOf = (city) => city.split(',').pop().trim()
 // the map ask about; `market` is what the invented content varies at.
 const marketOf = (city, region) => (countryOf(city) === 'India' ? 'india' : region)
 
+// The IANA zone of a scraped city. REAL, unlike almost everything else added to
+// a partner in this file — a city sits in exactly one zone and there is nothing
+// to invent. Keyed by the city string itself because that string is scraped and
+// exact; a partner in a city not listed gets `null`, and the surfaces that show
+// a zone drop the line rather than guessing one from the country (India is one
+// zone, the United States is six).
+//
+// ⚠️ Zones, not offsets. An offset is a fact about a date — Europe/Berlin is
+// +1 in January and +2 in July — so storing `GMT+2` would be right for half the
+// year. `Intl` resolves the zone against the day being shown.
+const ZONE_BY_CITY = {
+  'Chennai, India': 'Asia/Kolkata',
+  'Mumbai, India': 'Asia/Kolkata',
+  'Pune, India': 'Asia/Kolkata',
+  'Kochi, India': 'Asia/Kolkata',
+  'Ahmedabad, India': 'Asia/Kolkata',
+  'Munich, Germany': 'Europe/Berlin',
+  'Dubai, United Arab Emirates': 'Asia/Dubai',
+  Singapore: 'Asia/Singapore',
+  'Nairobi, Kenya': 'Africa/Nairobi',
+  'Chicago, United States': 'America/Chicago',
+}
+const zoneOf = (city) => ZONE_BY_CITY[city] ?? null
+
 // ⚠️ Invented, and uniform by market. Real migration paths, but not sourced
 // from any partner's own listing — Tally and SAP are simply the two ERPNext
 // migrations that actually come up in India, QuickBooks the common one outside
@@ -563,6 +587,8 @@ const P = (
   pmm: PMM_BY_TIER[tier] ?? 1,
   // Real: `city` is scraped, and the country is its last comma field.
   countries: [countryOf(city)],
+  // Real too — see `zoneOf`. `null` for a city not in the table.
+  zone: zoneOf(city),
   // See `marketOf` above — the region, except that India is its own market.
   market: marketOf(city, region),
   // `[{ app, members }]`, highest count first, zeroes dropped.

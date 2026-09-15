@@ -11,7 +11,7 @@ import { DialogDescription } from 'reka-ui'
 import AppLogo from './AppLogo.vue'
 import { APPS } from '../data/partners'
 import { modulesFor } from '../data/modules'
-import { contactToast } from '../feedback'
+import { useContactPartner } from '../utils/contact'
 import { useConnectStore } from '../stores/connect'
 
 // "Estimate quote" — the action on the Pricing section's starter-pack card.
@@ -44,6 +44,7 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const store = useConnectStore()
+const { contactPartner } = useContactPartner()
 
 // Resolved through the router rather than written as a literal, so the href
 // carries `BASE_URL` — under GitHub Pages the app lives at
@@ -524,14 +525,14 @@ const close = () => {
            to click was to go and get the actual answer somewhere else.
            Wrong way round. The figure above IS the thing; the button carries it
            into a conversation with the partner who'd deliver it.
-           ⚠️ Same destination as every other Contact on this page — the in-app
-           messages screen, which doesn't exist yet — so it raises the same
-           toast. -->
+           ⚠️ Same destination as every other Contact on this page: the in-app
+           messages screen, opened on this partner's thread. Navigating away
+           takes the dialog with it. -->
         <Button
           variant="solid"
           class="mt-5 w-full"
           label="Contact partner with this estimate"
-          @click="contactToast(partner)"
+          @click="contactPartner(partner)"
         >
           <template #prefix><LucideMessageSquare class="size-4" /></template>
         </Button>

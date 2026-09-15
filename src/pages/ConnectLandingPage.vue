@@ -1,3 +1,22 @@
+<!-- ⚠️ A plain `<script>` beside `<script setup>`: this block runs ONCE for the
+     module rather than once per component instance. See `step` below. -->
+<script>
+import { ref } from 'vue'
+
+// Which question the quiz is showing, deliberately at MODULE scope.
+//
+// ⚠️ Inside `setup` this was re-created on every mount, so leaving the page and
+// coming back rewound the quiz to question 1 — and asked an industry it already
+// had the answer to, with that answer still visibly selected in the radios. The
+// ANSWERS were never the problem; they live on the store and survive fine. The
+// position in the sequence was.
+//
+// Same reasoning and the same fix as the sidebar's `collapsed` in
+// `ConnectShell`. Session-only: a reload starts over, like everything else in
+// this prototype.
+const step = ref(1)
+</script>
+
 <script setup>
 // SCREENS 2–4 — the Frappe Connect landing page.
 //
@@ -14,7 +33,7 @@ import ConnectShell from '../components/ConnectShell.vue'
 import DottedWorldMap from '../components/DottedWorldMap.vue'
 import FilterChip from '../components/FilterChip.vue'
 import { useConnectStore } from '../stores/connect'
-import { INDUSTRIES, GEO_CHOICES, IMPLEMENTATION_TYPES } from '../data/quiz'
+import { INDUSTRIES, GEO_CHOICES } from '../data/quiz'
 import { SUCCESS_STORIES } from '../data/partners'
 // Pack pricing is per region now. This table has no region to read — the quiz
 // asks for one, but a visitor can skip it — so it quotes the default, India,
@@ -24,13 +43,35 @@ import { STARTER_PACKS, priceFor, pricingFor, DEFAULT_REGION } from '../data/pac
 const store = useConnectStore()
 const router = useRouter()
 
-const TOTAL = 3
-const step = ref(1)
+const TOTAL = 2
 const quizTop = ref(null)
-// Location is pre-answered from "where we think you are" so this question costs
-// a confirmation instead of a decision. The hint under the chips says so —
-// a silently pre-filled answer would be the dishonest version of this.
-onMounted(() => store.seedInferredGeo())
+// Is question `n` already answered? Same two tests `hasAnswer` makes, asked of
+// a given step rather than the current one — see the note there for why the geo
+// question has to check both halves.
+const answeredAt = (n) =>
+  n === 1
+    ? Boolean(store.answers.industry)
+    : store.answers.region.length > 0 || store.filters.countries.length > 0
+
+// The first question still missing an answer, or the last one if none are.
+const firstGap = () => (!answeredAt(1) ? 1 : !answeredAt(2) ? 2 : TOTAL)
+
+onMounted(() => {
+  // Location is pre-answered from "where we think you are" so this question
+  // costs a confirmation instead of a decision. The hint under the chips says
+  // so — a silently pre-filled answer would be the dishonest version of this.
+  // FIRST, because the clamp below reads the answer it writes.
+  store.seedInferredGeo()
+
+  // ⚠️ `min`, not an assignment: never further along than the first unanswered
+  // question, but never pushed forward past where you actually left off.
+  //
+  // Resuming alone isn't enough, because `store.reset()` — Clear filters on the
+  // results screen — wipes the answers without touching this. Coming back after
+  // that would strand you on question 2 with nothing selected, Continue
+  // disabled, and no way back to question 1 short of the CTA below the fold.
+  step.value = Math.min(step.value, firstGap())
+})
 
 const selectedIndustry = computed(() => INDUSTRIES.find((i) => i.value === store.answers.industry))
 // All four groups branch — every one has real segments in the directory's
@@ -108,10 +149,7 @@ const hasAnswer = computed(() => {
   // answer — the India chip writes only the second. Checking `region` alone
   // disabled Continue for anyone whose inferred location seeded a country,
   // which is the default path for most visitors.
-  if (step.value === 2) {
-    return store.answers.region.length > 0 || store.filters.countries.length > 0
-  }
-  return Boolean(store.answers.implementation)
+  return store.answers.region.length > 0 || store.filters.countries.length > 0
 })
 
 const goToResults = () => router.push('/connect/partners')
@@ -128,7 +166,7 @@ const back = () => {
 // Skip clears the answer for this step rather than leaving a stale one behind —
 // otherwise skipping after going Back would silently keep the old choice.
 const skip = () => {
-  const key = { 1: 'industry', 2: 'region', 3: 'implementation' }[step.value]
+  const key = { 1: 'industry', 2: 'region' }[step.value]
   store.skip(key)
   if (step.value === TOTAL) return goToResults()
   step.value += 1
@@ -150,12 +188,25 @@ const restartQuiz = () => {
          below the fold has to be scrolled to deliberately. -->
     <section
       ref="quizTop"
-      class="mx-auto grid w-full max-w-[1600px] gap-8 px-5 py-10 lg:min-h-[calc(100vh-3rem)] lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)] lg:gap-14 lg:px-10 lg:pb-8 lg:pt-4"
+      class="mx-auto grid w-full max-w-[1600px] gap-8 px-5 py-10 lg:min-h-[calc(100vh-3rem)] lg:grid-cols-2 lg:gap-14 lg:px-10 lg:pb-8 lg:pt-4 xl:grid-cols-[minmax(0,460px)_minmax(0,1fr)]"
     >
-      <!-- 460px is the narrowest column that keeps the headline on one line at
-           its 18px size (it measures 410px) with room to spare. Centred, then
-           biased upward by the bottom padding so the block sits above the
-           optical middle rather than dead centre. -->
+      <!-- ⚠️ Two column rules, and the breakpoint between them is the point.
+           460px is the narrowest column that keeps the headline on one line at
+           its 18px size (it measures 410px) with room to spare — but 460px is a
+           FIXED max, so grid hands the question its full width before the map
+           gets anything left over. Below `xl` that starved the map: at a
+           1184px window with the rail open the split was 460 / 348, and at the
+           `lg` boundary itself it would have been 460 / 188. The two halves of
+           a two-up hero should not be that far apart.
+
+           So the 460 cap only applies from `xl`, where there is room for it
+           (460 / 444 at 1280). Between `lg` and `xl` the halves are simply
+           equal, and the headline is allowed to wrap to two lines — a wrapped
+           hero headline is a far smaller cost than a map squeezed to a third of
+           the row.
+
+           Centred, then biased upward by the bottom padding so the block sits
+           above the optical middle rather than dead centre. -->
       <div class="flex min-w-0 flex-col justify-center lg:pb-24">
         <h1 class="text-2xl font-semibold text-ink-gray-9">
           Work with certified partners with vast expertise
@@ -293,42 +344,6 @@ const restartQuiz = () => {
 
               <div class="mt-5 flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                  <Button variant="solid" label="Continue" :disabled="!hasAnswer" @click="next" />
-                  <Button variant="subtle" label="Back" @click="back" />
-                </div>
-                <Button variant="ghost" label="Skip" @click="skip" />
-              </div>
-            </fieldset>
-
-            <!-- Q3 — implementation shape. Decides packs vs. custom scoping. -->
-            <fieldset v-else key="3" class="w-full">
-              <div class="flex items-baseline justify-between gap-4">
-                <legend class="text-p-base font-semibold text-ink-gray-9">
-                  What kind of implementation are you looking for?
-                </legend>
-                <span class="shrink-0 text-p-sm tabular-nums text-ink-gray-5">
-                  {{ step }} / {{ TOTAL }}
-                </span>
-              </div>
-
-              <RadioGroup
-                class="mt-1.5 -ml-3"
-                :model-value="store.answers.implementation ?? undefined"
-                padded
-                size="md"
-                aria-label="Implementation type"
-                @update:model-value="store.answer('implementation', $event)"
-              >
-                <Radio
-                  v-for="opt in IMPLEMENTATION_TYPES"
-                  :key="opt.value"
-                  :value="opt.value"
-                  :label="opt.label"
-                />
-              </RadioGroup>
-
-              <div class="mt-5 flex items-center justify-between">
-                <div class="flex items-center gap-2">
                   <Button
                     variant="solid"
                     label="Find partners"
@@ -340,6 +355,7 @@ const restartQuiz = () => {
                 <Button variant="ghost" label="Skip" @click="skip" />
               </div>
             </fieldset>
+
           </Transition>
         </div>
       </div>

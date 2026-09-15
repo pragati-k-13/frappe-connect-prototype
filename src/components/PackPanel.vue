@@ -6,6 +6,7 @@ import IconPrice from '~icons/lucide/circle-dollar-sign'
 import IconEffort from '~icons/lucide/hourglass'
 import IconDelivery from '~icons/lucide/calendar'
 import IconChevron from '~icons/lucide/chevron-right'
+import IconChevronDown from '~icons/lucide/chevron-down'
 import IconExcluded from '~icons/lucide/circle-slash'
 import { SCOPE_ICONS } from '../scopeIcons'
 import {
@@ -151,15 +152,24 @@ const terms = computed(() => [
              level down. The prefix slot belongs to the module's own mark, and
              the two positions are what keep the levels apart once several are
              open: a module's rows indent under it, and their chevrons line up
-             in a column of their own. -->
+             in a column of their own.
+
+             ⚠️ And it is a different GLYPH at each level, not just a different
+             position: down/up here, right/down one level in. A right-pointing
+             chevron reads as "go there" — it is the same mark the listing rows
+             and `View profile` use for navigation — which is the wrong promise
+             on a row that expands in place. Down/up says open and closed. The
+             nested rows keep the rotating right chevron precisely because they
+             are subordinate: two identical down-chevrons stacked would flatten
+             the hierarchy the positions are working to keep. -->
         <details v-for="m in modules" :key="m.key" class="group">
           <summary
             class="flex cursor-pointer list-none items-center gap-2 py-1.5 text-p-base text-ink-gray-7 [&::-webkit-details-marker]:hidden"
           >
             <component :is="m.icon" class="size-4 shrink-0 text-ink-gray-6" />
             <span class="min-w-0 flex-1">{{ m.label }}</span>
-            <IconChevron
-              class="size-3.5 shrink-0 text-ink-gray-5 motion-safe:transition-transform group-open:rotate-90"
+            <IconChevronDown
+              class="size-3.5 shrink-0 text-ink-gray-5 motion-safe:transition-transform group-open:rotate-180"
             />
           </summary>
 
@@ -209,8 +219,11 @@ const terms = computed(() => [
           >
             <IconExcluded class="size-4 shrink-0 text-ink-gray-6" />
             <span class="min-w-0 flex-1">Not in scope ({{ notInScope.length }})</span>
-            <IconChevron
-              class="size-3.5 shrink-0 text-ink-gray-5 motion-safe:transition-transform group-open:rotate-90"
+            <!-- Follows the modules: it is their sibling, and a row at the same
+                 level pointing a different way would read as a different kind
+                 of thing. -->
+            <IconChevronDown
+              class="size-3.5 shrink-0 text-ink-gray-5 motion-safe:transition-transform group-open:rotate-180"
             />
           </summary>
           <!-- These stay a LIST: they are read one at a time, to check for a
@@ -230,16 +243,24 @@ const terms = computed(() => [
       <h3 class="text-base font-medium text-ink-gray-8">Terms and conditions</h3>
 
       <div class="mt-2">
+        <!-- ⚠️ Same mark and same side as the modules above: these are
+             top-level rows in their own section, so they take the top-level
+             treatment — down/up, held at the right edge. A chevron on the left
+             would set them a level below something that is not above them. -->
         <details v-for="t in terms" :key="t.key" class="group">
           <summary
-            class="flex cursor-pointer list-none items-center gap-1.5 py-1.5 text-p-base text-ink-gray-7 [&::-webkit-details-marker]:hidden"
+            class="flex cursor-pointer list-none items-center gap-2 py-1.5 text-p-base text-ink-gray-7 [&::-webkit-details-marker]:hidden"
           >
-            <IconChevron
-              class="size-3.5 shrink-0 text-ink-gray-5 motion-safe:transition-transform group-open:rotate-90"
+            <span class="min-w-0 flex-1">{{ t.label }}</span>
+            <IconChevronDown
+              class="size-3.5 shrink-0 text-ink-gray-5 motion-safe:transition-transform group-open:rotate-180"
             />
-            {{ t.label }}
           </summary>
-          <ul class="space-y-1 pb-2 pl-5 pt-1">
+          <!-- Bulleted: each line is a separate term you check one at a time,
+               and several wrap to two lines in a 320px column. Without a mark
+               a wrapped term and the next term look the same. The bullet is
+               the only indent — the summary above carries no leading mark. -->
+          <ul class="list-disc space-y-1 pb-2 pl-4 pt-1 marker:text-ink-gray-4">
             <li v-for="line in t.lines" :key="line" class="text-p-sm text-ink-gray-6">
               {{ line }}
             </li>

@@ -1,3 +1,29 @@
+<!-- ⚠️ A plain `<script>` alongside `<script setup>`: everything in here runs
+     ONCE for the module, not once per component instance. That is the whole
+     point — see the note on `collapsed` below. -->
+<script>
+import { ref } from 'vue'
+
+// The rail's open/closed state, deliberately at MODULE scope rather than inside
+// `setup`.
+//
+// ⚠️ Every page renders its own `<ConnectShell>`, so navigating unmounts one
+// shell and mounts the next. A `ref` in `setup` is re-created by that, which
+// means it re-initialises to its default and the rail snapped shut on every
+// single navigation — the visitor opens it, clicks a row, and it closes behind
+// them. Hoisting it out makes one ref for the app: the shells come and go, the
+// choice stays.
+//
+// Starts collapsed: the quiz and the map are the point of the landing screen,
+// and an expanded rail eats width the map wants. Binding the model also takes
+// over from Sidebar's default (collapse only below `sm`), so it stays as left
+// at every width.
+//
+// Session-only, by design — a reload starts collapsed again. Persisting it
+// would mean writing to localStorage, which nobody has asked for.
+const collapsed = ref(true)
+</script>
+
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
@@ -15,12 +41,6 @@ import {
 import ConnectMark from './ConnectMark.vue'
 import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
-
-// Collapsed on arrival: the quiz and the map are the point of this screen, and
-// an expanded rail eats width the map wants. Binding the model also takes over
-// from Sidebar's default (collapse only below `sm`) — it stays collapsed at
-// every width until the visitor opens it.
-const collapsed = ref(true)
 
 const store = useConnectStore()
 const { requireAccount } = useAuthGate()
@@ -144,7 +164,7 @@ defineProps({
 
 <template>
   <div class="flex h-screen bg-surface-base">
-    <Sidebar v-model:collapsed="collapsed" class="fc-sidebar">
+    <Sidebar v-model:collapsed="collapsed" class="fc-sidebar border-r">
       <!-- The second line is the signed-in viewer's name, and nothing at all
            when signed out — an app tagline under the app's own name told a
            visitor what they could already see. -->
@@ -170,8 +190,13 @@ defineProps({
            in the expanded state. That was tried: it aligns the expanded rail at
            12px and knocks the collapsed rail's icons 4px left of centre while the
            logo sits 2px right of it. Six pixels apart in a 48px rail is far more
-           visible than frappe-ui's 6px stagger when expanded. -->
-      <ScrollArea class="min-h-0 flex-1" viewport-class="px-2 pt-0.5">
+           visible than frappe-ui's 6px stagger when expanded.
+
+           `pb-2` is the installed version's own figure, from the only file in
+           the package that composes a sidebar — `DesktopShell/stories/Default.vue`.
+           The docs site shows `pb-10` for this same composition, but that page
+           is live and unversioned, so it isn't evidence about beta.63. -->
+      <ScrollArea class="min-h-0 flex-1" viewport-class="px-2 pt-0.5 pb-2">
         <!-- ── The personal pair ──────────────────────────────────────────
              Ungrouped, no `SidebarLabel`, sitting directly under the header and
              above everything you can navigate to. The pattern is Helpdesk's,
@@ -180,7 +205,7 @@ defineProps({
              is waiting for YOU. A label would file them as a section of the
              product alongside Discover, which is what they are not.
 
-             Separated from the list below by 28px — see the note there. -->
+             Separated from the list below by 16px — see the note there. -->
         <!-- ── ⚠️ Every row's tooltip is OURS, not `SidebarItem`'s ──────────
              `SidebarItem` ships a collapsed-state tooltip and it is broken: it
              hardcodes `<Tooltip placement="right">` while `Tooltip`'s prop is
@@ -292,16 +317,20 @@ defineProps({
              over the first two rows and "Your projects" over Implementation —
              and the second was a heading for a group of one, which labels a
              section that doesn't exist yet rather than the row that's there.
-             Dropping both leaves five rows total, which needs no taxonomy: the
-             same shape Helpdesk uses, where the personal pair sits above a
-             single unlabelled list of destinations.
+             Dropping both leaves five rows total — six signed in, with Home —
+             which needs no taxonomy: the same shape Helpdesk uses, where the
+             personal pair sits above a single unlabelled list of destinations.
 
-             ⚠️ `mt-7` replaces the "Discover" label EXACTLY. `SidebarLabel` is
-             `h-7` with no margins of its own, so the 28px it occupied was the
-             whole gap between the pair above and this list — the spacing is
-             unchanged, only the words are gone. Collapsed, that 28px was
-             already blank rail (the label hides its text and draws no rule
-             unless you pass `divider`), so the collapsed rail is identical.
+             ⚠️ `mt-4`, not the 28px the "Discover" label used to occupy.
+             Holding the label's exact height kept the spacing honest while the
+             words were being removed, but once they were gone 28px was a gap
+             sized for something that is no longer there — it read as a missing
+             heading rather than as a seam. 16px is still 8x the `space-y-0.5`
+             between rows, so the two groups stay unmistakably separate.
+
+             For reference, frappe-ui's own `SidebarSection` separates groups by
+             `mt-2` — but every one of those carries a label doing the work, and
+             here the gap is the only thing saying "these are two lists".
 
              `space-y-0.5` inside the `nav`, as in frappe-ui's own reference
              sidebar. The rows were flush before, which reads denser than the
@@ -311,7 +340,21 @@ defineProps({
              Find partners takes a building, not a magnifying glass: the item is
              the directory of partner companies, and search is a control that
              lives inside it. -->
-        <nav class="mt-7 space-y-0.5">
+        <nav class="mt-4 space-y-0.5">
+          <!-- ⚠️ Signed-in only, and first: Home is the place an account lands,
+               so it has no meaning for a visitor who arrived on the public
+               marketing page and has nothing to come home TO. Gated on
+               `signedIn` rather than `hasProject` — you have a home the moment
+               you have an account, not the moment you buy something.
+
+               Inert, like Implementation below: the row exists so the rail
+               shows where the signed-in landing screen goes. No `to` and no
+               `:active` until that screen is designed. -->
+          <Tooltip v-if="store.signedIn" text="Home" side="right" :offset="8" :disabled="!collapsed">
+            <SidebarItem label="Home">
+              <template #prefix><LucideHouse class="size-4 text-ink-gray-6" /></template>
+            </SidebarItem>
+          </Tooltip>
           <Tooltip text="Find partners" side="right" :offset="8" :disabled="!collapsed">
             <SidebarItem label="Find partners" to="/connect" :active="inDirectory">
               <template #prefix><LucideBuilding2 class="size-4 text-ink-gray-6" /></template>
