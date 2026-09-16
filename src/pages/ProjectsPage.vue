@@ -5,7 +5,6 @@ import { Button, ScrollArea } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import NewProjectDialog from '../components/NewProjectDialog.vue'
 import ProjectRow from '../components/ProjectRow.vue'
-import IconPlus from '~icons/lucide/plus'
 import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 
@@ -50,38 +49,49 @@ const create = (details) => {
 
 <template>
   <ConnectShell root-label="Implementation" root-to="/connect/projects">
-    <!-- The top bar's trailing control. New project belongs there rather than
-         in the page: it is the one thing this screen does that isn't opening a
-         row, and in the page it would sit either above the list (competing with
-         the heading) or below it (below the fold, on an account with four
-         projects). -->
-    <template #action>
-      <Button variant="ghost" class="-mr-2" label="New project" @click="startNew">
-        <template #prefix><IconPlus class="size-4" /></template>
-      </Button>
-    </template>
+    <!-- ⚠️ NO TOP-BAR ACTION, and the gap it leaves is worth knowing about. This
+         screen used to carry New project as the bar's trailing control, on the
+         grounds that it was the one thing here that isn't opening a row.
 
+         With it gone, the only New project button left is the EMPTY STATE's —
+         so an account that already has one project has no way to start a second
+         from this screen. That is survivable because starting a project is no
+         longer something you come here to do: an inquiry makes one
+         (`ContactPartnerDialog`), and so does booking a pack. The tracker
+         tracks. But if a second door is ever wanted back, this is where it
+         went, and the note below it is the argument for the bar over the page.
+    -->
     <!-- 800 and `py-8`, matching the partner list and the pack catalogue. This
          app has one measure for a listing and this is it. -->
     <div class="mx-auto w-full max-w-[800px] px-5 py-8 lg:px-10">
       <!-- ── Empty ───────────────────────────────────────────────────────
-           ⚠️ Two doors, and the order is the argument. Most people arrive here
-           with a rough idea and no decision, so "New project" is the solid one
-           — write down what you want, decide how to build it later. Browsing
-           packs is the subtle one beside it, for someone who already knows they
-           want a fixed scope.
+           ⚠️ ONE DOOR. It had two — New project beside a subtle "See the packs"
+           — and the second was answering a question this screen isn't asking.
+           An empty state has one job: get the first thing made. A second button
+           pointing at a catalogue turns that into a choice between starting and
+           shopping, and the catalogue already has its own place in the rail.
 
-           The old flow had only the second door, which meant the only way to
-           have a project was to buy something. -->
+           ⚠️ Worth knowing what the pack door was FOR, before it comes back: the
+           flow once had only that one, which meant the only way to have a
+           project was to buy something. Starting without buying is now the
+           default rather than the alternative, so the alternative stopped
+           needing to be argued for here. -->
       <div v-if="!ordered.length" class="py-20 text-center">
         <p class="text-p-lg font-medium text-ink-gray-8">Nothing under way</p>
-        <p class="mx-auto mt-1.5 max-w-sm text-p-base text-ink-gray-6">
-          A project is what you want built. Start one now and decide how to have it implemented — a
-          starter pack, guided onboarding, or a partner of your own — when you are ready.
+        <!-- ⚠️ ONE SENTENCE, and it took four lines to work out which one. The
+             version this replaces spent two of those lines naming the three
+             services — "a starter pack, guided onboarding, or a partner of your
+             own" — which is a menu, and a menu in an empty state is a decision
+             demanded before anything exists to decide about.
+
+             What is left is the only thing neither the heading nor the button
+             says: that you can start without having chosen. That is the whole
+             reason this screen has a New project button at all. -->
+        <p class="mx-auto mt-1.5 max-w-xs text-p-base text-ink-gray-6">
+          A project is what you want built. How it gets built is a later decision.
         </p>
-        <div class="mt-4 flex items-center justify-center gap-2">
+        <div class="mt-4">
           <Button variant="solid" label="New project" @click="startNew" />
-          <Button variant="subtle" label="See the packs" route="/connect/packs" />
         </div>
       </div>
 

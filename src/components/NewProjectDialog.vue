@@ -68,6 +68,14 @@ const create = () => {
   if (!valid.value) return
   emit('create', {
     name: name.value,
+    // ⚠️ The app, recorded alongside the modules rather than left to be
+    // inferred from their keys. A project's `apps` is the answer nothing else
+    // holds — an app with no module catalogue behind it — so a project that
+    // never said which app it was in reads as one with no app at all wherever
+    // that field is shown, which is now the inquiry dialog's own summary.
+    // Empty when nothing was picked: this dialog never asks the question
+    // directly, so ERPNext is only true here if an ERPNext module is.
+    apps: picked.value.length ? [APP] : [],
     // Keyed by app, matching every other module scope in the app — see
     // `store.defaultScope` and `EstimateQuoteDialog`.
     modules: picked.value.length ? { [APP]: [...picked.value] } : {},

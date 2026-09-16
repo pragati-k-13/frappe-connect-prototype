@@ -71,6 +71,14 @@ Cost three separate bugs here: `bg-outline-gray-1` (a hairline that never drew),
 `bg-surface-modal` (a token that doesn't exist at all — the panel background is
 `bg-surface-elevation-1`).
 
+**`MultiSelect`'s trigger collapses two or more picks to "3 selected".** It does that so
+the trigger's width can't balloon, which is right for a filter and wrong for a form field
+whose next question depends on the answer — "2 selected" has to be reopened to be read.
+The `#summary` slot exists for exactly this and receives the default text as a fallback:
+`<template #summary="{ summary }">` returning a comma-joined list of labels. No
+customization, no lookalike trigger. `#trigger`, `#prefix` and `#suffix` are there too,
+but `#summary` is the one this needs — it keeps the chevron and the popover behaviour.
+
 **The `surface-*` tokens aren't in the gradient palette.** `bg-gradient-to-b
 from-transparent to-surface-elevation-1` compiles to `background-image: none`. Use the
 variable directly: `var(--surface-elevation-1)`.

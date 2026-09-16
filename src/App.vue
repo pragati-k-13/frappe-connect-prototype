@@ -18,11 +18,18 @@
        `store.companyPrompt` is set; see `hasErrand` for which sign-ups get the
        dialog and which get the full screen. -->
   <CompanySignupDialog />
+  <!-- ⚠️ Mounted at the ROOT for the same reason as the dialog above it:
+       Contact is pressed from a listing row, a profile header, two pricing
+       cards and the estimate modal, and a dialog owned by any one of those
+       cannot open over the others. Renders nothing until `store.inquiryFor`
+       names a partner. -->
+  <ContactPartnerDialog />
   <DemoSwitch />
 </template>
 
 <script setup>
 import { ToastProvider } from 'frappe-ui'
 import CompanySignupDialog from './components/CompanySignupDialog.vue'
+import ContactPartnerDialog from './components/ContactPartnerDialog.vue'
 import DemoSwitch from './components/DemoSwitch.vue'
 </script>

@@ -40,7 +40,10 @@ import { useContactPartner } from '../utils/contact'
 const store = useConnectStore()
 const route = useRoute()
 const router = useRouter()
-const { contactPartner } = useContactPartner()
+// ⚠️ `messagePartner`, NOT `contactPartner`. This page's partner is the firm
+// already building this project, so there are no requirements to collect —
+// see the note in `utils/contact.js`.
+const { messagePartner } = useContactPartner()
 
 const project = computed(() => store.projectBy(route.params.id))
 const service = computed(() => serviceOf(project.value?.service))
@@ -179,7 +182,7 @@ const act = (task) => {
   }
   if (task.action === 'message') {
     if (!partner.value) return toast.info('No partner on this project yet')
-    return contactPartner(partner.value)
+    return messagePartner(partner.value)
   }
   if (task.action === 'partners') return router.push('/connect/partners')
   if (task.action === 'packs') return router.push('/connect/packs')
@@ -368,7 +371,7 @@ const chooseService = (value) => {
                 <ProjectPartnerPanel
                   :partner="partner"
                   :awaiting="awaitingPartner"
-                  @message="contactPartner(partner)"
+                  @message="messagePartner(partner)"
                   @book="booking = true"
                 />
               </div>
@@ -451,7 +454,7 @@ const chooseService = (value) => {
           <ProjectPartnerPanel
             :partner="partner"
             :awaiting="awaitingPartner"
-            @message="contactPartner(partner)"
+            @message="messagePartner(partner)"
             @book="booking = true"
           />
           <PackPanel v-if="pack" heading="Booked service" :pack="pack" :region="region" />

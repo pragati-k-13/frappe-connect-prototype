@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia'
-import { PARTNERS } from '../data/partners'
+import { APPS, PARTNERS } from '../data/partners'
 // Two consumers: `industryCounts`, the group totals on the industry filter's
 // headings, and `saveCompany`, which derives a segment's group. Both need to
 // know which segments belong to which group.
 import { bookingThread, contactThread, discoveryThreads } from '../data/messages'
-import { demoProjects, nextStage, projectName, stagesFor } from '../data/project'
+import { demoProjects, inquiryName, nextStage, projectName, stagesFor } from '../data/project'
+import { modulesFor } from '../data/modules'
 import { INDUSTRIES } from '../data/quiz'
 
 // A skipped question stores `null`, which every filter below reads as "no
@@ -244,11 +245,19 @@ export const useConnectStore = defineStore('connect', {
     //
     // A project is:
     //
-    //   { id, name, modules, service, pack, partnerId, stage, done, at, slot }
+    //   { id, name, apps, modules, service, pack, partnerId, stage, done, at, slot }
     //
     // and it acquires those fields IN THAT ORDER, which is the whole model.
-    // `name` and `modules` are what you want built — a project can exist with
-    // nothing but those. `service` is how you have decided to have it built
+    // `name`, `apps` and `modules` are what you want built — a project can
+    // exist with nothing but those.
+    //
+    // ⚠️ `apps` is NOT derivable from `Object.keys(modules)`, which is why it is
+    // a field of its own rather than a getter. Only some apps have a module
+    // catalogue (ERPNext and Helpdesk, as `data/modules.js` stands), so "we
+    // want Drive and Insights" has no module list to be inferred from — and
+    // inferring the apps from the modules would drop that answer on the floor
+    // at the exact moment someone gave it. The two overlap constantly and
+    // neither one contains the other. `service` is how you have decided to have it built
     // (`null` until then, and the tracker draws no progress bar without one).
     // `partnerId` is who is doing it, which for custom work is not known for
     // two stages. `stage` and `done` are where it has got to.
@@ -281,6 +290,23 @@ export const useConnectStore = defineStore('connect', {
     // ref because the dialog is mounted at the app root — it has to be able to
     // sit over any screen the gate interrupted, not just one.
     companyPrompt: false,
+    // Which partner the inquiry dialog is open for, by id — `null` when it is
+    // closed. Store state and a partner ID rather than a page's own ref holding
+    // a partner object, for the same reason `companyPrompt` is: the dialog is
+    // mounted at the app root, because Contact is pressed from a listing row, a
+    // profile header, two pricing cards and the estimate modal, and a dialog
+    // owned by any one of those cannot open over the others.
+    //
+    // ⚠️ The ID, so the dialog resolves the partner itself. A copy of the record
+    // parked in the store is a second source of truth for a firm's name and
+    // rate, and this one would outlive the row that put it there.
+    inquiryFor: null,
+    // What the dialog should open with already filled in, when whatever opened
+    // it knows more than the dialog does. Only the estimate modal sets it: the
+    // visitor has just been ticking modules against a price, and asking those
+    // same questions again on the next screen is the friction this whole flow
+    // exists to remove. `{ apps, modules }`, and `null` from every other door.
+    inquiryPrefill: null,
     // Filters on the results page. `app` starts unset — it's a refinement
     // offered mid-list, not a qualifier.
     // `countries` is the granular half of the region dimension. Empty reads as
@@ -344,6 +370,51 @@ export const useConnectStore = defineStore('connect', {
 
     // The module scope the estimate modal prices.
     //
+    // The projects an INQUIRY can be sent about, newest first.
+    //
+    // ⚠️ Custom work and undecided projects ONLY, and that is the flow's own
+    // boundary rather than a filter for tidiness. A pack and a guided
+    // onboarding are bought as a FIXED SCOPE — the pack names the work, the
+    // price is published, and the partner is assigned rather than asked — so
+    // there is no estimate for a partner to calculate and nothing an inquiry
+    // would carry. Asking "which modules?" about a pack contradicts the pack.
+    //
+    // An account whose only projects are packs therefore reads as an account
+    // with none, and gets the define-requirements form: the custom project it
+    // is about to start is genuinely a new project, not a second inquiry about
+    // the one already running.
+    //
+    // Newest first, matching the projects page — the thing you started most
+    // recently is the thing you are most likely to be asking about.
+    inquiryProjects: (state) =>
+      [...state.projects].reverse().filter((p) => p.service === 'custom' || p.service === null),
+
+    // Has this partner been told what we want built?
+    //
+    // ⚠️ THIS IS NOT "is there a thread". Contact skips the inquiry dialog for a
+    // partner who already has the requirements, and the first version of that
+    // test was the existence of a conversation — which is wrong twice over. The
+    // `exploring` persona is SEEDED with four discovery threads (see `SEEDS` in
+    // `data/messages.js`), so on four of thirteen partners the dialog was
+    // unreachable; and those threads are the exact case the gate exists for —
+    // someone mid-question who has never said which apps or which modules.
+    //
+    // Two things count as having sent them:
+    //
+    //   inquiry   the requirements card `sendInquiry` writes
+    //   company   the company profile a BOOKING sends, alongside the pack ask
+    //             and the call — a pack IS a fixed scope, so that conversation
+    //             has requirements in it even though nobody filled this dialog
+    //
+    // A thread of plain messages counts as neither, however much has been
+    // typed into it. What a partner can quote against is a scope, not a chat.
+    requirementsSentTo: (state) => (partnerId) =>
+      Boolean(
+        state.threads
+          .find((t) => t.partnerId === partnerId)
+          ?.messages.some((m) => m.kind === 'inquiry' || m.kind === 'company'),
+      ),
+
     // The newest project's, because that is the one you were last thinking
     // about — falling back to `defaultScope` when there are no projects, since
     // the modal is open to signed-out visitors and has to have something to
@@ -499,6 +570,25 @@ export const useConnectStore = defineStore('connect', {
       // service at all, and one whose partner has not been picked yet. Three
       // of the four would leave a state with no way to see it.
       this.projects = account === 'client' ? demoProjects() : []
+      // ⚠️ SEEDED for the signed-in personas, because they are meant to read as
+      // accounts that finished onboarding — `viewer.company` has said Northwind
+      // all along, and `company` saying nothing made the store disagree with
+      // itself. It shows: the contact wizard asks for company details exactly
+      // when `company.name` is empty, so without this every persona met the
+      // 3-step version of a dialog they should see one step of.
+      //
+      // `visitor` keeps the empty form. That IS the state a fresh sign-up is in,
+      // and it is the one the wizard exists for.
+      this.company =
+        account === 'visitor'
+          ? { name: '', employees: '', segments: [], operations: '', problems: [] }
+          : {
+              name: this.viewer.company,
+              employees: '11 to 50',
+              segments: ['Discrete Manufacturing'],
+              operations: 'disconnected',
+              problems: ['integration', 'visibility'],
+            }
     },
 
     // Booking a pack starts a conversation carrying three things — see
@@ -545,13 +635,16 @@ export const useConnectStore = defineStore('connect', {
     // with the service and the partner already settled.
     //
     // Returns the id so the caller can navigate straight to it.
-    createProject({ name, modules }) {
+    createProject({ name, apps, modules }) {
       const id = `pr-${Date.now()}`
       this.projects = [
         ...this.projects,
         {
           id,
           name: name.trim(),
+          // Which apps the work is in, independent of the module list — see the
+          // ⚠️ on `projects` for why one cannot be derived from the other.
+          apps: apps ?? [],
           modules: modules ?? {},
           // The three that are not decided yet, spelled out rather than left
           // off: a project's shape should not depend on how it was made.
@@ -706,6 +799,9 @@ export const useConnectStore = defineStore('connect', {
       // saved list.
       this.threads = []
       this.projects = []
+      // An inquiry left open would be a dialog addressed to a partner on behalf
+      // of an account that has just stopped existing.
+      this.closeInquiry()
       this.setAccount('visitor')
       return cleared
     },
@@ -742,7 +838,17 @@ export const useConnectStore = defineStore('connect', {
     },
 
     // ── The company-details dialog ───────────────────────────────────────
+    // ⚠️ DECLINES while an inquiry is on screen, and that guard is the fix for a
+    // real stack of two modals. `VerifyPage` runs whatever the gate was holding
+    // and then opens this — so a visitor who pressed Contact, signed up and came
+    // back got the inquiry dialog with the company questions trapped behind it.
+    // The inquiry dialog asks them itself now, as steps 1 and 2 of its wizard
+    // (`ContactPartnerDialog`), so this one has nothing left to add there.
+    //
+    // The guard lives here rather than in `VerifyPage` because the rule is about
+    // the two dialogs, not about the screen that happened to open them both.
     openCompanyPrompt() {
+      if (this.inquiryFor) return
       this.companyPrompt = true
     },
     // ⚠️ Only `saveCompany` should reach this. The dialog has no close button
@@ -750,6 +856,102 @@ export const useConnectStore = defineStore('connect', {
     // an account that skipped them is an account nothing can be matched for.
     closeCompanyPrompt() {
       this.companyPrompt = false
+    },
+
+    // ── The inquiry dialog ───────────────────────────────────────────────
+    // Contact, from anywhere a partner is shown. What it opens depends on
+    // whether the account has a project to talk about — the dialog decides
+    // that, reading `inquiryProjects`; this only says which partner.
+    openInquiry(partnerId, prefill = null) {
+      this.inquiryFor = partnerId
+      this.inquiryPrefill = prefill
+    },
+    // ⚠️ The prefill is dropped here and not on open. Clearing it as the dialog
+    // opens would clear it before the dialog has read it; leaving it set after
+    // the dialog closes would prefill the NEXT partner's inquiry with modules
+    // ticked against a rate that is no longer on screen.
+    closeInquiry() {
+      this.inquiryFor = null
+      this.inquiryPrefill = null
+    },
+
+    // Requirements with nobody to send them to: "Save without sending" on the
+    // inquiry dialog. The same project `sendInquiry` would have made, minus the
+    // conversation — so a business that has worked out what it wants but not who
+    // should build it has somewhere to put that.
+    //
+    // Returns the project, which is what the toast names.
+    saveRequirements({ apps = [], modules = {} }) {
+      const id = this.createProject({
+        name: inquiryName(apps, this.company.name || this.viewer.company),
+        apps,
+        modules,
+      })
+      return this.projects.find((p) => p.id === id) ?? null
+    },
+
+    // Sending it. Three things happen, in this order, and the order is the
+    // model: a project exists, a conversation exists, the requirements are in
+    // it.
+    //
+    // `projectId` names an existing project, or is null — in which case the
+    // requirements passed in become a NEW project. That is the whole point of
+    // the flow: defining requirements is not a detour to the projects page, it
+    // is the thing you were already doing.
+    //
+    // Returns `{ thread, project, created }` — the thread id the toast's action
+    // needs, the project the requirements belong to, and whether this call is
+    // what brought it into existence. `created` is the only way the caller can
+    // know: the project path and the create path are the same gesture from the
+    // outside, and only one of them has something new to announce.
+    sendInquiry({ partnerId, projectId = null, apps = [], modules = {}, message = '' }) {
+      const partner = PARTNERS.find((p) => p.id === partnerId)
+      if (!partner) return null
+
+      // ⚠️ Named, not asked for, on the create path. `inquiryName` derives the
+      // title from the apps; a name field would be a third question in a dialog
+      // whose whole argument is that this costs no detour. Renameable later.
+      const created = !projectId
+      const id =
+        projectId ??
+        this.createProject({
+          name: inquiryName(apps, this.company.name || this.viewer.company),
+          apps,
+          modules,
+        })
+      const project = this.projects.find((p) => p.id === id)
+      if (!project) return null
+
+      // The snapshot the thread carries. Labels rather than keys, because the
+      // message is read by a person and outlives the catalogue the keys index
+      // into — see the ⚠️ on `contactThread`.
+      const inquiry = {
+        project: project.name,
+        apps: (project.apps ?? []).map((v) => APPS.find((a) => a.value === v)?.label ?? v),
+        modules: Object.entries(project.modules ?? {}).flatMap(([app, keys]) =>
+          modulesFor(app, keys).map((m) => m.label),
+        ),
+      }
+
+      // ⚠️ Appends to an existing thread rather than starting a second one, the
+      // same keying every other writer here uses (`thread.id` IS `partner.id`).
+      // Reached when a partner was messaged before the inquiry flow existed, or
+      // from a demo persona seeded with conversations.
+      const existing = this.threads.find((t) => t.partnerId === partner.id)
+      if (existing) {
+        existing.messages.push({
+          id: `inq-${Date.now()}`,
+          from: 'you',
+          at: Date.now(),
+          kind: 'inquiry',
+          inquiry,
+        })
+        if (message.trim()) this.sendMessage(existing.id, message.trim())
+        return { thread: existing.id, project, created }
+      }
+
+      this.threads = [...this.threads, contactThread(partner, inquiry, message.trim())]
+      return { thread: partner.id, project, created }
     },
 
     // Which pack the visitor is buying. Set at the moment Get started is

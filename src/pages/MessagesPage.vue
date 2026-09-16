@@ -149,16 +149,23 @@ const asText = (html) => {
 
 const preview = (thread) => {
   const m = thread.messages.at(-1)
-  // A thread opened from Contact has nothing in it yet. Say so, rather than
-  // reading `.kind` off `undefined` — and say it in the row's own voice, so the
-  // list doesn't show a blank line where every other row has a sentence.
+  // A thread can still have nothing in it: Message, from a project whose
+  // partner is already assigned, opens one with no inquiry in front of it.
+  // Contact no longer produces this state — it sends requirements — but the
+  // guard stays, because reading `.kind` off `undefined` is what it prevents
+  // and the row needs a sentence where every other row has one.
   if (!m) return 'No messages yet'
   const body =
     m.kind === 'company'
       ? 'Company details'
       : m.kind === 'call'
         ? 'Introduction call'
-        : asText(m.body)
+        : // The project's name, not the word "Inquiry": the preview line is
+          // read down a column of firms, and which project it was about is the
+          // part that tells them apart.
+          m.kind === 'inquiry'
+          ? m.inquiry.project
+          : asText(m.body)
   return m.from === 'you' ? `You: ${body}` : body
 }
 
@@ -515,6 +522,37 @@ watch(open, toBottom)
                     label="View all details"
                     @click="details = true"
                   />
+                </div>
+
+                <!-- The requirements an inquiry sent — what Contact now puts in
+                   the thread instead of starting it empty. A SNAPSHOT: the
+                   project's scope keeps moving and this doesn't, because what
+                   the partner quoted against has to stay on the screen. See
+                   `contactThread`.
+                   ⚠️ The project's NAME leads, in the same type as the call
+                   card's own line, because it is the one field the partner
+                   cannot infer from the other two — and because a business
+                   sending the same requirements to three firms is reading the
+                   thread later to work out which project this was. -->
+                <div
+                  v-else-if="m.kind === 'inquiry'"
+                  class="mt-1.5 w-fit rounded-5 border border-outline-gray-2 p-3.5"
+                >
+                  <p class="text-base font-medium text-ink-gray-8">{{ m.inquiry.project }}</p>
+                  <dl class="mt-2 space-y-1.5">
+                    <div class="flex gap-6 text-p-base">
+                      <dt class="w-32 shrink-0 text-ink-gray-5">Frappe apps</dt>
+                      <dd class="font-medium text-ink-gray-8">
+                        {{ m.inquiry.apps.join(', ') || 'Not specified' }}
+                      </dd>
+                    </div>
+                    <div class="flex gap-6 text-p-base">
+                      <dt class="w-32 shrink-0 text-ink-gray-5">Modules</dt>
+                      <dd class="font-medium text-ink-gray-8">
+                        {{ m.inquiry.modules.join(', ') || 'Not specified' }}
+                      </dd>
+                    </div>
+                  </dl>
                 </div>
 
                 <!-- The booked call. The external mark is the whole point of the

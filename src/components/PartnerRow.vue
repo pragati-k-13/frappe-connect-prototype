@@ -94,7 +94,24 @@ const industryLine = computed(() => {
     class="fc-partner-row group relative -mx-3 rounded-4 px-3 transition-colors hover:bg-surface-gray-1"
   >
     <div class="fc-partner-row-body flex items-start gap-3 border-b border-outline-gray-1 py-7">
-      <!-- Real logo if one has been dropped in, initials on the brand colour if
+      <!-- ⚠️ THE AVATAR SITS INSIDE THIS COLUMN, not beside it, and that is the
+           whole of the row's second layout.
+
+           It used to be the row's first flex child, which indented everything
+           to its right by 52px — including the two lines that are not about
+           identity at all. Those two are what the list is COMPARED on: the rate,
+           the rating, the response time, and what the firm has actually done.
+           Thirteen rows of them read as a column, and a column that starts 52px
+           in is a column with a 52px hole down its left edge, put there by a
+           logo that has nothing to do with the figures.
+
+           So the avatar belongs to the name and the city — which are what it
+           identifies — and the facts run the column's full width, flush with
+           its left edge. -->
+      <div class="min-w-0 flex-1">
+        <!-- The identity cluster: the mark, the name, the city. -->
+        <div class="flex items-start gap-3">
+          <!-- Real logo if one has been dropped in, initials on the brand colour if
            not. The assets are cropped to each partner's logomark rather than the
            full lockup (see `assets/partners/README.md`), so they arrive roughly
            square and fill this box instead of letterboxing to a 6px-tall strip
@@ -108,30 +125,30 @@ const industryLine = computed(() => {
            The 4px inset is in `.fc-logo-avatar` too. The crops are tight to
            each logo's ink, so with none the wider marks ran corner to corner
            and read as cropped rather than contained. -->
-      <Avatar
-        v-if="logo"
-        :image="logo"
-        :label="`${partner.name} logo`"
-        size="2xl"
-        shape="square"
-        class="fc-logo-avatar"
-      />
-      <!-- Not an `Avatar`: its fallback renders `label[0]` on a theme surface,
+          <Avatar
+            v-if="logo"
+            :image="logo"
+            :label="`${partner.name} logo`"
+            size="2xl"
+            shape="square"
+            class="fc-logo-avatar"
+          />
+          <!-- Not an `Avatar`: its fallback renders `label[0]` on a theme surface,
            and this one is two initials on the partner's own brand colour. Same
            40px and same 8px radius as `2xl` above, so a list that mixes the two
            doesn't step. -->
-      <div
-        v-else
-        class="flex size-10 shrink-0 items-center justify-center rounded-4 text-xs font-semibold text-white"
-        :style="{ backgroundColor: partner.color }"
-        aria-hidden="true"
-      >
-        {{ partner.initials }}
-      </div>
+          <div
+            v-else
+            class="flex size-10 shrink-0 items-center justify-center rounded-4 text-xs font-semibold text-white"
+            :style="{ backgroundColor: partner.color }"
+            aria-hidden="true"
+          >
+            {{ partner.initials }}
+          </div>
 
-      <div class="min-w-0 flex-1">
-        <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <!-- The hover fill is the row's affordance now, so the name drops its
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <!-- The hover fill is the row's affordance now, so the name drops its
                underline.
 
                ⚠️ A fill across the whole row promises the whole row is the
@@ -141,21 +158,21 @@ const industryLine = computed(() => {
                nesting buttons inside an anchor is invalid and swallows their
                clicks. Those two get `relative` below so they stay above the
                stretched layer. -->
-          <h3 class="text-lg font-medium text-ink-gray-8">
-            <RouterLink
-              :to="`/connect/partners/${partner.id}`"
-              class="after:absolute after:inset-0 after:content-['']"
-            >
-              {{ partner.name }}
-            </RouterLink>
-          </h3>
-          <!-- Gold renders as a labelled badge, silver and bronze as the seal
+              <h3 class="text-lg font-medium text-ink-gray-8">
+                <RouterLink
+                  :to="`/connect/partners/${partner.id}`"
+                  class="after:absolute after:inset-0 after:content-['']"
+                >
+                  {{ partner.name }}
+                </RouterLink>
+              </h3>
+              <!-- Gold renders as a labelled badge, silver and bronze as the seal
                alone — see TierIcon. Labelling every tier would flatten the
                hierarchy the programme exists to show. -->
-          <TierIcon :tier="partner.tier" />
-        </div>
+              <TierIcon :tier="partner.tier" />
+            </div>
 
-        <!-- ── The row's vertical rhythm: 2 / 12 / 4 ─────────────────────
+            <!-- ── The row's vertical rhythm: 2 / 12 / 4 ─────────────────────
              Four stacked lines, and the gaps are uneven on purpose — they group
              the row into two clusters rather than spacing it evenly:
 
@@ -171,11 +188,18 @@ const industryLine = computed(() => {
              rule and no fill between them — so it has to be big enough to
              actually read as a break, which 6px was not. -->
 
-        <!-- No icon here. The city sits directly under the name as a plain
+            <!-- No icon here. The city sits directly under the name as a plain
            subtitle — the icons below label a row of unlike facts (rate, rating,
            response time) that need telling apart at a glance; this line doesn't. -->
-        <p class="mt-0.5 text-p-sm text-ink-gray-6">{{ partner.city }}</p>
+            <p class="mt-0.5 text-p-sm text-ink-gray-6">{{ partner.city }}</p>
+          </div>
+        </div>
 
+        <!-- ⚠️ `mt-3` still measures the 12px break described above, but from the
+             bottom of the CLUSTER rather than from the city line alone. The
+             avatar is 40px and the name-and-city stack is taller than that, so
+             the cluster's height is still the text's — the gap reads exactly as
+             it did. It would not if the avatar ever grew past the two lines. -->
         <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-p-sm text-ink-gray-7">
           <!-- A partner who doesn't publish a rate still gets the slot and the
                icon, and says so. Dropping the fact entirely would close the gap
