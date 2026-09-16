@@ -100,8 +100,14 @@ const possessive = (name) => (name.endsWith('s') ? `${name}'` : `${name}'s`)
 // HR shouldn't be quoting Frappe HR work. What's dropped is dropped silently —
 // the modal is an estimate of what this partner would do, not an audit of what
 // they don't.
+// ⚠️ `store.scopeModules`, not `store.project.modules`. This line read the
+// second of two `project` keys in the store — an object literal keeps the last
+// one, so `project` was the booked implementation and `.modules` was `null`.
+// The modal threw the moment it opened. The getter hands back the newest
+// project's scope, or a default when there are no projects, which is the state
+// a signed-out visitor opening this is always in.
 const rows = computed(() =>
-  Object.entries(store.project.modules)
+  Object.entries(store.scopeModules)
     .filter(([app]) => props.partner.apps.includes(app))
     .flatMap(([app, keys]) =>
       modulesFor(app, keys).map((module) => ({

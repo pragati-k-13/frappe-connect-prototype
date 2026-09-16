@@ -1225,6 +1225,144 @@ name or a body.
   pushing high-bit entropy down. Verified after: zero identical lists across all 13
   partners, zero repeated names within a list.
 
+## The project tracker
+
+Two screens: `/connect/projects` (the rail's **Implementation** row, inert until now) and
+`/connect/projects/:id`. Everything below is the reasoning that isn't obvious from any one
+file.
+
+**A project is four things, acquired in order.** `name` and `modules` are what you want
+built. `service` is how you have decided to have it built. `partnerId` is who is doing it.
+`stage` and `done` are where it has got to. A project can stop at any point in that
+sequence, and each stopping point is a real state with its own screen:
+
+| State               | What the page shows                                          |
+| ------------------- | ------------------------------------------------------------ |
+| No service          | Scope, and one decision: pack, onboarding or custom. No bar. |
+| Service, no partner | The spine, with a rail panel saying what will fill it.       |
+| Service and partner | The spine and the stage checklist; the partner in the rail.  |
+
+⚠️ **The store used to define `project` twice**, four lines apart — the module scope the
+estimate modal prices, and the booked implementation. An object literal keeps the last
+one, so the scope was unreachable and `EstimateQuoteDialog` read `.modules` off `null`;
+the modal threw the moment it opened. The fix wasn't a rename. A project now HOLDS its
+scope, because the two things that collided were one thing all along: what you want built,
+before and after you decide who builds it.
+
+**No progress indicator until a service is picked.** A bar over an undecided project would
+be inventing steps nobody has agreed to. The alternative considered was a shared zeroth
+stage ("Choosing a service") that every spine begins with — rejected because the bar still
+can't say how many stages are left until the fork is taken, so it would be a progress
+indicator that cannot indicate progress.
+
+**Per-service spines, not one spine relabelled.** A starter pack runs Confirmed → Intro
+call → Kickoff → Implementation → Live. Guided onboarding runs Booked → Preparation →
+Session 1 → 2 → 3 → Done, because it is three hours of teaching across ten working days
+and has no build phase — the customer does the work. Custom runs Requirements → Matching →
+Proposal → Kickoff → Build → Live, and is the only one with stages BEFORE a partner
+exists. Forcing onboarding's three sessions into a pack's five slots misnames every one
+of them.
+
+**The timeline is a validity window, and only that.** Packs carry a real `validityDays`
+(30/60/90) and onboarding a real ten working days; both are contractual, and both describe
+the period the hours must be USED within, not when you go live. Per-stage durations were
+the alternative and would read better — "week 3 of 8", a bar filling against a date — but
+every number in it would be invented, on a page whose whole job is telling someone where
+they stand. Custom work shows no window at all, because none exists until a partner quotes
+one.
+
+⚠️ The window runs from `serviceAt`, not `at`. A project written down in January and booked
+in June was opening with most of its validity already spent, and a long enough gap showed
+it EXPIRED on the day it was bought.
+
+⚠️ `PackPanel` calls this same number **"delivery time"**, which is the wrong word and now
+sits 200px from the right one. The scope document's term is validity. The panel is what
+should change; it appears on three other screens, so it hasn't here.
+
+**The checklist is split by who owes it, and the two halves are different kinds of thing.**
+Yours are checkboxes — you did them, you record them, you can untick one you recorded
+wrongly. Theirs are open rings: you cannot tick someone else's work, and a checkbox you
+can't check reads as a task you have failed to do. The second column exists because most
+of a project is spent WAITING, and a stage showing "nothing needed from you" and nothing
+else reads as a screen that has stopped working. Its heading is the partner's first name
+once there is one, and "Frappe" before that — which during custom's matching stages is
+literally true.
+
+**The listing row answers "does this want me?", not "how far along is it?"** It read
+`Step 3 of 5`, which is a progress report: four of those in a column tell you where four
+projects stand and nothing about which one to open. The stage badge already says where a
+project is. So the row now reads **2 things need you** or **Waiting on Tridots**, and the
+two halves of that line are not the same weight — what the project wants from you is the
+reason to open the row; the countdown beside it is background. Both in `ink-gray-5` made
+the reader parse two equal facts to find the actionable one.
+
+`stageWork` in `data/project.js` derives it, and the project page and the row read the
+same function so they cannot disagree.
+
+**Almost every task is real.** `CUSTOMER_RESPONSIBILITIES`, `INCLUDED_IN_ALL`,
+`ONBOARDING_CHECKLIST` and the session homework are imported rather than retyped, so a
+change to the contract reaches the tracker. What's invented is which stage each one lands
+in.
+
+**The progress bar is gone, and the stage list is why.** Three things were rendering one
+fact: an interval bar, the "Step 3 of 5" beside it, and the list below — which already
+shows position, completion and what is left, with a tick on every stage behind you and a
+ring on the one you are at. The list IS the bar, drawn vertically and legibly. The bar also
+filled `surface-gray-10`, a near-black, while the stage badge in the header says the same
+thing in blue, orange or green: two colour languages for one fact.
+
+**Stage rows reveal their chevron on hover.** Five of them standing permanently down the
+right edge — four on stages nobody is going to open — is an affordance used as decoration,
+and the whole row is the button anyway. The rule lives in `index.css` inside
+`@media (hover: hover)`, so a touch screen (which has no hover to reveal anything with)
+keeps them visible. It is also the one place a specificity fight was likely: a
+`group-hover:opacity-100` has to out-order a media-query'd `opacity-0`, and which wins
+depends on Tailwind's emit order. A named rule decides it outright.
+
+**The scope is a sentence, not a row of pills.** "Finance, Sales, Purchase, Inventory,
+Manufacturing and HR." The pills were the only fully-round shape in the app and they
+appeared in exactly one place, which made them an orphan vocabulary rather than a device —
+a border and a radius wrapped around six single words. The section's subtitle ("What this
+project covers") went with them, since the sentence covers both jobs.
+
+**A window that is running out says so, and one that has run out says something else.**
+Under seven days the countdown goes amber; past the end it goes red and changes sentence —
+"Validity expired on Oct 27 — the pack's 70 hours were not used". A countdown you can still
+act on and a thing that has already happened to you are different facts and want different
+wording, not one line with a number swapped.
+
+⚠️ Seven days flat, not a proportion. "Fewer than seven days" is a unit people already
+think in; 20% of a 60-day pack and 20% of ten working days are two different amounts of
+trouble, and neither is a thing anyone says out loud. `urgent` is derived in `windowFor`
+so the listing row and the project page cannot disagree about when a window has become a
+problem.
+
+⚠️ Colour is never the only signal. The words differ in all three states, so nothing here
+depends on telling amber from grey.
+
+**Stages move two ways, and both write the same field.** "Everything on my side is done"
+appears once every one of your tasks is ticked — an offer, not an automatic jump, because
+finishing your last task and having the page move out from under you is worse than
+pressing a button that says what it will do. The demo switcher gains a **Project stage**
+group on a project's own page, so a reviewer can see the last stage without ticking
+through twenty tasks. It deliberately leaves `done` alone: stepping back and forward has
+to return the same project.
+
+**The page's order is who → where → what next**, and the checklist — what the page is FOR
+— is third. It sits inside the stage it belongs to rather than floating above the spine as
+a "next action" panel, because a task with no stage attached is a demand without a reason.
+The stage is open by default, so it's one scroll, not one click.
+
+⚠️ **`ConfirmedPage` finds its project by partner AND pack, newest match first.** Matching
+on the partner alone put the OLDEST thing you ever bought from them on the confirmation
+screen — right partner, wrong pack, wrong stage, and a "Project created" line dated weeks
+before the click that produced it.
+
+⚠️ **`BookSlotDialog` emits `book` now**, alongside `close`. It used to emit only `close`,
+so the slot you picked went nowhere and the toast was the only trace of it. The project
+records it and the stage renders it under the task that asked for it — requested, awaiting
+confirmation, which is the honest state.
+
 ## Components and icons
 
 Everything inside Frappe Connect is composed from frappe-ui rather than

@@ -65,10 +65,19 @@ const route = useRoute()
 const PACK_ROUTES = new Set(['packs', 'confirm', 'confirmed'])
 const inPacks = computed(() => PACK_ROUTES.has(route.name))
 const inMessages = computed(() => route.name === 'messages')
+// The tracker's two routes. NAMES rather than a path prefix, for the same
+// reason `PACK_ROUTES` is: a section is the set of screens it is made of, and a
+// screen that leaves the prefix later should not fall out of its own rail row.
+const PROJECT_ROUTES = new Set(['projects', 'project'])
+const inProjects = computed(() => PROJECT_ROUTES.has(route.name))
 // ⚠️ Everything under /connect that isn't one of the other sections. Each new
 // destination has to be subtracted here too, or the rail lights two rows.
 const inDirectory = computed(
-  () => route.path.startsWith('/connect') && !inPacks.value && !inMessages.value,
+  () =>
+    route.path.startsWith('/connect') &&
+    !inPacks.value &&
+    !inMessages.value &&
+    !inProjects.value,
 )
 
 // The header is already a Dropdown trigger — `SidebarHeader` takes `menuItems`
@@ -365,11 +374,13 @@ defineProps({
               <template #prefix><LucidePackage class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>
-          <!-- The collaboration half of the product. Present so the rail shows
-               where implementation tracking lands, inert until that screen
-               exists. -->
+          <!-- The collaboration half of the product. Inert until the tracker
+               landed; it is now the index of everything the account has under
+               way, and `inProjects` is what keeps it lit on a project's own
+               detail page — `SidebarItem` compares whole paths, so a child
+               route lights nothing on its own. -->
           <Tooltip text="Implementation" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Implementation">
+            <SidebarItem label="Implementation" to="/connect/projects" :active="inProjects">
               <template #prefix><LucideListChecks class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>

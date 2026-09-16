@@ -4,6 +4,7 @@ import { PARTNERS } from '../data/partners'
 // headings, and `saveCompany`, which derives a segment's group. Both need to
 // know which segments belong to which group.
 import { bookingThread, contactThread, discoveryThreads } from '../data/messages'
+import { demoProjects, nextStage, projectName, stagesFor } from '../data/project'
 import { INDUSTRIES } from '../data/quiz'
 
 // A skipped question stores `null`, which every filter below reads as "no
@@ -186,12 +187,19 @@ export const useConnectStore = defineStore('connect', {
     // still happens, so the fact is worth keeping: it's what a disclosure, an
     // analytics event, or a "why am I seeing this?" affordance would read.
     regionInferred: false,
-    // The visitor's project: what they want built. This is the scope the
-    // "Estimate quote" modal prices, and it belongs here rather than on a
-    // partner because it's the same work whoever quotes it.
+    // ⚠️ THIS USED TO BE A SECOND `project` KEY, four lines from the real one,
+    // and the collision was silent: an object literal keeps the LAST value, so
+    // `project` was the booked implementation and this scope was unreachable.
+    // `EstimateQuoteDialog` read `store.project.modules` off `null` and the
+    // modal threw the moment it opened.
     //
-    // ⚠️ Seeded placeholder. Nothing writes to it yet — a module picker does,
-    // later. Keys match `APPS[].value`, values match `MODULES[app][].key` in
+    // The fix is not a rename. A project now HOLDS its scope — `modules` is a
+    // field on every project, decided before the service is — so the two
+    // meanings that collided here were one thing all along. What is left is
+    // the fallback the estimator needs when nobody has made a project yet,
+    // which is what `scopeModules` hands it.
+    //
+    // Keys match `APPS[].value`, values match `MODULES[app][].key` in
     // `data/modules.js`.
     //
     // ⚠️ ERPNext only, and that isn't a shortcut. `data/modules.js` carries no
@@ -211,11 +219,8 @@ export const useConnectStore = defineStore('connect', {
     //
     // Not cleared by `reset()`, same as `account` and `role` — it's the demo
     // you're in, not something the quiz collected.
-    project: {
-      name: 'ERP rollout',
-      modules: {
-        erpnext: ['finance', 'sales', 'purchase', 'inventory', 'manufacturing', 'hr'],
-      },
+    defaultScope: {
+      erpnext: ['finance', 'sales', 'purchase', 'inventory', 'manufacturing', 'hr'],
     },
     // The pack the visitor pressed Get started on, by `value`. It lives here
     // rather than in the URL because the gate fires BEFORE the panel opens —
@@ -233,13 +238,29 @@ export const useConnectStore = defineStore('connect', {
     // ⚠️ `operations` and `problems` are free text and optional. They're what a
     // partner reads before the first call; nothing in the app renders them yet.
     company: { name: '', employees: '', segments: [], operations: '', problems: '' },
-    // The implementation itself, once a pack is booked: which pack, which
-    // partner, what stage it is at and when it started. Null until then.
+    // Every implementation the account is tracking. A LIST, because a business
+    // routinely has more than one thing on: a starter pack running while a
+    // custom piece is being scoped, or an onboarding done months before either.
+    //
+    // A project is:
+    //
+    //   { id, name, modules, service, pack, partnerId, stage, done, at, slot }
+    //
+    // and it acquires those fields IN THAT ORDER, which is the whole model.
+    // `name` and `modules` are what you want built — a project can exist with
+    // nothing but those. `service` is how you have decided to have it built
+    // (`null` until then, and the tracker draws no progress bar without one).
+    // `partnerId` is who is doing it, which for custom work is not known for
+    // two stages. `stage` and `done` are where it has got to.
+    //
+    // ⚠️ `done` is a flat array of TASK KEYS across the whole spine, not a
+    // per-stage list — which is why `data/project.js` requires task keys to be
+    // unique across a spine rather than within a stage.
     //
     // ⚠️ The confirmed screen can also be reached by URL with no store behind
-    // it (`?pack=&partner=`), so every reader treats this as optional and falls
-    // back to the first stage — see `stageOf` in `data/project.js`.
-    project: null,
+    // it (`?pack=&partner=`), so every reader treats a missing project as
+    // optional and falls back to the first stage — see `stageOf`.
+    projects: [],
     // Every conversation the viewer can open, newest activity last within each
     // thread. Three ways in: the demo switch seeds the exploring viewer's
     // inbox, booking a pack adds the thread the confirmed screen promises
@@ -283,7 +304,51 @@ export const useConnectStore = defineStore('connect', {
     // Neither is true for the top bar's "Log in or create account": that is the
     // one path where signing up IS the errand, and it keeps the full screen.
     hasErrand: (state) => Boolean(state.pack) || state.pendingHeld,
-    hasProject: (state) => state.account === 'client',
+    // ⚠️ Derived from the LIST, not from `account`. It used to read
+    // `account === 'client'`, which was the same answer while a project could
+    // only be created by booking a pack — but the enum's third state means
+    // "signed in, mid-implementation", and someone who signs up and books
+    // nothing is a client with no project. Asking the data is what makes that
+    // state come out right without anyone having to remember it.
+    hasProject: (state) => state.projects.length > 0,
+
+    // One project by id. A function getter because every caller asks about one
+    // — the detail route resolves its `:id` through this, and an unknown id is
+    // an empty state rather than an error.
+    projectBy: (state) => (id) => state.projects.find((p) => p.id === id) ?? null,
+
+    // The project behind a booking, found the way the Confirmed screen has to
+    // find it: by the two things that screen carries in its URL.
+    //
+    // ⚠️ SEARCHED FROM THE END, and matched on the PACK as well as the partner.
+    // Both were learned from the same bug. The first version took the first
+    // project with a matching partner, and booking a second pack with a partner
+    // you were already working with put the OLD project on the confirmation
+    // screen — right partner, wrong pack, wrong stage, wrong dates, and a
+    // "Project created" line dated weeks earlier than the click that produced
+    // it. Matching the pack rules out the other project; taking the last match
+    // rules out the older of two bookings of the SAME pack from the same
+    // partner, which is rarer but is what the demo's seeded data does.
+    //
+    // `packValue` is optional: a caller that knows only the partner still gets
+    // their most recent project.
+    projectForBooking: (state) => (partnerId, packValue) => {
+      for (let i = state.projects.length - 1; i >= 0; i -= 1) {
+        const p = state.projects[i]
+        if (p.partnerId !== partnerId) continue
+        if (packValue && p.pack !== packValue) continue
+        return p
+      }
+      return null
+    },
+
+    // The module scope the estimate modal prices.
+    //
+    // The newest project's, because that is the one you were last thinking
+    // about — falling back to `defaultScope` when there are no projects, since
+    // the modal is open to signed-out visitors and has to have something to
+    // price. See the note on `defaultScope` in state.
+    scopeModules: (state) => state.projects.at(-1)?.modules ?? state.defaultScope,
 
     // A function getter rather than a derived list: every caller asks about one
     // partner, and `saved` is a plain array of ids so `includes` is the whole
@@ -428,6 +493,12 @@ export const useConnectStore = defineStore('connect', {
       if (!ACCOUNT_STATES.includes(account)) return
       this.setAccount(account)
       this.threads = account === 'exploring' ? discoveryThreads() : []
+      // ⚠️ The client persona is seeded with FOUR projects, and the count is
+      // the point rather than generosity: between them they cover every state
+      // the tracker has to render — all three services, a project with no
+      // service at all, and one whose partner has not been picked yet. Three
+      // of the four would leave a state with no way to see it.
+      this.projects = account === 'client' ? demoProjects() : []
     },
 
     // Booking a pack starts a conversation carrying three things — see
@@ -436,16 +507,152 @@ export const useConnectStore = defineStore('connect', {
     startBooking({ partner, pack, slot }) {
       // The booking IS the project: one gesture starts both, so nothing else
       // has to remember to create the second one.
-      this.project = {
-        pack: pack.value,
-        partnerId: partner.id,
-        stage: 'confirmed',
-        at: Date.now(),
-      }
+      //
+      // ⚠️ Always a NEW project, even when an undecided one is sitting in the
+      // list. Adopting one would mean guessing WHICH — and a business that
+      // wrote down "ERP rollout" and then bought a Manufacturing pack may well
+      // have meant them as two separate things. The list shows both; merging
+      // them is a gesture nobody has designed.
+      this.projects = [
+        ...this.projects,
+        {
+          id: `pr-${Date.now()}`,
+          // Derived, not typed: this path never asked for a name.
+          name: projectName(pack, this.company.name || this.viewer.company),
+          // A pack IS its scope, so the project carries no module list of its
+          // own — `PackPanel` renders what the pack covers. Empty rather than
+          // absent so every project has the same shape.
+          modules: {},
+          service: 'pack',
+          pack: pack.value,
+          partnerId: partner.id,
+          stage: 'confirmed',
+          done: [],
+          at: Date.now(),
+          slot: slot ?? null,
+        },
+      ]
       const existing = this.threads.find((t) => t.partnerId === partner.id)
       if (existing) return existing.id
       this.threads = [...this.threads, bookingThread({ partner, pack, slot })]
       return partner.id
+    },
+
+    // ── Projects ─────────────────────────────────────────────────────────
+    // A project with nothing decided but what it is called and what it covers.
+    // This is the door "New project" opens, and the one path that produces a
+    // project with no service — every other way in (booking a pack) arrives
+    // with the service and the partner already settled.
+    //
+    // Returns the id so the caller can navigate straight to it.
+    createProject({ name, modules }) {
+      const id = `pr-${Date.now()}`
+      this.projects = [
+        ...this.projects,
+        {
+          id,
+          name: name.trim(),
+          modules: modules ?? {},
+          // The three that are not decided yet, spelled out rather than left
+          // off: a project's shape should not depend on how it was made.
+          service: null,
+          pack: null,
+          partnerId: null,
+          stage: null,
+          done: [],
+          at: Date.now(),
+          slot: null,
+        },
+      ]
+      return id
+    },
+
+    // Deciding HOW the work gets done. Sets the spine and drops the project on
+    // its first stage — a service with no stage would render a progress bar
+    // with nothing lit.
+    //
+    // ⚠️ Clears `done`. The task keys belong to the spine being left, so
+    // carrying them over would tick tasks on the new one at random wherever two
+    // spines happen to share a key.
+    chooseService(id, service) {
+      const project = this.projects.find((p) => p.id === id)
+      if (!project) return
+      const stages = stagesFor(service)
+      if (!stages.length) return
+      project.service = service
+      project.stage = stages[0].key
+      project.done = []
+      // ⚠️ When the CLOCK starts, which is not when the project was written
+      // down — a validity window runs from the booking. See `windowFor`.
+      project.serviceAt = Date.now()
+    },
+
+    // Which pack, once a service of 'pack' has been chosen. Separate from
+    // `chooseService` because the catalogue is a screen away: you decide you
+    // want a pack, then you go and pick one.
+    selectProjectPack(id, packValue) {
+      const project = this.projects.find((p) => p.id === id)
+      if (!project) return
+      project.pack = packValue
+    },
+
+    // Who is doing the work. The custom spine is the caller that matters — it
+    // reaches `matching` with `partnerId` still null and this is what fills it.
+    assignPartner(id, partnerId) {
+      const project = this.projects.find((p) => p.id === id)
+      if (!project) return
+      project.partnerId = partnerId
+    },
+
+    // Tick or untick one of YOUR tasks. Untickable on purpose: this is the
+    // customer's own record of what they have done, and a checkbox that cannot
+    // be corrected is a worse record than one that can.
+    toggleTask(id, taskKey) {
+      const project = this.projects.find((p) => p.id === id)
+      if (!project) return
+      project.done = project.done.includes(taskKey)
+        ? project.done.filter((k) => k !== taskKey)
+        : [...project.done, taskKey]
+    },
+
+    // Jump to a named stage. The demo switcher's, and deliberately unguarded by
+    // the checklist: a reviewer has to be able to see the last stage without
+    // ticking their way through twenty tasks to reach it.
+    //
+    // ⚠️ Does NOT touch `done`. Stepping back and forward through the stages
+    // has to leave the same project behind it, or the switcher is destroying
+    // the state it exists to let you look at.
+    setStage(id, stageKey) {
+      const project = this.projects.find((p) => p.id === id)
+      if (!project) return
+      if (!stagesFor(project.service).some((s) => s.key === stageKey)) return
+      project.stage = stageKey
+    },
+
+    // The other way a stage moves: forward by one, because the work of this one
+    // is finished. Returns the stage it moved TO — null at the end of the spine
+    // — so the caller can name where it went without re-reading the store.
+    advanceStage(id) {
+      const project = this.projects.find((p) => p.id === id)
+      if (!project) return null
+      const next = nextStage(project.service, project.stage)
+      if (next) project.stage = next.key
+      return next
+    },
+
+    // A requested slot, from `BookSlotDialog`. Recorded on the project so the
+    // stage can say what it is waiting for — "Tuesday 14:30, awaiting
+    // confirmation" — rather than the request vanishing into a toast, which is
+    // what happened before this existed.
+    //
+    // ⚠️ Does not advance on its own. Requesting is not attending, and the two
+    // pack stages either side of it (`confirmed`, `intro-call`) are separated
+    // by exactly that difference. The page ticks the task; the customer moves
+    // on when the call has happened.
+    recordSlot(id, slot) {
+      const project = this.projects.find((p) => p.id === id)
+      if (!project) return
+      project.slot = slot
     },
 
     // The other way a conversation starts: Contact, from anywhere a partner is
@@ -495,10 +702,10 @@ export const useConnectStore = defineStore('connect', {
     logOut() {
       const cleared = this.saved.length
       this.saved = []
-      // Conversations and the project belong to the account, same as the
+      // Conversations and the projects belong to the account, same as the
       // saved list.
       this.threads = []
-      this.project = null
+      this.projects = []
       this.setAccount('visitor')
       return cleared
     },

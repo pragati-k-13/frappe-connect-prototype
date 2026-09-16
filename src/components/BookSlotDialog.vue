@@ -29,7 +29,14 @@ const props = defineProps({
   open: { type: Boolean, default: false },
   partner: { type: Object, required: true },
 })
-const emit = defineEmits(['close'])
+// ⚠️ `book` is new, and `close` still fires on its own for Cancel. Before this
+// the dialog emitted only `close` and the chosen slot went NOWHERE — the toast
+// named it back and that was the end of it, which is fine on a partner's
+// profile (nothing there has a project to record it against) and wrong on a
+// project, where the stage has to be able to say what it is waiting for.
+//
+// Every caller may ignore it; the profile does.
+const emit = defineEmits(['close', 'book'])
 
 // ── Zones ──────────────────────────────────────────────────────────────────
 // The viewer's, read off the browser. It is the zone the slots are SHOWN in,
@@ -263,6 +270,13 @@ const close = () => {
 // isn't.
 const confirm = () => {
   const when = `${fmtLongDay(chosen.value.at)} at ${fmtTime(chosen.value)}`
+  // Emitted BEFORE `close`, which resets the selection on a timer — reading
+  // `chosen` after would be racing the dialog's own teardown.
+  //
+  // `label` rather than only the timestamp: the string a caller renders is the
+  // one this dialog already formatted, in the viewer's own zone, so a project
+  // and a toast cannot describe the same slot two different ways.
+  emit('book', { at: chosen.value.at, label: when })
   close()
   toast.success('Slot requested', {
     description: `${props.partner.name} will confirm ${when} by email.`,

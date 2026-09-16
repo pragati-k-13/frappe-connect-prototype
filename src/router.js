@@ -89,6 +89,27 @@ const routes = [
     name: 'messages',
     component: () => import('./pages/MessagesPage.vue'),
   },
+  // The collaboration half of the product: everything the account is tracking.
+  //
+  // A LIST and a detail, not one screen. A business routinely has more than one
+  // thing on — a pack running while a custom piece is being scoped — and the
+  // rail's "Implementation" row, inert until now, is this index.
+  {
+    path: '/connect/projects',
+    name: 'projects',
+    component: () => import('./pages/ProjectsPage.vue'),
+  },
+  // ⚠️ `:id` is the project's own id, not a slug: projects are named by the
+  // people who own them and two can share a name. It is also not guarded, on
+  // the same reasoning as every other in-app screen — an unknown id renders an
+  // empty state that can be recovered from, which is better than a redirect
+  // that throws the link away. Nothing here is a fact about anyone until the
+  // store has a project under that id.
+  {
+    path: '/connect/projects/:id',
+    name: 'project',
+    component: () => import('./pages/ProjectPage.vue'),
+  },
   {
     path: '/connect/partners',
     name: 'results',

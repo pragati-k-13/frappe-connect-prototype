@@ -418,3 +418,24 @@ textarea[data-slot='control'] {
 .fc-composer > * + * {
   @apply mt-2;
 }
+
+/* Stage rows on a project reveal their disclosure chevron on hover. Five of
+   them standing permanently down the right edge is an affordance used as
+   decoration — the whole row is the button, and the chevron is only a hint.
+
+   Inside `@media (hover: hover)` so a touch screen, which has no hover to
+   reveal anything with, keeps them visible instead.
+
+   `:focus-within` rather than `:focus`: the focusable thing is the button
+   inside the row, not the row. And the open row keeps its chevron whatever the
+   pointer is doing — it is the one that has something to say. */
+@media (hover: hover) {
+  .fc-stage-row .fc-stage-chevron {
+    opacity: 0;
+  }
+  .fc-stage-row:hover .fc-stage-chevron,
+  .fc-stage-row:focus-within .fc-stage-chevron,
+  .fc-stage-chevron[data-open='true'] {
+    opacity: 1;
+  }
+}
