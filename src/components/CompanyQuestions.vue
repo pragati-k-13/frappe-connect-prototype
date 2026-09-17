@@ -8,6 +8,7 @@ import {
   OPERATIONS,
   PROBLEMS,
   SEGMENT_OPTIONS,
+  asksApps,
 } from '../data/company'
 
 // The company questions as FIELDS, for whichever dialog is asking them.
@@ -24,8 +25,16 @@ import {
 // models threaded through two dialogs is how one of them gets forgotten. The
 // shape is `emptyCompanyForm()`; the rules are `companyErrors()`.
 const props = defineProps({
-  // 1 — who you are: the three answers the matcher reads, plus what you run.
-  // 2 — what you need: two questions, neither required.
+  // 1 — who you are: the three answers the matcher actually reads, and the only
+  //     ones anything insists on.
+  // 2 — what you run today: the ladder, and the systems it asks about.
+  // 3 — what you want fixed.
+  //
+  // ⚠️ THREE, not the two this started with. Step 1 was carrying the identity
+  // fields AND the ladder AND the systems follow-up, which is two different
+  // kinds of question in one column — and in a 448px dialog it ran to the
+  // bottom of the viewport. `COMPANY_STEPS` is the count; the callers read it
+  // rather than hard-coding 3.
   step: { type: Number, required: true },
   form: { type: Object, required: true },
   // Already gated on "have they pressed the button yet" by the parent, which
@@ -33,11 +42,18 @@ const props = defineProps({
   errors: { type: Object, default: () => ({}) },
 })
 
+// The systems question is a follow-up to the ladder, shown on the three rungs
+// that say something is running — see `asksApps`.
+const showApps = computed(() => asksApps(props.form.operations))
 const appsOtherPicked = computed(() => props.form.apps.includes(APPS_OTHER))
 
-// ⚠️ Clear the text when the option is un-picked. Without this, typing a name,
-// changing your mind and un-ticking "Something else" still saves the name — an
-// answer to a question that is no longer being asked.
+// ⚠️ UN-ASKING A QUESTION DROPS ITS ANSWER. Naming Tally and then moving down to
+// the rung that says nothing is running would otherwise still save Tally; and
+// typing a name against "Something else" and then un-ticking it would still save
+// the name. Both are answers to a question no longer on screen.
+watch(showApps, (shown) => {
+  if (!shown) props.form.apps = []
+})
 watch(appsOtherPicked, (picked) => {
   if (!picked) props.form.appsOther = ''
 })
@@ -79,29 +95,10 @@ const toggleProblem = (value, on) => {
       :options="SEGMENT_OPTIONS"
       :error="errors.segments"
     />
-    <MultiSelect
-      v-model="form.apps"
-      label="Which apps do you currently use?"
-      placeholder="Select"
-      :options="CURRENT_APPS"
-    />
-    <!-- Appears only when "Something else" is picked — see `APPS_OTHER`.
-         ⚠️ The label has to name WHICH answer it is following up. "Which one?"
-         read as "which of the ones you just picked", which is the wrong question
-         when the select above says "4 selected" — the other three are named
-         already. "What else" points at the one option that didn't name itself.
-         Optional, like the question it hangs off. -->
-    <FormControl
-      v-if="appsOtherPicked"
-      v-model="form.appsOther"
-      type="text"
-      label="What else do you use?"
-      placeholder="e.g. a custom system built in-house"
-    />
   </div>
 
-  <!-- ── Step 2: what you need ────────────────────────────────────────────── -->
-  <div v-else class="space-y-5">
+  <!-- ── Step 2: what you run today ───────────────────────────────────────── -->
+  <div v-else-if="step === 2" class="space-y-5">
     <!-- ⚠️ The pull-left goes on the OPTIONS, not on the group. `padded` insets
          each row by 12px so it has a hover surface, which pushes the radio
          circles in from the form's left edge; cancelling it on the group took
@@ -119,6 +116,41 @@ const toggleProblem = (value, on) => {
       <Radio v-for="o in OPERATIONS" :key="o.value" :value="o.value" :label="o.label" />
     </RadioGroup>
 
+    <!-- Conditional on the ladder — see `showApps` — but drawn as a plain second
+         question, not as something hanging off the first. It had an indent and a
+         left rule to tie it to the rung above; the rule was the only vertical
+         line on the card and it read as a quote block. The question can carry
+         the connection on its own, which is why the label names what it is
+         asking about rather than saying "which ones?" and relying on the answer
+         above to finish the sentence. -->
+    <div v-if="showApps" class="space-y-3">
+      <MultiSelect
+        v-model="form.apps"
+        label="Which systems do you use?"
+        placeholder="Select"
+        :options="CURRENT_APPS"
+      />
+      <!-- Appears only when "Something else" is picked — see `APPS_OTHER`.
+           ⚠️ The label has to name WHICH answer it is following up. "Which one?"
+           read as "which of the ones you just picked", which is the wrong
+           question when the select above says "4 selected" — the other three are
+           named already. "What else" points at the one option that didn't name
+           itself.
+           Optional, like the question it hangs off, and closer to it than the
+           questions are to each other — 12px rather than 20px is what says this
+           belongs to the select above. -->
+      <FormControl
+        v-if="appsOtherPicked"
+        v-model="form.appsOther"
+        type="text"
+        label="What else do you use?"
+        placeholder="e.g. a custom system built in-house"
+      />
+    </div>
+  </div>
+
+  <!-- ── Step 3: what you want fixed ──────────────────────────────────────── -->
+  <div v-else>
     <!-- ⚠️ A hand-rolled fieldset because frappe-ui ships no `CheckboxGroup` —
          `Checkbox` is a single control, and `RadioGroup` has no checkbox twin.
          So the legend has to reproduce what `InputLabel` would emit rather than
@@ -127,8 +159,8 @@ const toggleProblem = (value, on) => {
          label type at 13px `text-sm` whatever the control's size, and `gray-7`
          is the shade every TOGGLE control asks it for — `Checkbox`, `RadioGroup`
          and `Switch` all pass `color="gray-7"`, against the `gray-6` default the
-         text inputs on step 1 use. This is a toggle group sitting directly under
-         a radio group, so it takes the darker one and the two headings match. -->
+         text inputs on step 1 use. This is a toggle group, so it takes the
+         darker one and its heading matches the ladder's on the step before. -->
     <fieldset>
       <legend class="block text-sm text-ink-gray-7">What are you trying to fix?</legend>
       <div class="-ml-3 mt-1.5 flex flex-col">

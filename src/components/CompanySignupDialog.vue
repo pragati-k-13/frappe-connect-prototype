@@ -1,8 +1,8 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
-import { Button, Dialog } from 'frappe-ui'
+import { computed, reactive, ref, watch } from 'vue'
+import { Button, Dialog, Progress } from 'frappe-ui'
 import CompanyQuestions from './CompanyQuestions.vue'
-import { companyErrors, companyPayload, emptyCompanyForm } from '../data/company'
+import { COMPANY_STEPS, companyErrors, companyPayload, emptyCompanyForm } from '../data/company'
 import { useConnectStore } from '../stores/connect'
 
 // The company questions, as a DIALOG over whatever the visitor was doing.
@@ -41,14 +41,39 @@ const stepNo = ref(1)
 const tried = ref(false)
 const errors = computed(() => (tried.value ? companyErrors(form) : {}))
 
-const toStep2 = () => {
+// ⚠️ EVERYTHING IN HERE OUTLIVES ONE SIGN-UP. This component is mounted at the
+// app root and never unmounts — only `:open` flips — so the step, the answers
+// and whether Continue has been pressed all survive from one sign-up to the next
+// in the same page session. Without this reset, signing up a second time
+// reopened the dialog on whatever step the last one ended on, with the previous
+// company's answers still in the fields.
+//
+// Reset on OPEN rather than on close, the same call `ContactPartnerDialog`
+// makes: a dialog that empties itself while it is animating out shows the reader
+// their answers being wiped.
+//
+// ⚠️ `CompanyPage` needs none of this — it is a routed component, so leaving the
+// route unmounts it and the next visit builds a fresh one.
+watch(
+  () => store.companyPrompt,
+  (isOpen) => {
+    if (!isOpen) return
+    Object.assign(form, emptyCompanyForm())
+    stepNo.value = 1
+    tried.value = false
+  },
+)
+
+// Forward. Only step 1 has rules — see `companyErrors` — so this validates there
+// and walks on everywhere else.
+const next = () => {
   tried.value = true
   if (Object.keys(errors.value).length) return
-  stepNo.value = 2
+  stepNo.value += 1
 }
 
 const back = () => {
-  stepNo.value = 1
+  stepNo.value -= 1
 }
 
 const confirm = () => {
@@ -72,7 +97,7 @@ const confirm = () => {
          buying". The version it replaces named the pack, which the screen behind
          the card already says; this one gives the reason the questions exist at
          all — every answer here is something Frappe matches on.
-         It sits in `#title`, so it shows on BOTH steps without being repeated:
+         It sits in `#title`, so it shows on EVERY step without being repeated:
          the reason holds for the basic details and the intent questions alike. -->
     <template #title>
       <div>
@@ -90,33 +115,53 @@ const confirm = () => {
     </template>
 
     <template #default>
-      <!-- ⚠️ No stepper. Two steps, both short, and the buttons already say
-           where you are: Continue on the first, Back and Confirm on the second.
-           A progress bar over two dots is chrome describing itself.
-           The contact wizard DOES carry one, and the difference is the count:
-           three steps with a send at the end is a journey, two is a form. -->
-      <form v-if="stepNo === 1" novalidate @submit.prevent="toStep2">
-        <CompanyQuestions :step="1" :form="form" :errors="errors" />
+      <!-- ⚠️ A stepper EARNS its place at three steps, where it didn't at two.
+           With two, the buttons said where you were — Continue, then Back and
+           Confirm — and a bar over two segments was chrome describing itself.
+           With three, "how much more of this is there" is a real question in a
+           dialog that cannot be dismissed, and the buttons can't answer it. The
+           contact wizard made the same call for the same reason; this is the
+           same bar, one segment shorter, because its own last step is the
+           requirements.
+           `md` is a 4px rule — `sm`'s 2px read as a hairline rather than as a
+           thing with three parts, and the segment you have filled is the whole
+           point. -->
+      <Progress
+        class="mb-6"
+        size="md"
+        intervals
+        :interval-count="COMPANY_STEPS"
+        :value="(stepNo / COMPANY_STEPS) * 100"
+      />
+
+      <!-- ⚠️ The submit handler follows the STEP, as it does in the contact
+           wizard: Return on a company name must move the step on, not save an
+           account. -->
+      <form novalidate @submit.prevent="stepNo === COMPANY_STEPS ? confirm() : next()">
+        <CompanyQuestions :step="stepNo" :form="form" :errors="errors" />
 
         <!-- ⚠️ The footer sits OUTSIDE the fields' `space-y`, not inside it.
              `space-y-*` puts its margin on every child after the first, and its
              `& > * + *` selector outranks a plain `mt-8` — so the only way the
              buttons get the modal's 32px footer gap rather than the 16px/20px
              rhythm between fields is to take them out of that flow. -->
-        <div class="mt-8">
+        <!-- One action on the first step, so it takes the full width; every step
+             after it has a Back, and the pair sits on one line at the right. -->
+        <div v-if="stepNo === 1" class="mt-8">
           <!-- Submit type so Return moves the step on, not just the button. -->
           <Button class="w-full" variant="solid" size="sm" label="Continue" type="submit" />
         </div>
-      </form>
 
-      <form v-else novalidate @submit.prevent="confirm">
-        <CompanyQuestions :step="2" :form="form" />
-
-        <div class="mt-8 flex items-center justify-end gap-2">
+        <div v-else class="mt-8 flex items-center justify-end gap-2">
           <Button variant="subtle" size="sm" label="Back" @click="back">
             <template #prefix><LucideChevronLeft class="size-4" /></template>
           </Button>
-          <Button variant="solid" size="sm" label="Confirm" type="submit" />
+          <Button
+            variant="solid"
+            size="sm"
+            :label="stepNo === COMPANY_STEPS ? 'Confirm' : 'Continue'"
+            type="submit"
+          />
         </div>
       </form>
     </template>

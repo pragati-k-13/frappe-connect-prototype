@@ -21,7 +21,7 @@ import {
 // reader needs to hear, so saying it twice would be the two drifting apart.
 import { DialogDescription } from 'reka-ui'
 import CompanyQuestions from './CompanyQuestions.vue'
-import { companyErrors, companyPayload, emptyCompanyForm } from '../data/company'
+import { COMPANY_STEPS, companyErrors, companyPayload, emptyCompanyForm } from '../data/company'
 import { APPS, PARTNERS } from '../data/partners'
 import { MODULES, modulesFor } from '../data/modules'
 import { projectApps } from '../data/project'
@@ -57,8 +57,8 @@ import { useConnectStore } from '../stores/connect'
 // run the held Contact action and THEN open `CompanySignupDialog` — two modals,
 // stacked, the company one trapped behind the one it was supposed to precede.
 // Both were right to exist and neither could go first while they were separate
-// dialogs, so they stopped being separate: the company questions are steps 1
-// and 2 of this one. `openCompanyPrompt` now declines to open the standalone
+// dialogs, so they stopped being separate: the company questions are every step
+// of this one but the last. `openCompanyPrompt` now declines to open the standalone
 // dialog while an inquiry is on screen, and the FIELDS are shared rather than
 // copied — see `CompanyQuestions`.
 //
@@ -97,10 +97,16 @@ const needsCompany = computed(() => !store.company.name.trim())
 
 const company = reactive(emptyCompanyForm())
 
-// 1 and 2 are the company questions, 3 is the requirements. Without the wizard
-// there is only ever the third, and `step` is pinned there so every reader below
-// can ask the same question ("are we on 3?") whichever shape is showing.
-const STEPS = 3
+// The company questions are steps 1..`COMPANY_STEPS`; the LAST step is the
+// requirements. Without the wizard there is only ever that last one, and `step`
+// is pinned there so every reader below can ask the same question ("are we on
+// the last?") whichever shape is showing.
+//
+// ⚠️ Derived, not a literal. The company questions went from two steps to three
+// — step 1 was carrying the identity fields, the ladder and the systems
+// follow-up all at once — and a hard-coded 3 here would have left this wizard
+// showing two of them and a bar that never filled.
+const STEPS = COMPANY_STEPS + 1
 const step = ref(STEPS)
 
 const wizard = computed(() => needsCompany.value)
@@ -236,7 +242,8 @@ watch(open, (isOpen) => {
 // (`companyErrors`) so this dialog and the standalone one cannot disagree about
 // what a valid answer is.
 //
-// ⚠️ Step 2 validates NOTHING, deliberately — see the note on `companyErrors`.
+// ⚠️ The company steps AFTER the first validate NOTHING, deliberately — see the
+// note on `companyErrors`.
 const errors = computed(() => {
   if (!tried.value) return {}
   if (step.value === 1) return companyErrors(company)
@@ -403,10 +410,12 @@ const send = () => {
              being guessable from the button labels. Someone answering questions
              about their company on the way to contacting a firm needs to know
              how much of this there is.
-             `Progress` with `intervals` renders it: three segments, filled ones
-             dark. No custom bar.
+             `Progress` with `intervals` renders it: one segment per step,
+             filled ones dark. No custom bar.
+             `md` is a 4px rule — `sm`'s 2px read as a hairline rather than as a
+             thing with parts, and the segment you have filled is the point.
              ⚠️ No `label`. The prop renders VISIBLY above the bar ("Step 1 of
-             3"), which the design doesn't carry — the segments say the same
+             4"), which the design doesn't carry — the segments say the same
              thing and the sentence below says which step this is. The cost is
              that the bar's accessible value falls back to a bare percentage;
              hiding a label visually would mean overriding the component's
@@ -414,7 +423,7 @@ const send = () => {
         <Progress
           v-else
           class="mt-3"
-          size="sm"
+          size="md"
           :value="progress"
           intervals
           :interval-count="STEPS"
@@ -434,11 +443,11 @@ const send = () => {
 
     <template v-if="partner" #default>
       <!-- ⚠️ The submit handler follows the STEP. Return finishing the form is
-           the rule every dialog in this app keeps, and on steps 1 and 2 what
+           the rule every dialog in this app keeps, and on the company steps what
            Return should finish is the step, not the inquiry — a company name
            typed and Return pressed must not send anything to a partner. -->
       <form novalidate @submit.prevent="step === STEPS ? send() : next()">
-        <!-- ── Steps 1 and 2: the company ────────────────────────────────── -->
+        <!-- ── Every step but the last: the company ──────────────────────── -->
         <CompanyQuestions v-if="step !== STEPS" :step="step" :form="company" :errors="errors" />
 
         <!-- ── The questions ─────────────────────────────────────────────── -->
@@ -619,7 +628,10 @@ const send = () => {
           <Button class="w-full" variant="solid" size="sm" label="Continue" type="submit" />
         </div>
 
-        <div v-else-if="step === 2" class="mt-8 flex items-center justify-end gap-2">
+        <!-- Every company step after the first: Back and Continue on one line.
+             `step < STEPS` rather than a list of numbers, so a fourth company
+             question would need no change here. -->
+        <div v-else-if="step < STEPS" class="mt-8 flex items-center justify-end gap-2">
           <Button variant="subtle" size="sm" label="Back" @click="back">
             <template #prefix><LucideChevronLeft class="size-4" /></template>
           </Button>

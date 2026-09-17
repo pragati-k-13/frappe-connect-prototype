@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Button, Dialog, toast } from 'frappe-ui'
 import IconExternal from '~icons/lucide/arrow-up-right'
+import { APPS_OTHER, operationsLabel, problemLabels } from '../data/company'
 import { useConnectStore } from '../stores/connect'
 
 // What the partner received, shown back to the sender. READ ONLY, deliberately:
@@ -16,14 +17,29 @@ const store = useConnectStore()
 // The company as onboarding collected it. Falls back to the viewer's own
 // company for a demo viewer who never filled that form in, and says nothing
 // rather than inventing an answer for the fields that follow.
+//
+// ⚠️ Every answer is rendered through its LABEL, never its stored value. The
+// last three are chosen options — the store keeps `'disconnected'` and
+// `['close', 'visibility']` because that is what a matcher filters on — and
+// printing them straight put the word "disconnected", and a literal JSON array,
+// in front of a customer on the one screen whose job is to show them what their
+// partner received.
+//
+// Apps are two answers in one row. "Something else" is replaced by the name they
+// gave for it rather than listed beside it — "Something else, a system built
+// in-house" reads as two systems when it is one, and the whole point of the
+// follow-up field was to stop that option from staying anonymous. It stays as-is
+// when they picked it and named nothing.
 const rows = computed(() => {
   const c = store.company
+  const apps = (c.apps ?? []).map((a) => (a === APPS_OTHER && c.appsOther ? c.appsOther : a))
   return [
     { label: 'Company name', value: c.name || store.viewer.company },
     { label: 'Industry', value: c.segments?.join(', ') },
     { label: 'No. of employees', value: c.employees },
-    { label: 'Current operations', value: c.operations },
-    { label: 'Problems to solve', value: c.problems },
+    { label: 'Current operations', value: operationsLabel(c.operations) },
+    { label: 'Apps in use', value: apps.join(', ') },
+    { label: 'Problems to solve', value: problemLabels(c.problems).join(', ') },
   ]
 })
 

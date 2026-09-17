@@ -9,6 +9,15 @@ import { INDUSTRIES } from './quiz'
 // The markup lives in `CompanyQuestions.vue`. This file is the catalogue and
 // the rules; that one is the fields.
 
+// ⚠️ THE STEP COUNT LIVES HERE, because three things have to agree on it:
+// `CompanyQuestions`, which renders one step at a time; the two dialogs and the
+// page that drive it; and their progress bars, which fill one segment per step.
+// The contact wizard is this plus one — its own last step is the requirements —
+// so it says `COMPANY_STEPS + 1` rather than repeating a number.
+export const COMPANY_STEPS = 3
+
+// ── Step 1: who you are ──────────────────────────────────────────────────────
+
 // ⚠️ PLACEHOLDER BANDS, invented — nothing in the repo defines sizes. The 50
 // matters more than it looks: Starter Packs are scoped "for businesses running
 // under 50 users", so this is the first answer that could tell someone the pack
@@ -30,15 +39,21 @@ export const SEGMENT_OPTIONS = INDUSTRIES.map((i) => ({
   options: i.segments.map((sg) => ({ label: sg, value: sg })),
 }))
 
+// ── Step 2: what you run today ───────────────────────────────────────────────
+
 // What they are running today, by name. Optional, and the one question here
 // whose answer a partner reads rather than a filter: "they are on Tally and
 // three spreadsheets" is the sentence that starts a migration conversation.
 //
+// ⚠️ A FOLLOW-UP TO THE LADDER, not a question of its own. It used to sit a step
+// earlier with "Spreadsheets only" at the top of the list — so a business on
+// spreadsheets and paper said so twice, and everyone else named their systems
+// before being asked what they were for. It is now asked after the rung, of the
+// three rungs that have anything to name, and that option is gone with it.
+//
 // ⚠️ Invented, but not arbitrary — these are the systems an ERPNext migration
-// actually comes from. "Spreadsheets only" is an answer, not an absence, which
-// is why it is in the list rather than left to the empty state.
+// actually comes from.
 export const CURRENT_APPS = [
-  'Spreadsheets only',
   'Tally',
   'Zoho',
   'QuickBooks',
@@ -68,6 +83,14 @@ export const OPERATIONS = [
   { value: 'outgrown', label: 'An ERP that no longer fits how we work' },
 ]
 
+// ⚠️ The first rung is the one that names no software, so it is the one rung
+// that is not asked which systems — see `CURRENT_APPS`.
+const OPERATIONS_MANUAL = 'manual'
+
+export const asksApps = (operations) => Boolean(operations) && operations !== OPERATIONS_MANUAL
+
+// ── Step 3: what you want fixed ──────────────────────────────────────────────
+
 // ⚠️ MULTI-select, unlike the ladder above: a business wants integration AND a
 // faster close AND stock it can trust, and forcing one answer throws away the
 // other two. Phrased as symptoms the visitor would recognise in their own week
@@ -92,10 +115,10 @@ export const emptyCompanyForm = () => ({
   problems: [],
 })
 
-// ⚠️ ALL the validation is the FIRST step's. The second asks two questions and
-// requires neither: they sharpen the match, they do not gate it, and a form that
-// refuses to move on until you have opinions about your month-end close is a
-// wall rather than a form.
+// ⚠️ ALL the validation is the FIRST step's. Steps 2 and 3 require nothing: they
+// sharpen the match, they do not gate it, and a form that refuses to move on
+// until you have opinions about your month-end close is a wall rather than a
+// form.
 //
 // What "cannot proceed without answering" protects is the company, its size and
 // its industry, which are what the matcher actually reads.
@@ -121,3 +144,13 @@ export const companyPayload = (form) => ({
   operations: form.operations,
   problems: form.problems,
 })
+
+// The store keeps what was CHOSEN — `'disconnected'`, `['close', 'visibility']` —
+// because that is what a matcher filters on. Anything that shows these answers
+// back to the person who gave them has to come through here first: printing the
+// stored value put the word "disconnected" in front of a customer, in a panel
+// whose whole job is to show them what their partner received.
+export const operationsLabel = (value) => OPERATIONS.find((o) => o.value === value)?.label ?? ''
+
+export const problemLabels = (values) =>
+  (values ?? []).map((v) => PROBLEMS.find((p) => p.value === v)?.label).filter(Boolean)
