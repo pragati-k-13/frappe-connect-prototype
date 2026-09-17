@@ -1,11 +1,11 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Button, FormControl, toast } from 'frappe-ui'
+import { Button, Progress, toast } from 'frappe-ui'
 import AuthShell from '../components/AuthShell.vue'
+import CompanyQuestions from '../components/CompanyQuestions.vue'
 import ConnectMark from '../components/ConnectMark.vue'
-import { INDUSTRIES } from '../data/quiz'
-import { STARTER_PACKS } from '../data/packs'
+import { COMPANY_STEPS, companyErrors, companyPayload, emptyCompanyForm } from '../data/company'
 import { nextFrom, useAuthExit } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 
@@ -20,86 +20,76 @@ import { useConnectStore } from '../stores/connect'
 //
 // ⚠️ Sign-up only. A returning customer answered these once, so `login-verify`
 // goes straight to `next` and never comes here.
+//
+// ⚠️ THE THIRD SURFACE asking these questions, and it asks them from the same
+// `CompanyQuestions` as the other two. It used to own a free-text version —
+// "describe your current operations" in a textarea — which meant two sign-ups
+// through two doors recorded two different things.
 const store = useConnectStore()
 const route = useRoute()
 const router = useRouter()
 
-// The pack they pressed Get started on, if they came that way. Read from the
-// store rather than the URL because the gate fires BEFORE the panel opens, so
-// there is no `?pack=` to carry — see `selectPack` in the store.
-//
-// Nothing when they arrived by another door (saving a partner, the top-bar
-// CTA). The subtitle then reads generically, rather than naming a pack they
-// never chose.
-const pack = computed(() => STARTER_PACKS.find((p) => p.value === store.pack) ?? null)
+const form = reactive(emptyCompanyForm())
 
-// ⚠️ PLACEHOLDER, invented. Nothing in the repo defines size bands, and these
-// are the conventional ones. The 50 matters more than it looks: the Starter
-// Packs are scoped "for businesses running under 50 users", so this answer is
-// the first thing that could tell someone the pack they picked doesn't fit
-// them. Nothing acts on it yet.
-const COMPANY_SIZES = ['1 to 10', '11 to 50', '51 to 200', '201 to 500', 'More than 500']
-
-// Industry AND segment in one control, grouped — the same shape as the partner
-// listing's industry filter, and for the same reason: partners are tagged at the
-// SEGMENT level ("Textile Manufacturing"), so the industry is a heading and the
-// segments are the options. Nothing is selectable at the group level because
-// nothing in the data is tagged there.
+// ⚠️ The step is in the URL, not in a ref. This is a full screen with an
+// address, so Back is the browser's Back — a visitor who presses it on step 2
+// means "take me back a question", and a ref would take them out to the verify
+// screen instead. The two dialogs can keep a ref precisely because they have no
+// URL of their own.
 //
-// This is what makes the answer usable. Asking for the group alone recorded
-// something `matches()` can't filter on — it reads `answers.segments`, and the
-// group above it narrows nothing.
+// Anything that isn't a step reads as step 1 rather than as an error: a URL is
+// something people edit, and the answer to `?step=9` is the first question.
 //
-// ⚠️ `multiselect`, not `select`: frappe-ui's `Select` has no grouping at all
-// ("Select renders no group / group-label", per its own source), so a grouped
-// list needs `MultiSelect` or `Combobox`. Multi is also the truer answer — a
-// business spanning "Discrete Manufacturing" and "Logistics" can say so, which
-// as a single choice it couldn't.
-const SEGMENT_OPTIONS = INDUSTRIES.map((i) => ({
-  group: i.label,
-  key: i.value,
-  options: i.segments.map((sg) => ({ label: sg, value: sg })),
-}))
-
-const form = reactive({
-  company: '',
-  employees: '',
-  // An array, because the control is a grouped multi-select — see above.
-  segments: [],
-  operations: '',
-  problems: '',
+// `?next=` rides along, since it is what the whole flow is carrying home.
+const stepNo = computed(() => {
+  const n = Number(route.query.step)
+  return Number.isInteger(n) && n >= 1 && n <= COMPANY_STEPS ? n : 1
 })
 
 // ⚠️ The button is never disabled. A disabled Continue leaves someone hunting
 // for which field is stopping them with nothing to click and nothing to read;
-// pressing it and being shown the three messages answers that in one gesture.
-// So the errors stay quiet until the first press, then update live — the same
-// rule as the three screens before this one.
+// pressing it and being shown the messages answers that in one gesture. So the
+// errors stay quiet until the first press, then update live — the same rule as
+// the three screens before this one.
 const submitted = ref(false)
 
-const errors = computed(() => {
-  if (!submitted.value) return {}
-  const e = {}
-  if (!form.company.trim()) e.company = 'Enter your company name'
-  if (!form.employees) e.employees = 'Select a size'
-  if (!form.segments.length) e.segments = 'Select an industry'
-  return e
-})
+// Only step 1 has rules, and they live with the questions (`companyErrors`) so
+// this screen and the two dialogs cannot disagree about what a valid answer is.
+const errors = computed(() => (submitted.value ? companyErrors(form) : {}))
+
+const stepOneDone = computed(() => Object.keys(companyErrors(form)).length === 0)
 
 const next = computed(() => nextFrom(route))
 
-const submit = () => {
+// ⚠️ The form is in memory, like everything else in this prototype. So a reload
+// on `?step=2` — or a pasted link to it — arrives partway through a form whose
+// first answers are blank and cannot be seen. Send it back to step 1 rather
+// than letting someone finish with an empty company.
+//
+// `replace`, not `push`: that step was never a place they had been, and leaving
+// it in history would make Back bounce straight into this check again.
+onMounted(() => {
+  if (stepNo.value === 1 || stepOneDone.value) return
+  const { step, ...rest } = route.query
+  router.replace({ query: rest })
+})
+
+const go = (n) => router.push({ query: { ...route.query, step: String(n) } })
+
+const forward = () => {
   submitted.value = true
   if (Object.keys(errors.value).length) return
+  go(stepNo.value + 1)
+}
+
+// The browser's own Back, so the in-form button and the browser button do the
+// same thing rather than stacking two entries for one step.
+const back = () => router.back()
+
+const submit = () => {
   // Before `completeLogin`, so the account is fully formed the moment it
   // exists; and before the held action, whose own toast should read second.
-  store.saveCompany({
-    name: form.company.trim(),
-    employees: form.employees,
-    segments: form.segments,
-    operations: form.operations.trim(),
-    problems: form.problems.trim(),
-  })
+  store.saveCompany(companyPayload(form))
   toast.success('Account created', { id: 'auth' })
   store.completeLogin()
   // A pack in hand means they came here to buy one, so onboarding hands off to
@@ -123,88 +113,53 @@ useAuthExit()
       <ConnectMark class="mb-5" size="xl" />
     </template>
 
-    <!-- The pack carried across from the catalogue, named in the subtitle
-         rather than boxed above the form. It is context, not a control:
-         nothing here changes it, and it's the reason these questions are being
-         asked at all.
-         ⚠️ It used to be its own bordered strip, which was `rounded-4 text-base`
-         at full column width — exactly what a `size="sm"` field renders. So it
-         read as the first field of the form, sat directly above the real first
-         field, and then didn't respond to a click. Same fact, no false
-         affordance. -->
-    <p class="mt-1 text-p-base text-ink-gray-5">
-      To find the right Partner for your
-      <template v-if="pack">
-        <span class="font-medium whitespace-nowrap text-ink-gray-7">{{ pack.name }}</span>
-        pack
-      </template>
-      <template v-else>needs</template>
-    </p>
+    <!-- The same bar, and the same argument, as the two dialogs: at two steps
+         the buttons said where you were and a stepper was chrome describing
+         itself; at three, "how much more of this is there" is a real question
+         they can't answer. `md` is a 4px rule — `sm`'s 2px read as a hairline
+         rather than as a thing with three parts.
+         ⚠️ The segments are rounded HERE because `Progress` has no prop for it.
+           `intervals` renders each segment as a bare `h-full w-full` div, and the
+           only radius in the component is `rounded-7` on the track with
+           `overflow-hidden` — which rounds the outer two corners of the whole bar
+           and leaves every segment edge inside it square. Checked against
+           beta.63's `ProgressProps` and the live docs playground: value, label,
+           size, intervals, hint, and nothing for shape.
+           `rounded-full` on a 4px-tall segment is a 2px radius, so each one
+           reads as its own capsule rather than a slice of a cut-up bar. -->
+    <Progress
+      class="mt-5 [&_[role=progressbar]>div]:rounded-full"
+      size="md"
+      intervals
+      :interval-count="COMPANY_STEPS"
+      :value="(stepNo / COMPANY_STEPS) * 100"
+    />
 
-    <form class="mt-6 space-y-4" novalidate @submit.prevent="submit">
-      <FormControl
-        v-model="form.company"
-        size="sm"
-        label="Company name"
-        placeholder="Company name"
-        autocomplete="organization"
-        autofocus
-        required
-        :error="errors.company"
-      />
+    <!-- ⚠️ The submit handler follows the STEP, as it does in both dialogs:
+         Return on a company name must move the step on, not create an account. -->
+    <form class="mt-6" novalidate @submit.prevent="stepNo === COMPANY_STEPS ? submit() : forward()">
+      <CompanyQuestions :step="stepNo" :form="form" :errors="errors" />
 
-      <!-- Two across because they're both one-word answers about the same
-           thing, and stacking them pushed the free-text questions below the
-           fold on a laptop. -->
-      <div class="grid grid-cols-2 gap-3">
-        <FormControl
-          v-model="form.employees"
-          type="select"
-          size="sm"
-          label="Number of employees"
-          placeholder="Select"
-          :options="COMPANY_SIZES"
-          required
-          :error="errors.employees"
-        />
-        <FormControl
-          v-model="form.segments"
-          type="multiselect"
-          size="sm"
-          label="Relevant industry"
-          placeholder="Select"
-          :options="SEGMENT_OPTIONS"
-          required
-          :error="errors.segments"
-        />
+      <!-- One action on the first step, so it keeps the full-width bar the three
+           screens before this one use; every step after it has a Back, and the
+           pair sits on one line at the right — the same shape as the dialogs'
+           footers. A Back stacked under a full-width primary read as a third
+           thing to do rather than as the way out of the step. -->
+      <div v-if="stepNo === 1" class="mt-6">
+        <Button type="submit" variant="solid" size="md" class="w-full" label="Continue" />
       </div>
 
-      <!-- Optional, and deliberately so. These two are what a partner actually
-           reads before the first call, but demanding prose to finish signing up
-           is how you get "asdf" in both boxes. -->
-      <FormControl
-        v-model="form.operations"
-        type="textarea"
-        size="sm"
-        :rows="3"
-        label="Describe your current operations"
-        placeholder="e.g. Orders come in over email and WhatsApp, we track stock in spreadsheets, and invoicing runs through Tally"
-      />
-      <FormControl
-        v-model="form.problems"
-        type="textarea"
-        size="sm"
-        :rows="3"
-        label="What problems are you looking to solve?"
-        placeholder="e.g. Our spreadsheets and Tally don't talk to each other, so month-end reconciliation takes days and stock counts are often wrong"
-      />
-
-      <!-- Full width, like the three screens before it. It was auto-width to
-           start with — the design draws it that way, and the argument was that a
-           full-width bar under two textareas reads as a fifth field. But it made
-           this the one control in the whole flow with a different width, which
-           is what you notice flicking between the steps. -->
-      <Button type="submit" variant="solid" size="md" class="w-full" label="Continue" />
+      <div v-else class="mt-8 flex items-center justify-end gap-2">
+        <Button variant="subtle" size="md" label="Back" @click="back">
+          <template #prefix><LucideChevronLeft class="size-4" /></template>
+        </Button>
+        <Button
+          type="submit"
+          variant="solid"
+          size="md"
+          :label="stepNo === COMPANY_STEPS ? 'Create account' : 'Continue'"
+        />
+      </div>
     </form>
   </AuthShell>
 </template>

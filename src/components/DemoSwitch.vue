@@ -35,12 +35,14 @@
 // (screen 1) has no app chrome at all, and the switch has to be reachable from
 // every screen in the flow.
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Button, Dropdown } from 'frappe-ui'
+import { stagesFor } from '../data/project'
 import { useConnectStore } from '../stores/connect'
 
 const store = useConnectStore()
 const router = useRouter()
+const route = useRoute()
 
 // Picking Business restarts the whole demo rather than just setting a flag:
 // state is wiped and you land back on the Frappe website, where the flow
@@ -72,6 +74,25 @@ function setAccount(account) {
 // option, minus on the rest.
 const check = (role) => (store.role === role ? 'lucide-check' : 'lucide-minus')
 const checkAccount = (account) => (store.account === account ? 'lucide-check' : 'lucide-minus')
+
+// ── The stage picker ───────────────────────────────────────────────────────
+// ⚠️ Only on a project's own page, and that is the whole design of it. A stage
+// belongs to ONE project, so a picker offered from anywhere else would have to
+// guess which project it meant — and with four seeded, the guess would be wrong
+// three times in four.
+//
+// It exists because a tracker's states are its content: four of a pack's five
+// stages are unreachable in a demo without ticking through twenty tasks, and a
+// reviewer has to be able to look at the last one. `store.setStage` deliberately
+// leaves `done` alone, so stepping back and forward returns the same project.
+//
+// The OTHER way stages move is the project page's own "Everything on my side is
+// done", which is the product's real gesture. The two write the same field.
+const project = computed(() =>
+  route.name === 'project' ? store.projectBy(route.params.id) : null,
+)
+const stages = computed(() => (project.value ? stagesFor(project.value.service) : []))
+const checkStage = (key) => (project.value?.stage === key ? 'lucide-check' : 'lucide-minus')
 
 const options = computed(() => [
   {
@@ -125,11 +146,28 @@ const options = computed(() => [
             },
             {
               label: 'Ongoing project',
-              description: 'Signed in, mid-implementation — views to come',
+              // The description used to end "— views to come". They came: this
+              // persona is seeded with four projects covering every state the
+              // tracker renders. See `demoProjects`.
+              description: 'Signed in, four projects under way',
               icon: checkAccount('client'),
               onClick: () => setAccount('client'),
             },
           ],
+        },
+      ]
+    : []),
+  // Absent on every other screen, and on a project with no service — there is
+  // no spine to step through until one is chosen.
+  ...(stages.value.length
+    ? [
+        {
+          group: 'Project stage',
+          options: stages.value.map((stage) => ({
+            label: stage.label,
+            icon: checkStage(stage.key),
+            onClick: () => store.setStage(project.value.id, stage.key),
+          })),
         },
       ]
     : []),

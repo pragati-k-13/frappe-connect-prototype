@@ -166,20 +166,42 @@ export const discoveryThreads = () =>
 // ⚠️ `company` and `call` are not text. They are the two cards in the design,
 // and the thread renders them as cards rather than as a paragraph someone has
 // to read the fields out of.
-// The other way in: Contact, from a listing row or a partner's profile. Empty
-// on purpose — booking a pack has three things to say on the visitor's behalf
-// (the ask, the company details, the call), and Contact has none of them. The
-// visitor has not said anything yet, and opening with a sentence they didn't
-// write would put words in their mouth to a real company.
+// The other way in: Contact, from a listing row or a partner's profile.
+//
+// ⚠️ THIS USED TO BE EMPTY, on the reasoning that booking a pack has three
+// things to say on the visitor's behalf and Contact had none of them — nothing
+// had been said yet, and opening with a sentence they didn't write would put
+// words in their mouth to a real company. That reasoning is spent: Contact now
+// goes through `ContactPartnerDialog`, so by the time a thread exists the
+// visitor HAS said something — which apps, which modules, and whatever they
+// typed. The card is what they sent, not a greeting written for them.
+//
+// `inquiry` is a SNAPSHOT — the project's name, apps and module labels as they
+// stood when Send inquiry was pressed — and not a reference to the project.
+// This differs from the `company` card beside it, which reads live store state,
+// and the difference is deliberate: a project's scope keeps moving (it is a
+// working document, editable from the project page), and a sent message that
+// silently rewrites itself to match is a record of a conversation that didn't
+// happen. What the partner quoted against is what has to stay on the screen.
 //
 // `startedAt` carries the only fact there is, and `lastAt` reads it — see the
 // note there.
-export const contactThread = (partner) => ({
-  id: partner.id,
-  partnerId: partner.id,
-  startedAt: Date.now(),
-  messages: [],
-})
+export const contactThread = (partner, inquiry = null, body = '') => {
+  const at = Date.now()
+  return {
+    id: partner.id,
+    partnerId: partner.id,
+    startedAt: at,
+    messages: [
+      ...(inquiry ? [{ id: `m${++seq}`, from: 'you', at, kind: 'inquiry', inquiry }] : []),
+      // The optional note, as its own message rather than folded into the card.
+      // It is the one part of the inquiry the visitor wrote in their own words,
+      // and a sentence quoted inside a summary card reads as a field of the
+      // form rather than as something a person said.
+      ...(body ? [msg('you', at, { body })] : []),
+    ],
+  }
+}
 
 export const bookingThread = ({ partner, pack, slot }) => {
   const at = Date.now()

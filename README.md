@@ -30,6 +30,8 @@ Then open <http://localhost:5173>.
 | 3f  | `/connect/confirm`        | Confirm the pack and book the call. `?pack=` names which               | Yes                           |
 | 3g  | `/connect/confirmed`      | Who Frappe assigned you, and what happens next. End of the journey     | Yes                           |
 | 3h  | `/connect/messages`       | The inbox. `?thread=` names the open conversation                      | Yes                           |
+| 3i  | `/connect/projects`       | Implementation — everything the account is tracking                    | Yes                           |
+| 3j  | `/connect/projects/:id`   | One project: partner, progress, and what each stage needs from you     | Yes                           |
 | 4   | `/connect/partners/:id`   | A partner's profile — **top section only so far**                      | Yes                           |
 
 Screen 1 is a deliberately light stand-in. It's here so the entry point isn't imaginary
@@ -57,6 +59,12 @@ Beyond that:
 
 - **State is in-memory.** A refresh resets the quiz — deliberate, so the flow is easy to
   re-run while reviewing.
+- **The four demo projects are seeded.** Switching to "Ongoing project" loads a starter
+  pack mid-kickoff, a guided onboarding before its first session, custom work with **no
+  partner yet**, and a project with **no service chosen at all**. Four, because between
+  them they cover every state the tracker renders — drop one and a state becomes
+  unreachable. Everything attached to them is invented; the partners are real firms and
+  none of them is running any of this.
 - **Counts don't reconcile with the list.** The map and chips show the directory's real
   figures (156 partners); the list is seeded with thirteen representative ones. The map
   and the chips do agree with each other — both read `REGIONS`.
@@ -82,16 +90,19 @@ of the repo.
 ```
 src/
   data/           quiz.js (questions), partners.js (partners, packs, stories),
-                  logos.js + media.js (convention-based asset resolution)
+                  logos.js + media.js (convention-based asset resolution),
+                  project.js (the three stage spines and what each stage needs)
   stores/         connect.js — answers, filters, and the results getter
   assets/         world-map.svg (frappe-cloud-v2), tiers/ (Frappe Partner Badges),
                   partners/ (drop real logos here),
                   media/ + clients/ (PLACEHOLDER profile art — see scripts/)
   components/     ConnectShell (Sidebar + top bar), DottedWorldMap, PartnerRow,
                   FilterChip, TierIcon, DemoSwitch,
-                  MediaGallery + MediaLightbox, ClientStrip, BookSlotDialog
+                  MediaGallery + MediaLightbox, ClientStrip, BookSlotDialog,
+                  ProjectRow + ProjectStages + ProjectChecklist +
+                  ProjectPartnerCard + NewProjectDialog
   pages/          FrappeSitePage, ConnectLandingPage, ResultsPage,
-                  PartnerProfilePage
+                  PartnerProfilePage, ProjectsPage + ProjectPage
 scripts/          placeholder-asset generators — delete once real art lands
 ```
 
@@ -106,10 +117,12 @@ Scoped out of this pass, in rough order:
    inert. The messages screen exists now, but a conversation opened from a listing row
    needs a rule for what it says first, and nobody has decided one. Booking a pack is
    the only thing that opens a thread today.
-3. **The signed-in views.** `store.account` and `store.project` are live and the demo
-   switcher flips between them; what's missing is the screens behind them. The estimate
-   modal is meant to be gated on `store.hasProject` and currently isn't.
+3. **The signed-in views.** `store.account` and `store.projects` are live and the demo
+   switcher flips between them. Implementation tracking has landed (below); Home is
+   still a row in the rail with nothing behind it. The estimate modal is meant to be
+   gated on `store.hasProject` and currently isn't.
 4. **The partner-side views.** The switcher is built and `store.role` is the seam — the
    screens behind it are not.
-5. **Implementation tracking** — progress and goalposts, the collaboration half of the
-   product.
+5. **Changing a project's scope**, and **cancelling a booked pack.** Both name themselves
+   in a toast rather than swallowing the click. Cancelling has contractual terms behind
+   it that nobody has written.

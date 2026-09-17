@@ -1225,6 +1225,261 @@ name or a body.
   pushing high-bit entropy down. Verified after: zero identical lists across all 13
   partners, zero repeated names within a list.
 
+## Contacting a partner
+
+**Contact is gated on requirements, not on an account alone.** Pressing it opens
+`ContactPartnerDialog` rather than a thread. A partner reading "hi, can you help
+us?" has nothing to quote against, so the first reply is always the same three
+questions — which apps, which modules, how big — and the conversation starts a
+day later than it looks like it did.
+
+**The dialog never sends anyone to the projects page.** The requirements ARE a
+project, and sending creates one, named from the apps (`inquiryName`). "First go
+and create a project" is the friction this replaces.
+
+**Two modals became one wizard.** Pressing Contact while signed out ends at
+sign-up, and the screen that lands you back ran the held Contact action and
+_then_ opened the company dialog — so the company questions sat trapped behind
+the inquiry they were supposed to precede. Both were right to exist and neither
+could go first while they were separate dialogs, so they stopped being separate:
+the company questions are steps 1 and 2 of the contact dialog, the requirements
+are step 3, and `openCompanyPrompt` declines to open the standalone dialog while
+an inquiry is on screen.
+
+The FIELDS are shared, not copied (`CompanyQuestions`), because two forms free
+to disagree about what "company details" means is the failure the merge would
+otherwise have introduced. Every other errand — saving a partner, booking a pack
+— still meets the standalone dialog: neither has a third step to put the
+questions in front of.
+
+**The wizard appears only when the account owes us the answers**, which is
+`store.company.name` being empty and nothing else. (Not `viewer.company`: that
+carries a name from boot, so it would say yes for an account that has answered
+nothing.) The demo's signed-in personas are seeded with company details for the
+same reason — they are meant to read as accounts that finished onboarding.
+
+⚠️ **Sealed while the wizard runs**: no ×, no click-away, no Escape, for the
+reason the company dialog has never had one — Frappe assigns the partner off
+those answers. Which does mean steps 1 and 2 have no way out at all. Deliberate,
+and the first thing to revisit if it bites.
+
+**Three segments, from `Progress`** with `intervals` — not a hand-rolled bar. No
+visible label: the prop renders one, the design doesn't carry it, and the
+sentence under the bar already says which step this is.
+
+**Step 3 ends two ways, and neither is a cancel.** Send the requirements, or
+"Save without sending" — which makes the same project with no thread and no
+message, for someone who has worked out what they want but not who should build
+it. It is the honest alternative to a button that throws the work away.
+
+**Two shapes, decided by `inquiryProjects`.** No project: the questions
+("First, define your project requirements"). One or more: the summary ("Contact
+Tridots Tech") with the requirements read-only and a picker defaulting to the
+newest — the one you were last thinking about. The picker appears only when
+there is a choice; with one project its name is a line of text.
+
+**Custom and undecided projects only.** A pack and a guided onboarding are
+bought as a published fixed scope — there is no estimate for a partner to
+calculate, and asking "which modules?" about a pack contradicts the pack. An
+account whose only projects are packs reads as an account with none.
+
+**The modules question is only asked where there is a catalogue.** ERPNext and
+Helpdesk break into modules; the other nine apps don't, so an inquiry about
+Drive alone is one question — the app IS the requirement. A required field with
+nothing in its menu is a dead end dressed as a question. Which apps qualify is
+read off `MODULES`, never listed, because the catalogue has already gained and
+lost apps once.
+
+**Read-only, with the way out beside it.** Scope is priced into estimates and
+tracked against stages, so editing it belongs on the project. A Manage link is
+what stops that being a dead end.
+
+**The project's name is a ROW of that list, not a field above it.** It used to be
+a label-over-value pair with a Manage button beside it, which made the one fact
+that is plain text look like a control someone had disabled — three facts about
+the project, one of them in a different shape for no reason a reader could name.
+Manage became an icon revealed on hovering the name (`group` + `opacity`, never
+`v-if`, so it keeps its space and stays in the tab order). With more than one
+project the picker is a real control, so it sits above the list and keeps its
+Manage visible — a control that hides beside another control reads as part of
+it.
+
+**Sending stays where it is.** A toast confirms, with `View` into the thread.
+Contact used to mean "open the thread" because there was nothing to send;
+someone comparing three firms sends the same requirements to all three, and
+being thrown into a conversation after each one makes that three trips back to
+the listing.
+
+**Two toasts on the create path, in sequence.** The project first — it is the
+half nobody asked for, and it carries the derived NAME, which is what they will
+look for in Implementation later — then the inquiry. One toast only when an
+existing project was picked: announcing a creation there would be the app taking
+credit for a row that has been sitting there a week.
+
+⚠️ **Sequenced, not simultaneous, and that is the toaster's doing.**
+`ToastProvider` runs `expand: false`, and frappe-ui's own stylesheet fades every
+non-front toast to `opacity: 0` in the collapsed stack. Two toasts in one tick
+are therefore one readable toast with an invisible one behind it, whichever
+order they go out in. So they take turns: the project holds the front for 1.4s,
+then the inquiry replaces it. Nothing the reader is waiting on is delayed — the
+dialog has already closed.
+
+**Already talking → straight to the thread.** A partner you have already sent
+requirements to (or booked with) gets no dialog: it would collect nothing that
+isn't in the conversation behind it. Same for the project page's own Message
+button, which is `messagePartner` rather than `contactPartner` — that firm is
+already building the thing.
+
+**The estimate modal hands its ticks across.** Contact closes the panel and
+prefills the inquiry with the modules still ticked, rather than stacking a
+second modal and asking again.
+
+**Requirements land in the thread as a snapshot**, not a live view of the
+project. Scope keeps moving; what the partner quoted against has to stay on the
+screen.
+
+⚠️ **Project visibility is deliberately absent.** The public/private choice and
+the partner-side job board are a later pass; nothing on these two screens
+mentions either, so no copy here promises a control that does not exist.
+
+## The project tracker
+
+Two screens: `/connect/projects` (the rail's **Implementation** row, inert until now) and
+`/connect/projects/:id`. Everything below is the reasoning that isn't obvious from any one
+file.
+
+**A project is four things, acquired in order.** `name` and `modules` are what you want
+built. `service` is how you have decided to have it built. `partnerId` is who is doing it.
+`stage` and `done` are where it has got to. A project can stop at any point in that
+sequence, and each stopping point is a real state with its own screen:
+
+| State               | What the page shows                                          |
+| ------------------- | ------------------------------------------------------------ |
+| No service          | Scope, and one decision: pack, onboarding or custom. No bar. |
+| Service, no partner | The spine, with a rail panel saying what will fill it.       |
+| Service and partner | The spine and the stage checklist; the partner in the rail.  |
+
+⚠️ **The store used to define `project` twice**, four lines apart — the module scope the
+estimate modal prices, and the booked implementation. An object literal keeps the last
+one, so the scope was unreachable and `EstimateQuoteDialog` read `.modules` off `null`;
+the modal threw the moment it opened. The fix wasn't a rename. A project now HOLDS its
+scope, because the two things that collided were one thing all along: what you want built,
+before and after you decide who builds it.
+
+**No progress indicator until a service is picked.** A bar over an undecided project would
+be inventing steps nobody has agreed to. The alternative considered was a shared zeroth
+stage ("Choosing a service") that every spine begins with — rejected because the bar still
+can't say how many stages are left until the fork is taken, so it would be a progress
+indicator that cannot indicate progress.
+
+**Per-service spines, not one spine relabelled.** A starter pack runs Confirmed → Intro
+call → Kickoff → Implementation → Live. Guided onboarding runs Booked → Preparation →
+Session 1 → 2 → 3 → Done, because it is three hours of teaching across ten working days
+and has no build phase — the customer does the work. Custom runs Requirements → Matching →
+Proposal → Kickoff → Build → Live, and is the only one with stages BEFORE a partner
+exists. Forcing onboarding's three sessions into a pack's five slots misnames every one
+of them.
+
+**The timeline is a validity window, and only that.** Packs carry a real `validityDays`
+(30/60/90) and onboarding a real ten working days; both are contractual, and both describe
+the period the hours must be USED within, not when you go live. Per-stage durations were
+the alternative and would read better — "week 3 of 8", a bar filling against a date — but
+every number in it would be invented, on a page whose whole job is telling someone where
+they stand. Custom work shows no window at all, because none exists until a partner quotes
+one.
+
+⚠️ The window runs from `serviceAt`, not `at`. A project written down in January and booked
+in June was opening with most of its validity already spent, and a long enough gap showed
+it EXPIRED on the day it was bought.
+
+⚠️ `PackPanel` calls this same number **"delivery time"**, which is the wrong word and now
+sits 200px from the right one. The scope document's term is validity. The panel is what
+should change; it appears on three other screens, so it hasn't here.
+
+**The checklist is split by who owes it, and the two halves are different kinds of thing.**
+Yours are checkboxes — you did them, you record them, you can untick one you recorded
+wrongly. Theirs are open rings: you cannot tick someone else's work, and a checkbox you
+can't check reads as a task you have failed to do. The second column exists because most
+of a project is spent WAITING, and a stage showing "nothing needed from you" and nothing
+else reads as a screen that has stopped working. Its heading is the partner's first name
+once there is one, and "Frappe" before that — which during custom's matching stages is
+literally true.
+
+**The listing row answers "does this want me?", not "how far along is it?"** It read
+`Step 3 of 5`, which is a progress report: four of those in a column tell you where four
+projects stand and nothing about which one to open. The stage badge already says where a
+project is. So the row now reads **2 things need you** or **Waiting on Tridots**, and the
+two halves of that line are not the same weight — what the project wants from you is the
+reason to open the row; the countdown beside it is background. Both in `ink-gray-5` made
+the reader parse two equal facts to find the actionable one.
+
+`stageWork` in `data/project.js` derives it, and the project page and the row read the
+same function so they cannot disagree.
+
+**Almost every task is real.** `CUSTOMER_RESPONSIBILITIES`, `INCLUDED_IN_ALL`,
+`ONBOARDING_CHECKLIST` and the session homework are imported rather than retyped, so a
+change to the contract reaches the tracker. What's invented is which stage each one lands
+in.
+
+**The progress bar is gone, and the stage list is why.** Three things were rendering one
+fact: an interval bar, the "Step 3 of 5" beside it, and the list below — which already
+shows position, completion and what is left, with a tick on every stage behind you and a
+ring on the one you are at. The list IS the bar, drawn vertically and legibly. The bar also
+filled `surface-gray-10`, a near-black, while the stage badge in the header says the same
+thing in blue, orange or green: two colour languages for one fact.
+
+**Stage rows reveal their chevron on hover.** Five of them standing permanently down the
+right edge — four on stages nobody is going to open — is an affordance used as decoration,
+and the whole row is the button anyway. The rule lives in `index.css` inside
+`@media (hover: hover)`, so a touch screen (which has no hover to reveal anything with)
+keeps them visible. It is also the one place a specificity fight was likely: a
+`group-hover:opacity-100` has to out-order a media-query'd `opacity-0`, and which wins
+depends on Tailwind's emit order. A named rule decides it outright.
+
+**The scope is a sentence, not a row of pills.** "Finance, Sales, Purchase, Inventory,
+Manufacturing and HR." The pills were the only fully-round shape in the app and they
+appeared in exactly one place, which made them an orphan vocabulary rather than a device —
+a border and a radius wrapped around six single words. The section's subtitle ("What this
+project covers") went with them, since the sentence covers both jobs.
+
+**A window that is running out says so, and one that has run out says something else.**
+Under seven days the countdown goes amber; past the end it goes red and changes sentence —
+"Validity expired on Oct 27 — the pack's 70 hours were not used". A countdown you can still
+act on and a thing that has already happened to you are different facts and want different
+wording, not one line with a number swapped.
+
+⚠️ Seven days flat, not a proportion. "Fewer than seven days" is a unit people already
+think in; 20% of a 60-day pack and 20% of ten working days are two different amounts of
+trouble, and neither is a thing anyone says out loud. `urgent` is derived in `windowFor`
+so the listing row and the project page cannot disagree about when a window has become a
+problem.
+
+⚠️ Colour is never the only signal. The words differ in all three states, so nothing here
+depends on telling amber from grey.
+
+**Stages move two ways, and both write the same field.** "Everything on my side is done"
+appears once every one of your tasks is ticked — an offer, not an automatic jump, because
+finishing your last task and having the page move out from under you is worse than
+pressing a button that says what it will do. The demo switcher gains a **Project stage**
+group on a project's own page, so a reviewer can see the last stage without ticking
+through twenty tasks. It deliberately leaves `done` alone: stepping back and forward has
+to return the same project.
+
+**The page's order is who → where → what next**, and the checklist — what the page is FOR
+— is third. It sits inside the stage it belongs to rather than floating above the spine as
+a "next action" panel, because a task with no stage attached is a demand without a reason.
+The stage is open by default, so it's one scroll, not one click.
+
+⚠️ **`ConfirmedPage` finds its project by partner AND pack, newest match first.** Matching
+on the partner alone put the OLDEST thing you ever bought from them on the confirmation
+screen — right partner, wrong pack, wrong stage, and a "Project created" line dated weeks
+before the click that produced it.
+
+⚠️ **`BookSlotDialog` emits `book` now**, alongside `close`. It used to emit only `close`,
+so the slot you picked went nowhere and the toast was the only trace of it. The project
+records it and the stage renders it under the task that asked for it — requested, awaiting
+confirmation, which is the honest state.
+
 ## Components and icons
 
 Everything inside Frappe Connect is composed from frappe-ui rather than
@@ -1568,6 +1823,24 @@ so there is no mapping step and "Others" is as real a constraint as any other
 group. `GROUP_OF_SEGMENT` is still exported from `data/quiz.js` and the store no
 longer imports it — it's what a group-level filter would need if one is ever
 wanted again.
+
+## The listing row's two halves
+
+**The avatar belongs to the name, not to the row.** It used to be the row's first
+flex child, which indented everything to its right by 52px — the facts included.
+Those are what thirteen rows are compared on (rate, rating, response time, and
+what the firm has done), and read down a column they had a 52px hole along their
+left edge put there by a logo that has nothing to do with the figures.
+
+So the mark, the name and the city are one cluster, and the two fact lines run
+the column's full width, flush with the avatar's left edge. Same argument the
+[review row](#reviews) already makes — an indented line loses measure for no
+gain — and the gap between the halves is unchanged at 12px, because the avatar
+(40px) is shorter than the name-and-city stack it now sits beside.
+
+⚠️ Flush with the avatar's BOX. `.fc-logo-avatar` insets the artwork 4px, so a
+logo's ink starts 4px right of the fact lines; the grey square it sits in does
+not. That's the inset doing its job, not a misalignment.
 
 ## The listing row's industry line
 

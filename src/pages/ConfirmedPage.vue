@@ -1,21 +1,17 @@
 <script setup>
 import { computed, ref, watchEffect } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Badge, Button, ScrollArea, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import BookSlotDialog from '../components/BookSlotDialog.vue'
 import PackPanel from '../components/PackPanel.vue'
-import TierIcon from '../components/TierIcon.vue'
+import ProjectPartnerCard from '../components/ProjectPartnerCard.vue'
 import IconSend from '~icons/lucide/send'
 import IconFolderPlus from '~icons/lucide/folder-plus'
 import IconMessage from '~icons/lucide/message-square'
 import frappeMark from '../assets/frappe.svg'
 import IconChevronRight from '~icons/lucide/chevron-right'
-import IconRate from '~icons/lucide/circle-dollar-sign'
-import IconStar from '~icons/lucide/star'
-import IconClock from '~icons/lucide/clock'
 import { PARTNERS } from '../data/partners'
-import { logoFor } from '../data/logos'
 import { STARTER_PACKS, marketFor, DEFAULT_REGION } from '../data/packs'
 import { projectName, stageOf } from '../data/project'
 import { useConnectStore } from '../stores/connect'
@@ -30,6 +26,7 @@ import { useConnectStore } from '../stores/connect'
 // changed on reload would be worse than one that was never shown.
 const store = useConnectStore()
 const route = useRoute()
+const router = useRouter()
 
 const pack = computed(
   () => STARTER_PACKS.find((p) => p.value === (route.query.pack ?? store.pack)) ?? null,
@@ -44,30 +41,6 @@ watchEffect(() => {
   if (pack.value && store.pack !== pack.value.value) store.selectPack(pack.value.value)
 })
 
-const logo = computed(() => (partner.value ? logoFor(partner.value.id) : null))
-
-// The same three facts the listing row carries, in the same order and with the
-// same icons — this card is that row, framed. See `PartnerRow`.
-const facts = computed(() => {
-  const p = partner.value
-  if (!p) return []
-  return [
-    { icon: IconRate, text: p.rate ? `From $${p.rate}/hr` : 'Rate undisclosed', muted: !p.rate },
-    { icon: IconStar, text: `${p.rating}`, sub: `(${p.reviews})` },
-    { icon: IconClock, text: `Typically ${p.responds}` },
-  ]
-})
-
-// "Expertise across A, B, C and N more" — the wireframe's line, and a different
-// claim from the listing's "N success stories across…". Success stories are
-// counted evidence; this is what they were hired for.
-const SHOWN = 3
-const expertise = computed(() => {
-  const industries = partner.value?.industries ?? []
-  const rest = Math.max(industries.length - SHOWN, 0)
-  return { lead: industries.slice(0, SHOWN).join(', '), rest }
-})
-
 // First name only — "Tridots will be in contact", not "Tridots Tech Pvt Ltd
 // will be in contact". A sentence about a person you are about to meet.
 const shortName = computed(() => partner.value?.name.split(' ')[0] ?? 'Your partner')
@@ -79,8 +52,20 @@ const shortName = computed(() => partner.value?.name.split(' ')[0] ?? 'Your part
 //
 // The stage is the project's own (`data/project.js`), not a CRM funnel: a
 // business that just bought a pack is not a "Proposal".
-const project = computed(() => store.project)
-const stage = computed(() => stageOf(project.value?.stage))
+// ⚠️ Looked up by the PARTNER AND THE PACK, both of which this screen already
+// has in its URL — and the most recent match, not the first. Since the store
+// went from one project to many, "the newest project in the list" would have
+// been this screen describing whichever project happened to be created last,
+// and "the first one with this partner" describes the OLDEST thing you ever
+// bought from them. See `projectForBooking`.
+const project = computed(() =>
+  store.projectForBooking(route.query.partner, route.query.pack ?? store.pack),
+)
+// The stage is the project's own (`data/project.js`), not a CRM funnel: a
+// business that just bought a pack is not a "Proposal". `stageOf` takes the
+// SERVICE now, because the three services have different spines — booking a
+// pack is always 'pack', which is what a URL-only arrival falls back to.
+const stage = computed(() => stageOf(project.value?.service ?? 'pack', project.value?.stage))
 const title = computed(() =>
   pack.value ? projectName(pack.value, store.company.name || store.viewer.company) : '',
 )
@@ -161,14 +146,17 @@ const toastOnce = (title, description) => toast.info(title, { id: 'confirmed', d
 // partner, so there is nothing for this screen to pass but the flag.
 const booking = ref(false)
 
-// ⚠️ Inert, and saying so. There is no project screen yet — `Implementation` in
-// the sidebar is the row holding its place — so this names what is missing
-// rather than swallowing the click.
+// The project screen exists now, so this goes there. It used to raise a toast
+// naming the gap — `Implementation` in the sidebar was the row holding its
+// place, and both are wired up.
+//
+// ⚠️ Falls back to the index when there is no project behind the page, which is
+// what a forwarded link or a reload leaves: `?pack=&partner=` renders this
+// screen in full, but there is no project to open. The list is the honest
+// destination — it says what you are tracking, which on that arrival is
+// nothing.
 const viewProject = () =>
-  toastOnce(
-    'The project screen is not built yet',
-    'This is where you would follow the implementation.',
-  )
+  router.push(project.value ? `/connect/projects/${project.value.id}` : '/connect/projects')
 
 // ⚠️ Still inert, and saying so. Cancelling a paid booking has terms behind it
 // that nobody has written. A control that swallows a click reads as broken.
@@ -217,86 +205,16 @@ const cancel = () =>
               Your {{ pack.name }} pack is booked and matched with a Partner.
             </p>
 
-            <!-- ⚠️ NOT the listing row's structure, and that's the one place it
-               departs. There the avatar indents everything beside it, because a
-               row is scanned down a column of identical rows and the indent is
-               what separates one from the next. This is a single card, so only
-               the IDENTITY sits beside the avatar — the name and the city, which
-               are what the mark is a picture of. The facts, the expertise line
-               and the button belong to the card rather than to the logo, and
-               they start where the avatar starts.
-               Everything else is the row's: same 40px `2xl` avatar at 8px
-               radius, same three facts with the same icons, same 2/12/4 rhythm.
-               16px of padding, and a border rather than the row's hover fill —
-               nothing here is a list, so there is nothing to hover between. -->
-            <article class="mt-4 rounded-6 border border-outline-gray-1 p-4">
-              <!-- The identity: the mark and what it names. -->
-              <div class="flex items-start gap-3">
-                <Avatar
-                  v-if="logo"
-                  :image="logo"
-                  :label="`${partner.name} logo`"
-                  size="2xl"
-                  shape="square"
-                  class="fc-logo-avatar"
-                />
-                <!-- Not an `Avatar`: its fallback renders `label[0]` on a theme
-                   surface, and this is two initials on the partner's own brand
-                   colour. Same 40px and 8px radius as `2xl`. -->
-                <div
-                  v-else
-                  class="flex size-10 shrink-0 items-center justify-center rounded-4 text-xs font-semibold text-white"
-                  :style="{ backgroundColor: partner.color }"
-                  aria-hidden="true"
-                >
-                  {{ partner.initials }}
-                </div>
+            <!-- Who you were matched with. Extracted to a component the moment
+                 the project screen needed the same card — see
+                 `ProjectPartnerCard` for why it departs from the listing row's
+                 structure, and for the three facts it carries.
 
-                <div class="min-w-0 flex-1">
-                  <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <h2 class="text-lg font-medium text-ink-gray-8">{{ partner.name }}</h2>
-                    <TierIcon :tier="partner.tier" />
-                  </div>
-                  <p class="mt-0.5 text-p-sm text-ink-gray-6">{{ partner.city }}</p>
-                </div>
-
-                <!-- ⚠️ Top right, on the identity row. It is the one thing the
-                     card sends you to, and at the bottom it sat under the facts
-                     as though it were about the last line it followed. Beside
-                     the name, it is plainly about the partner. -->
-                <Button
-                  class="shrink-0"
-                  variant="subtle"
-                  size="sm"
-                  label="Visit profile"
-                  :route="`/connect/partners/${partner.id}`"
-                >
-                  <template #suffix><IconChevronRight class="size-4" /></template>
-                </Button>
-              </div>
-
-              <!-- Full width from here, flush with the avatar's left edge. -->
-              <div
-                class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-p-sm text-ink-gray-7"
-              >
-                <span v-for="f in facts" :key="f.text" class="flex items-center gap-1">
-                  <component :is="f.icon" class="size-3.5 shrink-0 text-ink-gray-6" />
-                  <span :class="f.muted ? 'text-ink-gray-5' : ''">{{ f.text }}</span>
-                  <span v-if="f.sub" class="text-ink-gray-5">{{ f.sub }}</span>
-                </span>
-              </div>
-
-              <!-- The tail can't break. Wrapping it stranded "more" alone on a
-                 second line; the listing solves the same problem by pinning its
-                 tail and truncating the lead, and here the line is allowed to
-                 wrap so the tail just has to stay whole. -->
-              <p class="mt-1 text-p-sm text-ink-gray-6">
-                Expertise across {{ expertise.lead }}
-                <span v-if="expertise.rest" class="whitespace-nowrap">
-                  and {{ expertise.rest }} more
-                </span>
-              </p>
-            </article>
+                 ⚠️ No `#actions` slot here. The card takes project-level
+                 controls, and this screen's primary button sits six inches
+                 below offering the same thing — two Request a slot buttons on
+                 one screen is the page asking twice. -->
+            <ProjectPartnerCard class="mt-4" :partner="partner" />
 
             <!-- ⚠️ Requesting a slot is the PRIMARY action on this screen: the
                pack is paid for later and the partner is already assigned, so the
@@ -504,10 +422,15 @@ const cancel = () =>
       </aside>
     </div>
 
+    <!-- ⚠️ `@book` records the slot on the project, which is new: the dialog
+         used to emit only `close` and the request went nowhere. The project
+         screen reads it back to say what the stage is waiting for. A URL-only
+         arrival has no project and `recordSlot` no-ops on a missing id. -->
     <BookSlotDialog
       v-if="partner"
       :open="booking"
       :partner="partner"
+      @book="store.recordSlot(project?.id, $event)"
       @close="booking = false"
     />
   </ConnectShell>

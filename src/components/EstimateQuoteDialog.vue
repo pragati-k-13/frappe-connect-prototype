@@ -100,8 +100,14 @@ const possessive = (name) => (name.endsWith('s') ? `${name}'` : `${name}'s`)
 // HR shouldn't be quoting Frappe HR work. What's dropped is dropped silently —
 // the modal is an estimate of what this partner would do, not an audit of what
 // they don't.
+// ⚠️ `store.scopeModules`, not `store.project.modules`. This line read the
+// second of two `project` keys in the store — an object literal keeps the last
+// one, so `project` was the booked implementation and `.modules` was `null`.
+// The modal threw the moment it opened. The getter hands back the newest
+// project's scope, or a default when there are no projects, which is the state
+// a signed-out visitor opening this is always in.
 const rows = computed(() =>
-  Object.entries(store.project.modules)
+  Object.entries(store.scopeModules)
     .filter(([app]) => props.partner.apps.includes(app))
     .flatMap(([app, keys]) =>
       modulesFor(app, keys).map((module) => ({
@@ -184,6 +190,31 @@ watch(
   },
   { immediate: true },
 )
+
+// Contact, from the foot of the estimate.
+//
+// ⚠️ CLOSES THIS PANEL FIRST. Contact now opens the inquiry dialog, and two
+// modals stacked over each other fight over the focus trap and read as the app
+// having lost its place. This one has said everything it has to say by the time
+// the button is pressed.
+//
+// ⚠️ It hands the ticked rows across as a PREFILL. The visitor has just spent a
+// minute deciding which modules count, against a rate and a figure; asking the
+// same question again on the next screen is exactly the friction this flow was
+// built to remove. It only lands if they have no project yet — with one, the
+// inquiry sends that project's own scope, which is the thing the estimate was
+// derived from in the first place (`store.scopeModules`).
+const contactWithEstimate = () => {
+  const prefill = {
+    apps: [...new Set(selected.value.map((r) => r.app))],
+    // `app:key`, the shape `ContactPartnerDialog`'s module picker holds — see
+    // the ⚠️ on its values. NOT this panel's own `row.key`, which joins with a
+    // hyphen and is a different string.
+    modules: selected.value.map((r) => `${r.app}:${r.module.key}`),
+  }
+  close()
+  contactPartner(props.partner, prefill)
+}
 
 const close = () => {
   emit('close')
@@ -525,14 +556,14 @@ const close = () => {
            to click was to go and get the actual answer somewhere else.
            Wrong way round. The figure above IS the thing; the button carries it
            into a conversation with the partner who'd deliver it.
-           ⚠️ Same destination as every other Contact on this page: the in-app
-           messages screen, opened on this partner's thread. Navigating away
-           takes the dialog with it. -->
+           ⚠️ Same destination as every other Contact on this page, which is no
+           longer the messages screen: it is the inquiry dialog, carrying the
+           rows that are still ticked. See `contactWithEstimate`. -->
         <Button
           variant="solid"
           class="mt-5 w-full"
           label="Contact partner with this estimate"
-          @click="contactPartner(partner)"
+          @click="contactWithEstimate"
         >
           <template #prefix><LucideMessageSquare class="size-4" /></template>
         </Button>
