@@ -86,7 +86,9 @@ const confirm = () => {
   <!-- ⚠️ `md` (448px), a step down from the `lg` the app's other dialogs use.
        This one is a column of single-line fields and a list of short options —
        at 512px the radio and checkbox labels sat in a lot of empty space to
-       their right, which reads as a wide box holding narrow content. The
+       their right, which reads as a wide box holding narrow content.
+       `ContactPartnerDialog` is `md` for the same reason: it asks these same
+       questions, and the same questions should not come at two widths. The
        estimate dialog stays `xl` because it holds a table; this holds a form. -->
   <Dialog :open="store.companyPrompt" :dismissible="false" :show-close-button="false" size="md">
     <!-- ⚠️ `#title` and the default slot, NOT v0's `#body-title` / `#body-content`
@@ -125,9 +127,18 @@ const confirm = () => {
            requirements.
            `md` is a 4px rule — `sm`'s 2px read as a hairline rather than as a
            thing with three parts, and the segment you have filled is the whole
-           point. -->
+           point.
+           ⚠️ The segments are rounded HERE because `Progress` has no prop for it.
+           `intervals` renders each segment as a bare `h-full w-full` div, and the
+           only radius in the component is `rounded-7` on the track with
+           `overflow-hidden` — which rounds the outer two corners of the whole bar
+           and leaves every segment edge inside it square. Checked against
+           beta.63's `ProgressProps` and the live docs playground: value, label,
+           size, intervals, hint, and nothing for shape.
+           `rounded-full` on a 4px-tall segment is a 2px radius, so each one
+           reads as its own capsule rather than a slice of a cut-up bar. -->
       <Progress
-        class="mb-6"
+        class="mb-6 [&_[role=progressbar]>div]:rounded-full"
         size="md"
         intervals
         :interval-count="COMPANY_STEPS"

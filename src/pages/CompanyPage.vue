@@ -117,9 +117,18 @@ useAuthExit()
          the buttons said where you were and a stepper was chrome describing
          itself; at three, "how much more of this is there" is a real question
          they can't answer. `md` is a 4px rule — `sm`'s 2px read as a hairline
-         rather than as a thing with three parts. -->
+         rather than as a thing with three parts.
+         ⚠️ The segments are rounded HERE because `Progress` has no prop for it.
+           `intervals` renders each segment as a bare `h-full w-full` div, and the
+           only radius in the component is `rounded-7` on the track with
+           `overflow-hidden` — which rounds the outer two corners of the whole bar
+           and leaves every segment edge inside it square. Checked against
+           beta.63's `ProgressProps` and the live docs playground: value, label,
+           size, intervals, hint, and nothing for shape.
+           `rounded-full` on a 4px-tall segment is a 2px radius, so each one
+           reads as its own capsule rather than a slice of a cut-up bar. -->
     <Progress
-      class="mt-5"
+      class="mt-5 [&_[role=progressbar]>div]:rounded-full"
       size="md"
       intervals
       :interval-count="COMPANY_STEPS"

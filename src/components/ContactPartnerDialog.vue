@@ -351,12 +351,13 @@ const send = () => {
 </script>
 
 <template>
-  <!-- ⚠️ `lg` (512px), the Dialog's own default, where `CompanySignupDialog`
-       steps down to `md`. That one is a column of single-line fields and short
-       options, which at 512 sat in a lot of empty space. This one holds a
-       two-column summary — a label column and a list of module names that runs
-       to four or five items — and at 448px "Manufacturing, Stock, Accounts,
-       Inventory" wraps to three lines against a 144px label column. -->
+  <!-- ⚠️ `md` (448px), matching `CompanySignupDialog`. It sat at `lg` while that
+       one was at `md`, which put the SAME company questions at two widths
+       depending on which door you came through — and those steps are exactly the
+       single-line fields and short options that looked lost at 512.
+       The app's other dialogs keep their own sizes: they hold a table, a
+       calendar beside a details column, a description list. This is the width
+       for the company questions, not a width for everything. -->
   <!-- ⚠️ SEALED while the wizard is running: no close button, no click-away, no
        Escape. Frappe assigns the partner off the company answers, so an account
        that started the questions and walked out of them is an account nothing
@@ -369,7 +370,7 @@ const send = () => {
        revisit first if it bites: a Cancel on step 1 is a two-line change. -->
   <Dialog
     :open="open"
-    size="lg"
+    size="md"
     :dismissible="!wizard"
     :show-close-button="!wizard"
     @update:open="!$event && close()"
@@ -420,9 +421,18 @@ const send = () => {
              that the bar's accessible value falls back to a bare percentage;
              hiding a label visually would mean overriding the component's
              internals, which is a bigger decision than this bar deserves. -->
+        <!-- ⚠️ The segments are rounded HERE because `Progress` has no prop for it.
+           `intervals` renders each segment as a bare `h-full w-full` div, and the
+           only radius in the component is `rounded-7` on the track with
+           `overflow-hidden` — which rounds the outer two corners of the whole bar
+           and leaves every segment edge inside it square. Checked against
+           beta.63's `ProgressProps` and the live docs playground: value, label,
+           size, intervals, hint, and nothing for shape.
+           `rounded-full` on a 4px-tall segment is a 2px radius, so each one
+           reads as its own capsule rather than a slice of a cut-up bar. -->
         <Progress
           v-else
-          class="mt-3"
+          class="mt-3 [&_[role=progressbar]>div]:rounded-full"
           size="md"
           :value="progress"
           intervals
