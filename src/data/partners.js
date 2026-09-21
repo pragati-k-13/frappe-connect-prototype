@@ -45,6 +45,20 @@ export const APPS = [
 // The scope document says ₹2,000/hr is the real India rate — so the implausible
 // number was the invented PARTNER rate, not the pack price. India's prices are
 // now the real ones; see `REGION_PRICING`.
+//
+// ⚠️ Every `packs` array below was rewritten when the catalogue stopped being a
+// ladder of tiers and became four module-named packs. The old ids map on like
+// this, and the rule is worth keeping in mind if any partner data arrives from
+// an older copy:
+//
+//   core-erpnext → accounts-sales-purchase-stock   (identical modules)
+//   manufacturing → manufacturing
+//   frappe-hr     → hrms + payroll                 (the app pack split in two)
+//   all-in-one    → all four                       (it was all four)
+//
+// A partner who sold one tier now sells its constituents, so nobody's offer
+// narrowed in the rewrite. `all-in-one` is gone entirely — there is no bundle
+// left to be "all in one" of.
 
 // `tier` is 'gold' | 'silver' | 'bronze' — the three levels of the partner
 // programme, drawn from Frappe's own partner badge set. Gold renders as a
@@ -646,7 +660,7 @@ export const PARTNERS = [
       'Chemical Manufacturing',
     ],
     apps: ['erpnext', 'helpdesk', 'crm'],
-    packs: ['core-erpnext', 'manufacturing', 'all-in-one'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms', 'payroll'],
   }),
   P('Software@Work', {
     tagline: 'Running payroll, plants and pipelines on one system since 2011',
@@ -663,7 +677,7 @@ export const PARTNERS = [
     stories: 9,
     industries: ['Discrete Manufacturing', 'Professional services', 'Goods Trading', 'Logistics'],
     apps: ['erpnext', 'frappe-hr', 'crm'],
-    packs: ['core-erpnext', 'manufacturing', 'all-in-one'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms', 'payroll'],
   }),
   P('New Indictrans', {
     tagline: 'Open source for institutions that keep records for decades',
@@ -681,7 +695,7 @@ export const PARTNERS = [
     stories: 3,
     industries: ['Process Manufacturing', 'Education', 'Government'],
     apps: ['erpnext', 'helpdesk', 'learning'],
-    packs: ['core-erpnext', 'frappe-hr'],
+    packs: ['accounts-sales-purchase-stock', 'hrms', 'payroll'],
   }),
   P('8848 Digital', {
     tagline: 'Traceability from the shop floor up',
@@ -703,7 +717,7 @@ export const PARTNERS = [
       'Retail',
     ],
     apps: ['erpnext', 'crm', 'frappe-hr', 'insights'],
-    packs: ['core-erpnext', 'manufacturing', 'all-in-one'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms', 'payroll'],
   }),
   P('Greycube Technologies', {
     tagline: 'A small studio setting up ERPNext properly for small teams',
@@ -720,7 +734,7 @@ export const PARTNERS = [
     stories: 0,
     industries: ['Goods Trading', 'E-commerce', 'Retail'],
     apps: ['erpnext', 'helpdesk'],
-    packs: ['core-erpnext'],
+    packs: ['accounts-sales-purchase-stock'],
   }),
   P('Wahni', {
     tagline: 'One system across every outlet, from Kerala to the Gulf',
@@ -737,7 +751,7 @@ export const PARTNERS = [
     stories: 5,
     industries: ['Food and Beverages', 'Retail', 'Healthcare', 'Education'],
     apps: ['erpnext', 'helpdesk', 'frappe-hr', 'school'],
-    packs: ['core-erpnext', 'manufacturing', 'frappe-hr'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms', 'payroll'],
   }),
   P('Hybrowlabs', {
     tagline: 'Building less on Frappe, so you maintain less',
@@ -754,7 +768,7 @@ export const PARTNERS = [
     stories: 2,
     industries: ['Software Development', 'E-commerce', 'Professional services'],
     apps: ['erpnext', 'crm', 'drive', 'framework'],
-    packs: ['core-erpnext', 'frappe-hr'],
+    packs: ['accounts-sales-purchase-stock', 'hrms', 'payroll'],
   }),
   P('Finbyz Tech', {
     tagline: 'Built for the finance team that lives in the ERP',
@@ -772,7 +786,7 @@ export const PARTNERS = [
     stories: 7,
     industries: ['Chemical Manufacturing', 'Goods Trading', 'Finance', 'Logistics'],
     apps: ['erpnext', 'frappe-hr', 'insights'],
-    packs: ['core-erpnext', 'manufacturing'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing'],
   }),
   P('ALYF', {
     tagline: 'Open source ERP for the German Mittelstand',
@@ -789,7 +803,7 @@ export const PARTNERS = [
     stories: 1,
     industries: ['Discrete Manufacturing', 'Real Estate', 'Rental Business'],
     apps: ['erpnext', 'crm'],
-    packs: ['core-erpnext', 'manufacturing'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing'],
   }),
   P('Craft Interactive', {
     tagline: 'Multi-entity, multi-currency, across the Gulf since 2012',
@@ -812,7 +826,7 @@ export const PARTNERS = [
       'Hotels, Restaurants and Cafes',
     ],
     apps: ['erpnext', 'helpdesk', 'crm'],
-    packs: ['core-erpnext', 'all-in-one'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms', 'payroll'],
   }),
   P('Kingstech Services', {
     tagline: 'One rollout, several jurisdictions, out of Singapore',
@@ -829,7 +843,7 @@ export const PARTNERS = [
     stories: 0,
     industries: ['Goods Trading', 'E-commerce', 'Logistics', 'Professional services'],
     apps: ['erpnext', 'helpdesk', 'crm'],
-    packs: ['core-erpnext', 'all-in-one'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms', 'payroll'],
   }),
   P('Navari', {
     tagline: 'Software built for the conditions East Africa actually works in',
@@ -847,7 +861,7 @@ export const PARTNERS = [
     stories: 2,
     industries: ['Agriculture', 'Goods Trading', 'Nonprofit', 'Logistics'],
     apps: ['erpnext', 'helpdesk', 'frappe-hr'],
-    packs: ['core-erpnext'],
+    packs: ['accounts-sales-purchase-stock'],
   }),
   P('Korecent', {
     tagline: 'ERP as part of your quality system, not beside it',
@@ -864,7 +878,7 @@ export const PARTNERS = [
     stories: 3,
     industries: ['Medical Device Manufacturing', 'Healthcare', 'Professional services'],
     apps: ['erpnext', 'frappe-hr', 'crm', 'insights'],
-    packs: ['core-erpnext', 'frappe-hr'],
+    packs: ['accounts-sales-purchase-stock', 'hrms', 'payroll'],
   }),
 ]
 

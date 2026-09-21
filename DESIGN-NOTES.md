@@ -394,11 +394,20 @@ pack, or a custom engagement — the same split as `IMPLEMENTATION_TYPES` in `da
 so a visitor who answered that question is looking at the card they already picked.
 
 **The hours range is derived, not written.** It's the low and high of the starter packs
-this partner actually offers: Tridots Tech sells Core ERPNext (40h), Manufacturing (70h)
-and All in one (100h), which is exactly where the design's "40-100 hrs" comes from. A
-partner offering one pack shows a single figure rather than a range of one — Greycube
-Technologies reads "40 hrs". No pack at all and the card doesn't render, because the card
-is the claim "you can buy a fixed scope from us".
+this partner actually offers: Tridots Tech sells all four, which are 5, 10, 5 and 5 hours,
+so the card reads "5-10 hrs". A partner whose packs are all one size shows a single figure
+rather than a range of one — Greycube Technologies reads "5 hrs" — and since three of the
+four packs are 5 hours, that's now the common case rather than the exception. No pack at
+all and the card doesn't render, because the card is the claim "you can buy a fixed scope
+from us". (The design's "40-100 hrs" came from the old nesting packs; see the repricing
+note below.)
+
+⚠️ **A pack is paid to Frappe, not to the partner**, and that has to survive being read on
+a partner's page: a fixed price beside a named company reads as that company's invoice.
+So the section carries a line under the two cards — not inside the pack card, where a
+third line drops its action below the custom card's and breaks the pair. The same fact is
+in the packs paragraph on `/connect`, in step 2 of "How it works" on `/connect/packs`, in
+step 4 on the confirmation screen, and first in the commercial terms.
 
 **No figure on the custom card, on purpose.** A custom engagement priced on a profile page
 would be a number nobody can stand behind, so it says so and hands over to the
@@ -486,8 +495,9 @@ starts to crowd the ×.
 #### ⚠️⚠️ Frappe HR and ERPNext's HR module are two different things
 
 Frappe HR is a separate app: its own entry in `APPS`, listed by nine of the thirteen
-partners, with its own 30-hour starter pack in `STARTER_PACKS`. ERPNext also has an HR
-module, and that is the `hr` row the estimator shows. **They are not two names for one
+partners, and it is what the HR and Payroll packs in `STARTER_PACKS` sell (ids `hrms` and
+`payroll` — never `hr`, for exactly this reason). ERPNext also has an HR module, and that
+is the `hr` row the estimator shows. **They are not two names for one
 thing and neither substitutes for the other.** Any copy, filter or estimate that treats
 them as interchangeable is wrong.
 
@@ -550,8 +560,12 @@ to wait for the lazily-imported route component to be in the DOM. The target is
 silently, since the page still loads, just at the top.
 
 **A total above the partner's own pack range is not a bug.** Greycube's card advertises
-"40 hrs" because it sells one 40-hour pack; the estimate says 63 because that's the
+"5 hrs" because the one pack it sells is 5 hours; the estimate says 63 because that's the
 visitor's scope. A pack is a fixed-scope product; an estimate is your actual project.
+
+⚠️ The gap used to be a few hours and is now an order of magnitude, which is a product
+question rather than a rendering one — see the warning at the top of `data/modules.js`.
+Nothing puts the two figures in one sentence today.
 
 **Module hours are derived, never stored** — `moduleHours()` sums a module's tasks. A
 module carrying its own `hours` beside a task list is two numbers claiming the same thing,
@@ -880,7 +894,272 @@ its chart formatters are deliberately unexported because they hardcode a locale.
 **Possessives are computed.** Three partners end in an s — Greycube Technologies, Kingstech
 Services, Hybrowlabs — and a bare `${name}'s` gave "Greycube Technologies's".
 
-#### ⚠️ The starter packs were repriced
+#### ⚠️ The packs were renamed, and repriced again
+
+The catalogue is no longer a ladder. It was Core ERPNext (40h), Manufacturing (70h), All in
+one (100h) and Frappe HR (30h), where three tiers nested and "All in one" said nothing
+about what was in it. It is now four **disjoint, module-named** packs, each priced at the
+sheet's unchanged ₹2,000/hr:
+
+| Pack                             | Modules                    | Hours | India price |
+| -------------------------------- | -------------------------- | ----- | ----------- |
+| Accounts, Sales, Purchase, Stock | the first four scope areas | 5     | ₹10,000     |
+| Manufacturing                    | Manufacturing              | 10    | ₹20,000     |
+| HR                               | HRMS                       | 5     | ₹10,000     |
+| Payroll                          | Payroll                    | 5     | ₹10,000     |
+
+Together they are exactly `PACK_SCOPE`, with no overlap — a business that makes what it
+sells buys two packs rather than a bigger one.
+
+Three consequences worth knowing:
+
+- **The comparison table on `/connect` lost its Modules row**, and the packs lost the
+  `modules` display string that fed it. With the name carrying the modules, that row
+  printed its own column header back. Its headers are also the only ones in the app that
+  aren't uppercased: "Accounts, Sales, Purchase, Stock" in uppercase with tracking took
+  four lines in a 160px cell.
+- **"How it works" moved off the catalogue and onto the pack page**, directly under
+  "Continue to checkout". It answers what pressing that button sets off, and on the
+  catalogue it explained a purchase you could not yet make, three sections below the rows
+  that start one. `mt-10` there rather than the `mt-24` its neighbours take: it belongs to
+  the button above it, and a 96px gap would file it as a fourth reading of the pack.
+  ⚠️ The two `.fc-col-3` rows are now on different screens, so the class no longer lines
+  two sets of dividers down one page — it holds one measurement for both, and both still
+  have to be checked when it changes.
+- **Payment moved to the front of "How it works".** The list ran
+  introductory call → pay → coordinate, on the argument that meeting your assigned partner
+  before any money moved was the difference between this and being handed an invoice with
+  a name on it. It is pay → assignment → coordinate now, and the introductory call is no
+  longer one of the three beats the page advertises, though it is still in the flow.
+
+  ⚠️ `PACK_STAGES` still opens Confirmed → Intro call, with "Nothing starts until you meet
+  them" — the project spine wasn't in scope for this change.
+- **The confirmation screen is now the pack, not the procedure.** It was a numbered "How
+  this works" list at 700px with the pack held in a 352px aside — the sequence in front,
+  the thing being bought in the margin. The steps are gone entirely and the pack's own
+  document runs the full 800px measure: what this pack covers module by module, then what
+  ships with every pack and what never does, then the terms. Narrowest to widest, each
+  qualifying the one above it.
+
+  `PackScope` renders the first of those. It has now been a dialog body, a side panel and a
+  page section without a line changing inside it, which is what "content, not container"
+  was for — and it is the last of those three that survives. The terms stay disclosures
+  rather than printed lists: they are on the page instead of a navigation away, which is
+  the change, but thirteen lines of contract under a purchase would bury the scope.
+
+  ⚠️ Confirm sits under the price, not at the foot of the document. With everything
+  collapsed the page is ~1,740px, and a buying gesture two screens below the thing it buys
+  is a scroll hunt. The cost is that the terms are below the button — which is the reason
+  they are on this page at all.
+
+- **The catalogue row is the control, and it lost both its buttons.** Each row ended in an
+  info button that opened the scope in a side panel and a gated "Get started" that pushed
+  the confirmation screen — eight targets across four packs, for what is one decision each.
+  The row is now a link to the pack's page, which holds both jobs: the scope to read and
+  the Confirm to press. `PackDrawer` is deleted and the catalogue's `?pack=` query is gone
+  with it.
+
+  The row borrows `fc-partner-row` / `fc-partner-row-body` from `PartnerRow`, as
+  `ProjectRow` already does: hover fill on the outer box bleeding 12px each side, rule on
+  the inner box at the content column's width, and the CSS in `index.css` hiding the rules
+  that touch a hovered row. The anchor wraps the NAME only and stretches with
+  `after:absolute after:inset-0` — a link around the whole row would read the price and
+  every detail line as part of its accessible name.
+
+  ⚠️ Nothing gates the row. Reading a pack never needed an account; the gate is on the
+  pack page's "Continue to checkout", which is the gesture that belongs to one, and
+  `store.selectPack` moved to the page that reads `?pack=`.
+- **There is a checkout now, and it is where the pack is actually bought.** Confirm used
+  to assign the partner, open the conversation, create the project and push the confirmed
+  screen on one click — a purchase behind a button labelled Confirm, with no payment
+  anywhere in the flow. The pack page says **Continue to checkout** now, and
+  `/connect/checkout` does the rest.
+
+  Two steps, an accordion, because for a new account they are a sequence: Frappe can't
+  match a partner without the company answers, and nobody should pay before the thing they
+  are paying for has someone to deliver it. Step 1's CTA opens `CompanySignupDialog` — the
+  same dialog the rest of the app uses, a fourth copy of those questions being how two
+  sign-ups through two doors come to record different things. When the company lands, step
+  1 ticks and collapses to its answer and step 2 opens itself.
+
+  ⚠️ **A returning customer sees no steps at all.** With the company already on file there
+  is exactly one thing left to decide, and a numbered accordion around a single question
+  is procedure invented to hold one answer: a step 1 that is nothing but a green tick, a
+  "2" counting towards a total nobody needs, and a collapse control on the only thing on
+  screen. They get the payment methods under a plain `h2`, like any other section in the
+  app.
+
+  ⚠️ Which shape a visit takes is **sampled once, at setup, and is deliberately not a
+  computed**. Somebody who arrives without a company answers it here, and tracking the
+  live value would re-shape the page under them the moment they pressed Confirm in the
+  dialog — the step they just finished vanishing, the numbers disappearing, the section
+  they were heading for sliding up the page.
+
+  ⚠️ The methods themselves are `PaymentMethodPicker`, in their own file, precisely
+  because the page renders them in two frames. The rows, the marks, the wording and the
+  focus behaviour have to be identical in both, and two blocks of markup meant to stay
+  identical are two blocks that will not.
+
+  ⚠️ **A new visitor is no longer met by the company dialog on arrival.** `VerifyPage`
+  used to land the account, push the confirm screen and throw the modal over it; on the
+  pack path it now routes to checkout and opens nothing, because the screen asks for the
+  company itself. A dialog opening unbidden would answer step 1 before the visitor had
+  seen there were two.
+
+  ⚠️ **Checkout is the only place that adds tax.** Everywhere else quotes ex-tax and says
+  so, because that is how the scope document prices. `checkoutFor` produces the three
+  lines the summary prints — pack, tax, total — and 18% is India's real rate. No other
+  market's is decided, so there the tax row prints its label with no figure and the total
+  is the subtotal; inventing a VAT percentage on a checkout charges a number nobody agreed.
+
+  ⚠️ **The pay button carries no amount** — that is the summary's job, beside it, and a
+  figure printed twice is a figure that can be wrong in one place. It carries the provider
+  instead ("Pay with Razorpay"), because the surprise in the click is that it opens
+  someone else's sheet. The METHOD picks the provider, not the region: card → Stripe,
+  RuPay and UPI → Razorpay. It is never disabled — pressing it with a step outstanding
+  opens that step and says why, which is this codebase's rule for every primary.
+
+  ⚠️ **`PaymentSheetDialog` collects nothing and must never collect anything** — no card
+  number, no expiry, no CVC, no UPI id. The real thing is the provider's own hosted sheet,
+  which is exactly why the line under the pay button ("We never see your card or UPI
+  details") is true. It is also not a look-alike of either provider's interface: this
+  app's own surfaces, saying in words whose sheet it stands for.
+
+  ⚠️ **No brand marks.** The design prints Visa, Mastercard, RuPay and UPI logos down the
+  right of each method. Those are trademarks, and a hand-drawn approximation on a checkout
+  is worse than none — it is the one screen where a not-quite-right mark reads as a
+  not-quite-right merchant. The networks are named in words until licensed assets land.
+- **The pack page prints the contract.** `PackScope`'s every row used to be a `<details>`
+  — nineteen collapsed triangles on the biggest pack — and the argument was sound where it
+  was written: open, that document is ~2,000px in a 420px panel and nobody scrolls it. The
+  panel is gone. It renders on the pack's own page at an 800px measure, where the reader's
+  actual question is "is payment reconciliation in this or not", and they were being asked
+  to open nineteen triangles to find out on the screen where they decide to spend the
+  money. It is a label column and a run now, module by module, with each module's
+  carve-outs as its last row.
+
+  It cost almost nothing in length — nineteen closed rows and nineteen printed ones are
+  about the same height — and it turned the Payroll page from three triangles into a pack
+  whose entire scope reads in one screen. ⚠️ The label column is a grid so it holds one
+  width down every module; below `sm` there is no grid, so each pair carries its own top
+  margin (`gap-y` applies to nothing there, and without it a run ran into the next label).
+  ⚠️ The carve-out row keeps the column's weight and loses only its colour — dropping both
+  made "Not included" read as a caption on the row above rather than as part of the
+  specification.
+- **The pack page's header is one horizontal band.** It has been three things, and the
+  last two are why it is this one.
+
+  First a three-across `fc-col-3` row of price / hours / validity — the same ruled device
+  the steps row uses sixty pixels below it, so the page printed one shape twice, and the
+  price was one of three equal columns on a screen whose next click is a payment.
+
+  Then a two-column header with the price and the button boxed at the right, at the
+  checkout summary's own width. The box fixed a real problem — loose on the page the
+  button hung in mid-air, a right-aligned control on a document left-aligned everywhere
+  else — but it bought that by splitting the offer in half: the name and the work on one
+  side, the money on the other, with 300px of nothing between "30 days to deliver" and
+  what it costs.
+
+  Now the three facts are one line under the pitch — the same KIND of thing, the terms of
+  one offer, and a row is what says so — and the button sits beside the title, level with
+  the name it acts on. Everything that describes the pack runs down the left at the page's
+  own alignment; the one thing that acts on it is held out of that column.
+
+  ⚠️ The header is a GRID, not two flex columns, and the facts band is why: as a left
+  column beside the button it lost the ~190px the button takes and wrapped its three items
+  onto two lines, which is the one thing that row exists to avoid. The button is placed in
+  row 1 / column 2 and the band spans both columns. ⚠️ The button is last in the markup and
+  placed back up by the grid — below `sm` there is no grid, so source order is the reading
+  order: title, pitch, facts, then the act. In the title's own row it would land between
+  the name and the pitch on a phone. ⚠️ Gaps, not separators: middots are
+  meta-string furniture and ruled columns are the device this row was already mistaken
+  for. ⚠️ The price carries its tax and nothing else — "₹10,000 + 18% GST", or "+ local
+  VAT" in a market with no decided rate. It used to carry the payee too, which is two
+  conditions in a column with room for one, and the payee is the very next thing on the
+  page: step 1 of How it works is "Pay in full / To Frappe, upfront". ⚠️ No "Cancel"
+  beside the button — nothing has been started on this page, so it was offering to undo
+  reading.
+- **"What's included in all Packs, and what's not" → "True of every pack"**, on both
+  screens that carry it. The old heading sounded like the question the section above it
+  already answers ("What this pack covers"), and capitalised Packs mid-sentence. The ticks
+  and crosses say the rest.
+- **A pass across the whole flow, once all four screens existed.** Four screens built in
+  sequence had drifted apart; these are the fixes, and each one is a consistency problem
+  rather than a taste one.
+
+  **One object, described one way.** `packFacts` in `data/packs.js` is now the single
+  source of the three fact strings, and `packFactIcons.js` the single source of their
+  marks — the same arrangement as `scopeIcons.js`, for the same reason. The catalogue said
+  "10 hrs of effort", the pack page "10 hrs / Of implementation effort", the booking panel
+  "60 days delivery time" against everyone else's "60 days to deliver". That last one was
+  not cosmetic: the scope document runs the validity clock whatever the customer does, so
+  "delivery time" promises a finish date the terms don't give — and `data/project.js`
+  carried a note about the disagreement instead of a fix. Each fact now ships both shapes
+  it is needed in (`line` for one-line lists, `value` + `note` for the pack page's row), so
+  a fifth surface picks one rather than writing a fifth phrasing.
+
+  **The checkout's anchor moved to the summary.** The steps were the loud half and the
+  summary a quiet box beside them, with the pay button floating under the accordion in
+  open space — on a screen whose whole job is one payment. The total now takes a line of
+  its own rather than sharing a label/figure row with the two lines above it, and the
+  button sits directly under the figure it charges. No new type size: `text-xl` reads as
+  the largest thing on the page because nothing around it competes.
+
+  **The catalogue row got its second end back.** Each row led with a 160px grey square
+  standing in for an illustration nobody has drawn — four of them down the page that sells
+  the product. With it gone, everything collected in a ribbon at the left, so the price
+  moved to a right-hand column: four fixed-price products are read by comparing them, and
+  a figure stacked under each name can't be.
+
+  **Chrome and copy.** The pack page's crumb said "Confirm selection" — an action it
+  stopped performing when checkout took the purchase — and now names the pack, as the
+  partner profile names the partner. The confirmed screen's `h1` was the only one in the
+  flow at `text-lg` and the only exclamation mark in the app's voice; it matches the other
+  three now. Sections on the pack page went from `mt-24` to `mt-16`: 96px between the
+  scope, the ledger and the terms read as three unrelated blocks rather than one document.
+- **The confirmed screen lost "Request a slot"**, and later got a primary back. It was the primary there on the argument
+  that the pack was paid for later, so meeting the partner was all that was left. The pack
+  is paid for before that screen now, and the intro call is the project's business —
+  `PACK_STAGES` opens on Confirmed with "Request an introductory call" as its first task,
+  and both the project screen and the partner panel carry the control. Removing it left
+  `Cancel` as the only button on the screen — a page whose single offered action is to undo
+  what just happened — so **Open project** is the primary now. "Project" rather than
+  "implementation" because the activity feed below already calls it that, and a flow should
+  keep one word for one thing.
+
+  ⚠️ The confirmation screen no longer passes `flush` to `ConnectShell`. That prop hands a page the
+  content region raw so it can run its own scrollers side by side, which is what a page
+  with a fixed aside needs and a single column does not.
+
+  This is also why `.fc-col-3` is `0.85fr 1.15fr 1fr` rather than three equal columns.
+  The middle column is the only one padded on both sides, so it holds 48px less text than
+  its neighbours while carrying the longest label in both rows that use the class —
+  "Frappe assigns a partner" (167px) and "Faster implementation" (150px). The width comes
+  off the first column, which has the shortest label in both. Both rows share the class so
+  their dividers stay in one vertical line; at the 800px column every cell is one line.
+- **No surface restates the module list.** The name is that list, so every second
+  printing of it went: the table's Modules row on `/connect`, the first detail line on the
+  catalogue row, and with them the `modules` and `moduleList` display strings. A catalogue
+  row is now name, tagline, price, hours, validity. Adding a surface: say the hours, the
+  price, the validity and the scope, and let the name say the modules.
+- **A one-module pack's scope panel doesn't name the module.** Three of the four packs
+  are one module and are named after it, so `PackScope` was heading the only thing in the
+  panel with the title of the panel. For those, the heading and the dividers go and the
+  panel opens straight onto Masters / Transactions / Reports / Settings. ⚠️ `PackPanel`
+  still names it: there the module is an accordion LEVEL, and collapsing it would put a
+  module's "Not in scope (2)" beside the pack's own "Not in scope (8)" as siblings.
+- **`tagline` no longer describes contents.** It said what a pack ADDED to the one above
+  it, which nothing does any more, so it says who the pack is for.
+- **Partner `packs` arrays were rewritten**: `core-erpnext` → the module-named pack,
+  `frappe-hr` → HR + Payroll, `all-in-one` → all four. Nobody's offer narrowed. The HR
+  pack's id is `hrms`, not `hr`, because `data/modules.js` has an ERPNext `hr` module that
+  is a different thing.
+
+⚠️ `validity` is carried over from the scope document unchanged (30/60/30/30 days) because
+the new sheet doesn't set one, and the scope tables are still the document's. The document
+itself still describes the old four tiers.
+
+#### ⚠️ The starter packs were repriced (historical)
 
 They used to be rupee strings: ₹80,000 for the 40-hour pack, i.e. ₹2,000/hr, about $24.
 Partner rates are $72–145/hr, so the estimator would have quoted three to six times the
@@ -1421,20 +1700,37 @@ same function so they cannot disagree.
 change to the contract reaches the tracker. What's invented is which stage each one lands
 in.
 
-**The progress bar is gone, and the stage list is why.** Three things were rendering one
-fact: an interval bar, the "Step 3 of 5" beside it, and the list below — which already
-shows position, completion and what is left, with a tick on every stage behind you and a
-ring on the one you are at. The list IS the bar, drawn vertically and legibly. The bar also
-filled `surface-gray-10`, a near-black, while the stage badge in the header says the same
-thing in blue, orange or green: two colour languages for one fact.
+**An indicator and one open stage, not five accordions.** Every stage used to be a
+disclosure in a vertical spine — the current one open, the rest collapsed rows with a
+chevron that appeared on hover. Four of those five rows were doors nobody opens: a stage
+behind you holds a checklist you have already ticked, rendered read-only, and a stage
+ahead holds one you cannot act on yet. The reader's question here is "where am I and what
+do I owe", and the answer to the first half was spread down 300px of rows whose only job
+was to say "not this one".
 
-**Stage rows reveal their chevron on hover.** Five of them standing permanently down the
-right edge — four on stages nobody is going to open — is an affordance used as decoration,
-and the whole row is the button anyway. The rule lives in `index.css` inside
-`@media (hover: hover)`, so a touch screen (which has no hover to reveal anything with)
-keeps them visible. It is also the one place a specificity fight was likely: a
-`group-hover:opacity-100` has to out-order a media-query'd `opacity-0`, and which wins
-depends on Tailwind's emit order. A named rule decides it outright.
+So the spine became what it had been summarising all along: a horizontal indicator, every
+stage marked and named, with the stage you are at printing its blurb and checklist
+underneath and nothing to open. The three marks are the ones the vertical list used — a
+tick behind you, a filled dot in a ring where you are, a flat circle ahead.
+
+⚠️ **What it gives up** is any way to read a past or future stage's detail on this page.
+That is the trade, and it is why the indicator still NAMES every stage rather than only
+counting them: what is coming is worth knowing, the ticks inside a finished stage are not.
+
+⚠️ **"Step 3 of 5" went with the accordions.** Five marks with one of them ringed is the
+count. This section has now been caught printing its position more than once twice — the
+draft before this deleted an interval bar on the same argument, and left the sentence
+standing.
+
+⚠️ **The stage name is not repeated under the indicator above `sm`** — the ringed mark has
+just said it, and the same name twice six inches apart is the fault that merged this
+component's two halves in the first place. Below `sm` the labels are `sr-only` (five names
+across a phone is five 60px columns, and "Implementation" alone needs 95), so there the
+name prints under the indicator and nowhere else. `sr-only` rather than `hidden`, so a
+screen reader hears the same list at every width.
+
+The hover-revealed chevron and its `@media (hover: hover)` rule in `index.css` are gone
+with the rows they belonged to.
 
 **The scope is a sentence, not a row of pills.** "Finance, Sales, Purchase, Inventory,
 Manufacturing and HR." The pills were the only fully-round shape in the app and they

@@ -93,10 +93,11 @@ const submit = () => {
   toast.success('Account created', { id: 'auth' })
   store.completeLogin()
   // A pack in hand means they came here to buy one, so onboarding hands off to
-  // the confirmation screen rather than dropping them back where the gate
-  // caught them. Without one — they were saving a partner, or just signing up —
-  // `next` is still the right answer and the held action still runs.
-  if (store.pack) return void router.replace({ name: 'confirm', query: { pack: store.pack } })
+  // the checkout rather than dropping them back where the gate caught them —
+  // and it arrives with step 1 already answered, since these are the same
+  // questions. Without a pack — they were saving a partner, or just signing up
+  // — `next` is still the right answer and the held action still runs.
+  if (store.pack) return void router.replace({ name: 'checkout', query: { pack: store.pack } })
   router.replace(next.value).then(() => store.runPending())
 }
 

@@ -19,9 +19,14 @@ const props = defineProps({
 
 // The hours range is REAL, in the sense that it's derived rather than written:
 // the low and high of the starter packs this partner actually offers. Tridots
-// Tech offers Core ERPNext (40h), Manufacturing (70h) and All in one (100h),
-// which is where the design's "40-100 hrs" comes from. A partner offering one
-// pack gets a single figure rather than a range of one.
+// Tech sells all four, which are 5, 10, 5 and 5 hours, so the card reads
+// "5-10 hrs". A partner offering one pack, or several of the same size, gets a
+// single figure rather than a range of one — and since three of the four packs
+// are 5 hours, that is now the common case rather than the exception.
+//
+// ⚠️ The design's "40-100 hrs" came from the old nesting packs, where a tier
+// contained the ones below it. The packs are disjoint now, so these hours are
+// per module set and a buyer adds them up across the packs they take.
 const { contactPartner } = useContactPartner()
 
 const packHours = computed(() =>
@@ -144,6 +149,21 @@ const estimating = ref(false)
         </div>
       </div>
     </div>
+
+    <!-- The one thing this section would otherwise get wrong by omission: a
+         fixed price quoted on a partner's own profile reads as a price you pay
+         that partner, and for a pack you don't — Frappe takes the full amount
+         in advance and the partner delivers against it. Same line as the packs
+         section on `/connect`, which is where the figures are.
+
+         Under the grid rather than inside the pack card, and that's what keeps
+         the two cards a pair: each is a two-line claim, and a third line in one
+         of them drops its action a line below the other's. It names starter
+         packs so that sitting under both cards doesn't read as a claim about
+         custom work, which is priced in a conversation and not here. -->
+    <p v-if="hoursLabel" class="mt-3 text-p-sm text-ink-gray-5">
+      Starter packs are paid to Frappe in full, not to the partner.
+    </p>
 
     <EstimateQuoteDialog
       v-if="quotable"

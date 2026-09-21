@@ -4,9 +4,10 @@
 // ⚠️ Every module, task and hour figure here is INVENTED. Nothing in the
 // directory publishes an implementation breakdown, and before this file there
 // was no notion of a module or a task anywhere in `src/` — the only prior
-// mention was `STARTER_PACKS[].modules`, a display string that can't even be
-// split, since two of its four values name other *packs* ("Core ERPNext +
-// Manufacturing") rather than modules.
+// mention was `STARTER_PACKS[].modules`, a display string that couldn't even
+// be split, since two of its four values named other *packs* ("Core ERPNext +
+// Manufacturing") rather than modules. That string is gone: each pack is now
+// named by its modules and carries `areas` into the scope document.
 //
 // It's invented but not arbitrary. Two constraints hold it together:
 //
@@ -15,9 +16,21 @@
 //      one of them is answerable with "made of what?". That is the one
 //      invariant worth testing.
 //   2. ERPNext's modules sum to 88 hours, and its core four (Finance, Sales,
-//      Purchase, Inventory) to 39 — near the 40 that `core-erpnext` already
-//      advertises in `STARTER_PACKS`. The estimator and the pack table read as
-//      the same universe rather than two unrelated inventions.
+//      Purchase, Inventory) to 39.
+//
+// ⚠️⚠️ CONSTRAINT 2 NO LONGER HOLDS AGAINST THE PACKS, and that is a product
+// question rather than a bug in this file. The 39 was chosen to sit near the
+// 40 hours the old `core-erpnext` pack advertised, so the estimator and the
+// pack table read as one universe. The repriced packs sell the same four
+// modules for 5 hours. Either a pack's hours are now a contribution towards an
+// implementation rather than the whole of one, or this catalogue's hours are
+// far too high — the two surfaces currently answer "how long does Accounts,
+// Sales, Purchase and Stock take?" with 39 and with 5.
+//
+// Nothing renders both figures side by side today, which is the only reason
+// this is a comment and not a broken screen: the estimator prices a project at
+// a partner's hourly rate, and the pack table prices a pack. Decide which
+// number is real before any screen puts them in one sentence.
 //
 // ⚠️ `tasks` IS NO LONGER RENDERED. The estimator used to drill from a module
 // into its task list; it is one level now, so the only thing tasks do today is

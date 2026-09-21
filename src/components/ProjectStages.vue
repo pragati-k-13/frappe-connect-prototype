@@ -1,17 +1,30 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import ProjectChecklist from './ProjectChecklist.vue'
 import IconCheck from '~icons/lucide/check'
-import IconChevronDown from '~icons/lucide/chevron-down'
 import { stageProgress, stagesFor } from '../data/project'
 
-// Where the project has got to, and what each stage wants.
+// Where the project has got to, and what the stage it is at wants.
 //
-// ⚠️ ONE COMPONENT, not a progress bar plus a separate "current stage" block.
-// They were two at first and it put the same stage name on the screen twice,
-// six inches apart, with the bar saying "3 of 5" and the block saying "Kickoff"
-// — two halves of one sentence that a reader has to assemble. The bar is the
-// summary of this list, so it sits on top of it and they share a source.
+// ⚠️ AN INDICATOR AND ONE OPEN STAGE, not five accordions. Every stage used to
+// be a disclosure in a vertical spine: the current one open, the other four
+// collapsed rows with a chevron that appeared on hover. It cost more than it
+// returned.
+//
+// Four of the five rows were doors nobody opens. A stage behind you holds a
+// checklist you have already ticked, rendered read-only; a stage ahead holds
+// one you cannot act on yet. The reader's question on this page is "where am I
+// and what do I owe", and the answer to the first half was spread down 300px of
+// rows whose only job was to say "not this one".
+//
+// So the spine became what it was always summarising — a progress indicator,
+// horizontal, five marks and their names — and the stage you are at prints its
+// blurb and checklist underneath, with nothing to open.
+//
+// ⚠️ WHAT THAT GIVES UP: a past or future stage's detail is no longer readable
+// here. That is the trade, and it is why the indicator still names every stage
+// rather than only counting them — what is coming is worth knowing; the ticks
+// inside a finished stage are not.
 //
 // The spine is per-service (`stagesFor`), so a guided onboarding shows its
 // three sessions and a starter pack shows its five stages. Neither is forced
@@ -27,86 +40,55 @@ const emit = defineEmits(['toggle', 'act'])
 const stages = computed(() => stagesFor(props.project.service))
 const progress = computed(() => stageProgress(props.project.service, props.project.stage))
 const currentIndex = computed(() => progress.value?.index ?? 0)
-
-// Which stage's detail is open. The current one, until the reader says
-// otherwise — the stage you are at is the one you came to read.
-//
-// ⚠️ One at a time, accordion-style, rather than several. The open stage is
-// tall (a checklist of up to six items and two columns), and two open at once
-// pushes the second one's heading off the screen — at which point the list has
-// stopped being a list you can scan.
-const open = ref(props.project.stage)
-// Following the project rather than set once: the demo switcher moves the stage
-// from outside this component, and an accordion still showing the stage you
-// LEFT is the page disagreeing with its own progress bar.
-watch(
-  () => props.project.stage,
-  (stage) => (open.value = stage),
-)
-
-const toggle = (key) => (open.value = open.value === key ? null : key)
+const current = computed(() => stages.value[currentIndex.value] ?? null)
 
 // Three states, and they are positional rather than stored: everything before
 // the current index is done, everything after is still to come. Nothing has to
 // remember to mark a stage complete when the project moves past it.
 const stateOf = (index) =>
   index < currentIndex.value ? 'done' : index === currentIndex.value ? 'current' : 'todo'
-
-const tallyFor = (stage) => {
-  const yours = stage.yours ?? []
-  if (!yours.length) return null
-  return {
-    done: yours.filter((t) => props.project.done.includes(t.key)).length,
-    total: yours.length,
-  }
-}
 </script>
 
 <template>
-  <section v-if="stages.length">
-    <!-- ⚠️ THERE WAS AN INTERVAL BAR HERE and deleting it is the point of
-         this section's second draft. Three things were rendering one fact: the
-         bar, the "Step 3 of 5" beside it, and the list below — which already
-         shows position, completion and what is left, with a tick on every stage
-         behind you and a ring on the one you are at. The list IS the bar, drawn
-         vertically and legibly. Keeping both meant a reader checking their
-         progress twice to learn it once.
-         (The bar also filled `surface-gray-10`, a near-black, while the stage
-         badge in the page header says the same thing in blue, orange or green —
-         two colour languages for one fact.) -->
-    <div class="flex items-baseline justify-between gap-3">
-      <h2 class="text-base font-medium text-ink-gray-8">Progress</h2>
-      <p class="shrink-0 text-p-sm text-ink-gray-5">
-        Step {{ progress.step }} of {{ progress.total }}
-      </p>
-    </div>
+  <section v-if="stages.length && current">
+    <h2 class="text-base font-medium text-ink-gray-8">Progress</h2>
 
-    <!-- ── The stages ──────────────────────────────────────────────────── -->
-    <ol class="mt-4">
+    <!-- ── The indicator ───────────────────────────────────────────────────
+         ⚠️ NO "Step 1 of 5" beside the heading any more. Five marks with one
+         of them ringed IS the count, and the sentence was the third rendering
+         of a fact this section has twice been caught printing more than once —
+         the draft before last deleted an interval bar for the same reason.
+
+         Every column is `flex-1`, so the marks are evenly spaced and the
+         connector between two of them can be a line from this mark's centre to
+         the next one's. The first and last marks sit half a column in from the
+         edges, which is what makes the row read as a scale rather than as a
+         rule with dots on it. -->
+    <ol class="mt-5 flex">
       <li
         v-for="(stage, i) in stages"
         :key="stage.key"
-        class="fc-stage-row group relative flex gap-3"
-        :class="i === stages.length - 1 ? '' : 'pb-5'"
+        class="relative flex min-w-0 flex-1 flex-col items-center"
       >
-        <!-- The connector. Same idiom as the Confirmed screen's activity feed,
-             and the same trap avoided: `bg-[var(--outline-gray-2)]`, NOT
-             `bg-outline-gray-2` — the `outline-*` scale is BORDER-ONLY and the
-             background class compiles to nothing without erroring. See
+        <!-- Same trap as the activity feed's connector: `bg-[var(--outline-gray-2)]`,
+             NOT `bg-outline-gray-2` — the `outline-*` scale is BORDER-ONLY and
+             the background class compiles to nothing without erroring. See
              FRAPPE-UI-NOTES.md.
 
-             ⚠️ It runs SOLID through completed stages and stays the same
-             hairline through the rest. Colouring the travelled part would be a
-             third signal for a fact the mark and the bar already carry twice. -->
+             ⚠️ One hairline the whole way, not a coloured run behind the
+             stages already travelled. The marks say what is done; colouring
+             the line would be a second voice saying it. -->
         <span
-          class="absolute bottom-0 left-[11px] top-6 w-px bg-[var(--outline-gray-2)] group-last:hidden"
+          v-if="i < stages.length - 1"
+          class="absolute left-1/2 top-[11px] h-px w-full bg-[var(--outline-gray-2)]"
           aria-hidden="true"
         />
 
-        <!-- One 22px column for every mark, so the connector runs straight
-             through them rather than kinking around a larger current one. -->
+        <!-- The three marks are unchanged from the vertical spine: a tick
+             behind you, a filled dot inside a ring where you are, a flat
+             circle ahead. The ring is what separates "here" from "coming". -->
         <span
-          class="relative z-10 mt-0.5 grid size-[22px] shrink-0 place-items-center rounded-full"
+          class="relative z-10 grid size-[22px] shrink-0 place-items-center rounded-full"
           :class="
             {
               done: 'bg-surface-gray-7 text-ink-white',
@@ -117,88 +99,53 @@ const tallyFor = (stage) => {
           aria-hidden="true"
         >
           <IconCheck v-if="stateOf(i) === 'done'" class="size-3" />
-          <!-- The current stage's mark is a filled dot inside a ring: the ring
-               is what separates "here" from the flat circles of the stages
-               still to come. -->
-          <span
-            v-else-if="stateOf(i) === 'current'"
-            class="size-2 rounded-full bg-surface-gray-7"
-          />
+          <span v-else-if="stateOf(i) === 'current'" class="size-2 rounded-full bg-surface-gray-7" />
         </span>
 
-        <div class="min-w-0 flex-1">
-          <!-- The whole row is the control, not a chevron at the end of it: a
-               22px target at the far right of a 650px row is a worse thing to
-               hit than the row itself, and the row has nothing else in it to
-               click. -->
-          <button
-            type="button"
-            class="flex w-full items-baseline gap-2 rounded-4 text-left"
-            :aria-expanded="open === stage.key"
-            @click="toggle(stage.key)"
-          >
-            <span
-              class="text-p-base"
-              :class="
-                stateOf(i) === 'current'
-                  ? 'font-medium text-ink-gray-8'
-                  : stateOf(i) === 'done'
-                    ? 'text-ink-gray-7'
-                    : 'text-ink-gray-5'
-              "
-            >
-              {{ stage.label }}
-            </span>
-
-            <!-- The fraction rides on the collapsed row, so a reader scanning
-                 the spine can see which stage has something outstanding
-                 without opening any of them. Only where there is a checklist;
-                 the onboarding's closing stage has one item and no partner
-                 column, and "0 of 1 done" beside "Done" reads as a
-                 contradiction. -->
-            <span
-              v-if="tallyFor(stage) && stateOf(i) !== 'todo'"
-              class="shrink-0 text-p-sm text-ink-gray-5"
-            >
-              {{ tallyFor(stage).done }}/{{ tallyFor(stage).total }}
-            </span>
-
-            <span class="min-w-0 flex-1" />
-            <!-- ⚠️ Revealed on hover, not standing on every row. Five chevrons
-                 down the right edge — four of them on stages nobody is going to
-                 open — is an affordance used as decoration, and the whole row is
-                 the control anyway.
-
-                 The hiding lives in `index.css` rather than in a Tailwind
-                 variant, and inside `@media (hover: hover)`: a touch screen has
-                 no hover to reveal it with, so there the chevrons simply stay.
-                 It is also the one place a specificity fight was likely — a
-                 `group-hover:opacity-100` has to out-order a media-query'd
-                 `opacity-0`, and which wins depends on Tailwind's emit order.
-                 A named rule decides it outright. -->
-            <IconChevronDown
-              class="fc-stage-chevron size-4 shrink-0 text-ink-gray-5 transition-all duration-150"
-              :class="open === stage.key ? 'rotate-180' : ''"
-              :data-open="open === stage.key"
-              aria-hidden="true"
-            />
-          </button>
-
-          <div v-if="open === stage.key" class="pb-1 pt-2">
-            <p class="text-p-base text-ink-gray-6">{{ stage.blurb }}</p>
-            <ProjectChecklist
-              class="mt-4"
-              :stage="stage"
-              :done="project.done"
-              :requested-slot="project.slot"
-              :other-party="otherParty"
-              :readonly="stateOf(i) !== 'current'"
-              @toggle="emit('toggle', $event)"
-              @act="emit('act', $event)"
-            />
-          </div>
-        </div>
+        <!-- ⚠️ Hidden below `sm`, where five names across a phone would be five
+             columns of about 60px — "Implementation" alone needs 95. The
+             current stage is named under the indicator there instead, so the
+             marks still have something to be about. `sr-only` rather than
+             `hidden`, so the list a screen reader hears is the same list at
+             every width. -->
+        <span
+          class="sr-only mt-2 max-w-full truncate px-1 text-center text-p-sm sm:not-sr-only"
+          :class="
+            stateOf(i) === 'current'
+              ? 'font-medium text-ink-gray-8'
+              : stateOf(i) === 'done'
+                ? 'text-ink-gray-7'
+                : 'text-ink-gray-5'
+          "
+        >
+          {{ stage.label }}
+        </span>
       </li>
     </ol>
+
+    <!-- ── The stage you are at ────────────────────────────────────────────
+         ⚠️ It does NOT repeat the stage's name above `sm`: the indicator has
+         just said it, in the one mark that is ringed, and the same name twice
+         six inches apart was the exact fault that merged this component's two
+         halves in the first place. Below `sm` the indicator's labels are gone,
+         so the name appears here and nowhere else. -->
+    <div class="mt-6">
+      <p class="text-base font-medium text-ink-gray-8 sm:hidden">{{ current.label }}</p>
+      <!-- `mt-1` only below `sm`, where the name line above it exists. -->
+      <p class="mt-1 text-p-base text-ink-gray-6 sm:mt-0">{{ current.blurb }}</p>
+
+      <!-- Never read-only now. The only checklist rendered is the current
+           stage's, and that is the one you can act on — the `readonly` case
+           existed for the four stages this section no longer opens. -->
+      <ProjectChecklist
+        class="mt-4"
+        :stage="current"
+        :done="project.done"
+        :requested-slot="project.slot"
+        :other-party="otherParty"
+        @toggle="emit('toggle', $event)"
+        @act="emit('act', $event)"
+      />
+    </div>
   </section>
 </template>
