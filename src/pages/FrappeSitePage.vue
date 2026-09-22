@@ -36,14 +36,16 @@
 // questions. The directory link stays beside it for the visitor who came here
 // to browse firms and should not be forced through a form to do it.
 //
-// Links into Connect open a NEW TAB — `Button`'s `link` prop does that for us —
-// because the fiction is that you're leaving frappe.io and arriving somewhere
-// else.
-import { Avatar, Button, ScrollArea } from 'frappe-ui'
+// ⚠️ LINKS INTO CONNECT NAVIGATE IN PLACE, and they used to open a new tab on
+// the argument that the fiction is you are leaving frappe.io for somewhere
+// else. The fiction is still true and the new tab was still wrong: this is a
+// prototype somebody walks through, and a tab that opens behind or beside the
+// one being reviewed breaks the walk — worse in a preview pane, where the new
+// tab may not be visible at all. The route change says the same thing, because
+// the two screens look nothing alike.
+import { useRouter } from 'vue-router'
+import { Button, ScrollArea } from 'frappe-ui'
 import { SUCCESS_STORIES } from '../data/partners'
-// A placeholder portrait for the testimonial. Generated art, like the rest of
-// `assets/media` — see `scripts/`.
-import portrait from '../assets/media/placeholder-2.jpg'
 // The real mark, taken from frappe.io itself. Its corner radius is baked into
 // the artwork, so it takes no `rounded-*` of its own.
 import frappeMark from '../assets/frappe.svg'
@@ -51,8 +53,10 @@ import frappeMark from '../assets/frappe.svg'
 // Where the app is mounted — '/' locally, '/frappe-connect-prototype/' on
 // GitHub Pages. Only the hand-written links below need it; every other link in
 // the app goes through the router, which handles the base itself.
-const baseUrl = import.meta.env.BASE_URL
-const connect = (path = '') => `${baseUrl}connect${path}`
+const router = useRouter()
+
+// Into the app, through the router, so Back comes back here.
+const go = (path = '') => router.push(`/connect${path}`)
 
 // The three doors, in increasing order of commitment.
 //
@@ -60,32 +64,19 @@ const connect = (path = '') => `${baseUrl}connect${path}`
 // difference between the two and the thing a reader is most likely to get
 // wrong. It used to be missing from this page entirely.
 //
-// ⚠️ NO `cta` AND NO `link`. Both were removed with the third card: three
-// buttons on this page were three answers to a question the visitor has not
-// been asked yet. There is one button, below, and it goes to the questions.
-const SERVICES = [
-  {
-    id: 'packs',
-    title: 'Starter packs',
-    points: [
-      'No customization, ERPNext as it ships',
-      'For businesses running under 50 users',
-      'Published pricing, no quote to wait for',
-      'Frappe assigns you a certified partner',
-    ],
-  },
-  {
-    id: 'custom',
-    title: 'Custom implementation',
-    points: [
-      'Built around your processes and integrations',
-      'Specialist knowledge transfer',
-      'Maintenance and support after go live',
-      'Partners quote, and you choose between them',
-    ],
-  },
-]
-
+// ⚠️ THE "Services" SECTION IS GONE, and it was the most detailed thing on
+// this page: two rows of four bullets each, with full-height gradient art,
+// under "Find the right fit for your business". It broke the two offers down
+// further than frappe.io/partners breaks anything down, on a page whose job is
+// to get somebody INTO Connect rather than to explain what is inside it — and
+// every bullet was a claim this mock had invented and would have to keep in
+// step with the recommendation screen, the pack catalogue and the contract.
+//
+// The invented testimonial went with it, for a harder reason: a quote is a
+// commercial claim, and the person, the company and the words were all made up.
+//
+// What is left is the real page's shape — who partners are, why you would use
+// one, what they have delivered — and one way in.
 const BENEFITS = [
   {
     title: 'Worldwide presence',
@@ -103,18 +94,6 @@ const BENEFITS = [
     icon: 'gauge',
   },
 ]
-
-// ⚠️ PLACEHOLDER, and invented — the person, the company and the words. A
-// testimonial is a commercial claim, and putting one in a real person's mouth
-// asserts something nobody verified. Silverpine is one of the fictional client
-// companies in `data/media.js`. Swap for a real, cleared quote and a real
-// photograph.
-const TESTIMONIAL = {
-  quote:
-    'We spent months getting nowhere on our own. Three weeks with a partner and we were running real invoices through it. The difference was having someone who had done it all before.',
-  name: 'Anita Raghavan',
-  role: 'Operations Director, Silverpine',
-}
 
 // The rail's icons. A flat list with `gap` between groups would space them
 // evenly; the real site clusters them, so the groups are nested arrays.
@@ -197,15 +176,25 @@ const RAIL = [
              The wording is the real frappe.io's, and it's what Connect's own top
              bar says too (see `ConnectShell`), so a visitor meets the same
              control either side of the seam. -->
-        <a
-          :href="connect('/signup')"
-          target="_blank"
-          rel="noopener"
+        <!-- ⚠️ A Contact LINK, because the two mocked site pages had no way
+             between them. `/contact` existed and was reachable only by typing
+             it, or from one line on the recommendation screen — so the walk a
+             reviewer actually takes, site → contact → Connect, could not be
+             taken. -->
+        <RouterLink
+          to="/contact"
+          class="text-[14px] text-ink-gray-6 hover:text-ink-gray-8"
+        >
+          Contact
+        </RouterLink>
+        <button
+          type="button"
           class="flex items-center gap-1.5 text-[14px] font-medium text-ink-gray-7 hover:text-ink-gray-9"
+          @click="go('/signup')"
         >
           Log in or create account
           <LucideArrowRight class="size-4" />
-        </a>
+        </button>
       </header>
 
       <!-- Everything below the bar scrolls, and it scrolls HERE rather than in
@@ -217,141 +206,50 @@ const RAIL = [
            needs the extra width later can take it without moving the rest. -->
       <ScrollArea class="min-h-0 flex-1">
         <div class="px-6 pb-32">
-          <section class="mx-auto max-w-[600px] pb-32 pt-16 text-center">
+          <!-- ⚠️ THE REAL PAGE'S HEADLINE AND STANDFIRST, verbatim. What stood
+               here — "Get the best Frappe experience from trained and certified
+               partners" — was mine, and better copy is not the job: this page
+               is a stand-in whose only purpose is to be recognisable as the
+               marketing site a visitor arrives from. -->
+          <section class="mx-auto max-w-[600px] pt-16 text-center">
             <h1
               class="font-serif text-[32px] font-medium leading-[1.3] tracking-[0.01em] text-ink-gray-8"
             >
-              Get the best Frappe experience from trained and certified partners
+              Frappe Partners
             </h1>
-            <!-- Short enough to hold one line at this measure, and `text-balance`
-               splits it evenly rather than stranding a word if it ever wraps. -->
             <p
-              class="mx-auto mt-2 max-w-[420px] text-balance text-[15px] leading-[1.57] text-ink-gray-6"
+              class="mx-auto mt-2 max-w-[440px] text-balance text-[15px] leading-[1.57] text-ink-gray-6"
             >
-              Partners in over 30 countries, ready to get you running.
+              Meet a global community of committed open source entrepreneurs.
             </p>
           </section>
 
-          <!-- The two products, and one way in -->
-          <section class="mx-auto max-w-[800px] pb-32">
-            <p
-              class="text-center text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-gray-5"
-            >
-              Services
+          <!-- ── The way in ──────────────────────────────────────────────
+               ⚠️ THE REAL PAGE'S "Find a partner" BUTTON, pointed somewhere
+               else. There it opens a regional directory and leaves the visitor
+               to pick a firm; here it opens the three questions, because
+               picking is the thing Connect exists to stop being the visitor's
+               job. The directory is still one line below for anybody who came
+               to browse — they are the reason this page exists at all, and
+               making them answer three questions first would be a worse page
+               than the one it replaced. -->
+          <section class="mx-auto max-w-[600px] pb-32 pt-10 text-center">
+            <p class="text-[15px] leading-[1.57] text-ink-gray-6">
+              Partners implement Frappe products for businesses in more than 30 countries. Tell us
+              what you are running and we will say which of them fits, and what it costs.
             </p>
-            <h2 class="mt-2 text-center text-[20px] font-semibold leading-[1.3] text-ink-gray-8">
-              Find the right fit for your business
-            </h2>
-
-            <!-- Rows, not cards. Boxing each one drew a frame around a title
-               and four bullets, which is most of a card's contents already; the
-               rules between rows separate them with nothing drawn around the
-               outside. Every list on this page is built this way — 24px above
-               and below each row. -->
-            <ul class="mt-10 divide-y divide-outline-gray-1">
-              <li
-                v-for="s in SERVICES"
-                :key="s.id"
-                class="flex flex-col gap-5 py-6 first:pt-0 sm:flex-row sm:items-stretch"
-              >
-                <!-- Placeholder art, full height of the row. A gradient rather
-                   than a stock photo, for the same reason the profile gallery
-                   uses one: a photo here would be a claim about a session that
-                   hasn't happened. -->
-                <div
-                  class="h-[110px] shrink-0 rounded-4 sm:h-auto sm:w-[340px]"
-                  :style="{
-                    backgroundImage: 'linear-gradient(140deg, #e7e9ec, #cfd3d9 45%, #a9aeb6)',
-                  }"
-                  role="img"
-                  :aria-label="`Illustration for ${s.title}`"
-                />
-                <div class="min-w-0 flex-1">
-                  <h3 class="text-[17px] font-medium text-ink-gray-7">{{ s.title }}</h3>
-                  <ul class="mt-3 space-y-1.5">
-                    <li
-                      v-for="p in s.points"
-                      :key="p"
-                      class="flex items-start gap-2 text-[15px] leading-[1.5] text-ink-gray-6"
-                    >
-                      <LucideCheck class="mt-1 size-3.5 shrink-0 text-ink-gray-4" />
-                      {{ p }}
-                    </li>
-                  </ul>
-                </div>
-              </li>
-            </ul>
-
-            <!-- ⚠️ ONE BUTTON, AND IT ANSWERS THE HEADING. "Find the right fit
-                 for your business" is a promise this page cannot keep on its
-                 own; the questions behind this button are what keep it, and
-                 that is why the two rows above no longer carry a button each.
-                 Opens in a NEW TAB like every other link into the app. -->
-            <div class="mt-8 flex flex-col items-center gap-3">
-              <Button variant="solid" size="md" label="Find out which one you need" :link="connect()">
+            <div class="mt-6 flex flex-col items-center gap-3">
+              <Button variant="solid" size="md" label="Find a partner" @click="go()">
                 <template #suffix><LucideArrowRight class="size-4" /></template>
               </Button>
-              <!-- The escape hatch for the visitor who came here to browse
-                   firms. They are the reason this page exists at all, and being
-                   made to answer three questions first would be a worse page
-                   than the one it replaced. -->
-              <a
-                :href="connect('/partners')"
+              <button
+                type="button"
                 class="text-[15px] text-ink-gray-6 underline underline-offset-2 hover:text-ink-gray-8"
+                @click="go('/partners')"
               >
                 Or browse all 156 partners
-              </a>
+              </button>
             </div>
-          </section>
-
-          <!-- Testimonial.
-             The bracketed treatment from the partner profile's "Partner vision"
-             section, so a quote looks like a quote in both places: an opening
-             mark with a rule running off to the right, a closing mark with a
-             rule running back. The rules do a card border's work without adding
-             a frame. See `components/PartnerVisionSection.vue` — if one of
-             these changes, change both. -->
-          <section class="mx-auto max-w-[600px] pb-32">
-            <figure>
-              <div class="flex items-center gap-3">
-                <span
-                  class="translate-y-[0.1em] select-none font-serif text-12xl leading-[0.42] text-ink-gray-3"
-                  aria-hidden="true"
-                >
-                  &ldquo;
-                </span>
-                <span class="flex-1 border-t border-outline-gray-1" />
-              </div>
-
-              <!-- `figure`, not `div`: a `figcaption` is only valid inside one,
-                 and Vue's compiler warns about it otherwise. It's also the right
-                 element — a quote and its attribution are one unit. -->
-              <figure class="mt-4 flex items-start justify-between gap-6">
-                <div class="min-w-0 flex-1">
-                  <!-- 15px: the body size. A pull quote set larger than the page
-                     it sits in reads as a headline, and this is somebody
-                     talking. -->
-                  <blockquote class="text-[15px] leading-[1.57] text-ink-gray-6">
-                    {{ TESTIMONIAL.quote }}
-                  </blockquote>
-                  <figcaption class="mt-5">
-                    <p class="text-[15px] font-medium text-ink-gray-7">{{ TESTIMONIAL.name }}</p>
-                    <p class="mt-0.5 text-[15px] text-ink-gray-6">{{ TESTIMONIAL.role }}</p>
-                  </figcaption>
-                </div>
-                <Avatar class="size-16 shrink-0" :image="portrait" :label="TESTIMONIAL.name" />
-              </figure>
-
-              <div class="mt-4 flex items-center gap-3">
-                <span class="flex-1 border-t border-outline-gray-1" />
-                <span
-                  class="translate-y-[0.1em] select-none font-serif text-12xl leading-[0.42] text-ink-gray-3"
-                  aria-hidden="true"
-                >
-                  &rdquo;
-                </span>
-              </div>
-            </figure>
           </section>
 
           <!-- Benefits -->

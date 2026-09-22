@@ -45,11 +45,6 @@ const store = useConnectStore()
 const router = useRouter()
 const route = useRoute()
 
-// Where the app is mounted — '/' locally, '/frappe-connect-prototype/' on
-// GitHub Pages. Only the hand-written link out to the marketing site needs it;
-// everything else here goes through the router.
-const baseUrl = import.meta.env.BASE_URL
-
 // ⚠️ RECOMPUTED FROM THE ANSWERS on every visit rather than stored when it was
 // first made. Someone who goes back and changes an answer has to get a
 // different recommendation, and a cached verdict is how a screen ends up
@@ -785,14 +780,14 @@ watch(view, () => {
              does not believe its own recommendation. -->
         <p class="mt-3 max-w-[62ch] text-p-base text-ink-gray-6">
           Neither of these?
-          <a
-            :href="`${baseUrl}contact`"
-            target="_blank"
-            rel="noreferrer"
-            class="underline hover:text-ink-gray-8"
-          >
+          <!-- ⚠️ THROUGH THE ROUTER, and it used to open a new tab. The
+               contact page is mocked inside this prototype, so the tab was not
+               leaving for the real site — it was opening a second copy of the
+               same prototype beside the one under review. See the note in
+               `FrappeSitePage`. -->
+          <RouterLink to="/contact" class="underline hover:text-ink-gray-8">
             Talk to someone at Frappe
-          </a>
+          </RouterLink>
         </p>
 
         <!-- ── Was this right? ─────────────────────────────────────────── -->

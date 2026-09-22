@@ -3,85 +3,82 @@
 //
 // ⚠️ NOT PART OF FRAPPE CONNECT. It is a stand-in for a page that already
 // exists on the marketing site, styled as *website* rather than *app* — serif
-// headline, 600px measure, no product chrome — exactly like the partners page
-// it sits beside. See `FrappeSitePage` for the type scale, which is measured
-// off the real site rather than chosen.
+// headline, no product chrome — exactly like the partners page it sits beside.
+// See `FrappeSitePage` for the type scale, which is measured off the real site
+// rather than chosen.
 //
-// ⚠️ WHY IT IS MOCKED AT ALL. A large share of implementation leads arrive
-// here rather than on the partners page, and they arrive in a different frame
-// of mind: somebody on /partners has decided they want an implementer, while
-// somebody here has a QUESTION and expects a human to answer it by email.
-// Pointing both at the same three-question intake would answer a question the
-// second group did not ask, and the ones who are not implementation leads —
-// existing customers with a broken site, people asking whether ERPNext does
-// batch manufacturing — would bounce off a purchase funnel. Those are leads the
-// current page captures.
+// ⚠️ IT IS THE REAL PAGE NOW, MINUS ONE CARD'S DESTINATION. What stood here was
+// a triage of my own invention: a radio group of four reasons, a branching form
+// and a paragraph arguing for the arrangement. The argument was sound and the
+// page was not the brief — this mock exists to show where Connect is entered
+// from, and a redesign of Frappe's contact page is a different piece of work
+// that nobody asked for. So the structure below is frappe.io/contact's own:
+// four cards, then how to reach the company.
 //
-// ⚠️ SO THIS TRIAGES RATHER THAN REDIRECTS. One question at the top decides
-// which of four things the visitor gets, and exactly one of the four leaves for
-// Frappe Connect. The form underneath is the page as it stands today; nothing
-// about it changes for the three branches that still belong here.
-import { computed, ref } from 'vue'
-import { Button, FormControl, Textarea } from 'frappe-ui'
+// ⚠️ THE ONE MODIFICATION. The real "Looking for implementation?" card says to
+// reach out to a partner in one of 50+ countries; here it opens Frappe Connect
+// instead. That is the entire point of mocking this page — implementation leads
+// arrive here as often as on /partners, and this is the card they press.
+//
+// ⚠️ NO FORM. The real page hands you four routes and the company's own
+// address, phone numbers and email; it does not ask a visitor to describe their
+// problem in a textarea first. Mine did, and the form was the largest thing on
+// the screen.
+import { useRouter } from 'vue-router'
 import frappeMark from '../assets/frappe.svg'
+import LucideArrowRight from '~icons/lucide/arrow-right'
 
-const baseUrl = import.meta.env.BASE_URL
-const connect = (path = '') => `${baseUrl}connect${path}`
+// ⚠️ THROUGH THE ROUTER, NOT A NEW TAB. The fiction is that Connect is a
+// different place, and it still reads that way because the two screens look
+// nothing alike — but this is a prototype somebody walks through, and a tab
+// opening behind the one being reviewed breaks the walk. Same decision, and the
+// same note, as `FrappeSitePage`.
+const router = useRouter()
 
-// ⚠️ THE ORDER IS THE POINT. Implementation leads first, because they are the
-// largest group and the one this page currently serves worst — they fill in a
-// form and wait a day for a reply that asks them what they need. Support is
-// second because it is the most urgent and the most misdirected: an existing
-// customer with a broken site should never be in a sales queue at all.
+// The four cards, in the real page's order and close to its words.
 //
-// `to` is a Frappe Connect link, and only the first branch has one.
-const REASONS = [
+// ⚠️ `to` MARKS THE ONE THAT LEAVES FOR CONNECT, and only one does. The other
+// three are the page as it stands: a webinar, the partner programme, the
+// support portal. They are `href: null` rather than invented destinations,
+// because a mock that links three real pages to nowhere teaches a reviewer
+// nothing and a mock that invents three URLs teaches them something false.
+const CARDS = [
   {
-    value: 'implementation',
-    label: 'I want to implement ERPNext',
-    body: 'Find out what it costs and who can do it — without waiting for a reply.',
-    // ⚠️ Opens in a NEW TAB, like every other link from this site into the app:
-    // the fiction is that you are leaving frappe.io and arriving somewhere else.
-    to: connect(),
-    cta: 'Get a recommendation',
+    title: 'Need a quick demo?',
+    body: 'Register for a weekly ERPNext webinar demo and live Q&A.',
+    to: null,
   },
   {
-    value: 'support',
-    label: 'I am a customer and something is broken',
-    body: 'Support handles this, not sales — and they answer faster.',
-    cta: 'Go to support',
+    // ⚠️ THE MODIFIED ONE. The real card sends you to the partner directory to
+    // pick a firm yourself; this one sends you to the three questions that say
+    // which of the two services fits, and assigns or matches from there.
+    title: 'Looking for implementation?',
+    body: 'Answer three questions and get a recommendation, with pricing, straight away.',
+    to: '/connect',
   },
   {
-    value: 'product',
-    label: 'I have a question about the product or pricing',
-    body: 'Someone from the team will get back to you by email.',
-    cta: 'Send the message',
+    title: 'Want to become a partner?',
+    body: 'Know more about our partner program and register now.',
+    to: null,
   },
   {
-    value: 'other',
-    label: 'Partnership, press or something else',
-    body: 'Tell us what it is about and we will route it.',
-    cta: 'Send the message',
+    title: 'Need tech support?',
+    body: "If you're hosted on Frappe Cloud, raise a ticket on our support portal.",
+    to: null,
   },
 ]
 
-const reason = ref('implementation')
-const chosen = computed(() => REASONS.find((r) => r.value === reason.value) ?? REASONS[0])
+// Frappe's own, from the live page. Real details for a real company — nothing
+// here is invented, and nothing here should be edited to look tidier.
+const REACH = [
+  { label: 'Email', value: 'hello@frappe.io' },
+  { label: 'India', value: '+91 22 4897 0555' },
+  { label: 'United States', value: '+1 209 813 4824' },
+  { label: 'United Kingdom', value: '+44 29 2254 0018' },
+]
 
-// ⚠️ THE FORM IS NOT SHOWN FOR THE FIRST BRANCH, and that is the decision this
-// page turns on. Collecting a name and an email and THEN sending someone into a
-// self-serve flow means emailing them about a thing they are in the middle of
-// doing — the sales follow-up and the product arrive at the same person on the
-// same afternoon, disagreeing about what stage they are at. They leave with
-// nothing filled in.
-const asksForm = computed(() => reason.value !== 'implementation')
-
-const form = ref({ name: '', email: '', company: '', message: '' })
-const sent = ref(false)
-
-const submit = () => {
-  sent.value = true
-}
+const ADDRESS =
+  'Frappe Technologies Pvt. Ltd., C/205, Neelkanth Business Park, Vidyavihar West, Mumbai, Maharashtra 400086'
 </script>
 
 <template>
@@ -99,137 +96,60 @@ const submit = () => {
       </div>
     </header>
 
-    <main class="mx-auto w-full max-w-[1100px] px-6 py-16">
-      <div class="max-w-[600px]">
-        <!-- The one serif on the page, same as the partners page — Newsreader
-             at 32/41.6, weight 500. Don't tidy it into the product scale. -->
-        <!-- ⚠️ The same headline treatment as the partners page, measured off
-             the real site rather than chosen: Newsreader 32, weight 500, and
-             the only serif on the page. Don't tidy it into the product scale —
-             it is what makes this read as the marketing site. -->
-        <h1
-          class="font-serif text-[32px] font-medium leading-[1.3] tracking-[0.01em] text-ink-gray-8"
-        >
-          Talk to us
-        </h1>
-        <p class="mt-3 text-[15px] leading-[23.55px] text-ink-gray-6">
-          Tell us what this is about and we'll put you in the right place. Most of it we can answer
-          faster than an email round trip.
-        </p>
+    <main class="mx-auto w-full max-w-[800px] px-6 py-16">
+      <!-- ⚠️ The real page's own words, and its own shape: an eyebrow, a serif
+           headline, a line of invitation. The headline used to read "Talk to
+           us", which is better copy and is not this page. -->
+      <p class="text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-gray-5">Contact</p>
+      <h1
+        class="mt-2 font-serif text-[32px] font-medium leading-[1.3] tracking-[0.01em] text-ink-gray-8"
+      >
+        Get in touch
+      </h1>
+      <p class="mt-3 max-w-[520px] text-[15px] leading-[23.55px] text-ink-gray-6">
+        Want to write to us, or have a question or comment? Write in — we would love to hear from
+        you.
+      </p>
 
-        <!-- ── The triage ──────────────────────────────────────────────── -->
-        <!-- ⚠️ ASKED FIRST, above the form, and not as a dropdown inside it. A
-             "reason for contact" select buried among the fields is how every
-             contact form on the internet asks this, and it changes nothing
-             about what happens next — the message still lands in one inbox. The
-             answer here changes the whole page, so it has to be the page's
-             first question. -->
-        <fieldset class="mt-10">
-          <legend class="text-[15px] font-semibold text-ink-gray-9">What's this about?</legend>
-          <div class="mt-4 space-y-2">
-            <label
-              v-for="r in REASONS"
-              :key="r.value"
-              class="relative flex cursor-pointer gap-3 rounded-lg border px-4 py-3.5 transition-colors"
-              :class="
-                reason === r.value
-                  ? 'border-outline-gray-4 bg-surface-gray-1'
-                  : 'border-outline-gray-2 hover:bg-surface-gray-1'
-              "
-            >
-              <input
-                v-model="reason"
-                type="radio"
-                name="reason"
-                class="peer sr-only"
-                :value="r.value"
-              />
-              <span
-                class="pointer-events-none absolute inset-0 rounded-lg peer-focus-visible:ring-2 peer-focus-visible:ring-outline-gray-3"
-                aria-hidden="true"
-              />
-              <span
-                class="mt-0.5 grid size-4 shrink-0 place-items-center rounded-full border"
-                :class="
-                  reason === r.value
-                    ? 'border-[5px] border-[var(--ink-gray-8)]'
-                    : 'border-outline-gray-3'
-                "
-                aria-hidden="true"
-              />
-              <span class="min-w-0">
-                <span class="block text-[15px] font-medium text-ink-gray-8">{{ r.label }}</span>
-                <span class="mt-0.5 block text-[15px] leading-[23.55px] text-ink-gray-6">
-                  {{ r.body }}
-                </span>
-              </span>
-            </label>
+      <!-- ── The four routes ─────────────────────────────────────────────
+           Two columns of rows rather than four boxes. The real page draws them
+           as cards; this mock does not, for the reason every list on the
+           partners page is drawn the same way — a frame around a title and one
+           sentence is most of a card's contents already. -->
+      <ul class="mt-12 grid gap-px overflow-hidden rounded-4 bg-[var(--outline-gray-1)] sm:grid-cols-2">
+        <li v-for="card in CARDS" :key="card.title" class="bg-white p-5">
+          <!-- ⚠️ A LINK ONLY WHERE THERE IS SOMEWHERE TO GO. Three of the four
+               are real pages this prototype does not mock, so their titles are
+               plain text — the reviewer sees the page's real shape without a
+               control that would lie about what it does. -->
+          <button
+            v-if="card.to"
+            type="button"
+            class="flex items-start gap-1.5 text-left text-[15px] font-medium text-ink-gray-8 hover:underline"
+            @click="router.push(card.to)"
+          >
+            {{ card.title }}
+            <LucideArrowRight class="mt-0.5 size-4 shrink-0 text-ink-gray-5" />
+          </button>
+          <p v-else class="text-[15px] font-medium text-ink-gray-7">{{ card.title }}</p>
+          <p class="mt-1.5 text-[15px] leading-[1.57] text-ink-gray-6">{{ card.body }}</p>
+        </li>
+      </ul>
+
+      <!-- ── How to reach the company ────────────────────────────────── -->
+      <section class="mt-16">
+        <h2 class="text-[20px] font-semibold leading-[1.3] text-ink-gray-8">Reach us directly</h2>
+        <dl class="mt-6 divide-y divide-outline-gray-1">
+          <div v-for="row in REACH" :key="row.label" class="flex gap-4 py-3 first:pt-0">
+            <dt class="w-[140px] shrink-0 text-[15px] text-ink-gray-5">{{ row.label }}</dt>
+            <dd class="min-w-0 flex-1 text-[15px] text-ink-gray-7">{{ row.value }}</dd>
           </div>
-        </fieldset>
-
-        <!-- ── The implementation branch ───────────────────────────────── -->
-        <!-- ⚠️ SETS THE EXPECTATION BEFORE THE LINK, which is the whole reason
-             this page was worth changing. The old behaviour dropped this
-             visitor into a form with no warning that it was a form; three lines
-             saying what the next page does is the difference between arriving
-             and bouncing. -->
-        <div v-if="!asksForm" class="mt-8 rounded-lg border border-outline-gray-2 p-5">
-          <p class="text-[15px] font-semibold text-ink-gray-9">
-            You don't need to wait for us
-          </p>
-          <p class="mt-2 text-[15px] leading-[23.55px] text-ink-gray-6">
-            Frappe Connect asks three questions about your business and tells you straight away
-            whether a fixed-price starter pack covers what you need, or whether it should be scoped
-            by a partner. You'll see prices either way, and no one calls you in between.
-          </p>
-          <Button
-            class="mt-4"
-            variant="solid"
-            size="md"
-            :label="chosen.cta"
-            :link="chosen.to"
-          />
-          <p class="mt-3 text-[14px] text-ink-gray-5">
-            Would rather just email us? Pick "a question about the product" above.
-          </p>
-        </div>
-
-        <!-- ── Everything else: the form as it is today ─────────────────── -->
-        <form v-else class="mt-8 space-y-4" novalidate @submit.prevent="submit">
-          <div v-if="reason === 'support'" class="rounded-lg border border-outline-gray-2 p-5">
-            <p class="text-[15px] leading-[23.55px] text-ink-gray-6">
-              If you have a Frappe Cloud site, the fastest route is the support desk inside it —
-              your site details come along automatically. This form works too.
-            </p>
+          <div class="flex gap-4 py-3">
+            <dt class="w-[140px] shrink-0 text-[15px] text-ink-gray-5">Address</dt>
+            <dd class="min-w-0 flex-1 text-[15px] leading-[1.57] text-ink-gray-7">{{ ADDRESS }}</dd>
           </div>
-
-          <FormControl v-model="form.name" size="sm" label="Your name" placeholder="Your name" />
-          <FormControl
-            v-model="form.email"
-            type="email"
-            size="sm"
-            label="Email"
-            placeholder="name@company.com"
-          />
-          <FormControl
-            v-model="form.company"
-            size="sm"
-            label="Company"
-            placeholder="Company name"
-          />
-          <Textarea
-            v-model="form.message"
-            label="How can we help?"
-            :rows="5"
-            placeholder="A sentence or two is plenty."
-          />
-
-          <Button type="submit" variant="solid" size="md" :label="chosen.cta" />
-          <p v-if="sent" class="text-[14px] text-ink-gray-6">
-            Thanks — someone will be in touch. (Nothing was actually sent; this is a mock.)
-          </p>
-        </form>
-      </div>
+        </dl>
+      </section>
     </main>
   </div>
 </template>
