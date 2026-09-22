@@ -52,24 +52,28 @@ export const isOver50 = (employees) => {
 // a business can buy the pack for the modules and treat the integration as the
 // change request it is. "An ERP that no longer fits how we work" is different —
 // there is no configuration of a fixed scope that answers it.
+// ⚠️ ONE LINE EACH, and they are FRAGMENTS rather than arguments. These were
+// two-sentence paragraphs that stated the fact and then explained the
+// inference — "You have 201 to 500 people. Starter packs are scoped for
+// businesses running fewer than 50 users." The headline above them already
+// makes the claim; what the reader needs under it is the evidence, and three
+// paragraphs of reasoning before a price list is a wall. Each one now says the
+// fact and the consequence in a single clause.
 const CUSTOM_TRIGGERS = [
   {
     key: 'size',
     test: (f) => isOver50(f.employees),
-    reason: (f) =>
-      `You have ${f.employees} people. Starter packs are scoped for businesses running fewer than 50 users.`,
+    reason: (f) => `${f.employees} people — packs are scoped for under 50 users`,
   },
   {
     key: 'outgrown',
     test: (f) => f.operations === 'outgrown',
-    reason: () =>
-      'You are already on an ERP that no longer fits. Moving off one is a migration, and a pack is a fresh configuration rather than a migration.',
+    reason: () => 'You are already on an ERP, so this is a migration rather than a fresh setup',
   },
   {
     key: 'fit',
     test: (f) => f.problems.includes('fit'),
-    reason: () =>
-      'You said your tools cannot handle how you actually work. A pack is ERPNext as it ships, with no custom scripting or workflows — so it would hit the same wall.',
+    reason: () => 'Packs are ERPNext as it ships — no custom scripting or workflows',
   },
 ]
 
@@ -100,17 +104,21 @@ const PACK_RULES = {
     // the modules are the floor of running a business on ERPNext.
     if (f.problems.length === 1 && f.problems[0] === 'people') return null
     const named = f.problems.find((p) => CORE_PROBLEMS.includes(p))
-    if (named) return `You said: “${problemLabel(named)}”. These four modules are where that lives.`
-    return 'Accounts, sales, purchase and stock are the floor — everything else in ERPNext reports into them.'
+    // ⚠️ THE QUOTE IS THE WHOLE REASON, so the frame around it is three words.
+    // These carried a trailing clause explaining what the pack does with the
+    // problem — "These four modules are where that lives" — which is the
+    // screen telling somebody what they just read.
+    if (named) return `Covers “${problemLabel(named)}”`
+    return 'The floor — everything else in ERPNext reports into these'
   },
   manufacturing: (f) => {
     if (!anyManufacturing(f.segments)) return null
     const segment = f.segments.find((s) => GROUP_OF_SEGMENT[s] === 'manufacturing')
-    return `You are in ${segment}, so production planning and BOMs are part of the job rather than an add-on.`
+    return `You are in ${segment}`
   },
   hrms: (f) => {
     if (!f.problems.includes('people')) return null
-    return `You said: “${problemLabel('people')}”. This pack is the Frappe HR app, configured for both.`
+    return `Covers “${problemLabel('people')}”`
   },
 }
 
@@ -154,15 +162,14 @@ export const recommendationFor = (form) => {
   return {
     verdict: 'packs',
     triggers: [],
-    // ⚠️ The packs verdict's reasons say why a FIXED SCOPE fits, not why these
-    // modules do — the per-pack reasons already do that, and repeating them
-    // here is how a screen ends up saying the same sentence twice in two
-    // typefaces. Two lines: the size, and where they are starting from.
+    // ⚠️ THE FACTS, NOT THE ARGUMENT. The headline makes the claim; these are
+    // what it was made from. They used to be two full sentences each carrying
+    // their own reasoning ("…so the fixed-scope packs cover this without anyone
+    // scoping it first"), which restated the headline twice before the reader
+    // reached a price.
     reasons: [
-      `You have ${f.employees} people and no ERP to migrate off, so the fixed-scope packs cover this without anyone scoping it first.`,
-      f.operations
-        ? `You are running on ${operationsLabel(f.operations).toLowerCase()}, which is what these packs are built to replace.`
-        : null,
+      `${f.employees} people, and no ERP to migrate off`,
+      f.operations ? `Running on ${operationsLabel(f.operations).toLowerCase()}` : null,
     ].filter(Boolean),
     packs,
   }

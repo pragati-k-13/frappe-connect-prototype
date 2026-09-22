@@ -16,24 +16,16 @@
 // swaps them — an override rather than a second recommendation. A screen that
 // recommends both has recommended nothing, but a screen that refuses to show
 // the other one is a wall.
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, Checkbox, FormControl, Textarea, TextInput, toast } from 'frappe-ui'
-import IconChevron from '~icons/lucide/chevron-right'
 import ConnectShell from '../components/ConnectShell.vue'
-import FilterChip from '../components/FilterChip.vue'
+import EditAnswersDialog from '../components/EditAnswersDialog.vue'
+import PartnerFiltersDialog from '../components/PartnerFiltersDialog.vue'
 import { useConnectStore } from '../stores/connect'
 import { recommendationFor } from '../data/recommendation'
 import { STARTER_PACKS, checkoutFor, marketFor, priceFor, DEFAULT_REGION } from '../data/packs'
-import {
-  TIERS,
-  WORK_STYLES,
-  asksCity,
-  briefErrors,
-  budgetBandsFor,
-  matchingPartners,
-} from '../data/custom'
-import { INDIA_CITIES } from '../data/partners'
+import { briefErrors, budgetBandsFor, matchingPartners } from '../data/custom'
 import { INDUSTRIES, GROUP_OF_SEGMENT, REGIONS, REGION_OF } from '../data/quiz'
 
 const store = useConnectStore()
@@ -86,6 +78,42 @@ const rows = computed(() => {
 const bill = computed(() => checkoutFor(store.packRecords(), region.value))
 const nothingPicked = computed(() => store.packs.length === 0)
 
+// ── The total, when the total has scrolled away ─────────────────────────────
+// ⚠️ NOT A SECOND TOTAL. A floating summary card was the other option and it
+// would have reprinted the figure this screen had just stopped printing twice.
+// This is the SAME object following you: the bar appears only while the real
+// total is out of view and goes again the moment it is back, so there is never
+// a moment with two of them on screen.
+//
+// ⚠️ An observer on the element rather than a scroll listener, because this
+// page scrolls inside `ConnectShell`'s own `ScrollArea` and the window's scroll
+// position is a no-op here. The observer takes its root from the ancestor that
+// actually overflows, which is what `null` resolves to in a nested scroller
+// only by accident — so the sentinel's own visibility is what is watched, and
+// it is watched against the viewport, which is correct either way.
+const totalEl = ref(null)
+const totalSeen = ref(true)
+let observer = null
+
+onMounted(() => {
+  observer = new IntersectionObserver(([entry]) => (totalSeen.value = entry.isIntersecting), {
+    // A sliver is enough: the bar should go as the real figure arrives, not
+    // once it is comfortably in the middle of the screen.
+    threshold: 0,
+  })
+  watch(
+    totalEl,
+    (el, old) => {
+      if (old) observer.unobserve(old)
+      if (el) observer.observe(el)
+      else totalSeen.value = true
+    },
+    { immediate: true, flush: 'post' },
+  )
+})
+
+onBeforeUnmount(() => observer?.disconnect())
+
 // ⚠️ The gate, and the only one on this screen. Paying creates a project, a
 // partner assignment and a conversation — three facts about an account — so
 // there has to be one. `?next=` brings them straight back to the checkout
@@ -127,14 +155,12 @@ const reachLine = computed(() => {
   return parts.length ? ` ${parts.join(' ')}` : ''
 })
 
-// ⚠️ CLOSED ON ARRIVAL. See the note in the template — the filters refine a
-// search the visitor has not written yet, so they are the last thing the screen
-// should be showing first.
+// ⚠️ A DIALOG, not a disclosure on the page. See `PartnerFiltersDialog`.
 const showFilters = ref(false)
 
-// What the disclosure says when it is shut. It COUNTS rather than labelling,
-// because somebody who narrowed the list and scrolled away needs to see that
-// they did without opening it again.
+// What the trigger says. It COUNTS rather than labelling, because somebody who
+// narrowed the list and closed the dialog needs to see that they did without
+// opening it again.
 const filterCount = computed(
   () =>
     brief.value.cities.length + brief.value.tiers.length + (brief.value.workStyle ? 1 : 0),
@@ -145,13 +171,6 @@ const filterSummary = computed(() =>
     ? `${filterCount.value} ${filterCount.value === 1 ? 'filter' : 'filters'} on`
     : 'Send it to fewer partners',
 )
-
-const toggleIn = (key, value) => {
-  const list = brief.value[key]
-  store.saveBrief({
-    [key]: list.includes(value) ? list.filter((v) => v !== value) : [...list, value],
-  })
-}
 
 // ⚠️ THE COUNT IS THE COMMITMENT. The button names the number it is about to
 // message, and the number comes from the same function the send does — see
@@ -195,9 +214,12 @@ const sendNote = () => {
   noteSent.value = true
 }
 
-// Changing an answer sends you back to the questions, which is where they are.
-// The intake keeps its draft, so this is a genuine edit rather than a restart.
-const rethink = () => router.push({ name: 'connect' })
+// ⚠️ A DIALOG OVER THIS SCREEN, not a trip back to the landing page. The
+// redirect dropped somebody out of a purchase onto a marketing page and made
+// them walk three steps to fix one field; the recommendation stays behind this
+// and re-runs the moment it saves. See `EditAnswersDialog`.
+const editing = ref(false)
+const rethink = () => (editing.value = true)
 
 watch(view, () => {
   tried.value = false
@@ -258,13 +280,10 @@ watch(view, () => {
            against it, and making them read it again is nagging. -->
       <p v-else class="mt-4 max-w-[62ch] text-p-base leading-relaxed text-ink-gray-6">
         <template v-if="view === 'packs'">
-          We'd have pointed you at a scoped implementation rather than a fixed-price pack — the
-          packs are ERPNext as it ships, with no custom scripting or workflows. Here they are
-          anyway.
+          We'd have pointed you at a scoped implementation instead — packs are ERPNext as it ships.
         </template>
         <template v-else>
-          We'd have said a fixed-price pack covers what you described, and it would be cheaper and
-          faster. Here is the scoped route anyway.
+          We'd have said a pack covers this, cheaper and faster.
         </template>
       </p>
 
@@ -273,10 +292,11 @@ watch(view, () => {
            said they are not. -->
       <!-- ── Packs ───────────────────────────────────────────────────── -->
       <section v-if="view === 'packs'" class="mt-8">
+        <!-- ⚠️ NO STANDFIRST. It read "Ticked already. They are separate
+             modules, so take one, two or all three." — a sentence explaining
+             checkboxes to somebody looking at checkboxes. The ticks say what is
+             recommended and the total below says they add up. -->
         <h2 class="text-p-lg font-semibold text-ink-gray-9">What we'd buy</h2>
-        <p class="mt-1 max-w-[62ch] text-p-base text-ink-gray-6">
-          Ticked already. They are separate modules, so take one, two or all three.
-        </p>
 
         <ul class="mt-4 divide-y divide-outline-gray-2 rounded-6 border border-outline-gray-2">
           <li v-for="row in rows" :key="row.pack.value" class="flex gap-3 p-4">
@@ -308,9 +328,7 @@ watch(view, () => {
                    it is not ticked, but at `gray-5` against the recommended
                    rows' `gray-6` the eye can take the recommendation in without
                    reading three paragraphs to find which two were argued for. -->
-              <p v-else class="mt-1 text-p-base text-ink-gray-5">
-                Nothing you told us points at this one.
-              </p>
+              <p v-else class="mt-1 text-p-base text-ink-gray-5">Not suggested by your answers</p>
               <p class="mt-1 text-p-sm text-ink-gray-5">
                 {{ row.pack.hours }} hours · {{ row.pack.validity }} to deliver
               </p>
@@ -339,6 +357,7 @@ watch(view, () => {
              button below says what to do instead. -->
         <div
           v-if="!nothingPicked"
+          ref="totalEl"
           class="mt-5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1"
         >
           <div>
@@ -354,10 +373,12 @@ watch(view, () => {
               </template>
             </p>
           </div>
-          <p class="max-w-[34ch] text-p-sm leading-relaxed text-ink-gray-5">
-            Paid in full to Frappe, in advance. Frappe Cloud hosting is billed separately by your
-            partner.
-          </p>
+          <!-- ⚠️ ONE CONDITION, not two. The hosting sentence went — it is the
+               project's business, it is stated on the checkout and again on the
+               hosting stage, and here it answered a question nobody asks while
+               reading a price. What survives is the one term that changes what
+               this button does: the money goes to Frappe, up front. -->
+          <p class="text-p-sm text-ink-gray-5">Paid to Frappe, in full and up front</p>
         </div>
 
         <div class="mt-5 flex flex-wrap items-center gap-3">
@@ -369,25 +390,26 @@ watch(view, () => {
             @click="checkout"
           />
           <span v-if="!store.signedIn" class="text-p-sm text-ink-gray-5">
-            You'll make an account on the way through.
+            You'll make an account on the way.
           </span>
         </div>
       </section>
 
       <!-- ── Custom ──────────────────────────────────────────────────── -->
       <section v-else class="mt-8">
+        <!-- ⚠️ NO STANDFIRST HERE EITHER. It argued for the two fields —
+             "without them the first reply from every partner is the same two
+             questions, and you lose a week" — which is a case made to somebody
+             who has already agreed to fill them in. The heading says who the
+             answers are for, which is the only part that was load-bearing. -->
         <h2 class="text-p-lg font-semibold text-ink-gray-9">What partners need from you</h2>
-        <p class="mt-1 max-w-[62ch] text-p-base text-ink-gray-6">
-          These two go out with your requirements. Without them the first reply from every partner
-          is the same two questions, and you lose a week.
-        </p>
 
         <div class="mt-4 max-w-[62ch] space-y-4">
           <div>
             <Textarea
               :model-value="brief.scope"
               label="What do you need built?"
-              placeholder="The processes you want in ERPNext, anything that has to integrate with it, and anything that has already been tried."
+              placeholder="Processes, integrations, and anything you have already tried."
               :rows="5"
               required
               :error="briefProblems.scope"
@@ -426,69 +448,25 @@ watch(view, () => {
             <span class="font-medium tabular-nums">{{ matches.length }}</span>
             certified {{ matches.length === 1 ? 'partner' : 'partners' }}{{ reachLine }}.
           </p>
+          <!-- ⚠️ THE PRIVACY LINE STAYS, cut to one sentence. It is the only
+               copy on this screen that tells somebody what they are giving away
+               by pressing the button under it, so it earns its line — but it ran
+               to three, and the middle one listed the fields the card above
+               already lists. -->
           <p class="mt-1 max-w-[62ch] text-p-base leading-relaxed text-ink-gray-6">
-            Each one gets your requirements, your budget range and your industry — not your company
-            name or contact details. Those are shared only with the partners whose replies you
-            approve.
+            They see the requirements and the budget, not your company name — that is shared when
+            you approve a reply.
           </p>
 
           <!-- ⚠️ The label counts what is ON rather than saying "Filters", so
-               somebody who narrowed the list and scrolled away can see that they
-               did without opening it again. -->
+               somebody who narrowed the list and closed the dialog can see that
+               they did without opening it again. -->
           <button
-            class="mt-3 flex items-center gap-1.5 text-p-base text-ink-gray-6 hover:text-ink-gray-8"
-            :aria-expanded="showFilters"
-            @click="showFilters = !showFilters"
+            class="mt-3 text-p-base text-ink-gray-6 underline hover:text-ink-gray-8"
+            @click="showFilters = true"
           >
-            <IconChevron class="size-4 transition-transform" :class="showFilters && 'rotate-90'" />
-            {{ showFilters ? 'Hide' : filterSummary }}
+            {{ filterSummary }}
           </button>
-
-          <div v-if="showFilters" class="mt-4 space-y-5 border-t border-outline-gray-2 pt-4">
-            <!-- ⚠️ INDIA ONLY, and the absence is explained rather than silent —
-                 see `asksCity`. -->
-            <div v-if="asksCity(store.company.country)">
-              <p class="text-sm text-ink-gray-7">City</p>
-              <div class="mt-1.5 flex flex-wrap gap-2">
-                <FilterChip
-                  v-for="city in INDIA_CITIES"
-                  :key="city"
-                  :label="city"
-                  :selected="brief.cities.includes(city)"
-                  @toggle="toggleIn('cities', city)"
-                />
-              </div>
-            </div>
-
-            <div>
-              <p class="text-sm text-ink-gray-7">Partner tier</p>
-              <div class="mt-1.5 flex flex-wrap gap-2">
-                <FilterChip
-                  v-for="t in TIERS"
-                  :key="t.value"
-                  :label="t.label"
-                  :selected="brief.tiers.includes(t.value)"
-                  @toggle="toggleIn('tiers', t.value)"
-                />
-              </div>
-            </div>
-
-            <div>
-              <p class="text-sm text-ink-gray-7">How you want to work</p>
-              <div class="mt-1.5 flex flex-wrap gap-2">
-                <!-- Single-select, and re-pressing clears it: "no preference" is
-                     the absence of an answer rather than a third chip, because a
-                     third chip would make the empty state look unanswered. -->
-                <FilterChip
-                  v-for="w in WORK_STYLES"
-                  :key="w.value"
-                  :label="w.label"
-                  :selected="brief.workStyle === w.value"
-                  @toggle="store.saveBrief({ workStyle: brief.workStyle === w.value ? '' : w.value })"
-                />
-              </div>
-            </div>
-          </div>
         </div>
 
         <div class="mt-5">
@@ -514,18 +492,46 @@ watch(view, () => {
            things"; this screen has just said they are not. -->
       <p class="mt-10 max-w-[62ch] text-p-base text-ink-gray-6">
         <template v-if="view === 'packs'">
-          <template v-if="!overridden">Bigger job than that? </template>
+          <template v-if="!overridden">Bigger job? </template>
           <button class="underline hover:text-ink-gray-8" @click="view = 'custom'">
             {{ overridden ? 'Back to what we recommend' : 'Get quotes from partners instead' }}
           </button>
         </template>
         <template v-else>
-          <template v-if="!overridden">Think a fixed-price pack would do it? </template>
+          <template v-if="!overridden">Would a fixed price do it? </template>
           <button class="underline hover:text-ink-gray-8" @click="view = 'packs'">
             {{ overridden ? 'Back to what we recommend' : 'Look at the packs anyway' }}
           </button>
         </template>
       </p>
+
+      <!-- ── The total, following you ────────────────────────────────── -->
+      <!-- ⚠️ SHOWN ONLY WHILE THE REAL ONE IS OFF SCREEN. See `totalSeen` — the
+           alternative was a floating summary card, which would have reprinted a
+           figure this screen had just stopped printing twice. It carries the
+           same number and the same button and nothing else: a second copy of
+           the line items would be a cart, and there is no cart here.
+           `transition` is a response to a scroll rather than an entrance — see
+           the reduced-motion note below. -->
+      <Transition name="bar">
+        <div
+          v-if="view === 'packs' && !nothingPicked && !totalSeen"
+          class="pointer-events-none sticky bottom-0 z-10 -mx-5 lg:-mx-10"
+        >
+          <div
+            class="pointer-events-auto mx-5 mb-4 flex items-center justify-between gap-4 rounded-6 border border-outline-gray-2 bg-surface-white px-4 py-3 shadow-lg lg:mx-10"
+          >
+            <div class="min-w-0">
+              <p class="text-p-lg font-semibold tabular-nums text-ink-gray-9">{{ bill.total }}</p>
+              <p class="truncate text-p-sm text-ink-gray-5">
+                {{ store.packs.length }} {{ store.packs.length === 1 ? 'pack' : 'packs' }} ·
+                {{ bill.hours }} hours
+              </p>
+            </div>
+            <Button variant="solid" size="md" label="Check out" @click="checkout" />
+          </div>
+        </div>
+      </Transition>
 
       <!-- ── Was this right? ─────────────────────────────────────────── -->
       <!-- ⚠️ ONE LINE, at the bottom, and it disappears once answered. It is
@@ -566,5 +572,40 @@ watch(view, () => {
         </div>
       </div>
     </div>
+
+    <EditAnswersDialog v-model:open="editing" />
+    <PartnerFiltersDialog v-model:open="showFilters" />
   </ConnectShell>
 </template>
+
+<style scoped>
+/* ⚠️ MOTION ON A SCROLL RESPONSE, which is the one kind this app allows: the
+   bar is answering something the reader did, and appearing without it reads as
+   a jump. 150ms, translate only.
+
+   ⚠️ `prefers-reduced-motion` turns the movement off and keeps the element —
+   somebody who has asked for less motion still needs the button. */
+.bar-enter-active,
+.bar-leave-active {
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
+}
+.bar-enter-from,
+.bar-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar-enter-active,
+  .bar-leave-active {
+    transition: none;
+  }
+  .bar-enter-from,
+  .bar-leave-to {
+    opacity: 1;
+    transform: none;
+  }
+}
+</style>
