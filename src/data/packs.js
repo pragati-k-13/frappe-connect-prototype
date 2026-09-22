@@ -625,13 +625,40 @@ const excluded = (fragment) => {
   return found.label
 }
 
+// Real, from the commercial terms below — the one hard number in the set, and
+// named because it is the one line here that is NOT a section 5 exclusion. A
+// screen printing the exclusions has to be able to put it in the same list
+// without the list pretending it came from the same section.
+export const PACK_USER_LIMIT = 'More than 50 people using it'
+
 export const PACK_WONT_COVER = [
-  // Real, from the commercial terms below — the one hard number in the set.
-  'More than 50 people using it',
+  PACK_USER_LIMIT,
   excluded('data cleaning'),
   excluded('custom scripting'),
   excluded('api integrations'),
 ]
+
+// ── The exclusions, split by what you can do about them ─────────────────────
+// ⚠️ A PARTITION, DERIVED. Section 5 says every one of these is available as a
+// paid add-on, and that is true of five of them; the other three plus the user
+// limit are the ones with no version that fits a fixed scope. A screen that
+// lists all eight under one heading tells somebody to go and get quotes over a
+// print format, and one that lists only four hides half the contract.
+//
+// Membership is computed from `PACK_WONT_COVER` rather than typed twice, so an
+// exclusion cannot land in both lists or in neither — the same reason
+// `excluded()` matches by fragment instead of retyping the document's wording.
+export const PACK_ADD_ONS = STRICTLY_EXCLUDED.map(asExclusion).filter(
+  (e) => !PACK_WONT_COVER.includes(e.label),
+)
+
+// The four as `{ label, hint }`, so one row template prints either list. The
+// user limit has no section 5 entry and therefore no hint, which is correct:
+// there is nothing to qualify about it.
+export const PACK_BLOCKERS = PACK_WONT_COVER.map(
+  (label) =>
+    STRICTLY_EXCLUDED.map(asExclusion).find((e) => e.label === label) ?? { label, hint: null },
+)
 
 // Section 8.
 export const CUSTOMER_RESPONSIBILITIES = [

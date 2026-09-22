@@ -19,6 +19,8 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, Checkbox, FormControl, Textarea, TextInput, toast } from 'frappe-ui'
+import IconCheck from '~icons/lucide/check'
+import IconX from '~icons/lucide/x'
 import ConnectShell from '../components/ConnectShell.vue'
 import EditAnswersDialog from '../components/EditAnswersDialog.vue'
 import PackScopeDialog from '../components/PackScopeDialog.vue'
@@ -26,8 +28,10 @@ import PartnerFiltersDialog from '../components/PartnerFiltersDialog.vue'
 import { useConnectStore } from '../stores/connect'
 import { recommendationFor } from '../data/recommendation'
 import {
+  INCLUDED_IN_ALL,
+  PACK_ADD_ONS,
+  PACK_BLOCKERS,
   PACK_STEPS,
-  PACK_WONT_COVER,
   STARTER_PACKS,
   checkoutFor,
   marketFor,
@@ -617,39 +621,109 @@ watch(view, () => {
              route.
              ⚠️ Still a sentence and not a tab. Tabs say "these are two equal
              things"; this screen has just said they are not. -->
-        <!-- ⚠️ THE LIST IS THE POINT, and the link used to stand without it. It
-             read "Bigger job? Get quotes from partners instead", which asks
-             somebody to self-diagnose against a criterion nobody has given them —
-             three lines after being told a pack fits. Nobody knows whether their
-             job is "bigger". Everybody knows whether they need their data
-             migrated across.
-             These four are the scope document's own exclusions plus the user
-             limit from its commercial terms, matched by fragment rather than
-             retyped — see `PACK_WONT_COVER`. They are the four with no version
-             that fits inside a fixed scope; the other exclusions are add-ons you
-             can buy against a pack, and listing those would send people to custom
-             work over a print format.
-             ⚠️ Only on the PACKS half. On the custom half the verdict's own
-             reasons already name which trigger fired, so the same question
-             ("would a fixed price do it?") is already answered above. -->
-        <div v-if="view === 'packs' && !overridden" class="mt-10 max-w-[62ch]">
-          <p class="text-p-base text-ink-gray-7">A pack won't cover you if you need</p>
-          <ul class="mt-2 space-y-1">
-            <li
-              v-for="item in PACK_WONT_COVER"
-              :key="item"
-              class="flex gap-2.5 text-p-base text-ink-gray-6"
-            >
-              <span class="mt-2 size-1 shrink-0 rounded-full bg-[var(--outline-gray-3)]" aria-hidden="true" />
-              {{ item }}
-            </li>
-          </ul>
-          <button class="mt-3 text-p-base text-ink-gray-6 underline hover:text-ink-gray-8" @click="view = 'custom'">
-            Get quotes from partners instead
-          </button>
-        </div>
+        <!-- ⚠️ ONCE, FOR ALL THREE PACKS, and it used to be three times. Every
+             row's "What's included" opened a dialog that printed the pack's own
+             scope and then the same eight inclusions and eight exclusions —
+             true of every pack, and therefore not an answer to "what is in THIS
+             one". Somebody comparing two packs read the identical two lists
+             twice and learned nothing from the second. The dialog keeps the
+             part that differs; the part that never does is here, where it is
+             read once and applies to whatever ends up ticked.
+             ⚠️ THE EXCLUSIONS ARE IN TWO GROUPS, and that is the whole reason
+             this can replace the old "A pack won't cover you if you need" list.
+             Section 5 sells five of them back to you as add-ons and four are
+             the ones no fixed scope can hold — printing all eight under one
+             heading would send somebody to get quotes over a print format, and
+             printing only the four hid half the contract. The split is derived
+             from `PACK_WONT_COVER`, not typed — see `PACK_ADD_ONS`.
+             ⚠️ The link hangs off the second group rather than standing alone.
+             It used to read "Bigger job? Get quotes from partners instead",
+             which asks somebody to self-diagnose against a criterion nobody has
+             given them. Nobody knows whether their job is "bigger"; everybody
+             knows whether they need their data migrated across. -->
+        <section v-if="view === 'packs'" class="mt-10">
+          <h2 class="text-p-lg font-semibold text-ink-gray-9">True of every pack</h2>
 
-        <p v-else class="mt-10 max-w-[62ch] text-p-base text-ink-gray-6">
+          <div class="mt-4 grid gap-x-10 gap-y-6 sm:grid-cols-2">
+            <div>
+              <h3 class="text-p-base font-medium text-ink-gray-8">Included</h3>
+              <ul class="mt-2 space-y-1.5">
+                <li
+                  v-for="item in INCLUDED_IN_ALL"
+                  :key="item"
+                  class="flex gap-2 text-p-base text-ink-gray-6"
+                >
+                  <IconCheck class="mt-1 size-3.5 shrink-0 text-ink-gray-5" />
+                  {{ item }}
+                </li>
+              </ul>
+            </div>
+
+            <div class="space-y-6">
+              <div>
+                <h3 class="text-p-base font-medium text-ink-gray-8">Not included</h3>
+                <ul class="mt-2 space-y-1.5">
+                  <li
+                    v-for="item in PACK_ADD_ONS"
+                    :key="item.label"
+                    class="flex gap-2 text-p-base text-ink-gray-6"
+                  >
+                    <IconX class="mt-1 size-3.5 shrink-0 text-ink-gray-5" />
+                    <span class="min-w-0">
+                      {{ item.label }}
+                      <span v-if="item.hint" class="block text-p-sm text-ink-gray-5">
+                        {{ item.hint }}
+                      </span>
+                    </span>
+                  </li>
+                </ul>
+                <p class="mt-2 text-p-sm text-ink-gray-5">
+                  Each can be bought against a pack.
+                </p>
+              </div>
+
+              <div>
+                <h3 class="text-p-base font-medium text-ink-gray-8">Not possible in a pack</h3>
+                <ul class="mt-2 space-y-1.5">
+                  <li
+                    v-for="item in PACK_BLOCKERS"
+                    :key="item.label"
+                    class="flex gap-2 text-p-base text-ink-gray-6"
+                  >
+                    <IconX class="mt-1 size-3.5 shrink-0 text-ink-gray-5" />
+                    <span class="min-w-0">
+                      {{ item.label }}
+                      <span v-if="item.hint" class="block text-p-sm text-ink-gray-5">
+                        {{ item.hint }}
+                      </span>
+                    </span>
+                  </li>
+                </ul>
+                <!-- ⚠️ Only when this is still the recommendation. Overridden,
+                     the visitor is already looking at packs against our advice
+                     and the line below offers them the way back instead. -->
+                <button
+                  v-if="!overridden"
+                  class="mt-2 text-p-base text-ink-gray-6 underline hover:text-ink-gray-8"
+                  @click="view = 'custom'"
+                >
+                  Get quotes from partners instead
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── The other path ──────────────────────────────────────────── -->
+        <!-- ⚠️ Still a sentence and not a tab. Tabs say "these are two equal
+             things"; this screen has just said they are not.
+             On the packs half the switch lives on the exclusions above, so this
+             is only the two cases that block has no room for: an overridden
+             packs view, and the custom half. -->
+        <p
+          v-if="view !== 'packs' || overridden"
+          class="mt-10 max-w-[62ch] text-p-base text-ink-gray-6"
+        >
           <template v-if="view === 'packs'">
             <button class="underline hover:text-ink-gray-8" @click="view = 'custom'">
               Back to what we recommend
