@@ -145,20 +145,31 @@ const restartQuiz = () => {
            from `xl`, where there is room for it. Between `lg` and `xl` the
            halves are simply equal. -->
       <div class="flex min-w-0 flex-col justify-center lg:pb-16">
-        <h1 class="text-2xl font-semibold text-ink-gray-9">
-          Tell us about your business, and we'll tell you how to start
+        <!-- ⚠️ SHORT ENOUGH TO HOLD ONE LINE at this column's 460px, which is
+             what the previous headline did not: "Tell us about your business,
+             and we'll tell you how to start" ran to two lines and left "start"
+             alone on the second, which is the worst possible break — an orphan
+             on the largest type on the page. `text-balance` is insurance for
+             the widths where it does wrap. -->
+        <h1 class="text-balance text-2xl font-semibold text-ink-gray-9">
+          Tell us about your business
         </h1>
         <!-- ⚠️ THE PROMISE, and it is here because two different doors lead to
              this page. Somebody arriving from frappe.io/partners expects a
              directory; somebody arriving from the contact page expects a reply
-             by email. Both of them get a form, so the form has to say what it
-             gives back before it asks for anything — including the part people
-             most want to know, which is whether a salesperson is about to
-             call. -->
+             by email. Both of them get a form, so it has to say what it gives
+             back before it asks for anything — including the part people most
+             want to know, which is whether a salesperson is about to call.
+             ⚠️ TWO LINES, AND IT WAS FOUR. The long version also named what the
+             recommendation picks between ("a fixed-price starter pack you can
+             buy today, or quotes from partners who do your kind of work"), which
+             is a paragraph of reading above a form that has not asked anything
+             yet — and the next screen says it anyway, with prices. What is left
+             is the two facts that decide whether someone starts: how long this
+             takes, and that nobody rings them. -->
         <p class="mt-2 max-w-md text-p-base leading-relaxed text-ink-gray-6">
-          Three questions, about a minute. You'll get a recommendation straight away — either a
-          fixed-price starter pack you can buy today, or quotes from partners who do your kind of
-          work. No sales call in between.
+          Three questions, about a minute, and you'll get a recommendation straight away. No sales
+          call in between.
         </p>
 
         <div class="relative mt-6">
