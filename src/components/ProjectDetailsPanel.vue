@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { checkoutFor } from '../data/packs'
 import { serviceOf } from '../data/project'
-import { modulesFor } from '../data/modules'
+import { scopeSentence } from '../data/modules'
 
 // What this project IS, as facts, at the top of the rail.
 //
@@ -30,20 +30,10 @@ const props = defineProps({
 
 // "Finance, Sales, Purchase, Inventory, Manufacturing and HR." The same module
 // catalogue the estimate modal prices, so the two agree on what "Finance"
-// contains.
-//
-// ⚠️ A SENTENCE, not a row of pills. The pills were the only fully-round shape
-// in the app and they appeared exactly here, which made them an orphan
-// vocabulary rather than a device — a border and a radius wrapped around six
-// single words. Naming six modules is what a comma is for.
-const scopeLine = computed(() => {
-  const names = Object.entries(props.project?.modules ?? {})
-    .flatMap(([app, keys]) => modulesFor(app, keys))
-    .map((m) => m.label)
-  if (!names.length) return ''
-  if (names.length === 1) return `${names[0]}.`
-  return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}.`
-})
+// contains — and now the same BUILDER the brief a broadcast carries uses, so
+// this panel and the card twelve partners received name the same scope. See
+// `scopeSentence`.
+const scopeLine = computed(() => scopeSentence(props.project?.modules))
 
 // ⚠️ THE BASKET'S TOTAL, not one pack's price. Two packs bought together are
 // one payment, and `checkoutFor` is the same function the checkout charged

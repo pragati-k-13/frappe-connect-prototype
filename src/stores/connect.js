@@ -705,6 +705,7 @@ export const useConnectStore = defineStore('connect', {
           projectId: project.id,
           project: project.name,
           scope: this.brief.scope || 'Barcode scanning on goods receipt, wired into our WMS.',
+          modules: project.modules ?? {},
           budget: this.brief.budget || 'inr-2',
           country: this.company.country,
           employees: this.company.employees,
@@ -1393,6 +1394,17 @@ export const useConnectStore = defineStore('connect', {
         projectId: id,
         project: project.name,
         scope: this.brief.scope.trim(),
+        // ⚠️ THE MODULES GO TOO, and leaving them out was the broadcast quietly
+        // sending less than the customer wrote. A project's scope is written in
+        // two passes — the modules ticked when it was created, the paragraph
+        // typed when the requirements went out — and only the paragraph was
+        // reaching the partner. `ContactPartnerDialog` had this right all
+        // along: its inquiry card carries the modules, so approaching ONE firm
+        // told them more about the work than briefing TWELVE did.
+        //
+        // Snapshotted, like the rest of this object: the project's scope keeps
+        // moving and what a partner quoted against has to stay as it was sent.
+        modules: project.modules ?? {},
         budget: this.brief.budget,
         country: this.company.country,
         employees: this.company.employees,

@@ -25,6 +25,7 @@ import { PARTNERS } from '../data/partners'
 import { logoFor } from '../data/logos'
 import { STATUS_LABELS, isActive, lastAt, threadStatus } from '../data/messages'
 import { budgetLabel } from '../data/custom'
+import { scopeSentence } from '../data/modules'
 import { useConnectStore } from '../stores/connect'
 
 // SCREEN — messages. The destination the confirmed screen has been promising
@@ -226,6 +227,11 @@ const bidStateFor = (thread) => {
 }
 
 const statusOf = (thread) => STATUS_LABELS[threadStatus(thread, bidStateFor(thread))] ?? null
+
+// The modules a brief carried, as the same sentence the project's own rail
+// prints. Snapshotted onto the brief when it was sent, so an older card keeps
+// naming what went out even after the project's scope has moved on.
+const scopeOf = (brief) => scopeSentence(brief?.modules)
 
 const details = ref(false)
 
@@ -744,6 +750,21 @@ watch(open, toBottom)
                     {{ m.brief.scope }}
                   </p>
                   <dl class="mt-3 space-y-1 border-t border-outline-gray-2 pt-3">
+                    <!-- ⚠️ THE OTHER HALF OF THE SCOPE, and it was missing. The
+                         paragraph above is what the customer TYPED when the
+                         requirements went out; this is what they TICKED when the
+                         project was made, and a partner pricing the work needs
+                         both — "barcode scanning on goods receipt" quoted
+                         without knowing Inventory and Manufacturing are in scope
+                         is a quote against half a job.
+                         First in the list, and above the money: it says what is
+                         being bought, and the three rows under it qualify who is
+                         buying. Absent when nothing was ticked, like every other
+                         derived row in this app. -->
+                    <div v-if="scopeOf(m.brief)" class="flex gap-6 text-p-base">
+                      <dt class="w-28 shrink-0 text-ink-gray-5">Modules</dt>
+                      <dd class="text-ink-gray-8">{{ scopeOf(m.brief) }}</dd>
+                    </div>
                     <div class="flex gap-6 text-p-base">
                       <dt class="w-28 text-ink-gray-5">Budget</dt>
                       <dd class="text-ink-gray-8">{{ budgetLabel(m.brief.budget) }}</dd>

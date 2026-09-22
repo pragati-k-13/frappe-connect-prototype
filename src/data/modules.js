@@ -188,3 +188,26 @@ export const modulesFor = (app, selectedKeys) =>
   (MODULES[app] ?? [])
     .filter((m) => selectedKeys.includes(m.key))
     .map((m) => ({ ...m, hours: moduleHours(m) }))
+
+// A project's whole scope as one sentence: "Finance, Sales and Inventory."
+//
+// ⚠️ ONE BUILDER, THREE READERS. The project rail said this, the brief a
+// broadcast carries says it to a dozen partners, and both have to name the same
+// modules in the same order — a business reading its own project page beside
+// the card its partners received should not have to check whether the two
+// agree. Built from `modulesFor`, so the order is the catalogue's.
+//
+// ⚠️ A SENTENCE, not a row of pills. The pills were the only fully-round shape
+// in the app and they appeared in exactly one place, which made them an orphan
+// vocabulary rather than a device. Naming six modules is what a comma is for.
+//
+// Empty string when nothing is picked, which every caller treats as "no row":
+// a scope line reading "None." is a claim the project never made.
+export const scopeSentence = (modules) => {
+  const names = Object.entries(modules ?? {})
+    .flatMap(([app, keys]) => modulesFor(app, keys))
+    .map((m) => m.label)
+  if (!names.length) return ''
+  if (names.length === 1) return `${names[0]}.`
+  return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}.`
+}
