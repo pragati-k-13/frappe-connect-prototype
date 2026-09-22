@@ -151,9 +151,23 @@ const restartQuiz = () => {
              alone on the second, which is the worst possible break — an orphan
              on the largest type on the page. `text-balance` is insurance for
              the widths where it does wrap. -->
-        <h1 class="text-balance text-2xl font-semibold text-ink-gray-9">
-          Tell us about your business
-        </h1>
+        <!-- ⚠️ THE COUNTER RIDES ON THE HEADLINE, which is what let the step
+             name go. Each step used to be titled — "Your business", "How you
+             work today", "What you want fixed" — with the counter opposite it
+             on its own row. Every one of those titles restated the question
+             directly beneath it ("What you want fixed" over "What are you
+             trying to fix?"), so the row cost a line of type and a line of
+             reading to say the same thing twice. The fields name themselves.
+             Baseline-aligned: 24px semibold against 13px, and aligning boxes
+             rather than baselines would float the counter off the cap line. -->
+        <div class="flex items-baseline justify-between gap-4">
+          <h1 class="text-balance text-2xl font-semibold text-ink-gray-9">
+            Tell us about your business
+          </h1>
+          <span class="shrink-0 text-p-sm tabular-nums text-ink-gray-5">
+            {{ step }} / {{ TOTAL }}
+          </span>
+        </div>
         <!-- ⚠️ THE PROMISE, and it is here because two different doors lead to
              this page. Somebody arriving from frappe.io/partners expects a
              directory; somebody arriving from the contact page expects a reply
@@ -172,35 +186,20 @@ const restartQuiz = () => {
           call in between.
         </p>
 
+        <!-- ⚠️ NO PROGRESS BAR EITHER. There was one under the step name —
+             `Progress` with three intervals, the same control the contact
+             wizard uses — and it sat directly below a "1 / 3" saying the same
+             thing. Two indicators of one position is one too many, and the bar
+             was the weaker of them: it says how far along you are without
+             saying how far there is to go, which over three steps is the only
+             fact worth having. -->
         <div class="relative mt-6">
-          <div class="flex items-baseline justify-between gap-4">
-            <p class="text-p-base font-semibold text-ink-gray-9">
-              {{ ['Your business', 'How you work today', 'What you want fixed'][step - 1] }}
-            </p>
-            <span class="shrink-0 text-p-sm tabular-nums text-ink-gray-5">
-              {{ step }} / {{ TOTAL }}
-            </span>
-          </div>
-
-          <!-- ⚠️ NO PROGRESS BAR. There was one here — `Progress` with three
-               intervals, the same control the contact wizard uses — and it sat
-               directly under a "1 / 3" saying the same thing. Two indicators of
-               one position is one too many, and the bar was the weaker of them:
-               it says how far along you are without saying how far there is to
-               go, which over three steps is the only fact worth having. The
-               counter stays. -->
-
           <!-- ⚠️ THE SAME COMPONENT THE CONTACT WIZARD ASKS THESE WITH. They
                were this page's own markup once and the wizard's own markup
                beside it, and the two drifted within a week — one asked for a
                segment, the other for an industry. `CompanyQuestions` is the
                fields; this page owns the sequence and the buttons. -->
-          <!-- ⚠️ `mt-5`, up from `mt-4`. The bar used to sit between this and
-               the step's name and carried its own 8px above it; taking it out
-               left the first field's label 16px under a heading, which is the
-               gap between two fields rather than between a heading and what it
-               heads. -->
-          <div class="mt-5">
+          <div>
             <Transition name="step" mode="out-in">
               <div :key="step">
                 <CompanyQuestions :step="step" :form="form" :errors="errors" />
