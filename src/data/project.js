@@ -83,7 +83,23 @@ export const serviceOf = (value) => SERVICES.find((s) => s.value === value) ?? n
 //
 // A task with no action is a plain tick: something you do away from the screen
 // and come back to record.
+//
+// `when(project)` makes a task CONDITIONAL on the project's own state. Optional,
+// and rare on purpose: a checklist whose rows appear and vanish is hard to trust
+// and impossible to count against. It exists for the one case where showing a
+// task would be offering something the product would then refuse — see
+// `agree-terms`. Read through `visibleTasks`, never off `stage.yours` directly.
 const task = (key, label, rest = {}) => ({ key, label, ...rest })
+
+// The tasks in a stage that apply to THIS project.
+//
+// ⚠️ EVERYTHING THAT READS A STAGE'S TASKS GOES THROUGH HERE — the checklist
+// that renders them, the tally beside it, and the "your side is done" test that
+// offers the next stage. A hidden task left in any one of those is a stage that
+// can never complete, which is the failure this helper exists to make
+// impossible to write by accident.
+export const visibleTasks = (stage, project) =>
+  (stage?.yours ?? []).filter((t) => (t.when ? t.when(project) : true))
 
 // ⚠️ `theirs` IS A LIST OF SENTENCE FRAGMENTS, lower-case, each one completing
 // "Tridots is ___". They are rendered as ONE SENTENCE naming the other side and
@@ -126,7 +142,6 @@ const PACK_STAGES = [
     key: 'confirmed',
     label: 'Confirmed',
     theme: 'blue',
-    blurb: 'Paid, and a partner is assigned. They already have everything you told us.',
     yours: [
       task('nominate-champion', responsibility('champion'), {
         hint: 'One person on your side who can answer questions and make decisions.',
@@ -145,7 +160,6 @@ const PACK_STAGES = [
     key: 'hosting',
     label: 'Hosting',
     theme: 'blue',
-    blurb: 'ERPNext runs on Frappe Cloud. Your partner is billed for the site, and bills you.',
     yours: [
       task('fc-account', 'Create your Frappe Cloud account'),
       task('fc-code', 'Enter your partner code on Frappe Cloud', {
@@ -160,7 +174,6 @@ const PACK_STAGES = [
     key: 'data',
     label: 'Your data',
     theme: 'orange',
-    blurb: 'Your data is what the configuration is built on, and getting it ready is your half.',
     yours: [
       task('data-ready', responsibility('data ready'), {
         // Real, and the reason this task exists at all: cleaning and migrating
@@ -187,7 +200,6 @@ const PACK_STAGES = [
     key: 'implementation',
     label: 'Implementation',
     theme: 'orange',
-    blurb: 'Your partner configures the modules you bought, and trains your team on them.',
     yours: [
       task('approve', responsibility('approve internally'), {
         hint: 'Configuration waits on your sign-off. Hours run against the pack either way.',
@@ -203,7 +215,6 @@ const PACK_STAGES = [
     key: 'live',
     label: 'Live',
     theme: 'green',
-    blurb: 'You are running on ERPNext. Day 1 support is included; anything after it is an AMC.',
     yours: [
       task('signoff', 'Sign off on go-live'),
       // ⚠️ THE ONE TASK THAT ASKS FOR SOMETHING RATHER THAN OF SOMETHING. It is
@@ -229,7 +240,6 @@ const CUSTOM_STAGES = [
     key: 'requirements',
     label: 'Requirements',
     theme: 'blue',
-    blurb: 'What you want built and what you can spend, in enough detail to be quoted against.',
     yours: [
       task('describe', 'Describe what you need built', { action: 'brief' }),
       task('set-budget', 'Say what you can spend', {
@@ -244,21 +254,34 @@ const CUSTOM_STAGES = [
     key: 'choosing',
     label: 'Choosing a partner',
     theme: 'blue',
-    blurb: 'Replies come back as quotes. Approve the ones worth talking to, pass on the rest.',
+    // ⚠️ ONE BUTTON, NOT FOUR. All three of the first tasks carried
+    // `action: 'bids'`, so the stage rendered three identical "See the replies"
+    // controls in a column, every one of them scrolling to the same section a
+    // few hundred pixels below. Repeating a control per row says the rows lead
+    // somewhere different; these do not. The first task owns it, and the two
+    // under it are records of what you did in the section it takes you to.
     yours: [
       task('review-bids', 'Go through the replies', { action: 'bids' }),
-      task('approve-bid', 'Approve at least one, so they can see who you are', {
-        hint: 'Your company details stay hidden until you approve a reply.',
-        action: 'bids',
-      }),
-      task('choose-partner', 'Choose the partner you are going with', { action: 'bids' }),
+      // ⚠️ The hint went, not because it was wrong but because it was the third
+      // copy: `ProjectBids` prints the consequence on the button's own line,
+      // and the recommendation screen states it before the brief goes out.
+      task('approve-bid', 'Approve at least one, so they can see who you are'),
+      task('choose-partner', 'Choose the partner you are going with'),
       // ⚠️ A TASK, NOT A STAGE. It was drawn as its own step in the bar and it
       // is one checkbox — a stage whose entire content is "tick this" reads as
       // ceremony, and it put a wall between choosing a firm and starting with
       // them where there is really only a signature.
+      //
+      // ⚠️ AND IT APPEARS ONLY ONCE THERE IS SOMEBODY TO AGREE WITH. Terms of
+      // engagement are between the business and its partner; offering them
+      // above a list of twelve firms nobody has picked is a contract with no
+      // counterparty, and pressing it could only say "choose a partner first".
+      // A task you are shown and then refused is worse than one you are not
+      // shown yet.
       task('agree-terms', 'Agree the terms of engagement', {
         hint: 'Between you and your partner. Frappe is not a party to it.',
         action: 'terms',
+        when: (project) => Boolean(project?.partnerId),
       }),
     ],
     // ⚠️ NO `theirs` SENTENCE, and this is the one stage that has to go
@@ -274,7 +297,6 @@ const CUSTOM_STAGES = [
     key: 'custom-hosting',
     label: 'Hosting',
     theme: 'blue',
-    blurb: 'ERPNext runs on Frappe Cloud. Your partner is billed for the site, and bills you.',
     yours: [
       task('custom-fc-account', 'Create your Frappe Cloud account'),
       task('custom-fc-code', 'Enter your partner code on Frappe Cloud', {
@@ -292,7 +314,6 @@ const CUSTOM_STAGES = [
     key: 'build',
     label: 'Build',
     theme: 'orange',
-    blurb: 'The work itself, in whatever phases you and your partner agreed between you.',
     yours: [
       task('custom-champion', responsibility('champion')),
       task('custom-approve', responsibility('approve internally')),
@@ -304,7 +325,6 @@ const CUSTOM_STAGES = [
     key: 'custom-live',
     label: 'Live',
     theme: 'green',
-    blurb: 'You are running on it. Support after go-live is whatever your contract says.',
     yours: [
       task('custom-signoff', 'Sign off on go-live'),
       task('custom-rate-partner', 'Rate your partner', {
@@ -372,7 +392,11 @@ export const stageWork = (project) => {
   const stage = stageOf(project?.service, project?.stage)
   if (!stage) return null
   const done = project.done ?? []
-  const outstanding = (stage.yours ?? []).filter((t) => !done.includes(t.key)).length
+  // ⚠️ `visibleTasks`, and this was the third reader to need it — the listing
+  // row said "4 things need you" over a page showing three, because the fourth
+  // was a task the project cannot be offered yet. A count that disagrees with
+  // the list it is counting is worse than no count.
+  const outstanding = visibleTasks(stage, project).filter((t) => !done.includes(t.key)).length
   return { outstanding, waitingOn: outstanding === 0 && (stage.theirs ?? []).length > 0 }
 }
 

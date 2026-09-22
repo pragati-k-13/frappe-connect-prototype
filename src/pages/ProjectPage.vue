@@ -16,7 +16,7 @@ import { logoFor } from '../data/logos'
 import { modulesFor } from '../data/modules'
 import { PARTNERS } from '../data/partners'
 import { DEFAULT_REGION, STARTER_PACKS, marketFor } from '../data/packs'
-import { SERVICES, nextStage, serviceOf, stageOf, windowFor } from '../data/project'
+import { SERVICES, nextStage, serviceOf, stageOf, visibleTasks, windowFor } from '../data/project'
 import { useConnectStore } from '../stores/connect'
 import { useContactPartner } from '../utils/contact'
 
@@ -238,7 +238,7 @@ const act = (task) => {
 // see `broadcastBrief`. So the stage says what it is waiting for.
 const waiting = computed(() =>
   project.value?.stage === 'choosing' && project.value?.broadcast && !project.value?.bids?.length
-    ? 'Nothing to do here until the first quote arrives. Partners usually take a few working days, and not all of them answer.'
+    ? 'Nothing to do until the first quote arrives, usually a few working days.'
     : '',
 )
 
@@ -249,7 +249,7 @@ const toggleTask = (key) => store.toggleTask(project.value.id, key)
 // custom spine's hosting tasks are `custom-fc-code` and the pack's are
 // `fc-code`, and neither this page nor the dialogs should know that.
 const tickByAction = (action) => {
-  const task = stage.value?.yours?.find((t) => t.action === action)
+  const task = visibleTasks(stage.value, project.value).find((t) => t.action === action)
   if (task && !project.value.done.includes(task.key)) store.toggleTask(project.value.id, task.key)
 }
 
@@ -278,8 +278,12 @@ const confirmChoice = (why) => {
 // offer rather than an automatic move: finishing your last task and having the
 // page jump out from under you is worse than pressing a button that says what
 // it will do.
+// ⚠️ THROUGH `visibleTasks`, not off `stage.yours`. A task hidden by its own
+// `when` — "Agree the terms" before a partner exists — would otherwise sit
+// unticked in this test forever, and the stage could never be finished. Same
+// reason `tickByAction` reads the filtered list.
 const yoursDone = computed(() => {
-  const yours = stage.value?.yours ?? []
+  const yours = visibleTasks(stage.value, project.value)
   return yours.length > 0 && yours.every((t) => project.value.done.includes(t.key))
 })
 

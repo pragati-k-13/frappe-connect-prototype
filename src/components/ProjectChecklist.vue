@@ -79,12 +79,8 @@ const ACTION_LABELS = {
 // stage that looks broken, or an invented milestone list that looks informed
 // and isn't, and a product that admits the limit is more trustworthy than one
 // that papers over it with a spinner.
-const UNTRACKED = {
-  implementation:
-    'Frappe does not track your partner’s progress here — your own calls with them are where that lives. What is below is only your side of it.',
-  build:
-    'Frappe does not track your partner’s progress here — your own calls with them are where that lives. What is below is only your side of it.',
-}
+const LINE = 'Frappe does not track your partner’s progress — your calls with them do.'
+const UNTRACKED = { implementation: LINE, build: LINE }
 
 // ⚠️ A SECOND KIND OF NOTICE, passed in rather than derived. `UNTRACKED` is a
 // fact about the STAGE — Frappe never tracks a partner's build — and it is the

@@ -1,5 +1,4 @@
 <script setup>
-import { Button } from 'frappe-ui'
 import IconBook from '~icons/lucide/book-open'
 import IconLifeBuoy from '~icons/lucide/life-buoy'
 import IconMessage from '~icons/lucide/message-square'
@@ -17,6 +16,13 @@ import IconExternal from '~icons/lucide/arrow-up-right'
 // ⚠️ THE TWO CONTACTS ARE SEPARATE ON PURPOSE. "Contact" as one button is the
 // version that sends a complaint about a partner to that partner. The person
 // needs to know which of the two they are writing to before they write.
+//
+// ⚠️ NO DESCRIPTIONS. Each row carried a second line explaining itself — "How
+// Frappe works, and how ERPNext is meant to be run" under "Frappe handbook" —
+// which is forty words of caption on a list of three links whose labels already
+// say where they go. It doubled the block's height and taught nothing. The
+// labels carry the distinction instead, which is the only thing that needed
+// carrying: the third one says whose problem it is for.
 defineProps({
   partner: { type: Object, default: null },
 })
@@ -30,53 +36,43 @@ const HANDBOOK = 'https://frappe.io/handbook'
 <template>
   <section>
     <h2 class="text-base font-medium text-ink-gray-8">Help</h2>
-    <ul class="mt-3 space-y-2">
+    <ul class="mt-2 space-y-0.5">
       <li>
         <a
           :href="HANDBOOK"
           target="_blank"
           rel="noreferrer"
-          class="group flex gap-2.5 rounded-5 px-2 py-2 -mx-2 hover:bg-surface-gray-1"
+          class="-mx-2 flex items-center gap-2.5 rounded-5 px-2 py-1.5 hover:bg-surface-gray-1"
         >
-          <IconBook class="mt-0.5 size-4 shrink-0 text-ink-gray-6" />
-          <span class="min-w-0">
-            <span class="flex items-center gap-1 text-p-base text-ink-gray-8">
-              Frappe handbook
-              <IconExternal class="size-3.5 text-ink-gray-5" />
-            </span>
-            <span class="block text-p-sm text-ink-gray-5">
-              How Frappe works, and how ERPNext is meant to be run
-            </span>
+          <IconBook class="size-4 shrink-0 text-ink-gray-6" />
+          <span class="flex min-w-0 items-center gap-1 text-p-base text-ink-gray-8">
+            Frappe handbook
+            <IconExternal class="size-3.5 shrink-0 text-ink-gray-5" />
           </span>
         </a>
       </li>
       <li v-if="partner">
         <button
           type="button"
-          class="group flex w-full gap-2.5 rounded-5 px-2 py-2 -mx-2 text-left hover:bg-surface-gray-1"
+          class="-mx-2 flex w-full items-center gap-2.5 rounded-5 px-2 py-1.5 text-left hover:bg-surface-gray-1"
           @click="emit('message')"
         >
-          <IconMessage class="mt-0.5 size-4 shrink-0 text-ink-gray-6" />
-          <span class="min-w-0">
-            <span class="block text-p-base text-ink-gray-8">Ask {{ partner.name.split(' ')[0] }}</span>
-            <span class="block text-p-sm text-ink-gray-5">
-              Anything about the work itself
-            </span>
+          <IconMessage class="size-4 shrink-0 text-ink-gray-6" />
+          <span class="min-w-0 truncate text-p-base text-ink-gray-8">
+            Ask {{ partner.name.split(' ')[0] }}
           </span>
         </button>
       </li>
       <li>
         <a
           href="#"
-          class="group flex gap-2.5 rounded-5 px-2 py-2 -mx-2 hover:bg-surface-gray-1"
+          class="-mx-2 flex items-center gap-2.5 rounded-5 px-2 py-1.5 hover:bg-surface-gray-1"
         >
-          <IconLifeBuoy class="mt-0.5 size-4 shrink-0 text-ink-gray-6" />
-          <span class="min-w-0">
-            <span class="block text-p-base text-ink-gray-8">Something wrong with the pack?</span>
-            <span class="block text-p-sm text-ink-gray-5">
-              Frappe, not your partner — scope, billing, or a match that isn't working
-            </span>
-          </span>
+          <IconLifeBuoy class="size-4 shrink-0 text-ink-gray-6" />
+          <!-- ⚠️ The label names WHOSE problem it is, which is the one thing a
+               caption under it used to do and the reason this row exists apart
+               from the one above. -->
+          <span class="min-w-0 text-p-base text-ink-gray-8">Contact Frappe</span>
         </a>
       </li>
     </ul>

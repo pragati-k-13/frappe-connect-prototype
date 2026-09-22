@@ -157,14 +157,13 @@ const facts = computed(() => {
             <p class="mt-1 text-p-base text-ink-gray-6">{{ awaiting?.body }}</p>
           </div>
         </div>
-        <Button
-          v-if="awaiting?.pick"
-          class="mt-4"
-          variant="subtle"
-          size="sm"
-          label="Browse partners"
-          route="/connect/partners"
-        />
+        <!-- ⚠️ NO "Browse partners" BUTTON. The rail is REFERENCE — it says
+             what this project has, and here that it has nobody yet. A control
+             sending you to the directory is work, and it is the wrong work:
+             on a custom project the partner comes from the replies a few
+             hundred pixels to the left, and on a pack Frappe assigns one and
+             there is nothing to browse for. It offered a fourth way to pick a
+             firm beside a page already holding the right one. -->
       </template>
     </section>
   </div>
