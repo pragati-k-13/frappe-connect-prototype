@@ -2,22 +2,13 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Badge, Button, Tooltip } from 'frappe-ui'
-import TierIcon from './TierIcon.vue'
 import IconPlus from '~icons/lucide/plus'
 import IconChevron from '~icons/lucide/chevron-right'
-import IconBookmark from '~icons/lucide/bookmark'
-import IconSend from '~icons/lucide/send'
-import IconRate from '~icons/lucide/circle-dollar-sign'
-import IconStar from '~icons/lucide/star'
-import IconReply from '~icons/lucide/message-circle'
 import IconProject from '~icons/lucide/binoculars'
 import IconHeart from '~icons/lucide/heart'
 import IconComment from '~icons/lucide/message-square'
-import { logoFor } from '../data/logos'
 import { EVENTS, FEATURED_GUIDE, GUIDE_CARDS, GUIDE_ROWS } from '../data/home'
 import { serviceOf, stageOf, windowFor } from '../data/project'
-import { savedToast } from '../feedback'
-import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 
 // The signed-in home, built to the attached design.
@@ -34,7 +25,6 @@ import { useConnectStore } from '../stores/connect'
 // dropping real art in later reflows nothing.
 const store = useConnectStore()
 const router = useRouter()
-const { requireAccount } = useAuthGate()
 
 // ⚠️ TIME OF DAY, and it is the one thing on this screen that changes without
 // anybody doing anything. The design says "Good morning"; the hour decides
@@ -93,22 +83,6 @@ const factsFor = (project) => {
 
 const badgeFor = (project) => stageOf(project.service, project.stage) ?? null
 const serviceFor = (project) => serviceOf(project.service)
-
-// ── Recommended partners ────────────────────────────────────────────────────
-// ⚠️ `store.results`, WHICH IS THE DIRECTORY'S OWN LIST — filtered by whatever
-// the intake answered and ranked by tier. A second notion of "recommended"
-// computed here is how this block and the directory come to disagree about who
-// the good firms are.
-const recommended = computed(() => store.results.slice(0, 4))
-
-// The same gesture as the listing row's, through the same helper, so a partner
-// saved here shows saved there. See `PartnerRow`.
-const toggleSave = (partner) =>
-  requireAccount(() =>
-    savedToast(partner, store.toggleSaved(partner.id), () => store.toggleSaved(partner.id)),
-  )
-
-const message = (partner) => router.push({ name: 'messages', query: { thread: partner.id } })
 
 // ⚠️ `?new=1`, NOT A SEPARATE ROUTE. `/connect` is the landing page for a
 // visitor and this dashboard for a customer, and starting something new is the
@@ -185,89 +159,6 @@ const startSomething = () => router.push({ path: '/connect', query: { new: '1' }
       </p>
       <Button class="mt-4" variant="solid" label="Get a recommendation" @click="startSomething" />
     </div>
-
-    <!-- ── Recommended partners ──────────────────────────────────────── -->
-    <section v-if="recommended.length" class="mt-12">
-      <h2 class="text-base font-medium text-ink-gray-8">Recommended Partners for your project</h2>
-
-      <ul class="mt-3 divide-y divide-outline-gray-1">
-        <li v-for="partner in recommended" :key="partner.id" class="flex items-center gap-3 py-3">
-          <img
-            v-if="logoFor(partner.id)"
-            :src="logoFor(partner.id)"
-            :alt="`${partner.name} logo`"
-            class="size-9 shrink-0 rounded-5 object-contain"
-          />
-          <!-- Initials on the firm's own colour where there is no logo — the
-               same fallback the listing uses, in the same box so the rows never
-               reflow as real assets land. -->
-          <span
-            v-else
-            class="grid size-9 shrink-0 place-items-center rounded-5 text-p-sm font-semibold text-white"
-            :style="{ backgroundColor: partner.color }"
-            aria-hidden="true"
-          >
-            {{ partner.initials }}
-          </span>
-
-          <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-1.5">
-              <RouterLink
-                :to="{ name: 'partner', params: { id: partner.id } }"
-                class="truncate text-p-base font-medium text-ink-gray-8 hover:underline"
-              >
-                {{ partner.name }}
-              </RouterLink>
-              <TierIcon :tier="partner.tier" />
-            </div>
-            <!-- The three facts the directory compares rows on, in its order:
-                 rate, rating, response time. -->
-            <p class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-p-sm text-ink-gray-6">
-              <span class="flex items-center gap-1">
-                <IconRate class="size-3.5 shrink-0 text-ink-gray-5" />
-                <template v-if="partner.rate">From ${{ partner.rate }}/hr</template>
-                <template v-else>Rate undisclosed</template>
-              </span>
-              <span class="flex items-center gap-1">
-                <IconStar class="size-3.5 shrink-0 text-ink-gray-5" />
-                {{ partner.rating }}
-                <span class="text-ink-gray-5">({{ partner.reviews }})</span>
-              </span>
-              <span class="flex items-center gap-1">
-                <IconReply class="size-3.5 shrink-0 text-ink-gray-5" />
-                Typically {{ partner.responds }}
-              </span>
-            </p>
-          </div>
-
-          <div class="flex shrink-0 items-center gap-1">
-            <Tooltip :text="store.isSaved(partner.id) ? 'Saved' : 'Save'">
-              <Button
-                variant="ghost"
-                :aria-label="
-                  store.isSaved(partner.id) ? `Unsave ${partner.name}` : `Save ${partner.name}`
-                "
-                @click="toggleSave(partner)"
-              >
-                <IconBookmark
-                  class="size-4"
-                  :class="store.isSaved(partner.id) ? 'fill-current text-ink-gray-8' : ''"
-                />
-              </Button>
-            </Tooltip>
-            <Tooltip text="Message">
-              <Button
-                variant="ghost"
-                :aria-label="`Message ${partner.name}`"
-                @click="message(partner)"
-              >
-                <IconSend class="size-4" />
-              </Button>
-            </Tooltip>
-          </div>
-        </li>
-      </ul>
-    </section>
 
     <!-- ── Resources ─────────────────────────────────────────────────── -->
     <section class="mt-12">
