@@ -27,6 +27,22 @@ const store = useConnectStore()
 const brief = computed(() => store.brief)
 const matches = computed(() => matchingPartners(store.company, brief.value))
 
+// ⚠️ THE COUNT PER OPTION, BEFORE IT IS PRESSED. Without it every chip is a
+// guess: somebody narrows to Kochi, watches the total fall to one, and has to
+// undo it to find out what Chennai would have given. The number is what the
+// list would be IF THIS OPTION WERE THE ONLY ONE ON IN ITS OWN GROUP, with the
+// other groups left as they are — which is what facet counts mean everywhere
+// else and is the only reading that stays stable as you tick around.
+//
+// ⚠️ Deliberately NOT "what you would have if you added this to what is already
+// picked". Cities union, so that number grows as you select and the chip you
+// are looking at reports a figure that includes cities you chose earlier.
+const countFor = (key, value) =>
+  matchingPartners(store.company, { ...brief.value, [key]: [value] }).length
+
+const countForStyle = (value) =>
+  matchingPartners(store.company, { ...brief.value, workStyle: value }).length
+
 const toggleIn = (key, value) => {
   const list = brief.value[key]
   store.saveBrief({
@@ -59,6 +75,7 @@ const count = computed(
               v-for="city in INDIA_CITIES"
               :key="city"
               :label="city"
+              :count="countFor('cities', city)"
               :selected="brief.cities.includes(city)"
               @toggle="toggleIn('cities', city)"
             />
@@ -72,6 +89,7 @@ const count = computed(
               v-for="t in TIERS"
               :key="t.value"
               :label="t.label"
+              :count="countFor('tiers', t.value)"
               :selected="brief.tiers.includes(t.value)"
               @toggle="toggleIn('tiers', t.value)"
             />
@@ -88,6 +106,7 @@ const count = computed(
               v-for="w in WORK_STYLES"
               :key="w.value"
               :label="w.label"
+              :count="countForStyle(w.value)"
               :selected="brief.workStyle === w.value"
               @toggle="store.saveBrief({ workStyle: brief.workStyle === w.value ? '' : w.value })"
             />

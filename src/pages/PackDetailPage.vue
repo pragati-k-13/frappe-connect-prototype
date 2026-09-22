@@ -7,6 +7,7 @@ import PackScope from '../components/PackScope.vue'
 import IconChevronDown from '~icons/lucide/chevron-down'
 import { FACT_ICONS } from '../packFactIcons'
 import {
+  PACK_STEPS,
   STARTER_PACKS,
   packFacts,
   INCLUDED_IN_ALL,
@@ -130,17 +131,11 @@ const notInScope = STRICTLY_EXCLUDED.map(asExclusion)
 // ⚠️ Step 1 names WHO is paid, and this is the page's only statement of it.
 // Step 2 hands you a partner, so an unqualified "pay in full" at the head of a
 // list about partners reads as paying one.
-const STEPS = [
-  { title: 'Pay in full', body: 'To Frappe, upfront' },
-  // ⚠️ The middle cell is the tight one — it is the only one padded on both
-  // sides, so it gets 48px less than its neighbours, and 155px is what a title
-  // has to fit. `.fc-col-3` is 0.85/1.15/1fr partly because of this line:
-  // "Frappe assigns you a partner" measured 195 and took two lines while its
-  // neighbours took one, and "Frappe assigns a partner" is still 167. See
-  // `index.css`, and the points row on the catalogue, which shares the class.
-  { title: 'Frappe assigns a partner', body: 'By industry and region' },
-  { title: 'Coordinate with partner', body: 'Share data and processes' },
-]
+// ⚠️ THE SAME THREE BEATS THE RECOMMENDATION SCREEN SHOWS, from `data/packs.js`
+// rather than written here. They were this page's private list until the screen
+// before it needed them too, and two copies of a sequence is how two screens
+// come to disagree about what order things happen in.
+const STEPS = PACK_STEPS
 
 // ⚠️ THIS ADDS TO THE BASKET AND GOES TO THE BASKET — it does not buy, and it
 // does not go straight to a checkout either. Both were true of earlier versions

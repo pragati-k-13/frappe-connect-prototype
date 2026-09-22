@@ -62,7 +62,7 @@ const route = useRoute()
 // screens of buying a pack, while their own breadcrumb read "Starter packs".
 // The rail and the breadcrumb should never disagree about which section you
 // are in. A new screen in this flow belongs in this set.
-const PACK_ROUTES = new Set(['packs', 'confirm', 'confirmed'])
+const PACK_ROUTES = new Set(['packs', 'pack', 'checkout', 'pay', 'confirmed'])
 const inPacks = computed(() => PACK_ROUTES.has(route.name))
 const inMessages = computed(() => route.name === 'messages')
 // The tracker's two routes. NAMES rather than a path prefix, for the same
@@ -70,15 +70,18 @@ const inMessages = computed(() => route.name === 'messages')
 // screen that leaves the prefix later should not fall out of its own rail row.
 const PROJECT_ROUTES = new Set(['projects', 'project'])
 const inProjects = computed(() => PROJECT_ROUTES.has(route.name))
-// ⚠️ Everything under /connect that isn't one of the other sections. Each new
-// destination has to be subtracted here too, or the rail lights two rows.
-const inDirectory = computed(
-  () =>
-    route.path.startsWith('/connect') &&
-    !inPacks.value &&
-    !inMessages.value &&
-    !inProjects.value,
-)
+// ⚠️ THE DIRECTORY IS NOW ITS OWN DESTINATION, matched by name rather than by
+// subtraction. It used to be "everything under /connect that isn't one of the
+// other sections", because the rail's first row pointed at /connect and the
+// directory had no row of its own — which was true while /connect WAS a partner
+// list behind two questions. It is the intake and the recommendation now, so
+// the two are separate places and each has its row.
+const DIRECTORY_ROUTES = new Set(['results', 'partner'])
+const inDirectory = computed(() => DIRECTORY_ROUTES.has(route.name))
+
+// The front door: the questions, and the answer they produce.
+const HOME_ROUTES = new Set(['connect', 'recommendation'])
+const inHome = computed(() => HOME_ROUTES.has(route.name))
 
 // The header is already a Dropdown trigger — `SidebarHeader` takes `menuItems`
 // and renders the chevron itself, so clicking the logo opens this rather than
@@ -350,22 +353,29 @@ defineProps({
              the directory of partner companies, and search is a control that
              lives inside it. -->
         <nav class="mt-4 space-y-0.5">
-          <!-- ⚠️ Signed-in only, and first: Home is the place an account lands,
-               so it has no meaning for a visitor who arrived on the public
-               marketing page and has nothing to come home TO. Gated on
-               `signedIn` rather than `hasProject` — you have a home the moment
-               you have an account, not the moment you buy something.
-
-               Inert, like Implementation below: the row exists so the rail
-               shows where the signed-in landing screen goes. No `to` and no
-               `:active` until that screen is designed. -->
-          <Tooltip v-if="store.signedIn" text="Home" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Home">
+          <!-- ⚠️ HOME IS LIVE NOW, AND IT IS FOR EVERYONE. It was an inert row
+               shown only to signed-in accounts, on the reasoning that a visitor
+               who arrived from a marketing page has nothing to come home to.
+               That was true while /connect was a marketing page. It is the three
+               questions and the recommendation they produce — the one screen
+               that holds what this account has told us — so a visitor has a home
+               from their first answer. -->
+          <Tooltip text="Home" side="right" :offset="8" :disabled="!collapsed">
+            <SidebarItem label="Home" to="/connect" :active="inHome">
               <template #prefix><LucideHouse class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>
-          <Tooltip text="Find partners" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Find partners" to="/connect" :active="inDirectory">
+          <!-- ⚠️ "Partners", pointing at the DIRECTORY. This row said "Find
+               partners" and went to /connect, which stopped being a partner
+               search the day that page became an intake — it asked three
+               questions about your business and recommended a product. The
+               label named something the destination no longer did.
+               The directory itself had no row at all, reachable only from a
+               link on the landing page, so the fix is one move rather than a
+               rename: the building icon means the directory of partner
+               companies, which is what this row always meant. -->
+          <Tooltip text="Partners" side="right" :offset="8" :disabled="!collapsed">
+            <SidebarItem label="Partners" to="/connect/partners" :active="inDirectory">
               <template #prefix><LucideBuilding2 class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>

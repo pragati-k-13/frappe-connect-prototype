@@ -16,7 +16,7 @@
 // swaps them — an override rather than a second recommendation. A screen that
 // recommends both has recommended nothing, but a screen that refuses to show
 // the other one is a wall.
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, Checkbox, FormControl, Textarea, TextInput, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
@@ -24,13 +24,25 @@ import EditAnswersDialog from '../components/EditAnswersDialog.vue'
 import PartnerFiltersDialog from '../components/PartnerFiltersDialog.vue'
 import { useConnectStore } from '../stores/connect'
 import { recommendationFor } from '../data/recommendation'
-import { STARTER_PACKS, checkoutFor, marketFor, priceFor, DEFAULT_REGION } from '../data/packs'
+import {
+  PACK_STEPS,
+  STARTER_PACKS,
+  checkoutFor,
+  marketFor,
+  priceFor,
+  DEFAULT_REGION,
+} from '../data/packs'
 import { briefErrors, budgetBandsFor, matchingPartners } from '../data/custom'
 import { INDUSTRIES, GROUP_OF_SEGMENT, REGIONS, REGION_OF } from '../data/quiz'
 
 const store = useConnectStore()
 const router = useRouter()
 const route = useRoute()
+
+// Where the app is mounted — '/' locally, '/frappe-connect-prototype/' on
+// GitHub Pages. Only the hand-written link out to the marketing site needs it;
+// everything else here goes through the router.
+const baseUrl = import.meta.env.BASE_URL
 
 // ⚠️ RECOMPUTED FROM THE ANSWERS on every visit rather than stored when it was
 // first made. Someone who goes back and changes an answer has to get a
@@ -77,54 +89,6 @@ const rows = computed(() => {
 
 const bill = computed(() => checkoutFor(store.packRecords(), region.value))
 const nothingPicked = computed(() => store.packs.length === 0)
-
-// ── The total, when the total has scrolled away ─────────────────────────────
-// ⚠️ NOT A SECOND TOTAL. A floating summary card was the other option and it
-// would have reprinted the figure this screen had just stopped printing twice.
-// This is the SAME object following you: the bar appears only while the real
-// total is out of view and goes again the moment it is back, so there is never
-// a moment with two of them on screen.
-//
-// ⚠️ An observer on the element rather than a scroll listener, because this
-// page scrolls inside `ConnectShell`'s own `ScrollArea` and the window's scroll
-// position is a no-op here. The observer takes its root from the ancestor that
-// actually overflows, which is what `null` resolves to in a nested scroller
-// only by accident — so the sentinel's own visibility is what is watched, and
-// it is watched against the viewport, which is correct either way.
-const totalEl = ref(null)
-const totalSeen = ref(true)
-let observer = null
-
-onMounted(() => {
-  observer = new IntersectionObserver(([entry]) => (totalSeen.value = entry.isIntersecting), {
-    // A sliver is enough: the bar should go as the real figure arrives, not
-    // once it is comfortably in the middle of the screen.
-    threshold: 0,
-  })
-  watch(
-    totalEl,
-    (el, old) => {
-      if (old) observer.unobserve(old)
-      if (el) observer.observe(el)
-      else totalSeen.value = true
-    },
-    { immediate: true, flush: 'post' },
-  )
-})
-
-onBeforeUnmount(() => observer?.disconnect())
-
-// ⚠️ The gate, and the only one on this screen. Paying creates a project, a
-// partner assignment and a conversation — three facts about an account — so
-// there has to be one. `?next=` brings them straight back to the checkout
-// rather than to the top of the funnel.
-const checkout = () => {
-  if (nothingPicked.value) return
-  if (!store.signedIn) {
-    return router.push({ name: 'signup', query: { next: '/connect/checkout' } })
-  }
-  router.push({ name: 'checkout' })
-}
 
 // ── The custom half ─────────────────────────────────────────────────────────
 // ⚠️ THE TWO MANDATORY ANSWERS ARE ASKED HERE, inline, rather than on a screen
@@ -296,6 +260,17 @@ watch(view, () => {
              modules, so take one, two or all three." — a sentence explaining
              checkboxes to somebody looking at checkboxes. The ticks say what is
              recommended and the total below says they add up. -->
+        <!-- ⚠️ ONE COLUMN, and a two-column version was built and taken out.
+             A summary card in a right-hand rail keeps the button on screen —
+             that is its whole argument — but at this page's 800px measure it
+             leaves the list 488px, which is not enough for a row carrying a
+             pack name and a price at opposite edges. Widening the page for one
+             screen was the other way out, and that is a reading measure being
+             set by a button.
+             What actually solved it was ORDER: the total and the button sit
+             directly under the list, and everything explanatory moved below
+             them. Nobody scrolls past an explanation to reach the action, so
+             the action never needs following down the page. -->
         <h2 class="text-p-lg font-semibold text-ink-gray-9">What we'd buy</h2>
 
         <ul class="mt-4 divide-y divide-outline-gray-2 rounded-6 border border-outline-gray-2">
@@ -336,63 +311,79 @@ watch(view, () => {
           </li>
         </ul>
 
-        <!-- ── The total ─────────────────────────────────────────────── -->
-        <!-- ⚠️ THIS PRINTED THE PACK NAMES A SECOND TIME. It was a proper
-             line-item table — every pack, every price — sitting immediately
-             under a list of every pack and every price. Two identical lists
-             stacked, and the second one taught the reader nothing the first had
-             not already said.
-             The rows above ARE the line items. What only this can say is the
-             number that leaves the account, so that is all it says: one figure,
-             with its composition under it in a line small enough to be checked
-             and ignored.
-             ⚠️ The tax is NAMED here and only here before the checkout. Every
-             other surface quotes a pack ex-tax and says so; this is the first
-             screen with a total on it. Where a market has no decided rate the
-             line drops the figure rather than inventing one — see
-             `checkoutFor`. -->
-        <!-- ⚠️ Hidden when the basket is empty. Unticking everything left
-             "₹0 / ₹0 plus 18% GST, for 0 hours of implementation" sitting under
-             the list — four zeroes stating that nothing costs nothing. The
-             button below says what to do instead. -->
-        <div
-          v-if="!nothingPicked"
-          ref="totalEl"
-          class="mt-5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1"
-        >
-          <div>
-            <p class="text-2xl font-semibold tabular-nums text-ink-gray-9">{{ bill.total }}</p>
-            <p class="mt-0.5 text-p-sm text-ink-gray-5">
-              <template v-if="bill.exact">
-                {{ bill.subtotal }} plus {{ bill.taxLabel }}, for {{ bill.hours }} hours of
-                implementation
-              </template>
-              <template v-else>
-                {{ bill.subtotal }} before {{ bill.taxLabel }}, for {{ bill.hours }} hours of
-                implementation
-              </template>
-            </p>
+
+        <!-- ── What it costs, and the button ───────────────────────────
+             ⚠️ DIRECTLY UNDER THE LIST, before anything explanatory. This has
+             been three things: a line-item table repeating the list, a sticky
+             bar chasing the reader down the page, and a summary card in a
+             right-hand rail. All three were solving "the button is below the
+             fold", and the thing that actually solved it was putting the button
+             where the decision is made — under the packs, above the reading.
+             ⚠️ IT DOES NOT LIST THE PACKS. Every version that has been drawn,
+             including the reference, repeats each pack and its price beside a
+             list of each pack and its price. The rows are the line items; what
+             only this can say is what leaves the account.
+             ⚠️ The tax is named here and only here before the checkout. Where a
+             market has no decided rate the line drops the figure rather than
+             inventing one — see `checkoutFor`. -->
+        <!-- ⚠️ STACKED, not a `justify-between` row. The composition line runs
+             long enough to wrap the button group at this measure, so the two
+             ends of that row met at some widths and not others — the button
+             moved depending on how many packs were ticked. Underneath, it is in
+             the same place every time. -->
+        <div v-if="!nothingPicked" class="mt-5">
+          <p class="text-2xl font-semibold tabular-nums text-ink-gray-9">{{ bill.total }}</p>
+          <p class="mt-0.5 text-p-sm text-ink-gray-5">
+            <template v-if="bill.exact">{{ bill.subtotal }} plus {{ bill.taxLabel }}</template>
+            <template v-else>{{ bill.subtotal }} before {{ bill.taxLabel }}</template>
+            · {{ bill.hours }} hours · paid to Frappe up front
+          </p>
+          <div class="mt-4 flex flex-wrap items-center gap-3">
+            <Button variant="solid" size="md" label="Check out" @click="checkout" />
+            <span v-if="!store.signedIn" class="text-p-sm text-ink-gray-5">
+              You'll make an account on the way.
+            </span>
           </div>
-          <!-- ⚠️ ONE CONDITION, not two. The hosting sentence went — it is the
-               project's business, it is stated on the checkout and again on the
-               hosting stage, and here it answered a question nobody asks while
-               reading a price. What survives is the one term that changes what
-               this button does: the money goes to Frappe, up front. -->
-          <p class="text-p-sm text-ink-gray-5">Paid to Frappe, in full and up front</p>
         </div>
 
-        <div class="mt-5 flex flex-wrap items-center gap-3">
-          <Button
-            variant="solid"
-            size="md"
-            :disabled="nothingPicked"
-            :label="nothingPicked ? 'Pick at least one pack' : `Check out · ${bill.total}`"
-            @click="checkout"
-          />
-          <span v-if="!store.signedIn" class="text-p-sm text-ink-gray-5">
-            You'll make an account on the way.
-          </span>
-        </div>
+        <!-- Nothing ticked. The empty state says what to do rather than
+             printing a total of zero. -->
+        <p v-else class="mt-5 text-p-base text-ink-gray-6">
+          Tick a pack to see what it comes to.
+        </p>
+
+        <!-- ── How this works ─────────────────────────────────────
+             ⚠️ ADDED BACK ON THIS SCREEN, and it belongs here more than
+             anywhere. The recommendation is where somebody decides to pay,
+             and until now the one question it left unanswered was WHO does
+             the work — the answer arrived two screens later, on the
+             confirmation. Three lines settle it before the money.
+             ⚠️ NUMBERED, which this app avoids by default. It is earned
+             here: these are not three features, they are three things that
+             happen in order, and the order is the point — you pay Frappe
+             first, and a partner is assigned against that. Reversing them
+             would describe a different product.
+             The same three beats as the pack page's own "How it works";
+             both read `PACK_STEPS` so they cannot drift. -->
+        <section class="mt-8">
+          <h2 class="text-p-lg font-semibold text-ink-gray-9">How this works</h2>
+          <ol class="mt-3 grid gap-4 sm:grid-cols-3">
+            <li v-for="(step, i) in PACK_STEPS" :key="step.title" class="flex gap-2.5">
+              <span
+                class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-surface-gray-2 text-p-xs font-medium tabular-nums text-ink-gray-6"
+                aria-hidden="true"
+              >
+                {{ i + 1 }}
+              </span>
+              <span class="min-w-0">
+                <span class="block text-p-base font-medium text-ink-gray-8">
+                  {{ step.title }}
+                </span>
+                <span class="mt-0.5 block text-p-sm text-ink-gray-5">{{ step.body }}</span>
+              </span>
+            </li>
+          </ol>
+        </section>
       </section>
 
       <!-- ── Custom ──────────────────────────────────────────────────── -->
@@ -478,6 +469,38 @@ watch(view, () => {
             @click="send"
           />
         </div>
+        <!-- ── How this works ─────────────────────────────────────
+             ⚠️ ADDED BACK ON THIS SCREEN, and it belongs here more than
+             anywhere. The recommendation is where somebody decides to pay,
+             and until now the one question it left unanswered was WHO does
+             the work — the answer arrived two screens later, on the
+             confirmation. Three lines settle it before the money.
+             ⚠️ NUMBERED, which this app avoids by default. It is earned
+             here: these are not three features, they are three things that
+             happen in order, and the order is the point — you pay Frappe
+             first, and a partner is assigned against that. Reversing them
+             would describe a different product.
+             The same three beats as the pack page's own "How it works";
+             both read `PACK_STEPS` so they cannot drift. -->
+        <section class="mt-8">
+          <h2 class="text-p-lg font-semibold text-ink-gray-9">How this works</h2>
+          <ol class="mt-3 grid gap-4 sm:grid-cols-3">
+            <li v-for="(step, i) in PACK_STEPS" :key="step.title" class="flex gap-2.5">
+              <span
+                class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-surface-gray-2 text-p-xs font-medium tabular-nums text-ink-gray-6"
+                aria-hidden="true"
+              >
+                {{ i + 1 }}
+              </span>
+              <span class="min-w-0">
+                <span class="block text-p-base font-medium text-ink-gray-8">
+                  {{ step.title }}
+                </span>
+                <span class="mt-0.5 block text-p-sm text-ink-gray-5">{{ step.body }}</span>
+              </span>
+            </li>
+          </ol>
+        </section>
       </section>
 
       <!-- ── The other path ──────────────────────────────────────────── -->
@@ -505,33 +528,30 @@ watch(view, () => {
         </template>
       </p>
 
-      <!-- ── The total, following you ────────────────────────────────── -->
-      <!-- ⚠️ SHOWN ONLY WHILE THE REAL ONE IS OFF SCREEN. See `totalSeen` — the
-           alternative was a floating summary card, which would have reprinted a
-           figure this screen had just stopped printing twice. It carries the
-           same number and the same button and nothing else: a second copy of
-           the line items would be a cart, and there is no cart here.
-           `transition` is a response to a scroll rather than an entrance — see
-           the reduced-motion note below. -->
-      <Transition name="bar">
-        <div
-          v-if="view === 'packs' && !nothingPicked && !totalSeen"
-          class="pointer-events-none sticky bottom-0 z-10 -mx-5 lg:-mx-10"
+      <!-- ── Neither of them ─────────────────────────────────────────── -->
+      <!-- ⚠️ THE THIRD ANSWER, and the screen was missing it. It offered two
+           paths and a way to correct the answers, all of which assume the
+           recommendation is nearly right. Somebody whose situation is not in
+           the three questions had nowhere to go but away.
+           ⚠️ It is a LINK, not a form, and it goes to the contact page's own
+           triage — the one that routes an implementation question here and a
+           product question to the team. Sending a message from this screen
+           would be a second contact route, answered by a different inbox, with
+           no idea what the person had already been shown.
+           Quiet: below the path switch, above the feedback, in body type. A
+           "talk to us" offer at the weight of the buy button is a product that
+           does not believe its own recommendation. -->
+      <p class="mt-3 max-w-[62ch] text-p-base text-ink-gray-6">
+        Neither of these?
+        <a
+          :href="`${baseUrl}contact`"
+          target="_blank"
+          rel="noreferrer"
+          class="underline hover:text-ink-gray-8"
         >
-          <div
-            class="pointer-events-auto mx-5 mb-4 flex items-center justify-between gap-4 rounded-6 border border-outline-gray-2 bg-surface-white px-4 py-3 shadow-lg lg:mx-10"
-          >
-            <div class="min-w-0">
-              <p class="text-p-lg font-semibold tabular-nums text-ink-gray-9">{{ bill.total }}</p>
-              <p class="truncate text-p-sm text-ink-gray-5">
-                {{ store.packs.length }} {{ store.packs.length === 1 ? 'pack' : 'packs' }} ·
-                {{ bill.hours }} hours
-              </p>
-            </div>
-            <Button variant="solid" size="md" label="Check out" @click="checkout" />
-          </div>
-        </div>
-      </Transition>
+          Talk to someone at Frappe
+        </a>
+      </p>
 
       <!-- ── Was this right? ─────────────────────────────────────────── -->
       <!-- ⚠️ ONE LINE, at the bottom, and it disappears once answered. It is
@@ -577,35 +597,3 @@ watch(view, () => {
     <PartnerFiltersDialog v-model:open="showFilters" />
   </ConnectShell>
 </template>
-
-<style scoped>
-/* ⚠️ MOTION ON A SCROLL RESPONSE, which is the one kind this app allows: the
-   bar is answering something the reader did, and appearing without it reads as
-   a jump. 150ms, translate only.
-
-   ⚠️ `prefers-reduced-motion` turns the movement off and keeps the element —
-   somebody who has asked for less motion still needs the button. */
-.bar-enter-active,
-.bar-leave-active {
-  transition:
-    opacity 150ms ease,
-    transform 150ms ease;
-}
-.bar-enter-from,
-.bar-leave-to {
-  opacity: 0;
-  transform: translateY(8px);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .bar-enter-active,
-  .bar-leave-active {
-    transition: none;
-  }
-  .bar-enter-from,
-  .bar-leave-to {
-    opacity: 1;
-    transform: none;
-  }
-}
-</style>

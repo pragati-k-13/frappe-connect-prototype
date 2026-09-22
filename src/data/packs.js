@@ -537,6 +537,29 @@ export const SCOPE_AREAS = Object.keys(PACK_SCOPE).map((key) => ({
   label: PACK_SCOPE[key].label,
 }))
 
+// ── What buying one actually sets off ───────────────────────────────────────
+// ⚠️ THREE THINGS IN ORDER, and the order is the product. You buy the pack from
+// Frappe; a partner is assigned against it; the two of you get on with it. This
+// is the one fact the rest of the flow leaves implicit — the price sits beside
+// a partner's name on several screens, and a fixed price beside a named firm
+// reads as that firm's invoice.
+//
+// ⚠️ Step 1 names WHO IS PAID, and it is the page's only statement of it. Step 2
+// hands you a partner, so an unqualified "pay in full" above a list about
+// partners reads as paying one.
+//
+// ⚠️ Lifted out of `PackDetailPage`, which owned it privately, when the
+// recommendation screen needed the same three lines. Two copies of a sequence
+// is how the two screens come to disagree about what order things happen in.
+export const PACK_STEPS = [
+  { title: 'Pay in full', body: 'To Frappe, up front' },
+  // ⚠️ The middle line is the tight one wherever this is laid out in three
+  // columns — it is the only cell padded on both sides. "Frappe assigns you a
+  // partner" measured 195px and took two lines while its neighbours took one.
+  { title: 'Frappe assigns a partner', body: 'By industry and region' },
+  { title: 'Coordinate with partner', body: 'Share data and processes' },
+]
+
 // Section 4 — ships with every pack regardless of which one you buy.
 export const INCLUDED_IN_ALL = [
   'ERPNext installed on Frappe Cloud',
