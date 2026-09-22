@@ -277,13 +277,23 @@ const CUSTOM_STAGES = [
     key: 'requirements',
     label: 'Requirements',
     theme: 'blue',
+    // ⚠️ ONE BUTTON, NOT THREE. All three carried `action: 'brief'`, so the
+    // stage rendered three identical "Open requirements" controls in a column
+    // — the same fault the choosing stage had with "See the replies". They open
+    // one dialog that collects all three, so the first task owns it and the two
+    // under it are the record of what that dialog did.
+    //
+    // ⚠️ THEY ALWAYS COMPLETE TOGETHER, here and on the landing-page route,
+    // because `broadcastBrief` writes all three at once. Three rows that can
+    // never disagree are arguably one row; they are kept as three because they
+    // say what the brief CONTAINS, which is worth reading before it goes out to
+    // a dozen firms.
     yours: [
       task('describe', 'Describe what you need built', { action: 'brief' }),
       task('set-budget', 'Say what you can spend', {
         hint: 'A range. Partners price against it, and a brief with no number gets no number back.',
-        action: 'brief',
       }),
-      task('send-brief', 'Send it to the partners who match', { action: 'brief' }),
+      task('send-brief', 'Send it to the partners who match'),
     ],
     theirs: [],
   },

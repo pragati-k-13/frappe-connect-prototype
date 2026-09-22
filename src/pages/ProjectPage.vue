@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Badge, Button, Dialog, ScrollArea, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
+import BriefDialog from '../components/BriefDialog.vue'
 import HirePartnerDialog from '../components/HirePartnerDialog.vue'
 import PackPanel from '../components/PackPanel.vue'
 import PartnerCodeDialog from '../components/PartnerCodeDialog.vue'
@@ -133,6 +134,7 @@ const countdown = computed(() => {
 const hosting = ref(false)
 const rating = ref(false)
 const feedback = ref(false)
+const writingBrief = ref(false)
 
 // ⚠️ The task's `action` names a KIND, not a handler — the data layer knows a
 // task needs a slot booked, and this is the screen that knows what booking a
@@ -157,9 +159,13 @@ const act = (task) => {
     if (!partner.value) return toast.info('No partner on this project yet')
     return (rating.value = true)
   }
-  if (task.action === 'brief') {
-    return router.push({ name: 'recommendation' })
-  }
+  // ⚠️ A DIALOG, NOT A TRIP TO THE RECOMMENDATION. This used to push
+  // `/connect/recommendation`, which recomputes a verdict from the answers on
+  // file — so pressing a task about your requirements, on a project that is
+  // already custom work, landed on the starter pack catalogue whenever the
+  // answers happened to point that way. The recommending is over by the time a
+  // custom project exists; what is left is writing the brief. See `BriefDialog`.
+  if (task.action === 'brief') return (writingBrief.value = true)
   if (task.action === 'message') {
     if (!partner.value) return toast.info('No partner on this project yet')
     return messagePartner(partner.value)
@@ -569,6 +575,7 @@ const chooseService = (value) => {
          Dismissing without answering still chooses the partner — the choice is
          the point and the question is the favour. -->
     <FeedbackDialog v-model:open="feedback" />
+    <BriefDialog v-model:open="writingBrief" :project="project" />
     <HirePartnerDialog
       v-model:open="hiring"
       :partner="chosen"
