@@ -218,59 +218,6 @@ watch(view, () => {
         }}
       </h1>
 
-      <!-- ⚠️ THE REASONS ARE THE HEADLINE'S EVIDENCE and they sit directly
-           under it, before anything can be bought. A recommendation whose
-           justification is below the price list is a price list. -->
-      <!-- ⚠️ NO TICKS. Each reason carried a check icon, which reads as
-           "included" — the vocabulary of a feature list. These are EVIDENCE for
-           a claim, and dressing an argument as a spec sheet makes it skimmable
-           in exactly the way an argument should not be. Plain sentences.
-           ⚠️ `max-w-[62ch]`, against the page's own 800px. Set to the full
-           measure these ran to about 110 characters a line, which is half again
-           the length anybody reads comfortably. Only the PROSE is capped — the
-           pack rows keep the width, because a row with a price at its right
-           edge needs one. -->
-      <ul v-if="!overridden" class="mt-4 max-w-[62ch] space-y-2">
-        <li
-          v-for="(reason, i) in reco.reasons"
-          :key="i"
-          class="text-p-base leading-relaxed text-ink-gray-7"
-        >
-          {{ reason }}
-        </li>
-      </ul>
-
-      <!-- The override's one line. It says what we would have said and why,
-           without repeating the argument — the visitor has read it and decided
-           against it, and making them read it again is nagging. -->
-      <p v-else class="mt-4 max-w-[62ch] text-p-base leading-relaxed text-ink-gray-6">
-        <template v-if="view === 'packs'">
-          We'd have pointed you at a scoped implementation instead — packs are ERPNext as it ships.
-        </template>
-        <template v-else>
-          We'd have said a pack covers this, cheaper and faster.
-        </template>
-      </p>
-
-      <!-- ⚠️ The override reads as a question the visitor might be asking, not
-           as a tab. Tabs say "these are two equal things"; this screen has just
-           said they are not. -->
-      <!-- ⚠️ DIRECTLY UNDER THE EVIDENCE, because this is where an answer is
-           noticed to be wrong. The reasons above print the facts the
-           recommendation was built from — "11 to 50 people, and no ERP to
-           migrate off" — and the reader who is now sixty people finds out at
-           exactly this line. It spent a while at the foot of the screen beside
-           the feedback row, which put a correction three sections away from the
-           thing it corrects.
-           Quiet: body type, underlined, no button. Louder than this and it
-           competes with the recommendation it sits under. -->
-      <button
-        class="mt-3 text-p-base text-ink-gray-6 underline hover:text-ink-gray-8"
-        @click="rethink"
-      >
-        Change my answers
-      </button>
-
       <!-- ── Packs ───────────────────────────────────────────────────── -->
       <section v-if="view === 'packs'" class="mt-8">
         <!-- ⚠️ NO STANDFIRST. It read "Ticked already. They are separate
@@ -369,38 +316,6 @@ watch(view, () => {
           Tick a pack to see what it comes to.
         </p>
 
-        <!-- ── How this works ─────────────────────────────────────
-             ⚠️ ADDED BACK ON THIS SCREEN, and it belongs here more than
-             anywhere. The recommendation is where somebody decides to pay,
-             and until now the one question it left unanswered was WHO does
-             the work — the answer arrived two screens later, on the
-             confirmation. Three lines settle it before the money.
-             ⚠️ NUMBERED, which this app avoids by default. It is earned
-             here: these are not three features, they are three things that
-             happen in order, and the order is the point — you pay Frappe
-             first, and a partner is assigned against that. Reversing them
-             would describe a different product.
-             The same three beats as the pack page's own "How it works";
-             both read `PACK_STEPS` so they cannot drift. -->
-        <section class="mt-8">
-          <h2 class="text-p-lg font-semibold text-ink-gray-9">How this works</h2>
-          <ol class="mt-3 grid gap-4 sm:grid-cols-3">
-            <li v-for="(step, i) in PACK_STEPS" :key="step.title" class="flex gap-2.5">
-              <span
-                class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-surface-gray-2 text-p-xs font-medium tabular-nums text-ink-gray-6"
-                aria-hidden="true"
-              >
-                {{ i + 1 }}
-              </span>
-              <span class="min-w-0">
-                <span class="block text-p-base font-medium text-ink-gray-8">
-                  {{ step.title }}
-                </span>
-                <span class="mt-0.5 block text-p-sm text-ink-gray-5">{{ step.body }}</span>
-              </span>
-            </li>
-          </ol>
-        </section>
       </section>
 
       <!-- ── Custom ──────────────────────────────────────────────────── -->
@@ -486,38 +401,111 @@ watch(view, () => {
             @click="send"
           />
         </div>
-        <!-- ── How this works ─────────────────────────────────────
-             ⚠️ ADDED BACK ON THIS SCREEN, and it belongs here more than
-             anywhere. The recommendation is where somebody decides to pay,
-             and until now the one question it left unanswered was WHO does
-             the work — the answer arrived two screens later, on the
-             confirmation. Three lines settle it before the money.
-             ⚠️ NUMBERED, which this app avoids by default. It is earned
-             here: these are not three features, they are three things that
-             happen in order, and the order is the point — you pay Frappe
-             first, and a partner is assigned against that. Reversing them
-             would describe a different product.
-             The same three beats as the pack page's own "How it works";
-             both read `PACK_STEPS` so they cannot drift. -->
-        <section class="mt-8">
-          <h2 class="text-p-lg font-semibold text-ink-gray-9">How this works</h2>
-          <ol class="mt-3 grid gap-4 sm:grid-cols-3">
-            <li v-for="(step, i) in PACK_STEPS" :key="step.title" class="flex gap-2.5">
-              <span
-                class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-surface-gray-2 text-p-xs font-medium tabular-nums text-ink-gray-6"
-                aria-hidden="true"
-              >
-                {{ i + 1 }}
+      </section>
+
+      <!-- ── Why, after the thing itself ─────────────────────────────
+           ⚠️ THIS USED TO SIT UNDER THE HEADLINE, above everything. The
+           reasoning was that a recommendation whose justification is below the
+           price list is a price list — which is true of a screen with no
+           headline. This one opens with the verdict as its first line, so the
+           claim IS made before anything can be bought; what sat under it was
+           the WORKING, and two sentences of working between a claim and the
+           thing it is about delays the only part most people came for.
+           Someone who accepts the recommendation never needs to read this.
+           Someone who doubts it scrolls, and finds it directly under the
+           button they declined to press. -->
+      <section class="mt-10">
+        <!-- ⚠️ A HEADING, which this block did not need when it sat under the
+             headline — the position said what it was. Below a price and a
+             button it needs saying.
+             ⚠️ TWO OF THEM, because the block holds two different things. On
+             the recommended path it is the case FOR what is above it. On the
+             overridden one it is the case AGAINST — "we'd have said a pack
+             covers this" — and printing that under "Why we're recommending
+             this" would have the screen arguing against its own heading. -->
+        <h2 class="text-p-lg font-semibold text-ink-gray-9">
+          {{ overridden ? "What we'd have recommended" : "Why we're recommending this" }}
+        </h2>
+
+        <!-- ⚠️ NO TICKS. Each reason carried a check icon, which reads as
+             "included" — the vocabulary of a feature list. These are EVIDENCE
+             for a claim, and dressing an argument as a spec sheet makes it
+             skimmable in exactly the way an argument should not be.
+             ⚠️ `max-w-[62ch]`, against the page's own 800px. At the full measure
+             these ran to about 110 characters a line. Only the PROSE is capped —
+             the pack rows keep the width, because a row with a price at its
+             right edge needs one. -->
+        <ul v-if="!overridden" class="mt-3 max-w-[62ch] space-y-2">
+          <li
+            v-for="(reason, i) in reco.reasons"
+            :key="i"
+            class="text-p-base leading-relaxed text-ink-gray-7"
+          >
+            {{ reason }}
+          </li>
+        </ul>
+
+        <!-- The override's one line. It says what we would have said and why,
+             without repeating the argument — the visitor has read it and
+             decided against it, and making them read it again is nagging. -->
+        <p v-else class="mt-3 max-w-[62ch] text-p-base leading-relaxed text-ink-gray-6">
+          <template v-if="view === 'packs'">
+            We'd have pointed you at a scoped implementation instead — packs are ERPNext as it
+            ships.
+          </template>
+          <template v-else>We'd have said a pack covers this, cheaper and faster.</template>
+        </p>
+
+        <!-- ⚠️ DIRECTLY UNDER THE EVIDENCE, because this is where an answer is
+             noticed to be wrong: the sentences above print the facts the
+             recommendation was built from, and the reader who is now sixty
+             people finds out at exactly that line.
+             Quiet: body type, underlined, no button. Louder than this and it
+             competes with the recommendation it explains. -->
+        <button
+          class="mt-3 text-p-base text-ink-gray-6 underline hover:text-ink-gray-8"
+          @click="rethink"
+        >
+          Change my answers
+        </button>
+      </section>
+
+      <!-- ── How this works ─────────────────────────────────────
+           ⚠️ ADDED BACK ON THIS SCREEN, and it belongs here more than
+           anywhere. The recommendation is where somebody decides to pay,
+           and until now the one question it left unanswered was WHO does
+           the work — the answer arrived two screens later, on the
+           confirmation. Three lines settle it before the money.
+           ⚠️ NUMBERED, which this app avoids by default. It is earned
+           here: these are not three features, they are three things that
+           happen in order, and the order is the point — you pay Frappe
+           first, and a partner is assigned against that. Reversing them
+           would describe a different product.
+           The same three beats as the pack page's own "How it works";
+           both read `PACK_STEPS` so they cannot drift.
+           ⚠️ PACKS ONLY. It describes buying a fixed scope from Frappe and
+           being assigned somebody to deliver it, which is not what happens on
+           the custom path — there you choose the partner and pay them. It sat
+           inside the packs branch until the justification moved below the
+           button and pushed it out; the guard is what that move cost. -->
+      <section v-if="view === 'packs'" class="mt-8">
+        <h2 class="text-p-lg font-semibold text-ink-gray-9">How this works</h2>
+        <ol class="mt-3 grid gap-4 sm:grid-cols-3">
+          <li v-for="(step, i) in PACK_STEPS" :key="step.title" class="flex gap-2.5">
+            <span
+              class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-surface-gray-2 text-p-xs font-medium tabular-nums text-ink-gray-6"
+              aria-hidden="true"
+            >
+              {{ i + 1 }}
+            </span>
+            <span class="min-w-0">
+              <span class="block text-p-base font-medium text-ink-gray-8">
+                {{ step.title }}
               </span>
-              <span class="min-w-0">
-                <span class="block text-p-base font-medium text-ink-gray-8">
-                  {{ step.title }}
-                </span>
-                <span class="mt-0.5 block text-p-sm text-ink-gray-5">{{ step.body }}</span>
-              </span>
-            </li>
-          </ol>
-        </section>
+              <span class="mt-0.5 block text-p-sm text-ink-gray-5">{{ step.body }}</span>
+            </span>
+          </li>
+        </ol>
       </section>
 
       <!-- ── The other path ──────────────────────────────────────────── -->
