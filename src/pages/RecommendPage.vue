@@ -159,7 +159,11 @@ const send = () => {
   toast.success(`Sent to ${result.sent} partners`, {
     description: 'Their replies come back as quotes you can approve or pass on.',
   })
-  router.push({ name: 'project', params: { id } })
+  // ⚠️ A RECEIPT, not the tracker. Sending used to land on the project page —
+  // a screen about work that has not started, reached from a decision screen,
+  // with nothing in between to say what had just happened. Twelve companies had
+  // been written to and the product never mentioned it. See `BriefSentPage`.
+  router.push({ name: 'brief-sent', query: { project: id } })
 }
 
 // ── Was this right? ─────────────────────────────────────────────────────────

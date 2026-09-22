@@ -228,6 +228,20 @@ const act = (task) => {
   toast.info('Not built yet')
 }
 
+// ⚠️ EVERY TASK IN "Choosing a partner" IS BLOCKED until somebody replies, and
+// until this the stage showed four of them anyway — go through the replies,
+// approve one, choose one, agree terms — over a Replies section reading "0 of 6
+// partners replied". A checklist of impossible things reads as a product that
+// has lost track of its own state.
+//
+// Real quotes take days, and the send deliberately leaves the project empty —
+// see `broadcastBrief`. So the stage says what it is waiting for.
+const waiting = computed(() =>
+  project.value?.stage === 'choosing' && project.value?.broadcast && !project.value?.bids?.length
+    ? 'Nothing to do here until the first quote arrives. Partners usually take a few working days, and not all of them answer.'
+    : '',
+)
+
 const toggleTask = (key) => store.toggleTask(project.value.id, key)
 
 // Finishing a dialog ticks the task that opened it. ⚠️ Found by ACTION rather
@@ -426,6 +440,7 @@ const chooseService = (value) => {
               <div class="mt-8">
                 <ProjectStages
                   :project="project"
+                  :waiting="waiting"
                   :other-party="otherParty"
                   @toggle="toggleTask"
                   @act="act"

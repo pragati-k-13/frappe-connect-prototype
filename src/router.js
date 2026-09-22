@@ -87,6 +87,22 @@ const routes = [
       return store.signedIn ? true : { name: 'signup', query: { next: to.fullPath } }
     },
   },
+  // The custom path's own receipt, and the counterpart of `/connect/confirmed`.
+  // `?project=` names what was sent — this is a page somebody might leave open
+  // or come back to, and the brief on the store keeps being edited while the
+  // broadcast does not.
+  //
+  // ⚠️ Guarded like the pack confirmation: it names the firms that were written
+  // to on this account's behalf, which is a fact about an account.
+  {
+    path: '/connect/requirements-sent',
+    name: 'brief-sent',
+    component: () => import('./pages/BriefSentPage.vue'),
+    beforeEnter: (to) => {
+      const store = useConnectStore()
+      return store.signedIn ? true : { name: 'signup', query: { next: to.fullPath } }
+    },
+  },
   // The end of the journey: who Frappe assigned you, and what happens next.
   // Both `?pack=` and `?partner=` are in the URL — this is the screen someone
   // screenshots or forwards, and an assignment that changed on reload would be

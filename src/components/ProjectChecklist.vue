@@ -31,6 +31,9 @@ const props = defineProps({
   // during them the other side of the table really is Frappe rather than a
   // firm nobody has picked yet.
   otherParty: { type: String, default: 'Frappe' },
+  // Set by the page when every task in this stage is blocked on something that
+  // has not happened yet. See `notice`.
+  waiting: { type: String, default: '' },
   // Past stages render their checklist for reference but nothing is tickable:
   // the stage is over, and offering to change its record invites a click that
   // means nothing.
@@ -83,7 +86,13 @@ const UNTRACKED = {
     'Frappe does not track your partner’s progress here — your own calls with them are where that lives. What is below is only your side of it.',
 }
 
-const untracked = computed(() => UNTRACKED[props.stage.key] ?? null)
+// ⚠️ A SECOND KIND OF NOTICE, passed in rather than derived. `UNTRACKED` is a
+// fact about the STAGE — Frappe never tracks a partner's build — and it is the
+// same on every project that reaches it. This one is a fact about THIS project
+// right now: the brief has gone out and nothing has come back, so all four of
+// the stage's tasks are waiting on somebody else. The checklist has no way of
+// knowing that; the page does.
+const notice = computed(() => props.waiting || UNTRACKED[props.stage.key] || null)
 
 // "2 of 3 done" — and it counts ONLY your side. The partner's column has no
 // completion state to read (nothing here knows whether they have finished), so
@@ -115,7 +124,7 @@ defineExpose({ tally })
          partner's sentence. Read after the tasks it would sound like an excuse
          for a short list; read before them it explains why the list is short.
          See `UNTRACKED`. -->
-    <p v-if="untracked" class="text-p-base leading-relaxed text-ink-gray-6">{{ untracked }}</p>
+    <p v-if="notice" class="text-p-base leading-relaxed text-ink-gray-6">{{ notice }}</p>
 
     <!-- ── Yours ───────────────────────────────────────────────────────── -->
     <section v-if="stage.yours?.length">

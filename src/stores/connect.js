@@ -1173,7 +1173,6 @@ export const useConnectStore = defineStore('connect', {
       }
 
       const threads = []
-      const bids = []
       for (const partner of partners) {
         // ⚠️ A broadcast never appends to an existing conversation. Dropping a
         // requirements card into a thread where the two of you were already
@@ -1182,23 +1181,20 @@ export const useConnectStore = defineStore('connect', {
         if (!this.threads.some((t) => t.partnerId === partner.id)) {
           threads.push(briefThread(partner, brief))
         }
-        if (repliesToBrief(partner)) {
-          const bid = bidFor(partner, { country: this.company.country })
-          bids.push({ ...bid, state: 'pending' })
-        }
       }
       this.threads = [...this.threads, ...threads]
 
-      // The replies land in their own threads, so the inbox shows what a
-      // broadcast actually looks like a day later: a dozen sent, most of them
-      // silent, a handful with a number in them.
-      for (const bid of bids) {
-        const thread = this.threads.find((t) => t.partnerId === bid.partnerId)
-        if (thread) thread.messages.push(bidMessage(bid))
-      }
-
+      // ⚠️ NO REPLIES YET, AND THAT IS THE POINT. This used to seed every bid
+      // in the same call, so the project opened one second after Send reading
+      // "5 of 8 partners replied" — quotes that arrived before the requirements
+      // had finished sending. It is a lie about the thing the whole flow is
+      // built around: a brief has to be good BECAUSE you then wait on it.
+      //
+      // Replies arrive over the following days. In a prototype with no server
+      // that means they arrive when a reviewer asks for them — see
+      // `simulateReplies`, which the demo switch calls.
       project.broadcast = { at: Date.now(), partnerIds: partners.map((p) => p.id) }
-      project.bids = bids
+      project.bids = []
       // ⚠️ THE STAGE MOVES ON ITS OWN HERE, which nothing else in the tracker
       // does — every other advance is the customer pressing a button. Sending
       // the brief IS all three of the Requirements tasks: it cannot happen
@@ -1207,7 +1203,32 @@ export const useConnectStore = defineStore('connect', {
       // failing to notice what the person just did.
       project.done = [...new Set([...project.done, 'describe', 'set-budget', 'send-brief'])]
       project.stage = 'choosing'
-      return { sent: partners.length, replies: bids.length }
+      return { sent: partners.length, partnerIds: project.broadcast.partnerIds }
+    },
+
+    // ⚠️ DEMO ONLY, and it is the one action in this store that exists for the
+    // reviewer rather than for the customer. Quotes take days; a prototype has
+    // no days and no server, so the passage of time is a menu item. See
+    // `DemoSwitch`.
+    //
+    // Everything it does is what a real inbox would do on its own: the partners
+    // who answer get a bid, the bid lands as a card in that partner's own
+    // thread, and the project's own list is what the comparison table reads.
+    // Not every partner replies — see `repliesToBrief`.
+    simulateReplies(id) {
+      const project = this.projects.find((p) => p.id === id)
+      if (!project?.broadcast || project.bids?.length) return null
+      const bids = project.broadcast.partnerIds
+        .map((pid) => PARTNERS.find((p) => p.id === pid))
+        .filter((p) => p && repliesToBrief(p))
+        .map((p) => ({ ...bidFor(p, { country: this.company.country }), state: 'pending' }))
+
+      for (const bid of bids) {
+        const thread = this.threads.find((t) => t.partnerId === bid.partnerId)
+        if (thread) thread.messages.push(bidMessage(bid))
+      }
+      project.bids = bids
+      return bids.length
     },
 
     // Approve a reply, or pass on it.

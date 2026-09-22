@@ -34,6 +34,9 @@ const props = defineProps({
   project: { type: Object, required: true },
   // Whose second column is. See `ProjectChecklist`.
   otherParty: { type: String, default: 'Frappe' },
+  // Passed straight through to the open stage's checklist — a line saying why
+  // nothing in it can be done yet. See `waiting` there.
+  waiting: { type: String, default: '' },
 })
 
 const emit = defineEmits(['toggle', 'act'])
@@ -142,7 +145,7 @@ const stateOf = (index) =>
         class="mt-4"
         :stage="current"
         :done="project.done"
-
+        :waiting="waiting"
         :other-party="otherParty"
         @toggle="emit('toggle', $event)"
         @act="emit('act', $event)"
