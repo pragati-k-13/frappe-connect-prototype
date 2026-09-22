@@ -42,9 +42,10 @@ const form = reactive(emptyCompanyForm())
 // RECOMMENDATION, and there is no wider version of that — see the note on
 // `companyErrors` in `data/company.js`. There is no Skip on this page any more.
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Button, ScrollArea } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
+import HomeDashboard from '../components/HomeDashboard.vue'
 import CompanyQuestions from '../components/CompanyQuestions.vue'
 import DottedWorldMap from '../components/DottedWorldMap.vue'
 import { useConnectStore } from '../stores/connect'
@@ -58,6 +59,26 @@ import { STARTER_PACKS, priceFor, pricingFor, DEFAULT_REGION } from '../data/pac
 
 const store = useConnectStore()
 const router = useRouter()
+const route = useRoute()
+
+// ── One address, three faces ────────────────────────────────────────────────
+// ⚠️ `/connect` IS THE LANDING PAGE AND THE HOME SCREEN, and which one you get
+// depends on whether you are signed in. It could have been a second route with
+// a redirect; it is not, because the rail's Home row points here, and because a
+// returning customer typing the address they bookmarked should land on their
+// projects rather than be bounced.
+//
+// The third face is `?new=1`: the questions again, for a customer starting a
+// second thing. It shows the hero and NOTHING BELOW IT — the starter packs
+// explainer, the success stories and the footer CTA are all written for
+// somebody deciding whether to buy, and they have bought. What is left is the
+// questions and the map, which is what the intake actually is.
+const startingSomethingNew = computed(() => Boolean(route.query.new))
+const showDashboard = computed(() => store.signedIn && !startingSomethingNew.value)
+
+// ⚠️ THE PITCH IS FOR VISITORS ONLY. A signed-in customer never sees it —
+// not on the dashboard, and not on the way to a second project.
+const showPitch = computed(() => !store.signedIn && !startingSomethingNew.value)
 
 const TOTAL = COMPANY_STEPS
 const quizTop = ref(null)
@@ -128,7 +149,19 @@ const restartQuiz = () => {
 </script>
 
 <template>
-  <ConnectShell>
+  <!-- ⚠️ THE ROOT CRUMB DEPENDS ON WHICH FACE THIS IS. `ConnectShell` defaults
+       to "Partners", which is right for the directory and was wrong here the
+       moment `/connect` became a home screen: the bar read "Partners" over a
+       list of the customer's own projects. It reads "Home" once signed in, and
+       "Get started" on the way to a second project — the only two things this
+       address is when it is not the landing page. -->
+  <ConnectShell
+    :root-label="showPitch ? 'Partners' : showDashboard ? 'Home' : 'Get started'"
+    root-to="/connect"
+  >
+    <HomeDashboard v-if="showDashboard" />
+
+    <template v-else>
     <!-- ── Hero: the three questions ─────────────────────────────────── -->
     <!-- The intake owns the first screen: 100vh minus the 3rem top bar, so the
          question and the map are the only things visible and everything below
@@ -225,6 +258,7 @@ const restartQuiz = () => {
       </div>
     </section>
 
+    <template v-if="showPitch">
     <!-- ── Starter packs ─────────────────────────────────────────────── -->
     <!-- Everything below the hero shares one 800px column, the same cap the
          results screen uses — so the reading width is constant from here to the
@@ -375,5 +409,7 @@ const restartQuiz = () => {
         </div>
       </div>
     </section>
+    </template>
+    </template>
   </ConnectShell>
 </template>
