@@ -409,15 +409,30 @@ watch(view, () => {
 
       <!-- ── Custom ──────────────────────────────────────────────────── -->
       <section v-else class="mt-8">
-        <!-- ⚠️ NO STANDFIRST HERE EITHER. It argued for the two fields —
-             "without them the first reply from every partner is the same two
-             questions, and you lose a week" — which is a case made to somebody
-             who has already agreed to fill them in. The heading says who the
-             answers are for, which is the only part that was load-bearing. -->
-        <h2 class="text-p-lg font-semibold text-ink-gray-9">What partners need from you</h2>
-
-        <div class="mt-4 max-w-[62ch] space-y-4">
-          <div>
+        <!-- ⚠️ ONE SURFACE, AND IT WAS THREE THINGS FLOATING. The two fields
+             sat unbordered at 62ch, a bordered card stating the reach sat below
+             them at the page's full width, and the send button sat naked under
+             that — read as a form, then a notice, then an action, with nothing
+             saying they were the same errand. The mismatched widths did half
+             the damage on their own.
+             ⚠️ AND THE FIX IS NOT A STRONGER LINK BETWEEN THEM, because the
+             dependency people expect is not there: the count comes from the
+             intake and from the filters inside the foot, and NOTHING the two
+             fields collect narrows it — see the note on `matchingPartners`.
+             Drawing an arrow from the budget to the number would be drawing a
+             claim that is false.
+             What is true is that this is ONE OUTGOING ITEM. A brief going to a
+             list of firms is a dispatch: the message, then who it is addressed
+             to, then send — and in every tool that does this, the address block
+             and the send control sit on the same surface as the body. So they
+             do here. The hairline is card anatomy, not decoration: above it is
+             content, below it is addressing.
+             ⚠️ NO HEADING. It read "What partners need from you", which labels
+             the fields and mislabels the foot under them — the foot is about
+             who the partners ARE. Its stated job was saying who the answers
+             were for, and the foot now does that by naming them. -->
+        <div class="max-w-[62ch] rounded-6 border border-outline-gray-2">
+          <div class="space-y-4 p-4">
             <Textarea
               :model-value="brief.scope"
               label="What do you need built?"
@@ -427,68 +442,86 @@ watch(view, () => {
               :error="briefProblems.scope"
               @update:model-value="store.saveBrief({ scope: $event })"
             />
+            <!-- ⚠️ A BAND, NOT A FIGURE. See the note in `data/custom.js` — a
+                 free number invites a placeholder, and partners price against
+                 placeholders. -->
+            <FormControl
+              type="select"
+              :model-value="brief.budget"
+              label="What can you spend?"
+              placeholder="Select a range"
+              required
+              :options="bands"
+              :error="briefProblems.budget"
+              @update:model-value="store.saveBrief({ budget: $event })"
+            />
           </div>
-          <!-- ⚠️ A BAND, NOT A FIGURE. See the note in `data/custom.js` — a
-               free number invites a placeholder, and partners price against
-               placeholders. -->
-          <FormControl
-            type="select"
-            :model-value="brief.budget"
-            label="What can you spend?"
-            placeholder="Select a range"
-            required
-            :options="bands"
-            :error="briefProblems.budget"
-            @update:model-value="store.saveBrief({ budget: $event })"
-          />
-        </div>
 
-        <!-- ── Narrowing ─────────────────────────────────────────────── -->
-        <!-- ── Who it reaches, and the send ─────────────────────────── -->
-        <!-- ⚠️ THE FILTERS WERE A SECTION OF THEIR OWN, open by default: a
-             heading, a standfirst and ten chips across three groups, sitting
-             above the button and below two questions that had not been answered
-             yet. It made a screen with one thing to do look like a screen with
-             fifteen, and it offered to REFINE a search before the thing being
-             searched for had been written.
-             They are behind one line now. The sentence states who this reaches
-             as a fact, in words rather than as a control, and the control opens
-             only for the person who disagrees with it. -->
-        <div class="mt-8 rounded-6 border border-outline-gray-2 p-4">
-          <p class="max-w-[62ch] text-p-base leading-relaxed text-ink-gray-8">
-            This goes to
-            <span class="font-medium tabular-nums">{{ matches.length }}</span>
-            certified {{ matches.length === 1 ? 'partner' : 'partners' }}{{ reachLine }}.
-          </p>
-          <!-- ⚠️ THE PRIVACY LINE STAYS, cut to one sentence. It is the only
-               copy on this screen that tells somebody what they are giving away
-               by pressing the button under it, so it earns its line — but it ran
-               to three, and the middle one listed the fields the card above
-               already lists. -->
-          <p class="mt-1 max-w-[62ch] text-p-base leading-relaxed text-ink-gray-6">
-            They see the requirements and the budget, not your company name — that is shared when
-            you approve a reply.
-          </p>
+          <!-- ── Addressed to ───────────────────────────────────────────
+               ⚠️ THE FILTERS WERE A SECTION OF THEIR OWN, open by default: a
+               heading, a standfirst and ten chips across three groups, above
+               the button and below two questions nobody had answered yet. It
+               made a screen with one thing to do look like a screen with
+               fifteen, and it offered to refine a search before the thing being
+               searched for had been written. They are behind one line now: the
+               sentence states who this reaches in words, and the control opens
+               only for the person who disagrees with it.
+               ⚠️ THE COUNT IS ON THE BUTTON AND NOWHERE ELSE. It used to be in
+               both — "This goes to 13 certified partners" two lines above "Send
+               requirements to 13 partners" — which was tolerable while a gap
+               separated them and is a stutter now they share a foot. The
+               sentence keeps the criteria, which is the part a number cannot
+               carry; the button keeps the figure, because the button is the
+               commitment and a send control that does not name what it is about
+               to do is how twelve firms hear from somebody who meant three. -->
+          <!-- ⚠️ THE HAIRLINE ONLY, NO FILL. The foot was tinted
+               `surface-gray-1` to read as a different register, and it could
+               not: the fields above it are `surface-gray-2`, so the foot came
+               out LIGHTER than the inputs it sits under, and a band that is
+               paler than the thing above it reads as a rendering artefact
+               rather than as a second part. Matching them would have made the
+               card heavy at both ends. The stroke says where the message stops
+               and the addressing starts, which is all that needed saying. -->
+          <div class="border-t border-outline-gray-2 p-4">
+            <template v-if="matches.length">
+              <p class="text-p-base leading-relaxed text-ink-gray-8">
+                Going to certified partners{{ reachLine }}.
+              </p>
+              <!-- ⚠️ THE PRIVACY LINE STAYS, cut to one sentence. It is the
+                   only copy here that says what you give away by pressing the
+                   button beside it, so it earns its line — but it ran to three,
+                   and the middle one listed the fields above it. -->
+              <p class="mt-1 text-p-base leading-relaxed text-ink-gray-6">
+                They see the requirements and the budget, not your company name — that is shared
+                when you approve a reply.
+              </p>
+            </template>
+            <!-- Nobody left. A real state — the filters can narrow to zero —
+                 and it names the control that caused it, because the only way
+                 back is the one link under it. -->
+            <p v-else class="text-p-base leading-relaxed text-ink-gray-8">
+              No partners match these filters.
+            </p>
 
-          <!-- ⚠️ The label counts what is ON rather than saying "Filters", so
-               somebody who narrowed the list and closed the dialog can see that
-               they did without opening it again. -->
-          <button
-            class="mt-3 text-p-base text-ink-gray-6 underline hover:text-ink-gray-8"
-            @click="showFilters = true"
-          >
-            {{ filterSummary }}
-          </button>
-        </div>
+            <!-- ⚠️ The label counts what is ON rather than saying "Filters", so
+                 somebody who narrowed the list and closed the dialog can see
+                 that they did without opening it again. -->
+            <button
+              class="mt-3 block text-p-base text-ink-gray-6 underline hover:text-ink-gray-8"
+              @click="showFilters = true"
+            >
+              {{ filterSummary }}
+            </button>
 
-        <div class="mt-5">
-          <Button
-            variant="solid"
-            size="md"
-            :disabled="matches.length === 0"
-            :label="`Send requirements to ${matches.length} ${matches.length === 1 ? 'partner' : 'partners'}`"
-            @click="send"
-          />
+            <Button
+              class="mt-4"
+              variant="solid"
+              size="md"
+              :disabled="matches.length === 0"
+              :label="`Send requirements to ${matches.length} ${matches.length === 1 ? 'partner' : 'partners'}`"
+              @click="send"
+            />
+          </div>
         </div>
       </section>
 
