@@ -19,6 +19,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, Checkbox, FormControl, Textarea, TextInput, toast } from 'frappe-ui'
+import IconChevron from '~icons/lucide/chevron-right'
 import ConnectShell from '../components/ConnectShell.vue'
 import FilterChip from '../components/FilterChip.vue'
 import { useConnectStore } from '../stores/connect'
@@ -33,6 +34,7 @@ import {
   matchingPartners,
 } from '../data/custom'
 import { INDIA_CITIES } from '../data/partners'
+import { INDUSTRIES, GROUP_OF_SEGMENT, REGIONS, REGION_OF } from '../data/quiz'
 
 const store = useConnectStore()
 const router = useRouter()
@@ -108,6 +110,41 @@ const briefProblems = computed(() => (tried.value ? briefErrors(brief.value) : {
 const bands = computed(() => budgetBandsFor(store.company.country))
 
 const matches = computed(() => matchingPartners(store.company, brief.value))
+
+// ⚠️ THE REACH IS STATED AS A FACT, not implied by a control. "6 partners match
+// right now" left the reader to work out what the criteria were from the filter
+// chips above it; this names them — the region and the industry — so the
+// sentence is complete without anything being opened.
+const reachLine = computed(() => {
+  const region = REGIONS.find((r) => r.value === REGION_OF[store.company.country])
+  const group = INDUSTRIES.find((i) => i.value === GROUP_OF_SEGMENT[store.company.segments?.[0]])
+  const parts = []
+  if (region) parts.push(`in ${region.label}`)
+  // ⚠️ "working in", not "who work in". The count in front of this changes —
+  // "1 certified partner ... who work in manufacturing" is wrong and "who
+  // works" is wrong the rest of the time. A participle agrees with both.
+  if (group) parts.push(`working in ${group.label.toLowerCase()}`)
+  return parts.length ? ` ${parts.join(' ')}` : ''
+})
+
+// ⚠️ CLOSED ON ARRIVAL. See the note in the template — the filters refine a
+// search the visitor has not written yet, so they are the last thing the screen
+// should be showing first.
+const showFilters = ref(false)
+
+// What the disclosure says when it is shut. It COUNTS rather than labelling,
+// because somebody who narrowed the list and scrolled away needs to see that
+// they did without opening it again.
+const filterCount = computed(
+  () =>
+    brief.value.cities.length + brief.value.tiers.length + (brief.value.workStyle ? 1 : 0),
+)
+
+const filterSummary = computed(() =>
+  filterCount.value
+    ? `${filterCount.value} ${filterCount.value === 1 ? 'filter' : 'filters'} on`
+    : 'Send it to fewer partners',
+)
 
 const toggleIn = (key, value) => {
   const list = brief.value[key]
@@ -234,27 +271,6 @@ watch(view, () => {
       <!-- ⚠️ The override reads as a question the visitor might be asking, not
            as a tab. Tabs say "these are two equal things"; this screen has just
            said they are not. -->
-      <!-- ⚠️ TWO LINKS OF DIFFERENT WEIGHT, and they were joined by a middot,
-           which made them peers. Changing path is a decision about what to buy;
-           changing your answers is a correction. The first stays here, phrased
-           as the question a doubting reader is already asking. The second moves
-           to the foot of the screen, beside the other thing that belongs to the
-           answers rather than to the products — "Does this look right?". -->
-      <p class="mt-4 max-w-[62ch] text-p-base text-ink-gray-6">
-        <template v-if="view === 'packs'">
-          <template v-if="!overridden">Bigger job than that? </template>
-          <button class="underline hover:text-ink-gray-8" @click="view = 'custom'">
-            {{ overridden ? 'Back to what we recommend' : 'Get quotes from partners instead' }}
-          </button>
-        </template>
-        <template v-else>
-          <template v-if="!overridden">Think a fixed-price pack would do it? </template>
-          <button class="underline hover:text-ink-gray-8" @click="view = 'packs'">
-            {{ overridden ? 'Back to what we recommend' : 'Look at the packs anyway' }}
-          </button>
-        </template>
-      </p>
-
       <!-- ── Packs ───────────────────────────────────────────────────── -->
       <section v-if="view === 'packs'" class="mt-8">
         <h2 class="text-p-lg font-semibold text-ink-gray-9">What we'd buy</h2>
@@ -394,87 +410,129 @@ watch(view, () => {
         </div>
 
         <!-- ── Narrowing ─────────────────────────────────────────────── -->
-        <h2 class="mt-8 text-p-lg font-semibold text-ink-gray-9">Who should see it</h2>
-        <p class="mt-1 max-w-[62ch] text-p-base text-ink-gray-6">
-          Optional. Left alone, this goes to every certified partner in your region who works in
-          your industry.
-        </p>
-
-        <div class="mt-4 space-y-5">
-          <!-- ⚠️ INDIA ONLY, and the absence is explained rather than silent —
-               see `asksCity`. -->
-          <div v-if="asksCity(store.company.country)">
-            <p class="text-sm text-ink-gray-7">City</p>
-            <div class="mt-1.5 flex flex-wrap gap-2">
-              <FilterChip
-                v-for="city in INDIA_CITIES"
-                :key="city"
-                :label="city"
-                :selected="brief.cities.includes(city)"
-                @toggle="toggleIn('cities', city)"
-              />
-            </div>
-          </div>
-
-          <div>
-            <p class="text-sm text-ink-gray-7">Partner tier</p>
-            <div class="mt-1.5 flex flex-wrap gap-2">
-              <FilterChip
-                v-for="t in TIERS"
-                :key="t.value"
-                :label="t.label"
-                :selected="brief.tiers.includes(t.value)"
-                @toggle="toggleIn('tiers', t.value)"
-              />
-            </div>
-          </div>
-
-          <div>
-            <p class="text-sm text-ink-gray-7">How you want to work</p>
-            <div class="mt-1.5 flex flex-wrap gap-2">
-              <!-- Single-select, and re-pressing clears it: "no preference" is
-                   the absence of an answer rather than a third chip, because a
-                   third chip would make the empty state look unanswered. -->
-              <FilterChip
-                v-for="w in WORK_STYLES"
-                :key="w.value"
-                :label="w.label"
-                :selected="brief.workStyle === w.value"
-                @toggle="store.saveBrief({ workStyle: brief.workStyle === w.value ? '' : w.value })"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- ── The count, and the send ───────────────────────────────── -->
-        <div class="mt-6 rounded-6 border border-outline-gray-2 p-4">
-          <p class="text-p-base text-ink-gray-8">
+        <!-- ── Who it reaches, and the send ─────────────────────────── -->
+        <!-- ⚠️ THE FILTERS WERE A SECTION OF THEIR OWN, open by default: a
+             heading, a standfirst and ten chips across three groups, sitting
+             above the button and below two questions that had not been answered
+             yet. It made a screen with one thing to do look like a screen with
+             fifteen, and it offered to REFINE a search before the thing being
+             searched for had been written.
+             They are behind one line now. The sentence states who this reaches
+             as a fact, in words rather than as a control, and the control opens
+             only for the person who disagrees with it. -->
+        <div class="mt-8 rounded-6 border border-outline-gray-2 p-4">
+          <p class="max-w-[62ch] text-p-base leading-relaxed text-ink-gray-8">
+            This goes to
             <span class="font-medium tabular-nums">{{ matches.length }}</span>
-            {{ matches.length === 1 ? 'partner matches' : 'partners match' }} right now.
+            certified {{ matches.length === 1 ? 'partner' : 'partners' }}{{ reachLine }}.
           </p>
           <p class="mt-1 max-w-[62ch] text-p-base leading-relaxed text-ink-gray-6">
             Each one gets your requirements, your budget range and your industry — not your company
             name or contact details. Those are shared only with the partners whose replies you
             approve.
           </p>
-          <div class="mt-4">
-            <Button
-              variant="solid"
-              size="md"
-              :disabled="matches.length === 0"
-              :label="`Send requirements to ${matches.length} partners`"
-              @click="send"
-            />
+
+          <!-- ⚠️ The label counts what is ON rather than saying "Filters", so
+               somebody who narrowed the list and scrolled away can see that they
+               did without opening it again. -->
+          <button
+            class="mt-3 flex items-center gap-1.5 text-p-base text-ink-gray-6 hover:text-ink-gray-8"
+            :aria-expanded="showFilters"
+            @click="showFilters = !showFilters"
+          >
+            <IconChevron class="size-4 transition-transform" :class="showFilters && 'rotate-90'" />
+            {{ showFilters ? 'Hide' : filterSummary }}
+          </button>
+
+          <div v-if="showFilters" class="mt-4 space-y-5 border-t border-outline-gray-2 pt-4">
+            <!-- ⚠️ INDIA ONLY, and the absence is explained rather than silent —
+                 see `asksCity`. -->
+            <div v-if="asksCity(store.company.country)">
+              <p class="text-sm text-ink-gray-7">City</p>
+              <div class="mt-1.5 flex flex-wrap gap-2">
+                <FilterChip
+                  v-for="city in INDIA_CITIES"
+                  :key="city"
+                  :label="city"
+                  :selected="brief.cities.includes(city)"
+                  @toggle="toggleIn('cities', city)"
+                />
+              </div>
+            </div>
+
+            <div>
+              <p class="text-sm text-ink-gray-7">Partner tier</p>
+              <div class="mt-1.5 flex flex-wrap gap-2">
+                <FilterChip
+                  v-for="t in TIERS"
+                  :key="t.value"
+                  :label="t.label"
+                  :selected="brief.tiers.includes(t.value)"
+                  @toggle="toggleIn('tiers', t.value)"
+                />
+              </div>
+            </div>
+
+            <div>
+              <p class="text-sm text-ink-gray-7">How you want to work</p>
+              <div class="mt-1.5 flex flex-wrap gap-2">
+                <!-- Single-select, and re-pressing clears it: "no preference" is
+                     the absence of an answer rather than a third chip, because a
+                     third chip would make the empty state look unanswered. -->
+                <FilterChip
+                  v-for="w in WORK_STYLES"
+                  :key="w.value"
+                  :label="w.label"
+                  :selected="brief.workStyle === w.value"
+                  @toggle="store.saveBrief({ workStyle: brief.workStyle === w.value ? '' : w.value })"
+                />
+              </div>
+            </div>
           </div>
         </div>
+
+        <div class="mt-5">
+          <Button
+            variant="solid"
+            size="md"
+            :disabled="matches.length === 0"
+            :label="`Send requirements to ${matches.length} ${matches.length === 1 ? 'partner' : 'partners'}`"
+            @click="send"
+          />
+        </div>
       </section>
+
+      <!-- ── The other path ──────────────────────────────────────────── -->
+      <!-- ⚠️ IT USED TO SIT UNDER THE HEADLINE, three lines after a verdict
+           that had just said there was one answer — a second option offered
+           before the first had been read, on a screen whose whole job is to
+           stop somebody choosing from a menu. It belongs after the thing being
+           recommended and after the button that acts on it: read the
+           recommendation, act on it, or, if it is wrong, here is the other
+           route.
+           ⚠️ Still a sentence and not a tab. Tabs say "these are two equal
+           things"; this screen has just said they are not. -->
+      <p class="mt-10 max-w-[62ch] text-p-base text-ink-gray-6">
+        <template v-if="view === 'packs'">
+          <template v-if="!overridden">Bigger job than that? </template>
+          <button class="underline hover:text-ink-gray-8" @click="view = 'custom'">
+            {{ overridden ? 'Back to what we recommend' : 'Get quotes from partners instead' }}
+          </button>
+        </template>
+        <template v-else>
+          <template v-if="!overridden">Think a fixed-price pack would do it? </template>
+          <button class="underline hover:text-ink-gray-8" @click="view = 'packs'">
+            {{ overridden ? 'Back to what we recommend' : 'Look at the packs anyway' }}
+          </button>
+        </template>
+      </p>
 
       <!-- ── Was this right? ─────────────────────────────────────────── -->
       <!-- ⚠️ ONE LINE, at the bottom, and it disappears once answered. It is
            the highest-value feedback in the app — the only signal that the
            engine rather than a partner got something wrong — and it is worth
            exactly one line of a screen whose job is something else. -->
-      <div class="mt-10 border-t border-outline-gray-2 pt-5">
+      <div class="mt-5 border-t border-outline-gray-2 pt-5">
         <!-- ⚠️ "Change my answers" LIVES HERE NOW, not up beside the path
              switch. Both of these belong to the ANSWERS rather than to the
              products, and pairing a correction with a purchase decision under a
