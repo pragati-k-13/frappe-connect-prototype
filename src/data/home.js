@@ -1,60 +1,70 @@
-// What the signed-in home screen shows besides the projects: where to read,
-// what Frappe has written lately, and where it will be.
+// What the signed-in home screen shows besides the projects and the partner
+// list: guides to read, and where Frappe will be.
 //
-// ⚠️ ALL OF IT IS REAL, read off frappe.io on 22 September 2026. Nothing here
-// is invented, which is the opposite of most seed data in this prototype — and
-// it is deliberate, because these three blocks exist to prove the home screen
-// is worth opening. A dashboard whose "latest from Frappe" is three made-up
-// headlines demonstrates a layout, not a reason to come back.
+// ⚠️ THE EVENTS ARE REAL, read off events.frappe.io on 22 September 2026. The
+// guides are NOT — their titles come from the design, and none of them exists
+// at a URL that could be checked. That split is the whole honesty story of this
+// file, and it is marked at each list rather than left to be inferred.
 //
-// ⚠️ IT WILL GO STALE, and that is the trade. Titles and dates are pasted, not
-// fetched — a prototype with no server cannot fetch — so treat every date below
-// as an assertion about one afternoon. A real build reads the same three
-// sources over their feeds.
+// ⚠️ IT WILL GO STALE. Titles and dates are pasted, not fetched — a prototype
+// with no server cannot fetch — so treat every date below as an assertion about
+// one afternoon. A real build reads these over their feeds.
+
+// Everything here links to the blog index rather than to an invented slug. A
+// card that looks like a deep link and 404s is worse than one that lands
+// somewhere real.
+const BLOG = 'https://frappe.io/blog'
 
 // ── Resources ───────────────────────────────────────────────────────────────
-// ⚠️ NOT `frappe.io/handbook`, AND THE PROJECT RAIL STILL POINTS THERE. That
-// page is Frappe's INTERNAL employee handbook — open day, internal forum,
-// workstation security, "email the team!" — and the project page's Help block
-// offers it to customers under "Frappe handbook". It is the wrong document for
-// somebody running an implementation, which is what the docs below are for.
-// See the note at the foot of this file.
-export const RESOURCES = [
+// ⚠️ TITLES FROM THE DESIGN. They read like guides Frappe would publish about
+// working with partners, and they are placeholders until somebody points them
+// at real posts.
+
+// The two cards at the top of the section.
+export const GUIDE_CARDS = [
   {
-    title: 'ERPNext documentation',
-    body: 'Every module, as the people who build it describe it.',
-    href: 'https://docs.frappe.io/erpnext',
+    title: 'Your guide to finding and hiring the perfect Partner for your company',
+    at: '23 Aug 2026',
+    href: BLOG,
   },
   {
-    title: 'Frappe Cloud documentation',
-    body: 'Sites, billing and the partner code your hosting runs on.',
-    href: 'https://docs.frappe.io/cloud',
+    title: 'How to work effectively with Partners to get your app implementation just right',
+    at: '23 Aug 2026',
+    href: BLOG,
   },
 ]
 
-// ── Blog ────────────────────────────────────────────────────────────────────
-// The six most recent posts on frappe.io/blog; the home screen shows three.
-// ⚠️ `href` follows the site's own `/blog/{category}/{slug}` pattern. The
-// category is part of the path, so it cannot be dropped from the record even
-// though nothing renders it.
-export const POSTS = [
+// The one below them, with the wide image and a standfirst.
+export const FEATURED_GUIDE = {
+  title: 'How to choose and work with a Frappe Partner effectively',
+  body: 'Implementations are rarely successful because of software alone. Here is our advice on finding and working with Partners.',
+  tag: 'Guides',
+  href: BLOG,
+}
+
+// And the rows under it.
+//
+// ⚠️ `likes` AND `comments` ARE INVENTED, and they are the only invented
+// numbers in this file. They are in the design so they are here — but they
+// assert engagement nobody measured, which is exactly why the partners page
+// dropped the same counts off its success stories. Replace with real figures or
+// cut them before this is shown outside the team.
+export const GUIDE_ROWS = [
   {
-    title: "It's not (just) about you",
-    author: 'Rushabh Mehta',
-    at: '22 Sep 2026',
-    href: 'https://frappe.io/blog/culture/its-not-just-about-you',
+    title: 'How to choose and work with a Frappe Partner effectively',
+    body: 'From cricket, swimming, and coaching camps to accounting',
+    tag: 'Guides',
+    likes: 19,
+    comments: 1,
+    href: BLOG,
   },
   {
-    title: 'Conversations make the ecosystem',
-    author: 'Foram Shah',
-    at: '15 Sep 2026',
-    href: 'https://frappe.io/blog/community-stories/conversations-make-the-ecosystem',
-  },
-  {
-    title: 'Half a billion ledger entries',
-    author: 'Ruthra Kumar',
-    at: '3 Sep 2026',
-    href: 'https://frappe.io/blog/engineering/half-a-billion-ledger-entries',
+    title: 'What a fixed-scope implementation can and cannot do for you',
+    body: 'Where a starter pack stops, and what a change request costs',
+    tag: 'Guides',
+    likes: 19,
+    comments: 1,
+    href: BLOG,
   },
 ]
 
@@ -62,27 +72,23 @@ export const POSTS = [
 // ⚠️ TWO, AND THAT IS THE HONEST NUMBER. events.frappe.io lists four Frappe
 // Yatra dates prominently, and every one of them — Delhi, Pune, Bengaluru,
 // Coimbatore — is in May and June 2026, which is to say months PAST. Putting
-// them under "Upcoming" because there is room for four cards would be the
+// them under "Upcoming" because the design has room for more cards would be the
 // screen inventing a future out of a layout. These two are the only entries
 // dated after today.
+//
+// ⚠️ THEY LINK TO THE INDEX, not to `events.frappe.io/events/{slug}`. The slug
+// pattern is real and the slugs would be a guess.
 export const EVENTS = [
   {
     title: 'Frappe Partnership',
-    body: 'Webinar · 3:00 PM',
     at: '30 Sep 2026',
     where: 'Online',
     href: 'https://events.frappe.io',
   },
   {
     title: 'Frappe Karavan',
-    body: 'Conference',
     at: '21 Nov 2026',
     where: 'Cairo, Riyadh, Doha, Dubai',
     href: 'https://events.frappe.io',
   },
 ]
-
-// ⚠️ EVENT LINKS GO TO THE INDEX, not to `events.frappe.io/events/{slug}`. The
-// slug pattern is real and the slugs are a guess, and a card that looks like a
-// deep link and 404s is worse than one that lands on the listing with the event
-// on it.
