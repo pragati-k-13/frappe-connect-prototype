@@ -59,15 +59,10 @@ const cost = computed(() => {
   return hired?.price ?? ''
 })
 
-const started = computed(() =>
-  props.project?.at
-    ? new Date(props.project.at).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      })
-    : '',
-)
+const fmt = (ms) =>
+  new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
+const started = computed(() => (props.project?.at ? fmt(props.project.at) : ''))
 
 const rows = computed(() =>
   [
@@ -79,6 +74,15 @@ const rows = computed(() =>
     { label: 'Scope', value: scopeLine.value },
     { label: 'Cost', value: cost.value },
     { label: 'Started', value: started.value },
+    // ⚠️ THE RECORD OF THE AGREEMENT, and the only thing left of what used to
+    // be a task. The terms are agreed inside the hire — see
+    // `HirePartnerDialog` — so what the project can still say afterwards is
+    // when. Re-reading the full text is not offered anywhere yet, which is a
+    // real gap and a different job from this row.
+    {
+      label: 'Terms',
+      value: props.project?.termsAt ? `Agreed ${fmt(props.project.termsAt)}` : '',
+    },
   ].filter((r) => r.value),
 )
 </script>

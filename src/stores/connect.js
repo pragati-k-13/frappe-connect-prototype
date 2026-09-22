@@ -1291,11 +1291,25 @@ export const useConnectStore = defineStore('connect', {
     //
     // `why` is the one-tap reason, kept beside the project because it is
     // feedback about the marketplace rather than about the partner.
-    choosePartner(projectId, partnerId, why = null) {
+    // ⚠️ HIRING RECORDS THE TERMS, because agreeing them is what hiring is —
+    // `HirePartnerDialog` collects the agreement before this runs, and there is
+    // no route to here that skips it. It used to be a separate `agree-terms`
+    // task ticked afterwards, which asked somebody to agree the terms of an
+    // engagement they had already entered.
+    choosePartner(projectId, partnerId) {
       const project = this.projects.find((p) => p.id === projectId)
       if (!project) return
       project.partnerId = partnerId
-      project.chooseReason = why
+      project.termsAt = Date.now()
+    },
+
+    // ⚠️ SEPARATE FROM THE HIRE, and it has to be: the hire is a commitment and
+    // this is one tap of optional feedback about it. Folding the reason into
+    // `choosePartner` made the argument the dialog now makes with its two steps
+    // — that dropping out of the question must not cost you the partner.
+    setChooseReason(projectId, why) {
+      const project = this.projects.find((p) => p.id === projectId)
+      if (project) project.chooseReason = why
     },
 
     // ── Feedback ─────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { Progress } from 'frappe-ui'
 import ProjectChecklist from './ProjectChecklist.vue'
-import { stageProgress, stagesFor, visibleTasks } from '../data/project'
+import { stageProgress, stagesFor } from '../data/project'
 
 // Where the project has got to, and what the stage it is at wants.
 //
@@ -57,12 +57,7 @@ const percent = computed(() =>
   stages.value.length ? ((currentIndex.value + 1) / stages.value.length) * 100 : 0,
 )
 
-// ⚠️ CONDITIONAL TASKS ARE FILTERED HERE, before anything renders or counts
-// them. See `visibleTasks` — the checklist is handed a stage whose `yours` is
-// already the list that applies to this project.
-const stageForProject = computed(() =>
-  current.value ? { ...current.value, yours: visibleTasks(current.value, props.project) } : null,
-)
+
 </script>
 
 <template>
@@ -98,11 +93,11 @@ const stageForProject = computed(() =>
          stage — and an empty checklist block left 20px of nothing under the
          bar, which reads as a section that failed to load. -->
     <div
-      v-if="stageForProject?.yours?.length || stageForProject?.expects || stageForProject?.theirs?.length"
+      v-if="current.yours?.length || current.expects || current.theirs?.length"
       class="mt-5"
     >
       <ProjectChecklist
-        :stage="stageForProject"
+        :stage="current"
         :project="project"
         :context="context"
         :other-party="otherParty"

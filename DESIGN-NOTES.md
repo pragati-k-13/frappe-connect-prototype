@@ -107,6 +107,19 @@ one action first and it forced the decision while somebody was still gathering i
 Passing on a bid tells the partner nothing: a rejection notice from a business that never
 spoke to you is worse than silence.
 
+**The terms are inside the hire.** They were a task in this stage, shown once a partner
+existed — which is to say the product asked you to agree the terms of an engagement you had
+already entered. Nobody hires a firm and signs afterwards; signing is what hiring is. So the
+hire dialog carries the terms, its primary reads "Agree and hire X", and the one-tap "why
+them?" swaps into the same dialog afterwards rather than appearing as a second popup, with
+the partner already hired behind it so dropping out costs nothing. The consent checkbox
+there is not the kind removed from the tracker: those were claims about the past, this is an
+agreement made in the present, witnessed where it is made.
+
+That leaves the stage with no tasks, so what finishes it is a `complete` predicate on the
+stage rather than an empty checklist — without one, "every task is done" is vacuously true
+and the button to leave the stage stands over a list of firms nobody has hired.
+
 ### The budget is collected and then dropped — a note for the partner side
 
 Two questions are mandatory before requirements go anywhere, and **neither one changes who

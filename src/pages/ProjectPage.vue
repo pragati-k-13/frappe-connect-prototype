@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Badge, Button, Dialog, ScrollArea, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
-import AgreeTermsDialog from '../components/AgreeTermsDialog.vue'
+import HirePartnerDialog from '../components/HirePartnerDialog.vue'
 import PackPanel from '../components/PackPanel.vue'
 import PartnerCodeDialog from '../components/PartnerCodeDialog.vue'
 import ProjectBids from '../components/ProjectBids.vue'
@@ -16,15 +16,7 @@ import IconArrowRight from '~icons/lucide/arrow-right'
 import { logoFor } from '../data/logos'
 import { PARTNERS } from '../data/partners'
 import { DEFAULT_REGION, STARTER_PACKS, marketFor } from '../data/packs'
-import {
-  SERVICES,
-  isTaskDone,
-  nextStage,
-  serviceOf,
-  stageOf,
-  visibleTasks,
-  windowFor,
-} from '../data/project'
+import { SERVICES, isStageDone, nextStage, serviceOf, stageOf, windowFor } from '../data/project'
 import { useConnectStore } from '../stores/connect'
 import { useContactPartner } from '../utils/contact'
 
@@ -139,7 +131,6 @@ const countdown = computed(() => {
 // ── Acting on a task ────────────────────────────────────────────────────────
 const hosting = ref(false)
 const rating = ref(false)
-const terms = ref(false)
 
 // ⚠️ The task's `action` names a KIND, not a handler — the data layer knows a
 // task needs a slot booked, and this is the screen that knows what booking a
@@ -163,10 +154,6 @@ const act = (task) => {
   if (task.action === 'feedback') {
     if (!partner.value) return toast.info('No partner on this project yet')
     return (rating.value = true)
-  }
-  if (task.action === 'terms') {
-    if (!partner.value) return toast.info('Hire a partner first')
-    return (terms.value = true)
   }
   if (task.action === 'brief') {
     return router.push({ name: 'recommendation' })
@@ -224,7 +211,7 @@ const taskContext = computed(() => ({
 // checkbox. `completeTask` is idempotent for the same reason: a second
 // confirmation of the same dialog must not un-finish the task.
 const tickByAction = (action) => {
-  const task = visibleTasks(stage.value, project.value).find((t) => t.action === action)
+  const task = (stage.value?.yours ?? []).find((t) => t.action === action)
   if (task) store.completeTask(project.value.id, task.key)
 }
 
@@ -238,55 +225,33 @@ const tickByAction = (action) => {
 // to be `Boolean(chosen)` with `chosen` nulled on confirm, so for the length of
 // the fade-out the heading read "Why ?" — the partner's name gone from a dialog
 // still on screen asking about them. The record stays until another Hire
-// replaces it; nothing reads it while the dialog is shut. Same fix, same
-// reason, as `PackScopeDialog`.
+// replaces it; nothing reads it while the dialog is shut.
 const chosen = ref(null)
-const choosing = ref(false)
-const WHY = ['Price', 'Timeline', 'Their profile', 'How they replied']
+const hiring = ref(false)
 
 const choose = (partnerRecord) => {
   chosen.value = partnerRecord
-  choosing.value = true
+  hiring.value = true
 }
 
-// ⚠️ NOTHING TO TICK. This used to call `tickByAction('bids')` to mark "Choose
-// the partner you are going with" — a box recording the gesture that opened the
-// dialog it is confirming. The task is gone; hiring IS the record, and the
-// table shows it as a "Hired" badge on the row.
-// ⚠️ DISMISSING STILL HIRES. The question is optional — there is a Skip button
-// — and losing a hire because somebody pressed Escape on a feedback prompt
-// would be the worst possible trade for one tap of analytics. So closing the
-// dialog by any route lands here with `why` null.
-//
-// ⚠️ WHICH MAKES IT RE-ENTRANT: pressing "Price" calls this, which closes the
-// dialog, which fires `update:model-value` false, which calls this again with a
-// null reason and would overwrite the answer just given. Clearing `choosing`
-// FIRST turns the second call into a no-op at the guard.
-const confirmChoice = (why) => {
-  if (!choosing.value || !chosen.value) return
-  choosing.value = false
-  store.choosePartner(project.value.id, chosen.value.id, why)
+// ⚠️ THE TERMS AND THE HIRE ARE ONE ACT. They used to be two: `choosePartner`
+// here, and a separate `agree-terms` task sitting in the stage AFTERWARDS, so
+// the product asked you to agree the terms of an engagement you had already
+// entered. `HirePartnerDialog` collects the agreement before the commitment,
+// which is the order every other version of this has in real life, and
+// `termsAt` is what records that it happened.
+const hire = () => {
+  if (!chosen.value) return
+  store.choosePartner(project.value.id, chosen.value.id)
   toast.success(`${chosen.value.name} is your partner`)
 }
 
-// ⚠️ Advancing is the CUSTOMER saying their side is done, not the system
-// deciding. It is offered once every one of your tasks is ticked, and it is an
-// offer rather than an automatic move: finishing your last task and having the
-// page jump out from under you is worse than pressing a button that says what
-// it will do.
-// ⚠️ THROUGH `visibleTasks`, not off `stage.yours`. A task hidden by its own
-// `when` — "Agree the terms" before a partner exists — would otherwise sit
-// unticked in this test forever, and the stage could never be finished. Same
-// reason `tickByAction` reads the filtered list.
-// ⚠️ TRUE WHEN A STAGE HAS NO TASKS AT ALL, which it did not used to be. Two
-// stages are now entirely `expects` — the weeks your data is being prepared and
-// the weeks the partner is building — and requiring `length > 0` would strand a
-// project in them with no way forward but the demo switcher.
-const yoursDone = computed(() =>
-  visibleTasks(stage.value, project.value).every((t) =>
-    isTaskDone(t, project.value, taskContext.value),
-  ),
-)
+const recordWhy = (why) => store.setChooseReason(project.value.id, why)
+
+// ⚠️ NOT "every task is done" ANY MORE — see `isStageDone`. A stage with no
+// tasks satisfies that vacuously, which is correct for the weeks your data is
+// prepared and wrong for the stage whose whole job is hiring somebody.
+const yoursDone = computed(() => isStageDone(stage.value, project.value, taskContext.value))
 
 // Where "Everything on my side is done" goes next, so the button can name it.
 // Null on the last stage, where the button is not offered at all — it used to
@@ -573,29 +538,17 @@ const chooseService = (value) => {
       :partner="partner"
       @done="tickByAction('feedback')"
     />
-    <AgreeTermsDialog v-model:open="terms" :partner="partner" @agreed="tickByAction('terms')" />
+
 
     <!-- ⚠️ CHOOSING ASKS ONE QUESTION ON THE WAY OUT, and it is four buttons
          rather than a form: the answer is worth having and not worth a screen.
          Dismissing without answering still chooses the partner — the choice is
          the point and the question is the favour. -->
-    <Dialog
-      :model-value="choosing"
-      :title="`Why ${chosen?.name ?? ''}?`"
-      @update:model-value="$event || confirmChoice(null)"
-    >
-      <!-- Default slot, not `#body-content` — see the note in
-           `NewProjectDialog`; the older name fails silently. -->
-      <template #default>
-        <p class="text-p-base leading-relaxed text-ink-gray-6">
-          One tap, and it stays between you and Frappe — it tells us what actually decides these,
-          which is how the replies get sorted better next time.
-        </p>
-        <div class="mt-4 flex flex-wrap gap-2">
-          <Button v-for="w in WHY" :key="w" :label="w" @click="confirmChoice(w)" />
-        </div>
-        <Button class="mt-4" variant="ghost" label="Skip" @click="confirmChoice(null)" />
-      </template>
-    </Dialog>
+    <HirePartnerDialog
+      v-model:open="hiring"
+      :partner="chosen"
+      @hire="hire"
+      @why="recordWhy"
+    />
   </ConnectShell>
 </template>

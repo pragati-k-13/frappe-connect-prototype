@@ -99,11 +99,14 @@ export const serviceOf = (value) => SERVICES.find((s) => s.value === value) ?? n
 // line of prose, and losing the checkbox loses nothing: nobody was ever
 // prevented from ticking "Have your data ready" with no data.
 //
-// `when(project)` makes a task CONDITIONAL on the project's own state. Optional,
-// and rare on purpose: a checklist whose rows appear and vanish is hard to trust
-// and impossible to count against. It exists for the one case where showing a
-// task would be offering something the product would then refuse — see
-// `agree-terms`. Read through `visibleTasks`, never off `stage.yours` directly.
+// ⚠️ THERE IS NO CONDITIONAL TASK ANY MORE, and there was a mechanism for one.
+// `when(project)` hid a row until the project was ready for it, added for
+// `agree-terms` — the terms could not be offered before a partner existed,
+// since pressing them would only have said "hire a partner first". That task is
+// now part of the hire itself, so the last user went with it, and the filter
+// went too: every count on this screen had to remember to route through it, and
+// a no-op that four call sites must not forget is a trap that buys nothing.
+// Bring it back if a second case turns up; do not keep it waiting for one.
 const task = (key, label, rest = {}) => ({ key, label, ...rest })
 
 // Is this task finished?
@@ -116,15 +119,24 @@ const task = (key, label, rest = {}) => ({ key, label, ...rest })
 export const isTaskDone = (t, project, ctx = {}) =>
   t.complete ? Boolean(t.complete(project, ctx)) : (project?.done ?? []).includes(t.key)
 
-// The tasks in a stage that apply to THIS project.
+// Is YOUR side of this stage finished?
 //
-// ⚠️ EVERYTHING THAT READS A STAGE'S TASKS GOES THROUGH HERE — the checklist
-// that renders them, the tally beside it, and the "your side is done" test that
-// offers the next stage. A hidden task left in any one of those is a stage that
-// can never complete, which is the failure this helper exists to make
-// impossible to write by accident.
-export const visibleTasks = (stage, project) =>
-  (stage?.yours ?? []).filter((t) => (t.when ? t.when(project) : true))
+// ⚠️ A STAGE CAN BE INCOMPLETE WITH NO TASKS IN IT, which "every task is done"
+// gets exactly backwards — an empty list satisfies `every` vacuously. Two
+// stages are now entirely `expects`, and that is right for them: nothing this
+// product can see happens while your data is prepared or the partner builds, so
+// saying your side is done is your call.
+//
+// "Choosing a partner" is the one where it is not. It has no tasks either, and
+// for a week it showed a "Move to Hosting" button over a list of firms nobody
+// had hired — the stage's entire purpose, skippable, because the thing that
+// completes it is a partner rather than a checkbox. `complete` is how a stage
+// says what finishes it when that is not a task.
+export const isStageDone = (stage, project, ctx = {}) =>
+  stage?.complete
+    ? Boolean(stage.complete(project))
+    : (stage?.yours ?? []).every((t) => isTaskDone(t, project, ctx))
+
 
 // ⚠️ `theirs` IS A LIST OF SENTENCE FRAGMENTS, lower-case, each one completing
 // "Tridots is ___". They are rendered as ONE SENTENCE naming the other side and
@@ -279,40 +291,35 @@ const CUSTOM_STAGES = [
     key: 'choosing',
     label: 'Choosing a partner',
     theme: 'blue',
-    // ⚠️ ONE TASK, AND IT WAS FOUR. Go through the replies, approve at least
-    // one, choose the one you are going with, agree the terms — and the first
-    // three recorded things the Replies section below can SEE. A box asking you
-    // to confirm you shortlisted somebody, under the button you pressed to
-    // shortlist them, is the product asking for a receipt it wrote itself; a
-    // box saying "choose the partner you are going with" over a table with Hire
-    // on every row is the same thing twice. They also produced the fault that
-    // started this: three rows carrying the same "See the replies" button,
-    // every one scrolling to the same section a few hundred pixels below.
+    // ⚠️ NO TASKS AT ALL, and it had four. Go through the replies, approve
+    // one, choose the one you are going with, agree the terms. The first three
+    // recorded things the Replies section can SEE — a box confirming you
+    // shortlisted somebody, under the button you pressed to shortlist them, is
+    // the product asking for a receipt it wrote itself. They also produced the
+    // fault that started this: three rows carrying the same "See the replies"
+    // button, every one scrolling to the same section a few hundred pixels
+    // below.
     //
-    // The list IS the stage now. What survives is the one act nothing on the
-    // page observes.
-    yours: [
-      // ⚠️ A TASK, NOT A STAGE. It was drawn as its own step in the bar and it
-      // is one checkbox — a stage whose entire content is "tick this" reads as
-      // ceremony, and it put a wall between choosing a firm and starting with
-      // them where there is really only a signature.
-      //
-      // ⚠️ AND IT APPEARS ONLY ONCE THERE IS SOMEBODY TO AGREE WITH. Terms of
-      // engagement are between the business and its partner; offering them
-      // above a list of twelve firms nobody has hired is a contract with no
-      // counterparty, and pressing it could only say "choose a partner first".
-      // A task you are shown and then refused is worse than one you are not
-      // shown yet — which is also what keeps this stage from showing an empty
-      // checklist for the whole week it spends waiting for quotes.
-      //
-      // ⚠️ IT IS NOT TICKED BY HAND EITHER. `tickByAction('terms')` records it
-      // when the dialog is confirmed; the box is the receipt, not the gesture.
-      task('agree-terms', 'Agree the terms of engagement', {
-        hint: 'Between you and your partner. Frappe is not a party to it.',
-        action: 'terms',
-        when: (project) => Boolean(project?.partnerId),
-      }),
-    ],
+    // The fourth was the terms, and it was the strangest of them: it appeared
+    // only once a partner was hired, which is to say it asked you to agree the
+    // terms of an engagement you had already entered. Agreeing is not a step
+    // after hiring, it is what hiring IS — so it moved into the hire itself.
+    // See `HirePartnerDialog`.
+    //
+    // What is left is a stage that is entirely its replies list, which is what
+    // choosing a partner actually consists of.
+    yours: [],
+    // ⚠️ THE STAGE IS FINISHED WHEN A PARTNER IS HIRED, which is not a task and
+    // cannot be one — it happens in the replies list below. Without this the
+    // stage had no tasks, "every task is done" was vacuously true, and the
+    // button to leave stood over a list of firms nobody had chosen.
+    complete: (project) => Boolean(project?.partnerId),
+    // ⚠️ NO `expects` LINE, and the other task-free stages have one. Theirs
+    // describe work happening somewhere this product cannot see. This stage's
+    // work happens six inches below, in the replies list, and a sentence saying
+    // "a partner hired from the replies" over a table of replies with a Hire
+    // button on every row is narration. It also went stale the moment somebody
+    // hired one, still describing as pending a thing the table shows done.
     // ⚠️ NO `theirs` SENTENCE, and this is the one stage that has to go
     // without. The line is rendered as "<other party> is <fragment>", and the
     // other party here is a dozen firms rather than one — with no partner
@@ -417,11 +424,7 @@ export const stageWork = (project) => {
   const stage = stageOf(project?.service, project?.stage)
   if (!stage) return null
   const done = project.done ?? []
-  // ⚠️ `visibleTasks`, and this was the third reader to need it — the listing
-  // row said "4 things need you" over a page showing three, because the fourth
-  // was a task the project cannot be offered yet. A count that disagrees with
-  // the list it is counting is worse than no count.
-  const outstanding = visibleTasks(stage, project).filter((t) => !done.includes(t.key)).length
+  const outstanding = (stage.yours ?? []).filter((t) => !done.includes(t.key)).length
   return { outstanding, waitingOn: outstanding === 0 && (stage.theirs ?? []).length > 0 }
 }
 

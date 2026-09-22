@@ -61,7 +61,6 @@ const ACTION_LABELS = {
   packs: 'See the packs',
   hosting: 'Get the code',
   brief: 'Open requirements',
-  terms: 'Read the terms',
   feedback: 'Rate them',
 }
 
