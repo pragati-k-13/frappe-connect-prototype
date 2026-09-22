@@ -55,28 +55,29 @@ export const isOver50 = (employees) => {
 // a business can buy the pack for the modules and treat the integration as the
 // change request it is. "An ERP that no longer fits how we work" is different —
 // there is no configuration of a fixed scope that answers it.
-// ⚠️ ONE LINE EACH, and they are FRAGMENTS rather than arguments. These were
-// two-sentence paragraphs that stated the fact and then explained the
-// inference — "You have 201 to 500 people. Starter packs are scoped for
-// businesses running fewer than 50 users." The headline above them already
-// makes the claim; what the reader needs under it is the evidence, and three
-// paragraphs of reasoning before a price list is a wall. Each one now says the
-// fact and the consequence in a single clause.
+// ⚠️ ONE SENTENCE EACH: a clause of fact, then what follows from it. They were
+// two-sentence paragraphs that restated the headline after every fact, and for
+// a while they were bare fragments, which is worse — a fragment under a
+// headline does not say whether it is a fact about you, a condition of the
+// offer or a feature of the product. The consequence inside the sentence is
+// what lets these stand without a label above them explaining what they are.
 const CUSTOM_TRIGGERS = [
   {
     key: 'size',
     test: (f) => isOver50(f.employees),
-    reason: (f) => `${f.employees} people — packs are scoped for under 50 users`,
+    reason: (f) => `You're ${f.employees} people, and a pack is scoped for under 50 users.`,
   },
   {
     key: 'outgrown',
     test: (f) => f.operations === 'outgrown',
-    reason: () => 'You are already on an ERP, so this is a migration rather than a fresh setup',
+    reason: () =>
+      'You are already on an ERP, so this is a migration — a pack is a fresh configuration.',
   },
   {
     key: 'fit',
     test: (f) => f.problems.includes('fit'),
-    reason: () => 'Packs are ERPNext as it ships — no custom scripting or workflows',
+    reason: () =>
+      'You need the software to bend to how you work, and a pack is ERPNext exactly as it ships.',
   },
 ]
 
@@ -175,14 +176,22 @@ export const recommendationFor = (form) => {
   return {
     verdict: 'packs',
     triggers: [],
-    // ⚠️ THE FACTS, NOT THE ARGUMENT. The headline makes the claim; these are
-    // what it was made from. They used to be two full sentences each carrying
-    // their own reasoning ("…so the fixed-scope packs cover this without anyone
-    // scoping it first"), which restated the headline twice before the reader
-    // reached a price.
+    // ⚠️ SENTENCES, AND THE SECOND ATTEMPT AT THEIR LENGTH. They started as two
+    // paragraphs that each stated a fact and then re-argued the headline; they
+    // were cut to bare fragments — "11 to 50 people, and no ERP to migrate off"
+    // — and that went too far. A fragment under a headline has no frame: it
+    // does not say whether it is a fact about you, a condition of the offer or
+    // a feature of the product, and two of them stacked read as a system
+    // printing its variables.
+    //
+    // Each one is now a sentence carrying its own consequence, which is what
+    // makes it legible without a label above it saying "why". One clause of
+    // fact, one of what follows.
     reasons: [
-      `${f.employees} people, and no ERP to migrate off`,
-      f.operations ? `Running on ${operationsLabel(f.operations).toLowerCase()}` : null,
+      `You're ${f.employees} people with no ERP to migrate off, so a fixed scope fits without anyone scoping it first.`,
+      f.operations
+        ? `Today it's ${operationsLabel(f.operations).toLowerCase()} — which is what these packs replace.`
+        : null,
     ].filter(Boolean),
     packs,
   }
