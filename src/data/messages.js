@@ -159,13 +159,27 @@ const SEEDS = [
       ],
     ],
   },
-  // A partner who answered by saying no. See `declineMessage` — the same fact
-  // a broadcast produces, reached from an ordinary conversation instead.
+  // A partner who answered by saying no — AS A SENTENCE, not as a decline card.
+  //
+  // ⚠️ THIS USED TO BE A `decline`, AND THAT WAS THE WRONG SHAPE HERE. A
+  // decline is a reply to a REQUIREMENT: something formal went out, a firm
+  // formally answered it, and the product tracks that because the business is
+  // waiting on a set of named partners and needs to know which of them are
+  // still live. Nothing formal went out here. One person asked another whether
+  // they had time, and "not until January" is the answer to that question, not
+  // a status change — rendering it as a bordered card under a "Declined" badge
+  // turns an ordinary no into a verdict, and puts a state on a conversation
+  // that has none. See `threadStatus`, which now only reads declines off
+  // broadcast threads.
   {
     name: 'Hybrowlabs',
     messages: [
       ['you', ago(9), 'Do you have availability for a manufacturing implementation starting next month?'],
-      ['decline', ago(8), 'We are at capacity until the new year, so we would not be able to start this properly.'],
+      [
+        'partner',
+        ago(8),
+        'Not next month, sorry — we are at capacity until the new year. Worth asking again in January if the timing still works for you.',
+      ],
     ],
   },
 ]
@@ -176,21 +190,12 @@ export const discoveryThreads = () =>
     // `author` on partner messages only. The viewer's own name is on the store
     // (`store.viewer`), which is the one human the screen already knew about.
     //
-    // ⚠️ `'decline'` IS A THIRD SENDER IN THE SEED FORMAT, not a fourth field.
-    // It reads as a sender because that is what it is from the seed's point of
-    // view — the partner said something — and it saves every other row carrying
-    // a `kind` it does not use.
+    // ⚠️ TWO SENDERS, AND NO `kind`. A seed briefly grew a third sender,
+    // `'decline'`, so a discovery thread could carry a decline card; these
+    // threads are ordinary conversations and a decline belongs to a broadcast,
+    // so every message here is text and the format stays a triple.
     messages: s.messages.map(([f, at, body]) =>
-      f === 'decline'
-        ? {
-            id: `m${++seq}`,
-            from: 'them',
-            at,
-            kind: 'decline',
-            reason: body,
-            author: repFor(s.name),
-          }
-        : msg(f, at, f === 'partner' ? { body, author: repFor(s.name) } : { body }),
+      msg(f, at, f === 'partner' ? { body, author: repFor(s.name) } : { body }),
     ),
   }))
     .filter((t) => t.partnerId)
@@ -286,6 +291,15 @@ export const bookingThread = ({ partner, packs }) => {
 // declining a brief is not a rejection of the company and the copy should not
 // sound like one — "we are full until March" is information; "unfortunately we
 // regret to inform you" is a form letter.
+//
+// ⚠️ ONLY EVER ON A BROADCAST THREAD. What makes a decline worth a card and a
+// badge is that it closes one of a SET: requirements went to a dozen firms, the
+// business is counting who is still live, and a firm dropping out changes that
+// count. A one-to-one conversation has no set and no count — somebody asked a
+// question and got a no, which is a message. Formalising it there states a
+// verdict over a chat and puts a status on a thread that has none. `threadStatus`
+// enforces this, and the seeds obey it: see the Hybrowlabs thread in `SEEDS`,
+// which says the same thing in a sentence.
 export const DECLINE_REASONS = [
   'We are at capacity until the new year, so we would not be able to start this properly.',
   'This one is outside what we do — we do not take on integrations with legacy warehouse systems.',
@@ -309,9 +323,15 @@ export const declineMessage = (partner, reason, at = Date.now()) => ({
 //
 // `bidState` is passed in rather than looked up, because this file has no
 // access to the store and the project is where a bid's state actually lives.
+//
+// ⚠️ EVERY STATUS BELOW IS A BROADCAST STATUS, and that is not a coincidence —
+// it is what a status IS on this screen. Each one answers "where does this firm
+// stand on the requirements I sent", and a thread nobody sent requirements to
+// cannot stand anywhere. So an ordinary conversation returns `null` however it
+// is going: a partner who says no in it has said no, not declined.
 export const threadStatus = (thread, bidState = null) => {
   const msgs = thread?.messages ?? []
-  if (msgs.some((m) => m.kind === 'decline')) return 'declined'
+  if (thread?.broadcast && msgs.some((m) => m.kind === 'decline')) return 'declined'
   const bid = [...msgs].reverse().find((m) => m.kind === 'bid')
   if (bid) {
     if (bidState === 'shortlisted') return 'shortlisted'

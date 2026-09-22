@@ -771,9 +771,17 @@ watch(open, toBottom)
                      have declined" is not.
                      ⚠️ NO CONTROLS. There is nothing to approve, nothing to
                      pass on, and offering to message back would invite somebody
-                     to argue with a firm that has already said no. -->
+                     to argue with a firm that has already said no.
+
+                     ⚠️ ONLY ON A BROADCAST THREAD. The card is heavy on purpose
+                     — a firm is dropping out of a set the business is counting
+                     — and that weight is only earned when there was a set. In a
+                     one-to-one conversation the same words are somebody
+                     answering a question, so they render as what they are: a
+                     message. See `threadStatus`, which withholds the badge for
+                     the same reason. -->
                 <div
-                  v-else-if="m.kind === 'decline'"
+                  v-else-if="m.kind === 'decline' && open.broadcast"
                   class="mt-1.5 w-fit max-w-[480px] rounded-5 border border-outline-gray-2 bg-surface-gray-1 p-3.5"
                 >
                   <p class="text-p-base font-medium text-ink-gray-8">
@@ -781,6 +789,16 @@ watch(open, toBottom)
                   </p>
                   <p class="mt-1 text-p-base leading-relaxed text-ink-gray-6">{{ m.reason }}</p>
                 </div>
+
+                <!-- The same fact outside a broadcast: no frame, no heading, no
+                     tint — the sentence, in the same type as every other thing
+                     this partner has said. -->
+                <p
+                  v-else-if="m.kind === 'decline'"
+                  class="mt-1 max-w-[480px] text-p-base text-ink-gray-8"
+                >
+                  {{ m.reason }}
+                </p>
 
                 <!-- ── A quote ────────────────────────────────────────────
                      ⚠️ THE DECISION IS ON THE CARD, in the thread, and the
