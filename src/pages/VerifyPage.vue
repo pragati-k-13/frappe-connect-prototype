@@ -73,26 +73,23 @@ const verify = () => {
       // the push would be bounced straight back to sign-up by its own guard.
       toast.success('Account created', { id: 'auth' })
       store.completeLogin()
-      // ⚠️ A PACK GOES TO CHECKOUT, and it does NOT get the company dialog
-      // thrown over it. That screen asks for the company itself, as step 1 of
-      // two, and opening the modal on arrival would answer its first step
-      // before the visitor had seen there were two — the accordion would tick
-      // and collapse under a dialog they never chose to open.
+      // ⚠️ NO COMPANY DIALOG ANY MORE, on any path. The intake asks those
+      // questions on the landing page before anyone reaches sign-up, so an
+      // account arriving here has already answered them — and a modal asking
+      // them a second time was the thing this whole flow was rearranged to
+      // stop. `openCompanyPrompt` is still there for an account that somehow
+      // has none; nothing on this screen calls it.
       //
-      // Every other errand still gets the dialog over wherever it lands: those
-      // screens have nowhere else to ask, and Frappe assigns partners off these
-      // answers whatever the errand was.
-      if (store.pack) {
-        await router.replace({ name: 'checkout', query: { pack: store.pack } })
+      // A basket goes to checkout. Everything else goes wherever `next` says
+      // and then runs what the gate was holding — navigate first, since the
+      // held action belongs to the screen it interrupted and often navigates
+      // itself.
+      if (store.packs.length) {
+        await router.replace({ name: 'checkout' })
         return
       }
-      // Same order as the log-in path below: navigate, THEN run what the gate
-      // was holding, since the action belongs to the screen it interrupted and
-      // often navigates itself.
       await router.replace(next.value)
       store.runPending()
-      // Last, so it opens over wherever the line above actually ended up.
-      store.openCompanyPrompt()
       return
     }
     // This toast before the held action, which raises one of its own — the pair

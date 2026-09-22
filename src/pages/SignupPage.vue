@@ -3,61 +3,44 @@ import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, FormControl } from 'frappe-ui'
 import AuthShell from '../components/AuthShell.vue'
-import { REGIONS } from '../data/quiz'
 import { isEmail, useAuthExit } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 
 // SCREEN — create an account.
 //
-// ── Why three fields ────────────────────────────────────────────────────────
-// This is the first of four steps in the flow (create account, verify, company
-// info, project info), so it asks only what it needs to send the verification
-// email and nothing that can wait for a later screen. Name and email are that.
+// ── Why these three fields ──────────────────────────────────────────────────
+// ⚠️ SIGN-UP IS NOW JUST CREATE AND VERIFY. It used to be the first of four
+// steps, with company details and project details as screens three and four;
+// both are gone, because the intake on the landing page asks those questions
+// before anyone signs up and asking them twice was the price of that flow.
 //
-// Country is the exception, and it earns its place: it's the only answer here
-// the PRODUCT uses rather than the account. It is half of the geo dimension the
-// listing filters on — `filters.countries`, the granular half, with regions as
-// the other — and it's already known from the request's IP, so asking is really
-// asking someone to confirm a guess.
+// What is left is identity: who you are, what the company is called, where to
+// send the code.
+//
+// ⚠️ THE COMPANY NAME IS THE ONE FIELD WORTH ARGUING ABOUT, and it is here
+// rather than in the intake on purpose. The intake holds to one rule — every
+// question in it changes the recommendation — and a name changes nothing about
+// which packs fit. It is first needed on the invoice and, for custom work, at
+// the moment a bid is approved and a partner learns who they are dealing with.
+// Both are downstream of this screen.
+//
+// ⚠️ COUNTRY IS GONE from this form. The intake asks it, one screen earlier,
+// because it sets the currency and the partner pool.
 //
 // ⚠️ There is no password, and that's not an omission. The next step in the
 // flow is `verify`, which means an emailed code or link — so the address is the
 // credential and a password field here would be a second one nobody asked for.
-//
-// ── THE SEAM ────────────────────────────────────────────────────────────────
-// Continue hands off to `verify`, which is where the account is actually
-// created. After that the flow chart has `company info`, then `project info`,
-// and only then wherever the visitor was headed. Neither exists yet, so verify
-// goes straight to `next`; when they land, they slot in between.
 const store = useConnectStore()
 const route = useRoute()
 const router = useRouter()
 
-// ⚠️ Stands in for GeoIP, the same way `inferredGeo` does in the store. A
-// real build resolves this server-side on first paint; hardcoding the common
-// case is what makes the interaction — an answer already made, which you can
-// change — reviewable at all.
-const INFERRED_COUNTRY = 'India'
-
-// Every country the programme covers, from the directory's own per-region
-// lists — one taxonomy, not a second one invented for this form.
-//
-// India first, then the rest alphabetically. It leads rather than sitting under
-// I because it's the pre-selected answer and the only market whose pack pricing
-// is real; a reader should find the current value at the top, not two thirds of
-// the way down.
-const COUNTRY_OPTIONS = (() => {
-  const all = [...new Set(REGIONS.flatMap((r) => r.countries))]
-  return [
-    INFERRED_COUNTRY,
-    ...all.filter((c) => c !== INFERRED_COUNTRY).sort((a, b) => a.localeCompare(b)),
-  ]
-})()
-
+// ⚠️ Prefilled from whatever the account already holds, which is normally
+// nothing — but someone who signed up, logged out and came back should not be
+// made to type their own company name again.
 const form = reactive({
-  name: '',
+  name: store.viewer.name ?? '',
   email: '',
-  country: INFERRED_COUNTRY,
+  company: store.company.name ?? '',
 })
 
 // Errors are only shown after a submit attempt. Validating as you type means
@@ -74,7 +57,7 @@ const errors = computed(() => {
   if (!form.name.trim()) e.name = 'Enter your full name'
   if (!form.email.trim()) e.email = 'Enter your work email'
   else if (!isEmail(form.email)) e.email = 'Enter a valid email address, like you@company.com'
-  if (!form.country) e.country = 'Select your country'
+  if (!form.company.trim()) e.company = 'Enter your company name'
   return e
 })
 
@@ -87,7 +70,7 @@ const submit = () => {
   store.signUp({
     name: form.name.trim(),
     email: form.email.trim(),
-    country: form.country,
+    company: form.company.trim(),
   })
   // `email` in the query as well as the store, so a reload on the verify screen
   // still knows where the code went. `next` rides along so the gate's errand
@@ -136,13 +119,16 @@ useAuthExit()
         autocomplete="email"
         :error="errors.email"
       />
+      <!-- ⚠️ Asked here rather than in the intake — see the note at the top.
+           "Company name", not "Organisation": it is what will be printed on the
+           invoice and shown to a partner. -->
       <FormControl
-        v-model="form.country"
-        type="select"
+        v-model="form.company"
         size="sm"
-        label="Country"
-        :options="COUNTRY_OPTIONS"
-        :error="errors.country"
+        label="Company name"
+        placeholder="The name on your invoices"
+        autocomplete="organization"
+        :error="errors.company"
       />
 
       <Button type="submit" variant="solid" size="md" class="w-full" label="Continue" />
@@ -156,6 +142,19 @@ useAuthExit()
       <RouterLink :to="loginLink" class="font-medium text-ink-gray-8 underline underline-offset-2">
         Log in
       </RouterLink>
+    </p>
+
+    <!-- ⚠️ PARTNERS ARE NOT USERS OF THIS FLOW and every field above assumes
+         they aren't — a certified firm arriving here would create a customer
+         account and wonder why it had no inbox. One line pointing them at their
+         own portal costs nothing and saves a support ticket.
+
+         Dead in this prototype: the partner-side app is not mocked. -->
+    <p class="mt-2 text-p-sm text-ink-gray-5">
+      Are you a Frappe partner?
+      <a href="#" class="font-medium text-ink-gray-8 underline underline-offset-2">
+        Log in to the partner portal
+      </a>
     </p>
   </AuthShell>
 </template>
