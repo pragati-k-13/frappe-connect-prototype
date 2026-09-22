@@ -255,6 +255,22 @@ watch(view, () => {
       <!-- ⚠️ The override reads as a question the visitor might be asking, not
            as a tab. Tabs say "these are two equal things"; this screen has just
            said they are not. -->
+      <!-- ⚠️ DIRECTLY UNDER THE EVIDENCE, because this is where an answer is
+           noticed to be wrong. The reasons above print the facts the
+           recommendation was built from — "11 to 50 people, and no ERP to
+           migrate off" — and the reader who is now sixty people finds out at
+           exactly this line. It spent a while at the foot of the screen beside
+           the feedback row, which put a correction three sections away from the
+           thing it corrects.
+           Quiet: body type, underlined, no button. Louder than this and it
+           competes with the recommendation it sits under. -->
+      <button
+        class="mt-3 text-p-base text-ink-gray-6 underline hover:text-ink-gray-8"
+        @click="rethink"
+      >
+        Change my answers
+      </button>
+
       <!-- ── Packs ───────────────────────────────────────────────────── -->
       <section v-if="view === 'packs'" class="mt-8">
         <!-- ⚠️ NO STANDFIRST. It read "Ticked already. They are separate
@@ -591,24 +607,20 @@ watch(view, () => {
            engine rather than a partner got something wrong — and it is worth
            exactly one line of a screen whose job is something else. -->
       <div class="mt-5 border-t border-outline-gray-2 pt-5">
-        <!-- ⚠️ "Change my answers" LIVES HERE NOW, not up beside the path
-             switch. Both of these belong to the ANSWERS rather than to the
-             products, and pairing a correction with a purchase decision under a
-             middot made them read as two versions of the same move. -->
+        <!-- ⚠️ "Change my answers" IS NOT HERE, and it was. Both it and this
+             row are about the answers rather than the products, which is why
+             they were paired — but they are different ACTS. This asks Frappe a
+             question; that one changes your own data and re-runs the engine.
+             On one line the correction read as a third response to "Does this
+             look right?", which is the one thing it is not. It sits under the
+             reasons now, where an answer is actually noticed to be wrong. -->
         <div v-if="!answered" class="flex flex-wrap items-center gap-3">
           <p class="text-p-base text-ink-gray-6">Does this look right?</p>
           <Button variant="subtle" label="Yes" @click="store.recordRecoFeedback(true)" />
           <Button variant="subtle" label="Not really" @click="store.recordRecoFeedback(false)" />
-          <button
-            class="ms-1 text-p-base text-ink-gray-6 underline hover:text-ink-gray-8"
-            @click="rethink"
-          >
-            Change my answers
-          </button>
         </div>
-        <div v-else-if="done" class="flex flex-wrap items-center gap-3 text-p-base text-ink-gray-6">
-          <span>Thanks — that helps us get the next one right.</span>
-          <button class="underline hover:text-ink-gray-8" @click="rethink">Change my answers</button>
+        <div v-else-if="done" class="text-p-base text-ink-gray-6">
+          Thanks — that helps us get the next one right.
         </div>
         <div v-else class="max-w-md">
           <p class="text-p-base text-ink-gray-7">What did we miss?</p>
