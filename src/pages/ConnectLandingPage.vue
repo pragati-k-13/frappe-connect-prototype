@@ -41,7 +41,7 @@ const form = reactive(emptyCompanyForm())
 // them was a supported move that produced a wider list. They now produce a
 // RECOMMENDATION, and there is no wider version of that — see the note on
 // `companyErrors` in `data/company.js`. There is no Skip on this page any more.
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Button, ScrollArea } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
@@ -61,6 +61,24 @@ const router = useRouter()
 
 const TOTAL = COMPANY_STEPS
 const quizTop = ref(null)
+
+// ⚠️ THE COUNTRY ARRIVES PRE-ANSWERED, from `inferredGeo` — the store's
+// stand-in for GeoIP, which resolves to India because that is where most of
+// this traffic and eight of the thirteen partners are. So the first question
+// costs a confirmation instead of a decision, and the visitor who is somewhere
+// else changes it in one click.
+//
+// ⚠️ SEEDED, NOT LOCKED, and the field still shows its answer. A silently
+// pre-filled country would be the dishonest version of this: it decides the
+// currency every price on the next screen is quoted in, and that is not a fact
+// to assume on someone's behalf without showing them.
+//
+// ⚠️ Only when the field is EMPTY. The draft outlives the component (see
+// `form`), so someone who picked Singapore, scrolled down to the packs table
+// and came back must not find India in the box again.
+onMounted(() => {
+  if (!form.country) form.country = store.inferredGeo.country
+})
 
 // ⚠️ Errors are held back until Continue has been pressed ON THIS STEP, and the
 // flag resets as the step changes. Validating as someone types tells them their
