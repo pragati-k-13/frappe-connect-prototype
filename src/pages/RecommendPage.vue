@@ -26,6 +26,7 @@ import { useConnectStore } from '../stores/connect'
 import { recommendationFor } from '../data/recommendation'
 import {
   PACK_STEPS,
+  PACK_WONT_COVER,
   STARTER_PACKS,
   checkoutFor,
   marketFor,
@@ -513,11 +514,42 @@ watch(view, () => {
            route.
            ⚠️ Still a sentence and not a tab. Tabs say "these are two equal
            things"; this screen has just said they are not. -->
-      <p class="mt-10 max-w-[62ch] text-p-base text-ink-gray-6">
+      <!-- ⚠️ THE LIST IS THE POINT, and the link used to stand without it. It
+           read "Bigger job? Get quotes from partners instead", which asks
+           somebody to self-diagnose against a criterion nobody has given them —
+           three lines after being told a pack fits. Nobody knows whether their
+           job is "bigger". Everybody knows whether they need their data
+           migrated across.
+           These four are the scope document's own exclusions plus the user
+           limit from its commercial terms, matched by fragment rather than
+           retyped — see `PACK_WONT_COVER`. They are the four with no version
+           that fits inside a fixed scope; the other exclusions are add-ons you
+           can buy against a pack, and listing those would send people to custom
+           work over a print format.
+           ⚠️ Only on the PACKS half. On the custom half the verdict's own
+           reasons already name which trigger fired, so the same question
+           ("would a fixed price do it?") is already answered above. -->
+      <div v-if="view === 'packs' && !overridden" class="mt-10 max-w-[62ch]">
+        <p class="text-p-base text-ink-gray-7">A pack won't cover you if you need</p>
+        <ul class="mt-2 space-y-1">
+          <li
+            v-for="item in PACK_WONT_COVER"
+            :key="item"
+            class="flex gap-2.5 text-p-base text-ink-gray-6"
+          >
+            <span class="mt-2 size-1 shrink-0 rounded-full bg-[var(--outline-gray-3)]" aria-hidden="true" />
+            {{ item }}
+          </li>
+        </ul>
+        <button class="mt-3 text-p-base text-ink-gray-6 underline hover:text-ink-gray-8" @click="view = 'custom'">
+          Get quotes from partners instead
+        </button>
+      </div>
+
+      <p v-else class="mt-10 max-w-[62ch] text-p-base text-ink-gray-6">
         <template v-if="view === 'packs'">
-          <template v-if="!overridden">Bigger job? </template>
           <button class="underline hover:text-ink-gray-8" @click="view = 'custom'">
-            {{ overridden ? 'Back to what we recommend' : 'Get quotes from partners instead' }}
+            Back to what we recommend
           </button>
         </template>
         <template v-else>

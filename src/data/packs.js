@@ -599,6 +599,40 @@ export const STRICTLY_EXCLUDED = [
 // A line is a bare string until it needs a caveat. One place decides which.
 export const asExclusion = (item) => (typeof item === 'string' ? { label: item, hint: null } : item)
 
+// ── When a pack is the wrong thing to buy ───────────────────────────────────
+// ⚠️ THIS ANSWERS A QUESTION THE RECOMMENDATION SCREEN WAS ASKING BADLY. That
+// screen offered "Bigger job? Get quotes from partners instead" — a link asking
+// somebody to self-diagnose against a criterion nobody had given them, three
+// lines after being told a pack fits. Nobody knows whether their job is
+// "bigger". Everybody knows whether they need their data migrated.
+//
+// ⚠️ LIFTED FROM THE CONTRACT, NOT WRITTEN. Three of the four are the scope
+// document's own exclusions, matched by fragment so the wording here cannot
+// drift from the wording a customer is held to — the same device
+// `data/project.js` uses for the customer responsibilities, and it throws at
+// module load rather than falling back silently. The fourth is the user limit
+// from the commercial terms, which is a real figure too.
+//
+// ⚠️ FOUR, out of eight exclusions. The rest are add-ons you can buy against a
+// pack — UAT training, post-go-live support — and listing those here would say
+// "go custom" about things a pack handles perfectly well with a change request.
+// These four are the ones with no version that fits inside a fixed scope.
+const excluded = (fragment) => {
+  const found = STRICTLY_EXCLUDED.map(asExclusion).find((e) =>
+    e.label.toLowerCase().includes(fragment),
+  )
+  if (!found) throw new Error(`No exclusion matching "${fragment}"`)
+  return found.label
+}
+
+export const PACK_WONT_COVER = [
+  // Real, from the commercial terms below — the one hard number in the set.
+  'More than 50 people using it',
+  excluded('data cleaning'),
+  excluded('custom scripting'),
+  excluded('api integrations'),
+]
+
 // Section 8.
 export const CUSTOMER_RESPONSIBILITIES = [
   'Keep strictly to the scope',
