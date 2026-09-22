@@ -21,6 +21,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Button, Checkbox, FormControl, Textarea, TextInput, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import EditAnswersDialog from '../components/EditAnswersDialog.vue'
+import PackScopeDialog from '../components/PackScopeDialog.vue'
 import PartnerFiltersDialog from '../components/PartnerFiltersDialog.vue'
 import { useConnectStore } from '../stores/connect'
 import { recommendationFor } from '../data/recommendation'
@@ -183,6 +184,21 @@ const sendNote = () => {
 // redirect dropped somebody out of a purchase onto a marketing page and made
 // them walk three steps to fix one field; the recommendation stays behind this
 // and re-runs the moment it saves. See `EditAnswersDialog`.
+// Which pack's scope document the dialog holds, and whether it is open.
+//
+// ⚠️ TWO REFS, NOT ONE. Deriving `open` from `scopeOf !== null` and nulling it
+// on close empties the dialog while it is still fading out — for a couple of
+// frames it reads "What this covers" over nothing, which is the fallback title
+// for a dialog with no pack. The pack simply stays until another row is
+// pressed; nothing reads it while the dialog is shut.
+const scopeOf = ref(null)
+const scopeOpen = ref(false)
+
+const showScope = (pack) => {
+  scopeOf.value = pack
+  scopeOpen.value = true
+}
+
 const editing = ref(false)
 const rethink = () => (editing.value = true)
 
@@ -193,9 +209,19 @@ watch(view, () => {
 
 <template>
   <ConnectShell>
-    <!-- 800px, the same measure as every other reading surface in the app. The
-         hero is the only screen that opts out, because the map needs width. -->
-    <div class="mx-auto w-full max-w-[800px] px-5 py-10 lg:px-10">
+    <!-- ⚠️ THE MEASURE CHANGES WITH THE HALF, which no other screen in the app
+         does and is worth the exception. The custom half is a form and some
+         prose, so it takes the app's usual 800px. The packs half carries a
+         summary rail beside the list, and at 800px that rail leaves the rows
+         488px — not enough for a pack name and a price at opposite edges. 1080
+         gives the list about 720 and the rail 300.
+         The reading measure itself does not move: prose is capped at 62ch in
+         both, so what widens is the part that is a table, not the part that is
+         a paragraph. -->
+    <div
+      class="mx-auto w-full px-5 py-10 lg:px-10"
+      :class="view === 'packs' ? 'max-w-[1080px]' : 'max-w-[800px]'"
+    >
       <!-- ── The verdict ─────────────────────────────────────────────── -->
       <!-- ⚠️ NO EYEBROW. There was a tracked-out "BASED ON YOUR ANSWERS" above
            this headline, and it was redundant twice over: the two lines beneath
@@ -224,98 +250,135 @@ watch(view, () => {
              modules, so take one, two or all three." — a sentence explaining
              checkboxes to somebody looking at checkboxes. The ticks say what is
              recommended and the total below says they add up. -->
-        <!-- ⚠️ ONE COLUMN, and a two-column version was built and taken out.
-             A summary card in a right-hand rail keeps the button on screen —
-             that is its whole argument — but at this page's 800px measure it
-             leaves the list 488px, which is not enough for a row carrying a
-             pack name and a price at opposite edges. Widening the page for one
-             screen was the other way out, and that is a reading measure being
-             set by a button.
-             What actually solved it was ORDER: the total and the button sit
-             directly under the list, and everything explanatory moved below
-             them. Nobody scrolls past an explanation to reach the action, so
-             the action never needs following down the page. -->
-        <h2 class="text-p-lg font-semibold text-ink-gray-9">What we'd buy</h2>
+        <!-- ⚠️ TWO COLUMNS from `lg`: the packs and everything explaining them
+             on the left, what it costs on the right, sticking. The rail's whole
+             argument is that the figure and the button never leave the screen
+             while somebody reads four sections about what they are buying.
+             Below `lg` it stacks directly under the list, which is where the
+             total sat when this was one column — so the small-screen order is
+             unchanged and only the wide one gains a rail. -->
+        <div class="flex flex-col gap-8 lg:flex-row lg:items-start">
+          <div class="min-w-0 flex-1">
+            <h2 class="text-p-lg font-semibold text-ink-gray-9">What we'd buy</h2>
 
-        <ul class="mt-4 divide-y divide-outline-gray-2 rounded-6 border border-outline-gray-2">
-          <li v-for="row in rows" :key="row.pack.value" class="flex gap-3 p-4">
-            <!-- ⚠️ NO `label` ON THE CHECKBOX. The row prints the pack's name
-                 itself, beside the price, and letting the control print it too
-                 put every name on the screen twice. `aria-label` keeps the
-                 control named for anyone who cannot see the row. -->
-            <Checkbox
-              class="mt-0.5"
-              size="md"
-              :model-value="row.checked"
-              :aria-label="row.pack.name"
-              @update:model-value="store.togglePack(row.pack.value)"
-            />
-            <div class="min-w-0 flex-1">
-              <div class="flex items-baseline justify-between gap-4">
-                <p class="text-p-base font-medium text-ink-gray-8">{{ row.pack.name }}</p>
-                <p class="shrink-0 text-p-base font-medium tabular-nums text-ink-gray-9">
-                  {{ row.price }}
-                </p>
-              </div>
-              <!-- The per-pack why. Present only where a rule fired — see the
-                   note on `rows`. -->
-              <p v-if="row.reason" class="mt-1 text-p-base leading-relaxed text-ink-gray-6">
-                {{ row.reason }}
-              </p>
-              <!-- ⚠️ The un-recommended row keeps its sentence and loses its
-                   weight. It is still a real option and still says honestly why
-                   it is not ticked, but at `gray-5` against the recommended
-                   rows' `gray-6` the eye can take the recommendation in without
-                   reading three paragraphs to find which two were argued for. -->
-              <p v-else class="mt-1 text-p-base text-ink-gray-5">Not suggested by your answers</p>
-              <p class="mt-1 text-p-sm text-ink-gray-5">
-                {{ row.pack.hours }} hours · {{ row.pack.validity }} to deliver
-              </p>
-            </div>
-          </li>
-        </ul>
+            <ul class="mt-4 divide-y divide-outline-gray-2 rounded-6 border border-outline-gray-2">
+              <li v-for="row in rows" :key="row.pack.value" class="flex gap-3 p-4">
+                <!-- ⚠️ NO `label` ON THE CHECKBOX. The row prints the pack's
+                     name itself, beside the price, and letting the control
+                     print it too put every name on the screen twice.
+                     `aria-label` keeps the control named for anyone who cannot
+                     see the row. -->
+                <Checkbox
+                  class="mt-0.5"
+                  size="md"
+                  :model-value="row.checked"
+                  :aria-label="row.pack.name"
+                  @update:model-value="store.togglePack(row.pack.value)"
+                />
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-baseline justify-between gap-4">
+                    <p class="text-p-base font-medium text-ink-gray-8">{{ row.pack.name }}</p>
+                    <p class="shrink-0 text-p-base font-medium tabular-nums text-ink-gray-9">
+                      {{ row.price }}
+                    </p>
+                  </div>
+                  <!-- The per-pack why. Present only where a rule fired — see
+                       the note on `rows`. -->
+                  <p v-if="row.reason" class="mt-1 text-p-base leading-relaxed text-ink-gray-6">
+                    {{ row.reason }}
+                  </p>
+                  <!-- ⚠️ The un-recommended row keeps its sentence and loses its
+                       weight. It is still a real option and still says honestly
+                       why it is not ticked, but at `gray-5` against the
+                       recommended rows' `gray-6` the eye can take the
+                       recommendation in without reading three paragraphs to
+                       find which two were argued for. -->
+                  <p v-else class="mt-1 text-p-base text-ink-gray-5">
+                    Not suggested by your answers
+                  </p>
+                  <p class="mt-1 flex flex-wrap items-center gap-x-2 text-p-sm text-ink-gray-5">
+                    <span>{{ row.pack.hours }} hours · {{ row.pack.validity }} to deliver</span>
+                    <!-- ⚠️ THE SCOPE, ON THE ROW. "Is payment reconciliation in
+                         this or not" is the question somebody has while looking
+                         at a price, and the only answer used to be the pack's
+                         own page — a navigation out of the purchase whose way
+                         back is the browser's Back button. It opens the
+                         contract over this screen instead.
+                         Sits on the facts line rather than as a button of its
+                         own: three rows each carrying a second control read as
+                         three things to do, and the thing to do here is tick a
+                         box. -->
+                    <button
+                      class="underline hover:text-ink-gray-8"
+                      @click="showScope(row.pack)"
+                    >
+                      What's included
+                    </button>
+                  </p>
+                </div>
+              </li>
+            </ul>
 
 
-        <!-- ── What it costs, and the button ───────────────────────────
-             ⚠️ DIRECTLY UNDER THE LIST, before anything explanatory. This has
-             been three things: a line-item table repeating the list, a sticky
-             bar chasing the reader down the page, and a summary card in a
-             right-hand rail. All three were solving "the button is below the
-             fold", and the thing that actually solved it was putting the button
-             where the decision is made — under the packs, above the reading.
-             ⚠️ IT DOES NOT LIST THE PACKS. Every version that has been drawn,
-             including the reference, repeats each pack and its price beside a
-             list of each pack and its price. The rows are the line items; what
-             only this can say is what leaves the account.
-             ⚠️ The tax is named here and only here before the checkout. Where a
-             market has no decided rate the line drops the figure rather than
-             inventing one — see `checkoutFor`. -->
-        <!-- ⚠️ STACKED, not a `justify-between` row. The composition line runs
-             long enough to wrap the button group at this measure, so the two
-             ends of that row met at some widths and not others — the button
-             moved depending on how many packs were ticked. Underneath, it is in
-             the same place every time. -->
-        <div v-if="!nothingPicked" class="mt-5">
-          <p class="text-2xl font-semibold tabular-nums text-ink-gray-9">{{ bill.total }}</p>
-          <p class="mt-0.5 text-p-sm text-ink-gray-5">
-            <template v-if="bill.exact">{{ bill.subtotal }} plus {{ bill.taxLabel }}</template>
-            <template v-else>{{ bill.subtotal }} before {{ bill.taxLabel }}</template>
-            · {{ bill.hours }} hours · paid to Frappe up front
-          </p>
-          <div class="mt-4 flex flex-wrap items-center gap-3">
-            <Button variant="solid" size="md" label="Check out" @click="checkout" />
-            <span v-if="!store.signedIn" class="text-p-sm text-ink-gray-5">
-              You'll make an account on the way.
-            </span>
+
           </div>
+
+          <!-- ── What it costs ─────────────────────────────────────────
+               ⚠️ A RAIL, and this figure has now been four things: a line-item
+               table repeating the list, a bare total under it, a sticky bar
+               chasing the reader down the page, and this. The rail is what the
+               page can afford once it is 1080 wide, and it answers the same
+               problem the other three were built for — the button leaving the
+               screen while somebody reads four sections about what they are
+               buying — without the figure ever appearing twice.
+               ⚠️ IT DOES NOT LIST THE PACKS. Every version that has been drawn,
+               including the reference, repeats each pack and its price beside a
+               list of each pack and its price. The rows ARE the line items;
+               what only this can say is what leaves the account.
+               ⚠️ The tax is named here and only here before the checkout. Where
+               a market has no decided rate the line drops the figure rather
+               than inventing one — see `checkoutFor`. -->
+          <aside class="w-full shrink-0 lg:sticky lg:top-6 lg:w-[300px]">
+            <div class="rounded-6 border border-outline-gray-2 p-4">
+              <template v-if="nothingPicked">
+                <p class="text-p-base text-ink-gray-7">Nothing picked</p>
+                <!-- An empty state that says what to do, rather than a total of
+                     zero. -->
+                <p class="mt-1 text-p-sm leading-relaxed text-ink-gray-5">
+                  Tick a pack on the left to see what it comes to.
+                </p>
+              </template>
+              <template v-else>
+                <p class="text-p-sm text-ink-gray-5">Total</p>
+                <p class="mt-0.5 text-2xl font-semibold tabular-nums text-ink-gray-9">
+                  {{ bill.total }}
+                </p>
+                <p class="mt-1 text-p-sm leading-relaxed text-ink-gray-5">
+                  <template v-if="bill.exact">
+                    {{ bill.subtotal }} plus {{ bill.taxLabel }}
+                  </template>
+                  <template v-else>{{ bill.subtotal }} before {{ bill.taxLabel }}</template>
+                  · {{ bill.hours }} hours
+                </p>
+                <Button
+                  class="mt-4 w-full"
+                  variant="solid"
+                  size="md"
+                  label="Check out"
+                  @click="checkout"
+                />
+                <!-- ⚠️ ONE CONDITION, not two. The hosting sentence went — it is
+                     the project's business and it is stated twice downstream.
+                     What survives is the one term that changes what this button
+                     does: the money goes to Frappe, up front. -->
+                <p class="mt-2 text-p-sm leading-relaxed text-ink-gray-5">
+                  Paid to Frappe, in full and up front.
+                  <template v-if="!store.signedIn">You'll make an account on the way.</template>
+                </p>
+              </template>
+            </div>
+          </aside>
         </div>
-
-        <!-- Nothing ticked. The empty state says what to do rather than
-             printing a total of zero. -->
-        <p v-else class="mt-5 text-p-base text-ink-gray-6">
-          Tick a pack to see what it comes to.
-        </p>
-
       </section>
 
       <!-- ── Custom ──────────────────────────────────────────────────── -->
@@ -625,6 +688,7 @@ watch(view, () => {
       </div>
     </div>
 
+    <PackScopeDialog v-model:open="scopeOpen" :pack="scopeOf" />
     <EditAnswersDialog v-model:open="editing" />
     <PartnerFiltersDialog v-model:open="showFilters" />
   </ConnectShell>
