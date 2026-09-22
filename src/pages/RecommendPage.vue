@@ -92,6 +92,24 @@ const rows = computed(() => {
 const bill = computed(() => checkoutFor(store.packRecords(), region.value))
 const nothingPicked = computed(() => store.packs.length === 0)
 
+// ⚠️ THE GATE, and the only one on this half. Paying creates a project, a
+// partner assignment and a conversation — three facts about an account — so
+// there has to be one. `?next=` brings them back to the checkout rather than to
+// the top of the funnel.
+//
+// ⚠️ THIS WAS DELETED AND ITS BUTTON WAS NOT. `@click="checkout"` against an
+// undefined name compiles to no handler at all, silently, so the primary action
+// on the pivot screen of the product did nothing from `1efe037` until now — the
+// commit that rebuilt this area as a sticky bar took the function with it. Vue
+// will not warn about this; nothing but pressing the button will.
+const checkout = () => {
+  if (nothingPicked.value) return
+  if (!store.signedIn) {
+    return router.push({ name: 'signup', query: { next: '/connect/checkout' } })
+  }
+  router.push({ name: 'checkout' })
+}
+
 // ── The custom half ─────────────────────────────────────────────────────────
 // ⚠️ THE TWO MANDATORY ANSWERS ARE ASKED HERE, inline, rather than on a screen
 // of their own. They are what the partner count below them is computed from —
@@ -470,223 +488,238 @@ watch(view, () => {
         </div>
       </section>
 
-      <!-- ── Why, after the thing itself ─────────────────────────────
-           ⚠️ THIS USED TO SIT UNDER THE HEADLINE, above everything. The
-           reasoning was that a recommendation whose justification is below the
-           price list is a price list — which is true of a screen with no
-           headline. This one opens with the verdict as its first line, so the
-           claim IS made before anything can be bought; what sat under it was
-           the WORKING, and two sentences of working between a claim and the
-           thing it is about delays the only part most people came for.
-           Someone who accepts the recommendation never needs to read this.
-           Someone who doubts it scrolls, and finds it directly under the
-           button they declined to press. -->
-      <section class="mt-10">
-        <!-- ⚠️ A HEADING, which this block did not need when it sat under the
-             headline — the position said what it was. Below a price and a
-             button it needs saying.
-             ⚠️ TWO OF THEM, because the block holds two different things. On
-             the recommended path it is the case FOR what is above it. On the
-             overridden one it is the case AGAINST — "we'd have said a pack
-             covers this" — and printing that under "Why we're recommending
-             this" would have the screen arguing against its own heading. -->
-        <h2 class="text-p-lg font-semibold text-ink-gray-9">
-          {{ overridden ? "What we'd have recommended" : "Why we're recommending this" }}
-        </h2>
+      <!-- ── Everything below belongs to the LIST, not to the page ───
+           ⚠️ CONSTRAINED TO THE LEFT COLUMN'S MEASURE. The reasoning, "How
+           this works", what a pack won't cover and the feedback row all ran
+           the full 1000px, sliding out from under the rows and passing
+           beneath the rail — and the rule above the feedback row made it
+           plain, a full-width stroke drawn under a card it has nothing to do
+           with. A right-hand rail is a sidebar; text that runs underneath one
+           reads as text the sidebar is a part of.
+           332px is the 300px rail plus the flex `gap-8`, left as the
+           expression rather than the 668 it works out to, so the two numbers
+           that produce it are the two numbers on the block above.
+           Only on the packs half: the custom half has no rail and takes the
+           app's usual 800px, where full width already is the measure. -->
+      <div :class="view === 'packs' ? 'lg:max-w-[calc(100%-332px)]' : ''">
+        <!-- ── Why, after the thing itself ─────────────────────────────
+             ⚠️ THIS USED TO SIT UNDER THE HEADLINE, above everything. The
+             reasoning was that a recommendation whose justification is below the
+             price list is a price list — which is true of a screen with no
+             headline. This one opens with the verdict as its first line, so the
+             claim IS made before anything can be bought; what sat under it was
+             the WORKING, and two sentences of working between a claim and the
+             thing it is about delays the only part most people came for.
+             Someone who accepts the recommendation never needs to read this.
+             Someone who doubts it scrolls, and finds it directly under the
+             button they declined to press. -->
+        <section class="mt-10">
+          <!-- ⚠️ A HEADING, which this block did not need when it sat under the
+               headline — the position said what it was. Below a price and a
+               button it needs saying.
+               ⚠️ TWO OF THEM, because the block holds two different things. On
+               the recommended path it is the case FOR what is above it. On the
+               overridden one it is the case AGAINST — "we'd have said a pack
+               covers this" — and printing that under "Why we're recommending
+               this" would have the screen arguing against its own heading. -->
+          <h2 class="text-p-lg font-semibold text-ink-gray-9">
+            {{ overridden ? "What we'd have recommended" : "Why we're recommending this" }}
+          </h2>
 
-        <!-- ⚠️ NO TICKS. Each reason carried a check icon, which reads as
-             "included" — the vocabulary of a feature list. These are EVIDENCE
-             for a claim, and dressing an argument as a spec sheet makes it
-             skimmable in exactly the way an argument should not be.
-             ⚠️ `max-w-[62ch]`, against the page's own 800px. At the full measure
-             these ran to about 110 characters a line. Only the PROSE is capped —
-             the pack rows keep the width, because a row with a price at its
-             right edge needs one. -->
-        <ul v-if="!overridden" class="mt-3 max-w-[62ch] space-y-2">
-          <li
-            v-for="(reason, i) in reco.reasons"
-            :key="i"
-            class="text-p-base leading-relaxed text-ink-gray-7"
+          <!-- ⚠️ NO TICKS. Each reason carried a check icon, which reads as
+               "included" — the vocabulary of a feature list. These are EVIDENCE
+               for a claim, and dressing an argument as a spec sheet makes it
+               skimmable in exactly the way an argument should not be.
+               ⚠️ `max-w-[62ch]`, against the page's own 800px. At the full measure
+               these ran to about 110 characters a line. Only the PROSE is capped —
+               the pack rows keep the width, because a row with a price at its
+               right edge needs one. -->
+          <ul v-if="!overridden" class="mt-3 max-w-[62ch] space-y-2">
+            <li
+              v-for="(reason, i) in reco.reasons"
+              :key="i"
+              class="text-p-base leading-relaxed text-ink-gray-7"
+            >
+              {{ reason }}
+            </li>
+          </ul>
+
+          <!-- The override's one line. It says what we would have said and why,
+               without repeating the argument — the visitor has read it and
+               decided against it, and making them read it again is nagging. -->
+          <p v-else class="mt-3 max-w-[62ch] text-p-base leading-relaxed text-ink-gray-6">
+            <template v-if="view === 'packs'">
+              We'd have pointed you at a scoped implementation instead — packs are ERPNext as it
+              ships.
+            </template>
+            <template v-else>We'd have said a pack covers this, cheaper and faster.</template>
+          </p>
+
+          <!-- ⚠️ DIRECTLY UNDER THE EVIDENCE, because this is where an answer is
+               noticed to be wrong: the sentences above print the facts the
+               recommendation was built from, and the reader who is now sixty
+               people finds out at exactly that line.
+               Quiet: body type, underlined, no button. Louder than this and it
+               competes with the recommendation it explains. -->
+          <button
+            class="mt-3 text-p-base text-ink-gray-6 underline hover:text-ink-gray-8"
+            @click="rethink"
           >
-            {{ reason }}
-          </li>
-        </ul>
+            Change my answers
+          </button>
+        </section>
 
-        <!-- The override's one line. It says what we would have said and why,
-             without repeating the argument — the visitor has read it and
-             decided against it, and making them read it again is nagging. -->
-        <p v-else class="mt-3 max-w-[62ch] text-p-base leading-relaxed text-ink-gray-6">
+        <!-- ── How this works ─────────────────────────────────────
+             ⚠️ ADDED BACK ON THIS SCREEN, and it belongs here more than
+             anywhere. The recommendation is where somebody decides to pay,
+             and until now the one question it left unanswered was WHO does
+             the work — the answer arrived two screens later, on the
+             confirmation. Three lines settle it before the money.
+             ⚠️ NUMBERED, which this app avoids by default. It is earned
+             here: these are not three features, they are three things that
+             happen in order, and the order is the point — you pay Frappe
+             first, and a partner is assigned against that. Reversing them
+             would describe a different product.
+             The same three beats as the pack page's own "How it works";
+             both read `PACK_STEPS` so they cannot drift.
+             ⚠️ PACKS ONLY. It describes buying a fixed scope from Frappe and
+             being assigned somebody to deliver it, which is not what happens on
+             the custom path — there you choose the partner and pay them. It sat
+             inside the packs branch until the justification moved below the
+             button and pushed it out; the guard is what that move cost. -->
+        <section v-if="view === 'packs'" class="mt-8">
+          <h2 class="text-p-lg font-semibold text-ink-gray-9">How this works</h2>
+          <ol class="mt-3 grid gap-4 sm:grid-cols-3">
+            <li v-for="(step, i) in PACK_STEPS" :key="step.title" class="flex gap-2.5">
+              <span
+                class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-surface-gray-2 text-p-xs font-medium tabular-nums text-ink-gray-6"
+                aria-hidden="true"
+              >
+                {{ i + 1 }}
+              </span>
+              <span class="min-w-0">
+                <span class="block text-p-base font-medium text-ink-gray-8">
+                  {{ step.title }}
+                </span>
+                <span class="mt-0.5 block text-p-sm text-ink-gray-5">{{ step.body }}</span>
+              </span>
+            </li>
+          </ol>
+        </section>
+
+        <!-- ── The other path ──────────────────────────────────────────── -->
+        <!-- ⚠️ IT USED TO SIT UNDER THE HEADLINE, three lines after a verdict
+             that had just said there was one answer — a second option offered
+             before the first had been read, on a screen whose whole job is to
+             stop somebody choosing from a menu. It belongs after the thing being
+             recommended and after the button that acts on it: read the
+             recommendation, act on it, or, if it is wrong, here is the other
+             route.
+             ⚠️ Still a sentence and not a tab. Tabs say "these are two equal
+             things"; this screen has just said they are not. -->
+        <!-- ⚠️ THE LIST IS THE POINT, and the link used to stand without it. It
+             read "Bigger job? Get quotes from partners instead", which asks
+             somebody to self-diagnose against a criterion nobody has given them —
+             three lines after being told a pack fits. Nobody knows whether their
+             job is "bigger". Everybody knows whether they need their data
+             migrated across.
+             These four are the scope document's own exclusions plus the user
+             limit from its commercial terms, matched by fragment rather than
+             retyped — see `PACK_WONT_COVER`. They are the four with no version
+             that fits inside a fixed scope; the other exclusions are add-ons you
+             can buy against a pack, and listing those would send people to custom
+             work over a print format.
+             ⚠️ Only on the PACKS half. On the custom half the verdict's own
+             reasons already name which trigger fired, so the same question
+             ("would a fixed price do it?") is already answered above. -->
+        <div v-if="view === 'packs' && !overridden" class="mt-10 max-w-[62ch]">
+          <p class="text-p-base text-ink-gray-7">A pack won't cover you if you need</p>
+          <ul class="mt-2 space-y-1">
+            <li
+              v-for="item in PACK_WONT_COVER"
+              :key="item"
+              class="flex gap-2.5 text-p-base text-ink-gray-6"
+            >
+              <span class="mt-2 size-1 shrink-0 rounded-full bg-[var(--outline-gray-3)]" aria-hidden="true" />
+              {{ item }}
+            </li>
+          </ul>
+          <button class="mt-3 text-p-base text-ink-gray-6 underline hover:text-ink-gray-8" @click="view = 'custom'">
+            Get quotes from partners instead
+          </button>
+        </div>
+
+        <p v-else class="mt-10 max-w-[62ch] text-p-base text-ink-gray-6">
           <template v-if="view === 'packs'">
-            We'd have pointed you at a scoped implementation instead — packs are ERPNext as it
-            ships.
+            <button class="underline hover:text-ink-gray-8" @click="view = 'custom'">
+              Back to what we recommend
+            </button>
           </template>
-          <template v-else>We'd have said a pack covers this, cheaper and faster.</template>
+          <template v-else>
+            <template v-if="!overridden">Would a fixed price do it? </template>
+            <button class="underline hover:text-ink-gray-8" @click="view = 'packs'">
+              {{ overridden ? 'Back to what we recommend' : 'Look at the packs anyway' }}
+            </button>
+          </template>
         </p>
 
-        <!-- ⚠️ DIRECTLY UNDER THE EVIDENCE, because this is where an answer is
-             noticed to be wrong: the sentences above print the facts the
-             recommendation was built from, and the reader who is now sixty
-             people finds out at exactly that line.
-             Quiet: body type, underlined, no button. Louder than this and it
-             competes with the recommendation it explains. -->
-        <button
-          class="mt-3 text-p-base text-ink-gray-6 underline hover:text-ink-gray-8"
-          @click="rethink"
-        >
-          Change my answers
-        </button>
-      </section>
-
-      <!-- ── How this works ─────────────────────────────────────
-           ⚠️ ADDED BACK ON THIS SCREEN, and it belongs here more than
-           anywhere. The recommendation is where somebody decides to pay,
-           and until now the one question it left unanswered was WHO does
-           the work — the answer arrived two screens later, on the
-           confirmation. Three lines settle it before the money.
-           ⚠️ NUMBERED, which this app avoids by default. It is earned
-           here: these are not three features, they are three things that
-           happen in order, and the order is the point — you pay Frappe
-           first, and a partner is assigned against that. Reversing them
-           would describe a different product.
-           The same three beats as the pack page's own "How it works";
-           both read `PACK_STEPS` so they cannot drift.
-           ⚠️ PACKS ONLY. It describes buying a fixed scope from Frappe and
-           being assigned somebody to deliver it, which is not what happens on
-           the custom path — there you choose the partner and pay them. It sat
-           inside the packs branch until the justification moved below the
-           button and pushed it out; the guard is what that move cost. -->
-      <section v-if="view === 'packs'" class="mt-8">
-        <h2 class="text-p-lg font-semibold text-ink-gray-9">How this works</h2>
-        <ol class="mt-3 grid gap-4 sm:grid-cols-3">
-          <li v-for="(step, i) in PACK_STEPS" :key="step.title" class="flex gap-2.5">
-            <span
-              class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-surface-gray-2 text-p-xs font-medium tabular-nums text-ink-gray-6"
-              aria-hidden="true"
-            >
-              {{ i + 1 }}
-            </span>
-            <span class="min-w-0">
-              <span class="block text-p-base font-medium text-ink-gray-8">
-                {{ step.title }}
-              </span>
-              <span class="mt-0.5 block text-p-sm text-ink-gray-5">{{ step.body }}</span>
-            </span>
-          </li>
-        </ol>
-      </section>
-
-      <!-- ── The other path ──────────────────────────────────────────── -->
-      <!-- ⚠️ IT USED TO SIT UNDER THE HEADLINE, three lines after a verdict
-           that had just said there was one answer — a second option offered
-           before the first had been read, on a screen whose whole job is to
-           stop somebody choosing from a menu. It belongs after the thing being
-           recommended and after the button that acts on it: read the
-           recommendation, act on it, or, if it is wrong, here is the other
-           route.
-           ⚠️ Still a sentence and not a tab. Tabs say "these are two equal
-           things"; this screen has just said they are not. -->
-      <!-- ⚠️ THE LIST IS THE POINT, and the link used to stand without it. It
-           read "Bigger job? Get quotes from partners instead", which asks
-           somebody to self-diagnose against a criterion nobody has given them —
-           three lines after being told a pack fits. Nobody knows whether their
-           job is "bigger". Everybody knows whether they need their data
-           migrated across.
-           These four are the scope document's own exclusions plus the user
-           limit from its commercial terms, matched by fragment rather than
-           retyped — see `PACK_WONT_COVER`. They are the four with no version
-           that fits inside a fixed scope; the other exclusions are add-ons you
-           can buy against a pack, and listing those would send people to custom
-           work over a print format.
-           ⚠️ Only on the PACKS half. On the custom half the verdict's own
-           reasons already name which trigger fired, so the same question
-           ("would a fixed price do it?") is already answered above. -->
-      <div v-if="view === 'packs' && !overridden" class="mt-10 max-w-[62ch]">
-        <p class="text-p-base text-ink-gray-7">A pack won't cover you if you need</p>
-        <ul class="mt-2 space-y-1">
-          <li
-            v-for="item in PACK_WONT_COVER"
-            :key="item"
-            class="flex gap-2.5 text-p-base text-ink-gray-6"
+        <!-- ── Neither of them ─────────────────────────────────────────── -->
+        <!-- ⚠️ THE THIRD ANSWER, and the screen was missing it. It offered two
+             paths and a way to correct the answers, all of which assume the
+             recommendation is nearly right. Somebody whose situation is not in
+             the three questions had nowhere to go but away.
+             ⚠️ It is a LINK, not a form, and it goes to the contact page's own
+             triage — the one that routes an implementation question here and a
+             product question to the team. Sending a message from this screen
+             would be a second contact route, answered by a different inbox, with
+             no idea what the person had already been shown.
+             Quiet: below the path switch, above the feedback, in body type. A
+             "talk to us" offer at the weight of the buy button is a product that
+             does not believe its own recommendation. -->
+        <p class="mt-3 max-w-[62ch] text-p-base text-ink-gray-6">
+          Neither of these?
+          <a
+            :href="`${baseUrl}contact`"
+            target="_blank"
+            rel="noreferrer"
+            class="underline hover:text-ink-gray-8"
           >
-            <span class="mt-2 size-1 shrink-0 rounded-full bg-[var(--outline-gray-3)]" aria-hidden="true" />
-            {{ item }}
-          </li>
-        </ul>
-        <button class="mt-3 text-p-base text-ink-gray-6 underline hover:text-ink-gray-8" @click="view = 'custom'">
-          Get quotes from partners instead
-        </button>
-      </div>
+            Talk to someone at Frappe
+          </a>
+        </p>
 
-      <p v-else class="mt-10 max-w-[62ch] text-p-base text-ink-gray-6">
-        <template v-if="view === 'packs'">
-          <button class="underline hover:text-ink-gray-8" @click="view = 'custom'">
-            Back to what we recommend
-          </button>
-        </template>
-        <template v-else>
-          <template v-if="!overridden">Would a fixed price do it? </template>
-          <button class="underline hover:text-ink-gray-8" @click="view = 'packs'">
-            {{ overridden ? 'Back to what we recommend' : 'Look at the packs anyway' }}
-          </button>
-        </template>
-      </p>
-
-      <!-- ── Neither of them ─────────────────────────────────────────── -->
-      <!-- ⚠️ THE THIRD ANSWER, and the screen was missing it. It offered two
-           paths and a way to correct the answers, all of which assume the
-           recommendation is nearly right. Somebody whose situation is not in
-           the three questions had nowhere to go but away.
-           ⚠️ It is a LINK, not a form, and it goes to the contact page's own
-           triage — the one that routes an implementation question here and a
-           product question to the team. Sending a message from this screen
-           would be a second contact route, answered by a different inbox, with
-           no idea what the person had already been shown.
-           Quiet: below the path switch, above the feedback, in body type. A
-           "talk to us" offer at the weight of the buy button is a product that
-           does not believe its own recommendation. -->
-      <p class="mt-3 max-w-[62ch] text-p-base text-ink-gray-6">
-        Neither of these?
-        <a
-          :href="`${baseUrl}contact`"
-          target="_blank"
-          rel="noreferrer"
-          class="underline hover:text-ink-gray-8"
-        >
-          Talk to someone at Frappe
-        </a>
-      </p>
-
-      <!-- ── Was this right? ─────────────────────────────────────────── -->
-      <!-- ⚠️ ONE LINE, at the bottom, and it disappears once answered. It is
-           the highest-value feedback in the app — the only signal that the
-           engine rather than a partner got something wrong — and it is worth
-           exactly one line of a screen whose job is something else. -->
-      <div class="mt-5 border-t border-outline-gray-2 pt-5">
-        <!-- ⚠️ "Change my answers" IS NOT HERE, and it was. Both it and this
-             row are about the answers rather than the products, which is why
-             they were paired — but they are different ACTS. This asks Frappe a
-             question; that one changes your own data and re-runs the engine.
-             On one line the correction read as a third response to "Does this
-             look right?", which is the one thing it is not. It sits under the
-             reasons now, where an answer is actually noticed to be wrong. -->
-        <div v-if="!answered" class="flex flex-wrap items-center gap-3">
-          <p class="text-p-base text-ink-gray-6">Does this look right?</p>
-          <Button variant="subtle" label="Yes" @click="store.recordRecoFeedback(true)" />
-          <Button variant="subtle" label="Not really" @click="store.recordRecoFeedback(false)" />
-        </div>
-        <div v-else-if="done" class="text-p-base text-ink-gray-6">
-          Thanks — that helps us get the next one right.
-        </div>
-        <div v-else class="max-w-md">
-          <p class="text-p-base text-ink-gray-7">What did we miss?</p>
-          <div class="mt-2 flex gap-2">
-            <TextInput
-              v-model="note"
-              class="flex-1"
-              placeholder="Anything — one line is plenty"
-              @keydown.enter="sendNote"
-            />
-            <Button variant="subtle" label="Send" @click="sendNote" />
+        <!-- ── Was this right? ─────────────────────────────────────────── -->
+        <!-- ⚠️ ONE LINE, at the bottom, and it disappears once answered. It is
+             the highest-value feedback in the app — the only signal that the
+             engine rather than a partner got something wrong — and it is worth
+             exactly one line of a screen whose job is something else. -->
+        <div class="mt-5 border-t border-outline-gray-2 pt-5">
+          <!-- ⚠️ "Change my answers" IS NOT HERE, and it was. Both it and this
+               row are about the answers rather than the products, which is why
+               they were paired — but they are different ACTS. This asks Frappe a
+               question; that one changes your own data and re-runs the engine.
+               On one line the correction read as a third response to "Does this
+               look right?", which is the one thing it is not. It sits under the
+               reasons now, where an answer is actually noticed to be wrong. -->
+          <div v-if="!answered" class="flex flex-wrap items-center gap-3">
+            <p class="text-p-base text-ink-gray-6">Does this look right?</p>
+            <Button variant="subtle" label="Yes" @click="store.recordRecoFeedback(true)" />
+            <Button variant="subtle" label="Not really" @click="store.recordRecoFeedback(false)" />
+          </div>
+          <div v-else-if="done" class="text-p-base text-ink-gray-6">
+            Thanks — that helps us get the next one right.
+          </div>
+          <div v-else class="max-w-md">
+            <p class="text-p-base text-ink-gray-7">What did we miss?</p>
+            <div class="mt-2 flex gap-2">
+              <TextInput
+                v-model="note"
+                class="flex-1"
+                placeholder="Anything — one line is plenty"
+                @keydown.enter="sendNote"
+              />
+              <Button variant="subtle" label="Send" @click="sendNote" />
+            </div>
           </div>
         </div>
       </div>
