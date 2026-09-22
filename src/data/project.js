@@ -81,8 +81,23 @@ export const serviceOf = (value) => SERVICES.find((s) => s.value === value) ?? n
 //   partners    goes to the directory
 //   packs       goes to the pack catalogue
 //
-// A task with no action is a plain tick: something you do away from the screen
-// and come back to record.
+// ⚠️ A TASK IS SOMETHING THE PRODUCT CAN SEE YOU DO. That is the rule now, and
+// it used to be "anything the customer owes", which is why this list had
+// eighteen rows with a checkbox on each and the customer ticking them by hand.
+// A box you tick yourself is not a record of what happened, it is a record of
+// what you claim happened — and a tracker whose state is typed in by the person
+// it is tracking can say a project is finished when nothing has been done.
+//
+// So the question for every row became: can this screen tell? Sending a message
+// to your partner, agreeing the terms, taking your Frappe Cloud code, rating
+// them at the end, and the three that the brief flow performs on your behalf —
+// those it can see, and those are the tasks.
+//
+// Everything else — nominate a champion, have your data clean, keep to the
+// scope, sign off with your partner — happens where this product has no
+// visibility at all. Those are NOT tasks. They are the stage's `expects`, one
+// line of prose, and losing the checkbox loses nothing: nobody was ever
+// prevented from ticking "Have your data ready" with no data.
 //
 // `when(project)` makes a task CONDITIONAL on the project's own state. Optional,
 // and rare on purpose: a checklist whose rows appear and vanish is hard to trust
@@ -90,6 +105,16 @@ export const serviceOf = (value) => SERVICES.find((s) => s.value === value) ?? n
 // task would be offering something the product would then refuse — see
 // `agree-terms`. Read through `visibleTasks`, never off `stage.yours` directly.
 const task = (key, label, rest = {}) => ({ key, label, ...rest })
+
+// Is this task finished?
+//
+// ⚠️ TWO SOURCES, ONE ANSWER. Most tasks are recorded by the action that
+// completes them — a dialog confirming, a brief going out — and live in
+// `project.done`, which only the store writes. A `complete` predicate is for
+// the ones already derivable from state the product holds anyway, where storing
+// a second copy would be a fact that can go stale against itself.
+export const isTaskDone = (t, project, ctx = {}) =>
+  t.complete ? Boolean(t.complete(project, ctx)) : (project?.done ?? []).includes(t.key)
 
 // The tasks in a stage that apply to THIS project.
 //
@@ -127,15 +152,16 @@ const responsibility = (fragment) => {
 }
 
 // ── The three spines ────────────────────────────────────────────────────────
-// A stage is `{ key, label, theme, blurb, yours, theirs }`.
+// A stage is `{ key, label, theme, yours, expects, theirs }`.
+//
+// `yours` are TASKS — things this product can see you do. `expects` is one line
+// of prose for what the stage wants from you that it cannot see; `theirs` is the
+// same for the partner. See the note on `task`.
 //
 // `theme` feeds frappe-ui's Badge. Blue for the stages before work starts,
 // orange while it is under way, green once it is done — so the badge carries
 // the same information as the position in the bar, for anyone reading the badge
 // alone in the listing.
-//
-// `blurb` is one sentence saying what this stage IS. It sits under the stage
-// name on the detail page; the checklist below it says what to DO.
 
 const PACK_STAGES = [
   {
@@ -143,11 +169,16 @@ const PACK_STAGES = [
     label: 'Confirmed',
     theme: 'blue',
     yours: [
-      task('nominate-champion', responsibility('champion'), {
-        hint: 'One person on your side who can answer questions and make decisions.',
+      // ⚠️ DERIVED, not recorded. The thread either has a message from you in
+      // it or it does not, and that is the same fact this task states — storing
+      // a second copy of it would be a tick that can survive a conversation
+      // that never happened.
+      task('say-hello', 'Say hello to your partner', {
+        action: 'message',
+        complete: (project, ctx) => ctx.messagedPartner,
       }),
-      task('say-hello', 'Agree a start date with your partner', { action: 'message' }),
     ],
+    expects: responsibility('champion'),
     theirs: ['reading the brief that went out with your payment'],
   },
   {
@@ -161,29 +192,30 @@ const PACK_STAGES = [
     label: 'Hosting',
     theme: 'blue',
     yours: [
-      task('fc-account', 'Create your Frappe Cloud account'),
-      task('fc-code', 'Enter your partner code on Frappe Cloud', {
-        hint: 'This is what tells Frappe Cloud to bill your partner for the site instead of you.',
+      // ⚠️ "TAKE", NOT "ENTER". It read "Enter your partner code on Frappe
+      // Cloud", which is a thing that happens on a different product — this one
+      // cannot see it and had no business claiming to. What it CAN see is you
+      // taking the code, which is the whole of Connect's side of this step.
+      task('fc-code', 'Take your Frappe Cloud partner code', {
+        hint: 'It tells Frappe Cloud to bill your partner for the site instead of you.',
         action: 'hosting',
       }),
-      task('fc-live', 'Confirm your site is up'),
     ],
+    expects: 'A Frappe Cloud account, the code entered on it, and the site up.',
     theirs: ['installing ERPNext on your site', 'setting up standard user roles'],
   },
   {
     key: 'data',
     label: 'Your data',
     theme: 'orange',
-    yours: [
-      task('data-ready', responsibility('data ready'), {
-        // Real, and the reason this task exists at all: cleaning and migrating
-        // data is STRICTLY EXCLUDED from every pack.
-        hint: 'Clean Excel or CSV. Data cleaning and migration are not in the pack.',
-        action: 'message',
-      }),
-      task('naming-series', 'Decide your naming series'),
-      task('opening-balances', 'Gather your opening balances'),
-    ],
+    // ⚠️ NO TASKS AT ALL, and the stage is not broken. Everything this stage
+    // wants happens in a spreadsheet on somebody's laptop. Three checkboxes
+    // that only the customer could tick told this screen nothing it could act
+    // on, and told the customer nothing they did not already know.
+    yours: [],
+    // Real, and the reason this stage exists: cleaning and migrating data is
+    // STRICTLY EXCLUDED from every pack.
+    expects: 'Clean Excel or CSV, your naming series decided, and your opening balances gathered. Data cleaning and migration are not in the pack.',
     theirs: ['running your data import session'],
   },
   {
@@ -200,15 +232,8 @@ const PACK_STAGES = [
     key: 'implementation',
     label: 'Implementation',
     theme: 'orange',
-    yours: [
-      task('approve', responsibility('approve internally'), {
-        hint: 'Configuration waits on your sign-off. Hours run against the pack either way.',
-      }),
-      task('users-available', responsibility('users available')),
-      task('keep-scope', responsibility('strictly to the scope'), {
-        hint: 'Anything outside it is a change request, and more hours.',
-      }),
-    ],
+    yours: [],
+    expects: 'Decisions approved on your side, your users available, and the work kept strictly to the scope — anything outside it is a change request, and more hours.',
     theirs: ['configuring the modules in your packs', 'training your users'],
   },
   {
@@ -216,7 +241,6 @@ const PACK_STAGES = [
     label: 'Live',
     theme: 'green',
     yours: [
-      task('signoff', 'Sign off on go-live'),
       // ⚠️ THE ONE TASK THAT ASKS FOR SOMETHING RATHER THAN OF SOMETHING. It is
       // here and not mid-project because this is the first moment the answer is
       // worth anything: halfway through a configuration the honest answer is
@@ -227,6 +251,7 @@ const PACK_STAGES = [
         action: 'feedback',
       }),
     ],
+    expects: 'Go-live signed off between you and your partner.',
     theirs: ['standing by for Day 1 go-live'],
   },
 ]
@@ -302,13 +327,12 @@ const CUSTOM_STAGES = [
     label: 'Hosting',
     theme: 'blue',
     yours: [
-      task('custom-fc-account', 'Create your Frappe Cloud account'),
-      task('custom-fc-code', 'Enter your partner code on Frappe Cloud', {
-        hint: 'This is what tells Frappe Cloud to bill your partner for the site instead of you.',
+      task('custom-fc-code', 'Take your Frappe Cloud partner code', {
+        hint: 'It tells Frappe Cloud to bill your partner for the site instead of you.',
         action: 'hosting',
       }),
-      task('custom-fc-live', 'Confirm your site is up'),
     ],
+    expects: 'A Frappe Cloud account, the code entered on it, and the site up.',
     theirs: ['setting up your site', 'importing your data'],
   },
   {
@@ -318,11 +342,8 @@ const CUSTOM_STAGES = [
     key: 'build',
     label: 'Build',
     theme: 'orange',
-    yours: [
-      task('custom-champion', responsibility('champion')),
-      task('custom-approve', responsibility('approve internally')),
-      task('custom-users', responsibility('users available')),
-    ],
+    yours: [],
+    expects: 'A nominated project champion, decisions approved on your side, and your users available.',
     theirs: ['building and configuring', 'training your users'],
   },
   {
@@ -330,12 +351,12 @@ const CUSTOM_STAGES = [
     label: 'Live',
     theme: 'green',
     yours: [
-      task('custom-signoff', 'Sign off on go-live'),
       task('custom-rate-partner', 'Rate your partner', {
         hint: 'Published on their profile, and it is how the next business picks.',
         action: 'feedback',
       }),
     ],
+    expects: 'Go-live signed off between you and your partner.',
     theirs: ['standing by for go-live'],
   },
 ]
@@ -582,10 +603,13 @@ export const demoProjects = () => {
       packs: ['accounts-sales-purchase-stock', 'manufacturing'],
       partnerId: idOf('Tridots Tech'),
       stage: 'hosting',
-      // Partway through the stage, not at the start of it: an empty checklist
-      // and a full one are both easier to lay out than a half-done one, which
-      // is the state this page will spend its life in.
-      done: ['nominate-champion', 'say-hello', 'fc-account'],
+      // ⚠️ EMPTY, and it used to name three tasks that no longer exist —
+      // `nominate-champion`, `fc-account` and a hand-ticked `say-hello`. Two of
+      // them stopped being tasks when tasks became things the product can see,
+      // and the third is derived from the thread now. Hosting's one task is
+      // left undone so the demo opens on the control that finishes it, which is
+      // the interesting half of the state.
+      done: [],
       // 18 days into a 60-day window, so it reads as comfortably in hand.
       // A window close to expiry is a state worth seeing too — drag the stage
       // switcher's project here and change this number to see it.

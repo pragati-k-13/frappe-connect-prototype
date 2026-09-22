@@ -16,7 +16,15 @@ import { logoFor } from '../data/logos'
 import { modulesFor } from '../data/modules'
 import { PARTNERS } from '../data/partners'
 import { DEFAULT_REGION, STARTER_PACKS, marketFor } from '../data/packs'
-import { SERVICES, nextStage, serviceOf, stageOf, visibleTasks, windowFor } from '../data/project'
+import {
+  SERVICES,
+  isTaskDone,
+  nextStage,
+  serviceOf,
+  stageOf,
+  visibleTasks,
+  windowFor,
+} from '../data/project'
 import { useConnectStore } from '../stores/connect'
 import { useContactPartner } from '../utils/contact'
 
@@ -184,6 +192,11 @@ const act = (task) => {
     // nothing to show before one exists. The custom spine reaches this stage
     // only after a partner is chosen, and the guard is what holds that.
     if (!partner.value) return toast.info('Hire a partner first')
+    // ⚠️ RECORDED ON OPEN, because the task is "take your partner code" and
+    // this is the taking. What happens on Frappe Cloud afterwards is on a
+    // different product that this one cannot see — which is exactly why the row
+    // no longer claims to be about entering it. See the note on the task.
+    tickByAction('hosting')
     return (hosting.value = true)
   }
   if (task.action === 'feedback') {
@@ -227,15 +240,31 @@ const act = (task) => {
 // in it is `ProjectBids`, whose own empty state says who was written to and how
 // long they take. One sentence, in the section it is about.
 
-const toggleTask = (key) => store.toggleTask(project.value.id, key)
+// ⚠️ WHAT THE PAGE KNOWS AND THE DATA LAYER CANNOT. `data/project.js` describes
+// stages; it has no access to the message threads. "Say hello to your partner"
+// is finished when there is a message from you in that partner's thread — a
+// fact the store already holds, so the task reads it rather than keeping a
+// second copy that could say hello was said when it was not.
+const taskContext = computed(() => ({
+  messagedPartner: Boolean(
+    partner.value &&
+      store.threads
+        .find((t) => t.partnerId === partner.value.id)
+        ?.messages?.some((m) => m.from === 'you' && m.kind !== 'company'),
+  ),
+}))
 
 // Finishing a dialog ticks the task that opened it. ⚠️ Found by ACTION rather
 // than by key, so the two spines can name the same gesture differently — the
 // custom spine's hosting tasks are `custom-fc-code` and the pack's are
 // `fc-code`, and neither this page nor the dialogs should know that.
+// ⚠️ ONE-WAY, AND THE ONLY WRITER. Completion is recorded by the thing that
+// completed it — a dialog confirming, a code being taken — never by a hand on a
+// checkbox. `completeTask` is idempotent for the same reason: a second
+// confirmation of the same dialog must not un-finish the task.
 const tickByAction = (action) => {
   const task = visibleTasks(stage.value, project.value).find((t) => t.action === action)
-  if (task && !project.value.done.includes(task.key)) store.toggleTask(project.value.id, task.key)
+  if (task) store.completeTask(project.value.id, task.key)
 }
 
 // ⚠️ CHOOSING IS THE END OF THE STAGE, and it asks one question on the way out.
@@ -288,10 +317,15 @@ const confirmChoice = (why) => {
 // `when` — "Agree the terms" before a partner exists — would otherwise sit
 // unticked in this test forever, and the stage could never be finished. Same
 // reason `tickByAction` reads the filtered list.
-const yoursDone = computed(() => {
-  const yours = visibleTasks(stage.value, project.value)
-  return yours.length > 0 && yours.every((t) => project.value.done.includes(t.key))
-})
+// ⚠️ TRUE WHEN A STAGE HAS NO TASKS AT ALL, which it did not used to be. Two
+// stages are now entirely `expects` — the weeks your data is being prepared and
+// the weeks the partner is building — and requiring `length > 0` would strand a
+// project in them with no way forward but the demo switcher.
+const yoursDone = computed(() =>
+  visibleTasks(stage.value, project.value).every((t) =>
+    isTaskDone(t, project.value, taskContext.value),
+  ),
+)
 
 // Where "Everything on my side is done" goes next, so the button can name it.
 // Null on the last stage, where the button is not offered at all — it used to
@@ -450,8 +484,8 @@ const chooseService = (value) => {
               <div class="mt-8">
                 <ProjectStages
                   :project="project"
+                  :context="taskContext"
                   :other-party="otherParty"
-                  @toggle="toggleTask"
                   @act="act"
                 />
               </div>

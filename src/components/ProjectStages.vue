@@ -37,9 +37,11 @@ const props = defineProps({
   project: { type: Object, required: true },
   // Whose second column is. See `ProjectChecklist`.
   otherParty: { type: String, default: 'Frappe' },
+  // Facts the page knows that the data layer cannot reach — see `isTaskDone`.
+  context: { type: Object, default: () => ({}) },
 })
 
-const emit = defineEmits(['toggle', 'act'])
+const emit = defineEmits(['act'])
 
 const stages = computed(() => stagesFor(props.project.service))
 const progress = computed(() => stageProgress(props.project.service, props.project.stage))
@@ -95,12 +97,15 @@ const stageForProject = computed(() =>
          visible task until a partner is hired — the Replies list below is the
          stage — and an empty checklist block left 20px of nothing under the
          bar, which reads as a section that failed to load. -->
-    <div v-if="stageForProject?.yours?.length || stageForProject?.theirs?.length" class="mt-5">
+    <div
+      v-if="stageForProject?.yours?.length || stageForProject?.expects || stageForProject?.theirs?.length"
+      class="mt-5"
+    >
       <ProjectChecklist
         :stage="stageForProject"
-        :done="project.done"
+        :project="project"
+        :context="context"
         :other-party="otherParty"
-        @toggle="emit('toggle', $event)"
         @act="emit('act', $event)"
       />
     </div>

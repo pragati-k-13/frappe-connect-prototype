@@ -796,15 +796,22 @@ export const useConnectStore = defineStore('connect', {
       project.partnerId = partnerId
     },
 
-    // Tick or untick one of YOUR tasks. Untickable on purpose: this is the
-    // customer's own record of what they have done, and a checkbox that cannot
-    // be corrected is a worse record than one that can.
-    toggleTask(id, taskKey) {
+    // Record a task as finished.
+    //
+    // ⚠️ THE SYSTEM WRITES THIS, NOT THE CUSTOMER, and it was `toggleTask` —
+    // called from a checkbox, arguing that somebody's own record should be
+    // correctable. That argument loses to a simpler one: a tracker whose state
+    // is typed in by the person being tracked is not tracking anything. Every
+    // caller is now an action that OBSERVED the thing happen — a dialog
+    // confirmed, a code taken, a brief broadcast.
+    //
+    // One-way and idempotent. There is no un-complete because there is no
+    // gesture that could mean one: you cannot un-send a message or un-agree a
+    // set of terms, and confirming the same dialog twice must not undo it.
+    completeTask(id, taskKey) {
       const project = this.projects.find((p) => p.id === id)
-      if (!project) return
-      project.done = project.done.includes(taskKey)
-        ? project.done.filter((k) => k !== taskKey)
-        : [...project.done, taskKey]
+      if (!project || project.done.includes(taskKey)) return
+      project.done = [...project.done, taskKey]
     },
 
     // Jump to a named stage. The demo switcher's, and deliberately unguarded by

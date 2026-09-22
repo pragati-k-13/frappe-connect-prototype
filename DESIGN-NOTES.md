@@ -157,6 +157,30 @@ and a published rating at go-live — plus one line on the recommendation screen
 whether it was right. That last one is the highest-value signal in the app and the only one
 that says the engine rather than a partner got something wrong.
 
+### A task is something the product can see you do
+
+No checkbox on the tracker is settable by hand. It used to be eighteen of them across the
+spine, on the reasoning that this was the customer's own record and a record you cannot
+correct is worse than one you can. That loses to a simpler argument: a tracker whose state
+is typed in by the person being tracked is not tracking anything — it can report a finished
+project with nothing done.
+
+So every row was asked one question: can this screen tell? What survived are the things the
+product observes — a message sent to your partner, the terms agreed, the Frappe Cloud code
+taken, a rating given, and the three the brief flow performs on your behalf. Those are
+tasks. The mark beside them is a status, not a control, and the only thing that finishes one
+is the control on its own row.
+
+Everything else — nominate a champion, have your data clean, keep strictly to the scope,
+sign off with your partner — happens where this product has no visibility at all. Those
+stopped being tasks and became the stage's `expects`: one line of prose, promising nothing.
+Two stages now have no tasks whatsoever, which is the honest shape of the weeks your data is
+being prepared and the weeks the partner is building.
+
+One consequence worth stating: "Enter your partner code on Frappe Cloud" became "Take your
+Frappe Cloud partner code". The old wording described something happening on a different
+product, which this one cannot see and had no business claiming.
+
 ## Decisions worth knowing
 
 **No dividers between a page's own sections.** Nothing between the profile's header,
