@@ -7,13 +7,13 @@ import AgreeTermsDialog from '../components/AgreeTermsDialog.vue'
 import PackPanel from '../components/PackPanel.vue'
 import PartnerCodeDialog from '../components/PartnerCodeDialog.vue'
 import ProjectBids from '../components/ProjectBids.vue'
+import ProjectDetailsPanel from '../components/ProjectDetailsPanel.vue'
 import ProjectPartnerPanel from '../components/ProjectPartnerPanel.vue'
 import ProjectResources from '../components/ProjectResources.vue'
 import ProjectStages from '../components/ProjectStages.vue'
 import RatePartnerDialog from '../components/RatePartnerDialog.vue'
 import IconArrowRight from '~icons/lucide/arrow-right'
 import { logoFor } from '../data/logos'
-import { modulesFor } from '../data/modules'
 import { PARTNERS } from '../data/partners'
 import { DEFAULT_REGION, STARTER_PACKS, marketFor } from '../data/packs'
 import {
@@ -136,45 +136,6 @@ const countdown = computed(() => {
 })
 
 // ── No partner yet ──────────────────────────────────────────────────────────
-// What the Partner panel says while it is empty.
-//
-// ⚠️ IT DESCRIBES THE PANEL, not the stage. The first version described the
-// stage — "Frappe is matching you with partners who do this work, you pick from
-// the ones who respond" — and on a custom project that put THREE accounts of
-// the same process on one screen: this one, the stage's blurb ("Frappe puts
-// your requirements in front of partners who do this kind of work"), and the
-// stage's own sentence ("Frappe is matching you with partners in your
-// industry, and passing on your requirements"). The stage is the right place
-// for all of that. What only this panel can say is why it is empty and what
-// fills it.
-//
-// ⚠️ The two services fill it differently, which is the other half of why this
-// is not one string. Custom work is the only one where YOU choose; on a pack
-// Frappe assigns, and promising a choice that never arrives is worse than
-// saying nothing. `pick` gates the directory link on the same fact.
-const awaitingPartner = computed(() => {
-  if (project.value?.service === 'custom') {
-    return { body: 'A partner joins here once you hire one of the firms that replied.', pick: true }
-  }
-  return { body: 'A partner joins here once Frappe assigns one.', pick: false }
-})
-
-// What an undecided project covers, for the aside. The same module catalogue
-// the estimate modal prices, so the two agree on what "Finance" contains.
-const scopeRows = computed(() =>
-  Object.entries(project.value?.modules ?? {}).flatMap(([app, keys]) => modulesFor(app, keys)),
-)
-
-// "Finance, Sales, Purchase, Inventory, Manufacturing and HR." The section's
-// subtitle used to say "What this project covers." above a row of pills; the
-// sentence covers both jobs, so the subtitle went with the pills.
-const scopeLine = computed(() => {
-  const names = scopeRows.value.map((m) => m.label)
-  if (!names.length) return ''
-  if (names.length === 1) return `${names[0]}.`
-  return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}.`
-})
-
 // ── Acting on a task ────────────────────────────────────────────────────────
 const hosting = ref(false)
 const rating = ref(false)
@@ -467,10 +428,13 @@ const chooseService = (value) => {
                    HERE, above the stages, and not with the pack panel at the
                    foot of the page, because "who is doing this" is a question
                    you ask before you read the stages and not after. -->
-              <div class="-mx-5 mt-6 border-y border-outline-gray-1 lg:hidden">
+              <div
+                class="-mx-5 mt-6 divide-y divide-outline-gray-1 border-y border-outline-gray-1 lg:hidden"
+              >
+                <ProjectDetailsPanel :project="project" :packs="packs" :region="region" />
                 <ProjectPartnerPanel
+                  v-if="partner"
                   :partner="partner"
-                  :awaiting="awaitingPartner"
                   @message="messagePartner(partner)"
                 />
               </div>
@@ -532,18 +496,12 @@ const chooseService = (value) => {
               </div>
             </template>
 
-            <!-- The scope, for a project with no pack behind it. A pack IS its
-                 scope and gets the panel; everything else carries a module
-                 list, and an undecided project usually has nothing else. -->
-            <section v-if="!pack && scopeRows.length" class="mt-10">
-              <h2 class="text-base font-medium text-ink-gray-8">Scope</h2>
-              <!-- ⚠️ A SENTENCE, not a row of pills. The pills were the only
-                   fully-round shape in the app and they appeared exactly here,
-                   which made them an orphan vocabulary rather than a device —
-                   a border and a radius wrapped around six single words.
-                   Naming six modules is what a comma is for. -->
-              <p class="mt-2 text-p-base text-ink-gray-7">{{ scopeLine }}</p>
-            </section>
+            <!-- ⚠️ THE SCOPE SECTION WAS HERE and is now a row in the rail's
+                 Project panel. It was guarded on `!pack` — a name never
+                 defined in this component, so the guard was always true and
+                 Vue only ever warned about it at render. Second one of those
+                 found on this branch; see the note on `checkout` in
+                 `RecommendPage`. -->
           </div>
         </div>
       </ScrollArea>
@@ -570,9 +528,22 @@ const chooseService = (value) => {
         class="hidden w-[352px] shrink-0 flex-col border-l border-outline-gray-1 lg:flex"
       >
         <ScrollArea class="min-h-0 flex-1">
+          <!-- ⚠️ THE PROJECT FIRST, and it was not here at all. The rail held
+               the partner, the pack and the help links — everything about a
+               project except the project — while what it is, what it covers and
+               what it cost sat in the main column or nowhere. The scope was the
+               worst of them: last thing on the page, under the advance button,
+               on a screen whose last thing should be the next action. -->
+          <ProjectDetailsPanel :project="project" :packs="packs" :region="region" />
+          <!-- ⚠️ ONLY ONCE THERE IS A PARTNER. This used to render a "Not
+               assigned yet" placeholder through the whole of the custom spine's
+               first two stages — a panel whose content was the absence of
+               content, standing where the answer will go. The stage name says
+               where the project is, and on a custom project the replies list
+               is the thing that ends it. -->
           <ProjectPartnerPanel
+            v-if="partner"
             :partner="partner"
-            :awaiting="awaitingPartner"
             @message="messagePartner(partner)"
           />
           <div class="divide-y divide-outline-gray-1">
