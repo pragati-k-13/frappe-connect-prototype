@@ -420,15 +420,24 @@ const chooseService = (value) => {
               </div>
 
               <!-- ── The replies ─────────────────────────────────────────
-                   ⚠️ Only on custom work, and only once a broadcast has gone
-                   out — a pack project has one assigned partner and nothing to
-                   compare. See `ProjectBids` for why the table lives here and
-                   the quotes themselves live in Messages.
-                   ⚠️ ABOVE THE ADVANCE BUTTON, and it used to be below it. The
-                   button ends the stage; this list IS the stage, now that the
-                   checkboxes describing it are gone. A control for leaving a
-                   room should not stand in front of the room. -->
-              <div v-if="project.service === 'custom' && project.broadcast" class="mt-10">
+                   ⚠️ ONLY WHILE THE STAGE IS "Choosing a partner". The guard
+                   was `service === 'custom' && broadcast`, and a broadcast is
+                   true forever — so the table followed the project into
+                   Hosting, Build and Live, holding five firms' quotes beside
+                   work already under way, with an "Others 4" tab offering to
+                   reopen a decision that had been made. This list IS the
+                   choosing stage; when the stage ends it ends.
+                   The stage key is the whole guard: only the custom spine has
+                   a `choosing`, so testing the service as well would be a
+                   second condition saying the same thing.
+                   ⚠️ Still above the advance button. That button ends the
+                   stage, and a control for leaving a room should not stand in
+                   front of the room.
+                   ⚠️ NOT AN ARCHIVE. What survives afterwards is the outcome —
+                   the partner in the rail and the quote as the project's Cost —
+                   and the quotes themselves are still in each firm's thread in
+                   Messages, which is where they arrived. See `ProjectBids`. -->
+              <div v-if="project.stage === 'choosing' && project.broadcast" class="mt-10">
                 <ProjectBids :project="project" @choose="choose" />
               </div>
 
