@@ -88,6 +88,48 @@ They were one action first and it forced the decision while somebody was still g
 information. Passing on a bid tells the partner nothing: a rejection notice from a business
 that never spoke to you is worse than silence.
 
+### The budget is collected and then dropped — a note for the partner side
+
+Two questions are mandatory before requirements go anywhere, and **neither one changes who
+receives them**. `matchingPartners` filters on region, industry group, and then whatever
+city, tier and work style were set in the filters dialog. The scope is free text nobody
+parses, which is fine — it is written for a human to read. The budget band is the one
+structured answer on the screen, and it is thrown away.
+
+That is a real gap, not a simplification, because partners are not interchangeable at every
+deal size. Some run a volume business on small customers; some take enterprise engagements
+only and will not open a brief below their floor. A ₹3 lakh brief broadcast to a firm whose
+smallest job is ₹40 lakh wastes both sides, and it is exactly the kind of waste that trains
+a partner to stop reading the broadcast at all — which costs the next business a reply.
+
+**It is not fixed here because the data does not exist.** `region`, `industries`, `city` and
+`tier` come from the published directory. `workStyle` is already invented, and inventing a
+second fabricated attribute — this one able to silently delete firms from a count that a
+button promises to message — would be worse than the honest no-op. The number on that button
+is the one figure in this flow that has to be true.
+
+**What the partner side should ask.** Two things, and they are different questions:
+
+- **The deal sizes they take.** Best expressed as the same ladder the business answers on,
+  so `budgetBandsFor` and the partner's answer are in the same units and the match is a set
+  intersection rather than a currency conversion. A floor alone would do most of the work.
+- **The shape of the business** — volume across many small customers, or a few large
+  engagements. It is not derivable from the deal sizes: a firm can take a small job as a
+  foot in the door and still be an enterprise shop, and the brief that suits each is
+  different.
+
+Worth asking at the same time, since it is the same form: whether they are taking work this
+quarter at all. A partner at capacity is a non-reply the business waits a week for.
+
+**What changes on this screen once it exists.** The budget field stops being inert: the
+count moves when the band moves, the reach sentence names the criterion out loud, and the
+filters dialog gets a fourth group with the same per-option counts as the other three.
+
+⚠️ One caution for that pass. If a band excludes nearly everyone, the screen must **say so**
+and offer the neighbouring band — not print "2 partners" and leave somebody to guess which
+of their answers cost them the other eleven. A filter that narrows silently is how a
+broadcast quietly becomes a broadcast to nobody.
+
 ### The tracker does not track the partner
 
 Neither spine advances on anything a partner does. There is no task list a partner updates,

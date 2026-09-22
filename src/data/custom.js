@@ -119,6 +119,21 @@ export const briefComplete = (brief) => Object.keys(briefErrors(brief)).length =
 // ONE function, because a number that doesn't match what happens next is the
 // single most damaging thing this screen could print.
 //
+// ⚠️ THE BUDGET DOES NOT NARROW THIS, and it should. It is the one structured
+// answer the brief collects and the only one this function ignores, so the
+// count never moves when the band does. Partners are not interchangeable at
+// every deal size — some run volume on small customers, some open nothing below
+// an enterprise floor — and a brief sent to a firm that was never going to
+// quote it wastes both sides.
+//
+// It is not fixed here because there is nothing on a partner to match against:
+// `region`, `industries`, `city` and `tier` are real, `workStyle` is already
+// invented, and a second fabricated attribute able to delete firms from a
+// number this button promises to message would be worse than the no-op. It
+// needs the partner side to ask the question first. See "The budget is
+// collected and then dropped" in DESIGN-NOTES.md for what to ask and what
+// changes here afterwards.
+//
 // ⚠️ THE BASE IS REGION AND INDUSTRY, not country. Thirteen seed partners
 // across six regions means a country test would return one firm for most of the
 // world and the screen would read as an empty directory rather than as a
