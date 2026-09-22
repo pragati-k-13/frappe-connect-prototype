@@ -8,8 +8,8 @@
 // ⚠️ A BID IS NOT A CONVERSATION. It arrives before the business has agreed to
 // talk, which is the whole mechanism: requirements go out to a dozen firms, the
 // replies come back as small structured things that can be compared in a table,
-// and only an approved one opens into a thread with a company name attached to
-// it. That is what stops a broadcast from being twelve strangers with your
+// and only a shortlisted one opens into a thread with a company name attached
+// to it. That is what stops a broadcast from being twelve strangers with your
 // phone number.
 //
 // ⚠️ EVERY FIGURE BELOW IS GENERATED, not written — derived from the partner's
@@ -112,4 +112,11 @@ export const repliesToBrief = (partner) => hash(partner.id) % (partner.tier === 
 // a list of firms who spent an hour on their brief, and "rejected" makes a
 // routine narrowing-down feel like a verdict on the company. The partner is not
 // told either way — see the note in `stores/connect.js`.
-export const BID_STATES = ['pending', 'approved', 'passed']
+//
+// ⚠️ 'shortlisted', AND IT WAS 'approved'. The screen groups replies into
+// "Shortlisted" and "Others", so the state that produces the first group is
+// named after it — a store that says `approved` under a UI that says
+// shortlisted is the drift every renamed concept in this repo has been caught
+// in. The GESTURE is unchanged and so is its consequence: shortlisting shares
+// the company's details and opens the thread. Only the word moved.
+export const BID_STATES = ['pending', 'shortlisted', 'passed']

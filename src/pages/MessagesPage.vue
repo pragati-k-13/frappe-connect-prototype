@@ -217,7 +217,7 @@ const bidState = (m) =>
 const setBid = (m, state) => {
   if (!bidProject.value) return
   store.setBidState(bidProject.value.id, m.bid.partnerId, state)
-  if (state === 'approved') {
+  if (state === 'shortlisted') {
     toast.success('Approved', {
       description: `${open.value.partner.name} can now see your company details.`,
     })
@@ -744,10 +744,22 @@ watch(open, toBottom)
 
                   <div v-if="bidState(m) === 'pending'" class="mt-3">
                     <p class="text-p-sm text-ink-gray-5">
-                      Approving shares your company details with {{ open.partner.name }}.
+                      Shares your company details with {{ open.partner.name }} and opens this
+                      conversation to them.
                     </p>
+                    <!-- ⚠️ THE BUTTON NAMES THE CONSEQUENCE, not the bucket.
+                         "Shortlist" is what the row BECOMES and it reads as a
+                         private bookmark — precisely the wrong expectation at
+                         the moment a stranger learns which company they are
+                         talking to. The group is called Shortlisted; the
+                         control says what pressing it does. -->
                     <div class="mt-2 flex gap-2">
-                      <Button variant="solid" size="sm" label="Approve" @click="setBid(m, 'approved')" />
+                      <Button
+                        variant="solid"
+                        size="sm"
+                        label="Share and talk"
+                        @click="setBid(m, 'shortlisted')"
+                      />
                       <Button variant="subtle" size="sm" label="Pass" @click="setBid(m, 'passed')" />
                     </div>
                   </div>
@@ -757,8 +769,8 @@ watch(open, toBottom)
                   <Badge
                     v-else
                     class="mt-3"
-                    :theme="bidState(m) === 'approved' ? 'green' : 'gray'"
-                    :label="bidState(m) === 'approved' ? 'Approved' : 'Passed'"
+                    :theme="bidState(m) === 'shortlisted' ? 'green' : 'gray'"
+                    :label="bidState(m) === 'shortlisted' ? 'Shortlisted' : 'Passed'"
                   />
                 </div>
               </div>

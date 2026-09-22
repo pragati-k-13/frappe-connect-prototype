@@ -31,9 +31,6 @@ const props = defineProps({
   // during them the other side of the table really is Frappe rather than a
   // firm nobody has picked yet.
   otherParty: { type: String, default: 'Frappe' },
-  // Set by the page when every task in this stage is blocked on something that
-  // has not happened yet. See `notice`.
-  waiting: { type: String, default: '' },
   // Past stages render their checklist for reference but nothing is tickable:
   // the stage is over, and offering to change its record invites a click that
   // means nothing.
@@ -61,7 +58,6 @@ const ACTION_LABELS = {
   partners: 'Browse partners',
   packs: 'See the packs',
   hosting: 'Get the code',
-  bids: 'See the replies',
   brief: 'Open requirements',
   terms: 'Read the terms',
   feedback: 'Rate them',
@@ -82,13 +78,11 @@ const ACTION_LABELS = {
 const LINE = 'Frappe does not track your partner’s progress — your calls with them do.'
 const UNTRACKED = { implementation: LINE, build: LINE }
 
-// ⚠️ A SECOND KIND OF NOTICE, passed in rather than derived. `UNTRACKED` is a
-// fact about the STAGE — Frappe never tracks a partner's build — and it is the
-// same on every project that reaches it. This one is a fact about THIS project
-// right now: the brief has gone out and nothing has come back, so all four of
-// the stage's tasks are waiting on somebody else. The checklist has no way of
-// knowing that; the page does.
-const notice = computed(() => props.waiting || UNTRACKED[props.stage.key] || null)
+// ⚠️ A SECOND KIND OF NOTICE used to be passed in here — a line the page set
+// when every task in a stage was blocked on somebody else. It was only ever
+// used by "Choosing a partner", whose tasks are gone; the Replies list says it
+// now, in the section it is about. What is left is the fact about the STAGE.
+const notice = computed(() => UNTRACKED[props.stage.key] || null)
 
 // "2 of 3 done" — and it counts ONLY your side. The partner's column has no
 // completion state to read (nothing here knows whether they have finished), so

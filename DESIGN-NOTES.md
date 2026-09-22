@@ -83,10 +83,24 @@ the partner answers — nothing is hidden except silence — and not every partn
 because a flow that shows twelve of twelve is lying about what a broadcast looks like a
 week later.
 
-Approving is a shortlist; **choosing** is a separate, later gesture that ends the stage.
-They were one action first and it forced the decision while somebody was still gathering
-information. Passing on a bid tells the partner nothing: a rejection notice from a business
-that never spoke to you is worse than silence.
+The replies are the stage, and the checklist that used to describe it is gone. Three of its
+four boxes — go through the replies, approve one, choose one — recorded things the replies
+list can see; a box asking you to confirm you shortlisted somebody, under the button you
+pressed to shortlist them, is the product asking for a receipt it wrote itself. What
+survives is the one act nothing on the page observes, and it appears only once there is
+somebody to do it with: agreeing terms.
+
+Replies group into **Shortlisted** and **Others**. Shortlisting is the old "approve",
+renamed rather than softened — it shares the company's name and contact details and opens
+the thread — which is why the control says **Share and talk** and not "Shortlist": the word
+reads as a private bookmark, and a private-sounding button that introduces you to a stranger
+is the one mistake this flow cannot make. The group is named for the state; the button is
+named for the consequence.
+
+**Hiring** is still a separate, later gesture that ends the stage. It and shortlisting were
+one action first and it forced the decision while somebody was still gathering information.
+Passing on a bid tells the partner nothing: a rejection notice from a business that never
+spoke to you is worse than silence.
 
 ### The budget is collected and then dropped — a note for the partner side
 

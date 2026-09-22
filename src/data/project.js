@@ -254,19 +254,19 @@ const CUSTOM_STAGES = [
     key: 'choosing',
     label: 'Choosing a partner',
     theme: 'blue',
-    // ⚠️ ONE BUTTON, NOT FOUR. All three of the first tasks carried
-    // `action: 'bids'`, so the stage rendered three identical "See the replies"
-    // controls in a column, every one of them scrolling to the same section a
-    // few hundred pixels below. Repeating a control per row says the rows lead
-    // somewhere different; these do not. The first task owns it, and the two
-    // under it are records of what you did in the section it takes you to.
+    // ⚠️ ONE TASK, AND IT WAS FOUR. Go through the replies, approve at least
+    // one, choose the one you are going with, agree the terms — and the first
+    // three recorded things the Replies section below can SEE. A box asking you
+    // to confirm you shortlisted somebody, under the button you pressed to
+    // shortlist them, is the product asking for a receipt it wrote itself; a
+    // box saying "choose the partner you are going with" over a table with Hire
+    // on every row is the same thing twice. They also produced the fault that
+    // started this: three rows carrying the same "See the replies" button,
+    // every one scrolling to the same section a few hundred pixels below.
+    //
+    // The list IS the stage now. What survives is the one act nothing on the
+    // page observes.
     yours: [
-      task('review-bids', 'Go through the replies', { action: 'bids' }),
-      // ⚠️ The hint went, not because it was wrong but because it was the third
-      // copy: `ProjectBids` prints the consequence on the button's own line,
-      // and the recommendation screen states it before the brief goes out.
-      task('approve-bid', 'Approve at least one, so they can see who you are'),
-      task('choose-partner', 'Choose the partner you are going with'),
       // ⚠️ A TASK, NOT A STAGE. It was drawn as its own step in the bar and it
       // is one checkbox — a stage whose entire content is "tick this" reads as
       // ceremony, and it put a wall between choosing a firm and starting with
@@ -274,10 +274,14 @@ const CUSTOM_STAGES = [
       //
       // ⚠️ AND IT APPEARS ONLY ONCE THERE IS SOMEBODY TO AGREE WITH. Terms of
       // engagement are between the business and its partner; offering them
-      // above a list of twelve firms nobody has picked is a contract with no
+      // above a list of twelve firms nobody has hired is a contract with no
       // counterparty, and pressing it could only say "choose a partner first".
       // A task you are shown and then refused is worse than one you are not
-      // shown yet.
+      // shown yet — which is also what keeps this stage from showing an empty
+      // checklist for the whole week it spends waiting for quotes.
+      //
+      // ⚠️ IT IS NOT TICKED BY HAND EITHER. `tickByAction('terms')` records it
+      // when the dialog is confirmed; the box is the receipt, not the gesture.
       task('agree-terms', 'Agree the terms of engagement', {
         hint: 'Between you and your partner. Frappe is not a party to it.',
         action: 'terms',

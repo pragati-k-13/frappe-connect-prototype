@@ -618,6 +618,28 @@ export const useConnectStore = defineStore('connect', {
       // service at all, and one whose partner has not been picked yet. Three
       // of the four would leave a state with no way to see it.
       this.projects = account === 'client' ? demoProjects() : []
+      // ⚠️ THE CUSTOM DEMO PROJECT NEEDS ITS REPLIES. Its own note calls it
+      // "the one the bid table is drawn against", and it was seeded with no
+      // broadcast and no bids — so the table never rendered on it and the
+      // stage had nothing under the bar but a heading. That was survivable
+      // while the stage also carried four checkboxes; the replies list IS the
+      // stage now, so an empty one is an empty screen.
+      //
+      // Seeded through the same two calls the real flow uses, rather than a
+      // hand-written array: `broadcast` names who was written to, and
+      // `simulateReplies` decides who answered and at what price. A demo built
+      // from the product's own functions cannot show a state the product
+      // cannot reach.
+      for (const project of this.projects) {
+        if (project.service !== 'custom' || project.stage !== 'choosing') continue
+        project.broadcast = {
+          at: Date.now() - 5 * 86400000,
+          partnerIds: PARTNERS.filter((p) => p.region === 'asia')
+            .slice(0, 6)
+            .map((p) => p.id),
+        }
+        this.simulateReplies(project.id)
+      }
       // ⚠️ SEEDED for the signed-in personas, because they are meant to read as
       // accounts that finished onboarding — `viewer.company` has said Northwind
       // all along, and `company` saying nothing made the store disagree with
@@ -1247,15 +1269,15 @@ export const useConnectStore = defineStore('connect', {
       const project = this.projects.find((p) => p.id === projectId)
       const bid = project?.bids?.find((b) => b.partnerId === partnerId)
       if (!bid) return
-      const wasApproved = bid.state === 'approved'
+      const wasShortlisted = bid.state === 'shortlisted'
       bid.state = state
-      if (state !== 'approved' || wasApproved) return
+      if (state !== 'shortlisted' || wasShortlisted) return
       const thread = this.threads.find((t) => t.partnerId === partnerId)
       if (thread) thread.messages.push({ id: `c-${Date.now()}`, from: 'you', at: Date.now(), kind: 'company' })
     },
 
-    // ⚠️ APPROVAL IS A SHORTLIST, NOT A CHOICE. Several bids can be approved —
-    // that is how the comparison table gets more than one row — and this is the
+    // ⚠️ SHORTLISTING IS NOT CHOOSING. Several bids can be shortlisted — that is
+    // how the comparison table gets more than one row — and this is the
     // separate, later gesture that ends the stage. The two were one action in
     // the first version and it forced a decision at the moment someone was
     // still gathering information.

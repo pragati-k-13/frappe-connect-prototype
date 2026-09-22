@@ -37,9 +37,6 @@ const props = defineProps({
   project: { type: Object, required: true },
   // Whose second column is. See `ProjectChecklist`.
   otherParty: { type: String, default: 'Frappe' },
-  // Passed straight through to the open stage's checklist — a line saying why
-  // nothing in it can be done yet. See `waiting` there.
-  waiting: { type: String, default: '' },
 })
 
 const emit = defineEmits(['toggle', 'act'])
@@ -94,11 +91,14 @@ const stageForProject = computed(() =>
          on the rest." — above a checklist whose first two rows are "Go through
          the replies" and "Approve at least one". The list is the description,
          and it is the version people actually read. -->
-    <div class="mt-5">
+    <!-- ⚠️ ONLY WHEN THERE IS SOMETHING IN IT. "Choosing a partner" has no
+         visible task until a partner is hired — the Replies list below is the
+         stage — and an empty checklist block left 20px of nothing under the
+         bar, which reads as a section that failed to load. -->
+    <div v-if="stageForProject?.yours?.length || stageForProject?.theirs?.length" class="mt-5">
       <ProjectChecklist
         :stage="stageForProject"
         :done="project.done"
-        :waiting="waiting"
         :other-party="otherParty"
         @toggle="emit('toggle', $event)"
         @act="emit('act', $event)"

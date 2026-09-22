@@ -146,7 +146,7 @@ const countdown = computed(() => {
 // saying nothing. `pick` gates the directory link on the same fact.
 const awaitingPartner = computed(() => {
   if (project.value?.service === 'custom') {
-    return { body: 'A partner joins here once you choose one of the firms that replied.', pick: true }
+    return { body: 'A partner joins here once you hire one of the firms that replied.', pick: true }
   }
   return { body: 'A partner joins here once Frappe assigns one.', pick: false }
 })
@@ -171,12 +171,6 @@ const scopeLine = computed(() => {
 const hosting = ref(false)
 const rating = ref(false)
 const terms = ref(false)
-// The bids section, so a task can send you to it rather than describing where
-// it is. ⚠️ A ref on the element, not an id and a `querySelector`: the section
-// is inside a `ScrollArea`, so the window's own scrolling is a no-op here —
-// `scrollIntoView` walks up and moves whichever ancestor actually holds the
-// overflow. Same trap the router's `scrollBehavior` documents.
-const bidsEl = ref(null)
 
 // ⚠️ The task's `action` names a KIND, not a handler — the data layer knows a
 // task needs a slot booked, and this is the screen that knows what booking a
@@ -189,7 +183,7 @@ const act = (task) => {
     // ⚠️ Needs a partner: the code is what bills the site to THEM, so there is
     // nothing to show before one exists. The custom spine reaches this stage
     // only after a partner is chosen, and the guard is what holds that.
-    if (!partner.value) return toast.info('Choose a partner first')
+    if (!partner.value) return toast.info('Hire a partner first')
     return (hosting.value = true)
   }
   if (task.action === 'feedback') {
@@ -197,11 +191,8 @@ const act = (task) => {
     return (rating.value = true)
   }
   if (task.action === 'terms') {
-    if (!partner.value) return toast.info('Choose a partner first')
+    if (!partner.value) return toast.info('Hire a partner first')
     return (terms.value = true)
-  }
-  if (task.action === 'bids') {
-    return bidsEl.value?.$el?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
   }
   if (task.action === 'brief') {
     return router.push({ name: 'recommendation' })
@@ -228,19 +219,13 @@ const act = (task) => {
   toast.info('Not built yet')
 }
 
-// ⚠️ EVERY TASK IN "Choosing a partner" IS BLOCKED until somebody replies, and
-// until this the stage showed four of them anyway — go through the replies,
-// approve one, choose one, agree terms — over a Replies section reading "0 of 6
-// partners replied". A checklist of impossible things reads as a product that
-// has lost track of its own state.
-//
-// Real quotes take days, and the send deliberately leaves the project empty —
-// see `broadcastBrief`. So the stage says what it is waiting for.
-const waiting = computed(() =>
-  project.value?.stage === 'choosing' && project.value?.broadcast && !project.value?.bids?.length
-    ? 'Nothing to do until the first quote arrives, usually a few working days.'
-    : '',
-)
+// ⚠️ THE "waiting" NOTICE IS GONE, and nothing was lost. It existed because
+// "Choosing a partner" showed four checkboxes nobody could tick until a quote
+// arrived, so the stage had to say so. Three of those boxes have since gone —
+// the Replies list does their job — and the fourth only appears once a partner
+// is hired. The stage is now empty while it waits, and the one thing standing
+// in it is `ProjectBids`, whose own empty state says who was written to and how
+// long they take. One sentence, in the section it is about.
 
 const toggleTask = (key) => store.toggleTask(project.value.id, key)
 
@@ -259,18 +244,39 @@ const tickByAction = (action) => {
 // signal that says which of price, speed, profile and responsiveness actually
 // decides these, which is what the comparison table should be sorted by and
 // currently isn't.
+// ⚠️ TWO REFS, NOT ONE, and the second is not decoration. `:model-value` used
+// to be `Boolean(chosen)` with `chosen` nulled on confirm, so for the length of
+// the fade-out the heading read "Why ?" — the partner's name gone from a dialog
+// still on screen asking about them. The record stays until another Hire
+// replaces it; nothing reads it while the dialog is shut. Same fix, same
+// reason, as `PackScopeDialog`.
 const chosen = ref(null)
+const choosing = ref(false)
 const WHY = ['Price', 'Timeline', 'Their profile', 'How they replied']
 
 const choose = (partnerRecord) => {
   chosen.value = partnerRecord
+  choosing.value = true
 }
 
+// ⚠️ NOTHING TO TICK. This used to call `tickByAction('bids')` to mark "Choose
+// the partner you are going with" — a box recording the gesture that opened the
+// dialog it is confirming. The task is gone; hiring IS the record, and the
+// table shows it as a "Hired" badge on the row.
+// ⚠️ DISMISSING STILL HIRES. The question is optional — there is a Skip button
+// — and losing a hire because somebody pressed Escape on a feedback prompt
+// would be the worst possible trade for one tap of analytics. So closing the
+// dialog by any route lands here with `why` null.
+//
+// ⚠️ WHICH MAKES IT RE-ENTRANT: pressing "Price" calls this, which closes the
+// dialog, which fires `update:model-value` false, which calls this again with a
+// null reason and would overwrite the answer just given. Clearing `choosing`
+// FIRST turns the second call into a no-op at the guard.
 const confirmChoice = (why) => {
+  if (!choosing.value || !chosen.value) return
+  choosing.value = false
   store.choosePartner(project.value.id, chosen.value.id, why)
-  tickByAction('bids')
   toast.success(`${chosen.value.name} is your partner`)
-  chosen.value = null
 }
 
 // ⚠️ Advancing is the CUSTOMER saying their side is done, not the system
@@ -444,11 +450,23 @@ const chooseService = (value) => {
               <div class="mt-8">
                 <ProjectStages
                   :project="project"
-                  :waiting="waiting"
                   :other-party="otherParty"
                   @toggle="toggleTask"
                   @act="act"
                 />
+              </div>
+
+              <!-- ── The replies ─────────────────────────────────────────
+                   ⚠️ Only on custom work, and only once a broadcast has gone
+                   out — a pack project has one assigned partner and nothing to
+                   compare. See `ProjectBids` for why the table lives here and
+                   the quotes themselves live in Messages.
+                   ⚠️ ABOVE THE ADVANCE BUTTON, and it used to be below it. The
+                   button ends the stage; this list IS the stage, now that the
+                   checkboxes describing it are gone. A control for leaving a
+                   room should not stand in front of the room. -->
+              <div v-if="project.service === 'custom' && project.broadcast" class="mt-10">
+                <ProjectBids :project="project" @choose="choose" />
               </div>
 
               <!-- ⚠️ Appears only when YOUR side of the current stage is
@@ -462,15 +480,6 @@ const chooseService = (value) => {
                    caption: the label says what it does. -->
               <div v-if="yoursDone && next" class="mt-6">
                 <Button variant="solid" :label="`Move to ${next.label}`" @click="advance" />
-              </div>
-
-              <!-- ── The replies ─────────────────────────────────────────
-                   ⚠️ Only on custom work, and only once a broadcast has gone
-                   out — a pack project has one assigned partner and nothing to
-                   compare. See `ProjectBids` for why the table lives here and
-                   the quotes themselves live in Messages. -->
-              <div v-if="project.service === 'custom' && project.broadcast" class="mt-10">
-                <ProjectBids ref="bidsEl" :project="project" @choose="choose" />
               </div>
 
               <!-- Below `lg` the panel stacks under the page instead of beside
@@ -566,9 +575,9 @@ const chooseService = (value) => {
          Dismissing without answering still chooses the partner — the choice is
          the point and the question is the favour. -->
     <Dialog
-      :model-value="Boolean(chosen)"
+      :model-value="choosing"
       :title="`Why ${chosen?.name ?? ''}?`"
-      @update:model-value="!$event && confirmChoice(null)"
+      @update:model-value="$event || confirmChoice(null)"
     >
       <!-- Default slot, not `#body-content` — see the note in
            `NewProjectDialog`; the older name fails silently. -->
