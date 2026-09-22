@@ -31,11 +31,15 @@ const props = defineProps({
   // rail that silently loses a section reads as a loading failure.
   partner: { type: Object, default: null },
   // What to say while there is no partner — `{ body, pick }` from the page,
-  // because the three services assign one differently. See `ProjectPage`.
+  // because the two services assign one differently. See `ProjectPage`.
   awaiting: { type: Object, default: null },
 })
 
-defineEmits(['message', 'book'])
+// ⚠️ 'book' IS GONE. This panel carried a "Request a slot" button back when
+// the pack spine opened with an introductory call; that stage no longer exists
+// — a pack is paid for and assigned in one gesture, and the first thing the
+// project asks for is a start date, which is a message rather than a booking.
+defineEmits(['message', 'profile'])
 
 const logo = computed(() => (props.partner ? logoFor(props.partner.id) : null))
 
@@ -126,7 +130,15 @@ const facts = computed(() => {
 
         <div class="mt-4 flex flex-wrap gap-2">
           <Button variant="subtle" size="sm" label="Message" @click="$emit('message')" />
-          <Button variant="subtle" size="sm" label="Request a slot" @click="$emit('book')" />
+          <!-- The profile, because "who are these people" is the other question
+               a partner card is opened with, and until now the only way to it
+               was through the directory. -->
+          <Button
+            variant="subtle"
+            size="sm"
+            label="View profile"
+            :route="{ name: 'partner', params: { id: partner.id } }"
+          />
         </div>
       </template>
 

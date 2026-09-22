@@ -31,16 +31,6 @@ const props = defineProps({
   // during them the other side of the table really is Frappe rather than a
   // firm nobody has picked yet.
   otherParty: { type: String, default: 'Frappe' },
-  // The slot this project has asked for, if any — `{ at, label }` from
-  // `BookSlotDialog`. Rendered under the task that requested it, because a
-  // request with no time attached to it is the screen forgetting what you just
-  // told it: you press Request a slot, the row ticks, and nothing anywhere says
-  // WHICH slot. It is also the honest state of that task — requested, not
-  // confirmed. The partner confirms by email.
-  // ⚠️ NOT named `slot`. That is a reserved attribute in Vue templates (a
-  // Vue 2 holdover the compiler still treats specially), so binding `:slot`
-  // on a component is asking for a silent, confusing failure.
-  requestedSlot: { type: Object, default: null },
   // Past stages render their checklist for reference but nothing is tickable:
   // the stage is over, and offering to change its record invites a click that
   // means nothing.
@@ -63,12 +53,37 @@ const isDone = (key) => props.done.includes(key)
 // know: a control whose label is a pronoun makes the reader press it to find
 // out where it goes.
 const ACTION_LABELS = {
-  'book-slot': 'Request a slot',
   message: 'Message',
   scope: 'View scope',
   partners: 'Browse partners',
   packs: 'See the packs',
+  hosting: 'Get the code',
+  bids: 'See the replies',
+  brief: 'Open requirements',
+  terms: 'Read the terms',
+  feedback: 'Rate them',
 }
+
+// ⚠️ THE STAGES WHERE FRAPPE CONNECT KNOWS NOTHING, said out loud.
+//
+// These two are the weeks the partner is actually building, and this product
+// does not track what happens inside them: there is no task list a partner
+// updates, no percentage, no per-module state. That is a decision rather than a
+// gap — partners are unreliable about maintaining that kind of record, and a
+// progress bar nobody moves is read as nothing having happened.
+//
+// So the stage says where progress really lives. The alternative was an empty
+// stage that looks broken, or an invented milestone list that looks informed
+// and isn't, and a product that admits the limit is more trustworthy than one
+// that papers over it with a spinner.
+const UNTRACKED = {
+  implementation:
+    'Frappe does not track your partner’s progress here — your own calls with them are where that lives. What is below is only your side of it.',
+  build:
+    'Frappe does not track your partner’s progress here — your own calls with them are where that lives. What is below is only your side of it.',
+}
+
+const untracked = computed(() => UNTRACKED[props.stage.key] ?? null)
 
 // "2 of 3 done" — and it counts ONLY your side. The partner's column has no
 // completion state to read (nothing here knows whether they have finished), so
@@ -96,6 +111,12 @@ defineExpose({ tally })
 
 <template>
   <div class="space-y-5">
+    <!-- ⚠️ ABOVE the checklist, not below it, and in the same grey as the
+         partner's sentence. Read after the tasks it would sound like an excuse
+         for a short list; read before them it explains why the list is short.
+         See `UNTRACKED`. -->
+    <p v-if="untracked" class="text-p-base leading-relaxed text-ink-gray-6">{{ untracked }}</p>
+
     <!-- ── Yours ───────────────────────────────────────────────────────── -->
     <section v-if="stage.yours?.length">
       <div class="flex items-baseline justify-between gap-3">
@@ -142,14 +163,7 @@ defineExpose({ tally })
                  one. The hint tells you what to do; the slot says what you
                  did, and keeping both would leave instructions standing under
                  a task that is finished. -->
-            <p
-              v-if="requestedSlot && t.action === 'book-slot' && isDone(t.key)"
-              class="ms-[22px] mt-0.5 text-p-sm text-ink-gray-6"
-            >
-              {{ requestedSlot.label }}
-              <span class="text-ink-gray-5">· awaiting confirmation by email</span>
-            </p>
-            <p v-else-if="t.hint" class="ms-[22px] mt-0.5 text-p-sm text-ink-gray-5">
+            <p v-if="t.hint" class="ms-[22px] mt-0.5 text-p-sm text-ink-gray-5">
               {{ t.hint }}
             </p>
           </div>

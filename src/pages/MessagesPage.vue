@@ -18,11 +18,13 @@ import IconEmoji from '~icons/lucide/smile-plus'
 import IconMore from '~icons/lucide/ellipsis'
 import IconExternal from '~icons/lucide/external-link'
 import IconSend from '~icons/lucide/send-horizontal'
+import IconChevronDown from '~icons/lucide/chevron-down'
 import ConnectShell from '../components/ConnectShell.vue'
 import CompanyDetailsDialog from '../components/CompanyDetailsDialog.vue'
 import { PARTNERS } from '../data/partners'
 import { logoFor } from '../data/logos'
 import { isActive, lastAt } from '../data/messages'
+import { budgetLabel } from '../data/custom'
 import { useConnectStore } from '../stores/connect'
 
 // SCREEN — messages. The destination the confirmed screen has been promising
@@ -57,6 +59,25 @@ const shown = computed(() => threads.value.filter((t) => t.active === (filter.va
 // rides along on the option and comes back through the `#suffix` slot, which
 // forwards the whole `button` object. That's the documented place for a count on
 // a tab; see the `#suffix` usage in the template.
+// ── The broadcast group ─────────────────────────────────────────────────────
+// ⚠️ A DOZEN THREADS ARRIVE AT ONCE when a custom brief goes out, and without
+// this they bury every real conversation the account has under eleven copies of
+// the same sent message. The inbox is a flat list of firms; a broadcast is one
+// gesture that touches twelve of them, and those are not the same kind of
+// thing.
+//
+// So a broadcast thread stays folded into a group UNTIL THE PARTNER ANSWERS.
+// The moment there is a reply the thread leaves the group and takes its place
+// in the list by recency, because at that point it is a conversation. That rule
+// is what keeps the fold honest: nothing is hidden except silence.
+const hasReply = (t) => t.messages.some((m) => m.from === 'them')
+const inGroup = (t) => Boolean(t.broadcast) && !hasReply(t)
+
+const loose = computed(() => shown.value.filter((t) => !inGroup(t)))
+const grouped = computed(() => shown.value.filter(inGroup))
+
+const groupOpen = ref(false)
+
 const tabs = computed(() => [
   { label: 'Active', value: 'active', count: threads.value.filter((t) => t.active).length },
   { label: 'Inactive', value: 'inactive', count: threads.value.filter((t) => !t.active).length },
@@ -155,21 +176,53 @@ const preview = (thread) => {
   // guard stays, because reading `.kind` off `undefined` is what it prevents
   // and the row needs a sentence where every other row has one.
   if (!m) return 'No messages yet'
+  // ⚠️ Every CARD kind needs a line here, because a card has no body text and
+  // the preview would come out blank — which in a column of firms reads as a
+  // conversation that failed to load. A bid says its NUMBER rather than the
+  // word "quote": down a list of replies, the figure is what tells them apart.
   const body =
     m.kind === 'company'
       ? 'Company details'
       : m.kind === 'call'
         ? 'Introduction call'
-        : // The project's name, not the word "Inquiry": the preview line is
-          // read down a column of firms, and which project it was about is the
-          // part that tells them apart.
-          m.kind === 'inquiry'
-          ? m.inquiry.project
-          : asText(m.body)
+        : m.kind === 'bid'
+          ? `Quoted ${m.bid.price}`
+          : m.kind === 'brief'
+            ? m.brief.project
+            : // The project's name, not the word "Inquiry": the preview line is
+              // read down a column of firms, and which project it was about is
+              // the part that tells them apart.
+              m.kind === 'inquiry'
+              ? m.inquiry.project
+              : asText(m.body)
   return m.from === 'you' ? `You: ${body}` : body
 }
 
 const details = ref(false)
+
+// ── Bids in the thread ──────────────────────────────────────────────────────
+// ⚠️ THE STATE LIVES ON THE PROJECT, not on the message. A message is a record
+// of something that was said and does not change; whether a quote is approved
+// is a decision the business made afterwards, and the project's own bid list is
+// where the comparison table reads it from. Two copies of that fact would
+// disagree the first time one surface updated and the other didn't.
+const bidProject = computed(() =>
+  store.projects.find((p) => (p.bids ?? []).some((b) => b.partnerId === open.value?.partnerId)) ??
+  null,
+)
+
+const bidState = (m) =>
+  bidProject.value?.bids?.find((b) => b.partnerId === m.bid.partnerId)?.state ?? 'pending'
+
+const setBid = (m, state) => {
+  if (!bidProject.value) return
+  store.setBidState(bidProject.value.id, m.bid.partnerId, state)
+  if (state === 'approved') {
+    toast.success('Approved', {
+      description: `${open.value.partner.name} can now see your company details.`,
+    })
+  }
+}
 
 // ⚠️ Inert by instruction: the call lives in a calendar the prototype has no
 // access to. Saying so is the point of the click.
@@ -338,7 +391,7 @@ watch(open, toBottom)
           </p>
 
           <ul>
-            <li v-for="t in shown" :key="t.id">
+            <li v-for="t in loose" :key="t.id">
               <button
                 type="button"
                 class="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors"
@@ -367,6 +420,56 @@ watch(open, toBottom)
                   </span>
                 </span>
               </button>
+            </li>
+
+            <!-- ── The silent half of a broadcast ───────────────────────
+                 ⚠️ It says how many and it says what they were sent, because
+                 the number is the thing the person who sent it is
+                 accountable for. Collapsed, not hidden: "who else got this"
+                 is a fair question and it is one click. -->
+            <li v-if="grouped.length" class="border-t border-outline-gray-1">
+              <button
+                type="button"
+                class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-gray-1"
+                :aria-expanded="groupOpen"
+                @click="groupOpen = !groupOpen"
+              >
+                <span
+                  class="grid size-8 shrink-0 place-items-center rounded-4 bg-surface-gray-2 text-ink-gray-6"
+                  aria-hidden="true"
+                >
+                  <IconSend class="size-4" />
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-base font-medium text-ink-gray-8">
+                    Requirements sent
+                  </span>
+                  <span class="mt-0.5 block truncate text-p-sm text-ink-gray-5">
+                    {{ grouped.length }} {{ grouped.length === 1 ? 'partner has' : 'partners have' }}
+                    not replied yet
+                  </span>
+                </span>
+                <IconChevronDown
+                  class="size-4 shrink-0 text-ink-gray-5 transition-transform"
+                  :class="groupOpen && 'rotate-180'"
+                />
+              </button>
+
+              <ul v-if="groupOpen" class="bg-surface-gray-1">
+                <li v-for="t in grouped" :key="t.id">
+                  <button
+                    type="button"
+                    class="flex w-full items-center gap-3 py-2 pl-11 pr-4 text-left transition-colors"
+                    :class="open?.id === t.id ? 'bg-surface-gray-3' : 'hover:bg-surface-gray-2'"
+                    @click="select(t.id)"
+                  >
+                    <span class="min-w-0 flex-1 truncate text-p-base text-ink-gray-7">
+                      {{ t.partner.name }}
+                    </span>
+                    <span class="shrink-0 text-p-xs text-ink-gray-5">{{ time(lastAt(t)) }}</span>
+                  </button>
+                </li>
+              </ul>
             </li>
           </ul>
         </ScrollArea>
@@ -585,6 +688,79 @@ watch(open, toBottom)
                     <template #icon><IconExternal class="size-4" /></template>
                   </Button>
                 </div>
+
+                <!-- ── The brief a broadcast carried ──────────────────────
+                     ⚠️ WHAT THIS CARD DOES NOT CONTAIN is the point of it: no
+                     company name, no contact, no size band beyond the headcount
+                     — a dozen firms got this, and until one of their replies is
+                     approved none of them are told who sent it. The customer
+                     sees the same card the partner got, in their own thread,
+                     which is what makes "we sent your requirements to twelve
+                     partners" a checkable claim rather than a promise. -->
+                <div
+                  v-else-if="m.kind === 'brief'"
+                  class="mt-1.5 w-fit max-w-[480px] rounded-5 border border-outline-gray-2 p-3.5"
+                >
+                  <p class="text-p-base font-medium text-ink-gray-8">{{ m.brief.project }}</p>
+                  <p class="mt-1.5 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7">
+                    {{ m.brief.scope }}
+                  </p>
+                  <dl class="mt-3 space-y-1 border-t border-outline-gray-2 pt-3">
+                    <div class="flex gap-6 text-p-base">
+                      <dt class="w-28 text-ink-gray-5">Budget</dt>
+                      <dd class="text-ink-gray-8">{{ budgetLabel(m.brief.budget) }}</dd>
+                    </div>
+                    <div class="flex gap-6 text-p-base">
+                      <dt class="w-28 text-ink-gray-5">Industry</dt>
+                      <dd class="text-ink-gray-8">{{ m.brief.segments?.[0] || 'Not given' }}</dd>
+                    </div>
+                    <div class="flex gap-6 text-p-base">
+                      <dt class="w-28 text-ink-gray-5">Size</dt>
+                      <dd class="text-ink-gray-8">{{ m.brief.employees }} people</dd>
+                    </div>
+                  </dl>
+                  <p class="mt-3 text-p-sm text-ink-gray-5">
+                    Your company name and contact details are shared only when you approve a reply.
+                  </p>
+                </div>
+
+                <!-- ── A quote ────────────────────────────────────────────
+                     ⚠️ THE DECISION IS ON THE CARD, in the thread, and the
+                     project's table is where the numbers are compared. Both
+                     surfaces write to the same state — see `ProjectBids` for
+                     why the split is deliberate — so approving here is the same
+                     act as approving there. -->
+                <div
+                  v-else-if="m.kind === 'bid'"
+                  class="mt-1.5 w-fit max-w-[480px] rounded-5 border border-outline-gray-2 p-3.5"
+                >
+                  <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                    <p class="text-p-lg font-semibold tabular-nums text-ink-gray-9">
+                      {{ m.bid.price }}
+                    </p>
+                    <p class="text-p-base text-ink-gray-6">about {{ m.bid.weeks }} weeks</p>
+                  </div>
+                  <p class="mt-2 text-p-base leading-relaxed text-ink-gray-7">{{ m.bid.note }}</p>
+
+                  <div v-if="bidState(m) === 'pending'" class="mt-3">
+                    <p class="text-p-sm text-ink-gray-5">
+                      Approving shares your company details with {{ open.partner.name }}.
+                    </p>
+                    <div class="mt-2 flex gap-2">
+                      <Button variant="solid" size="sm" label="Approve" @click="setBid(m, 'approved')" />
+                      <Button variant="subtle" size="sm" label="Pass" @click="setBid(m, 'passed')" />
+                    </div>
+                  </div>
+                  <!-- Both settled states say so plainly. ⚠️ "Passed", never
+                       "rejected" — see `BID_STATES`. The partner is not told
+                       either way. -->
+                  <Badge
+                    v-else
+                    class="mt-3"
+                    :theme="bidState(m) === 'approved' ? 'green' : 'gray'"
+                    :label="bidState(m) === 'approved' ? 'Approved' : 'Passed'"
+                  />
+                </div>
               </div>
 
               <!-- ── Per-message actions ────────────────────────────────────
@@ -690,9 +866,9 @@ watch(open, toBottom)
       <section v-else class="flex min-h-0 min-w-0 flex-1 items-center justify-center px-6">
         <div class="max-w-sm text-center">
           <p class="text-p-lg font-medium text-ink-gray-8">No conversation open</p>
-          <!-- ⚠️ Service agnostic, and no CTA. A Starter Pack is one way a
-               conversation starts and not the only one: guided onboarding books
-               the same way, and a visitor can reach out to a partner from the
+          <!-- ⚠️ Service agnostic, and no CTA. A starter pack is one way a
+               conversation starts and not the only one: a custom brief opens a
+               dozen at once, and a visitor can reach out to a partner from the
                directory without buying anything. There is no single next step
                to offer, and a button here would pick one of them for you. -->
           <p class="mt-1.5 text-p-base text-ink-gray-6">

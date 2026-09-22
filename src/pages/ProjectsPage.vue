@@ -12,7 +12,7 @@ import { useConnectStore } from '../stores/connect'
 //
 // ⚠️ A LIST, not a single project, and that is the decision this screen is
 // built around. A business routinely has more than one thing on — a starter
-// pack running while a custom piece is being scoped, an onboarding finished
+// pack running while a custom piece is being scoped, a project finished
 // months before either — and a single-project screen would have had to pick one
 // of them to be "the" project and hide the rest.
 //
@@ -79,10 +79,9 @@ const create = (details) => {
       <div v-if="!ordered.length" class="py-20 text-center">
         <p class="text-p-lg font-medium text-ink-gray-8">Nothing under way</p>
         <!-- ⚠️ ONE SENTENCE, and it took four lines to work out which one. The
-             version this replaces spent two of those lines naming the three
-             services — "a starter pack, guided onboarding, or a partner of your
-             own" — which is a menu, and a menu in an empty state is a decision
-             demanded before anything exists to decide about.
+             version this replaces spent two of those lines naming the
+             services on offer, which is a menu — and a menu in an empty state
+             is a decision demanded before anything exists to decide about.
 
              What is left is the only thing neither the heading nor the button
              says: that you can start without having chosen. That is the whole

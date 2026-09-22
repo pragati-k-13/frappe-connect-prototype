@@ -26,9 +26,10 @@ import { stageProgress, stagesFor } from '../data/project'
 // rather than only counting them — what is coming is worth knowing; the ticks
 // inside a finished stage are not.
 //
-// The spine is per-service (`stagesFor`), so a guided onboarding shows its
-// three sessions and a starter pack shows its five stages. Neither is forced
-// into the other's shape.
+// The spine is per-service (`stagesFor`): custom work opens with two stages a
+// pack never has — writing requirements and choosing a firm — because a pack
+// arrives with a partner already assigned. Neither is forced into the other's
+// shape.
 const props = defineProps({
   project: { type: Object, required: true },
   // Whose second column is. See `ProjectChecklist`.
@@ -141,7 +142,7 @@ const stateOf = (index) =>
         class="mt-4"
         :stage="current"
         :done="project.done"
-        :requested-slot="project.slot"
+
         :other-party="otherParty"
         @toggle="emit('toggle', $event)"
         @act="emit('act', $event)"

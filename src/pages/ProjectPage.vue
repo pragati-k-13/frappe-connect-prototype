@@ -1,17 +1,20 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Badge, Button, ScrollArea, toast } from 'frappe-ui'
+import { Badge, Button, Dialog, ScrollArea, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
-import BookSlotDialog from '../components/BookSlotDialog.vue'
+import AgreeTermsDialog from '../components/AgreeTermsDialog.vue'
 import PackPanel from '../components/PackPanel.vue'
+import PartnerCodeDialog from '../components/PartnerCodeDialog.vue'
+import ProjectBids from '../components/ProjectBids.vue'
 import ProjectPartnerPanel from '../components/ProjectPartnerPanel.vue'
+import ProjectResources from '../components/ProjectResources.vue'
 import ProjectStages from '../components/ProjectStages.vue'
+import RatePartnerDialog from '../components/RatePartnerDialog.vue'
 import IconArrowRight from '~icons/lucide/arrow-right'
 import { logoFor } from '../data/logos'
 import { modulesFor } from '../data/modules'
 import { PARTNERS } from '../data/partners'
-import { ONBOARDING } from '../data/onboarding'
 import { DEFAULT_REGION, STARTER_PACKS, marketFor } from '../data/packs'
 import { SERVICES, nextStage, serviceOf, stageOf, windowFor } from '../data/project'
 import { useConnectStore } from '../stores/connect'
@@ -48,13 +51,16 @@ const { messagePartner } = useContactPartner()
 const project = computed(() => store.projectBy(route.params.id))
 const service = computed(() => serviceOf(project.value?.service))
 const partner = computed(() => PARTNERS.find((p) => p.id === project.value?.partnerId) ?? null)
-const pack = computed(() => STARTER_PACKS.find((p) => p.value === project.value?.pack) ?? null)
+// ⚠️ A LIST. A project holds several packs now — they are disjoint modules and
+// the recommendation ticks more than one — so every surface that used to say
+// "the pack" either takes the list or takes the first of it and says why.
+const packs = computed(() =>
+  (project.value?.packs ?? []).map((v) => STARTER_PACKS.find((p) => p.value === v)).filter(Boolean),
+)
 const stage = computed(() => stageOf(project.value?.service, project.value?.stage))
 const timeWindow = computed(() => windowFor(project.value))
 
-const region = computed(
-  () => marketFor(store.filters.countries[0]) ?? store.answers.region[0] ?? DEFAULT_REGION,
-)
+const region = computed(() => marketFor(store.company.country) ?? DEFAULT_REGION)
 
 // Whose second checklist column is. The partner's FIRST NAME once there is one
 // — "Tridots is doing", not "Tridots Tech Pvt Ltd is doing", because this is a
@@ -94,9 +100,11 @@ const summary = computed(() => {
 const countdown = computed(() => {
   const w = timeWindow.value
   if (!w) return null
-  const hours = pack.value
-    ? `the pack's ${pack.value.hours} hours`
-    : `your ${ONBOARDING.totalHours} hours`
+  // ⚠️ The BASKET's hours, summed. Two packs bought together are one
+  // engagement against one window, so "the pack's 5 hours" would be counting
+  // down against a third of what was paid for.
+  const total = packs.value.reduce((sum, p) => sum + p.hours, 0)
+  const hours = `your ${total} hours`
   // ⚠️ THREE STATES, not one line with a word swapped. A window running out and
   // a window that has run out are different facts and want different sentences:
   // the first is a countdown you can still act on, the second is a thing that
@@ -132,17 +140,13 @@ const countdown = computed(() => {
 // for all of that. What only this panel can say is why it is empty and what
 // fills it.
 //
-// ⚠️ The three services fill it differently, which is the other half of why
-// this is not one string. Custom work is the only one where YOU choose; on a
-// pack and on guided onboarding Frappe assigns, and promising a choice that
-// never arrives is worse than saying nothing. `pick` gates the directory link
-// on the same fact.
+// ⚠️ The two services fill it differently, which is the other half of why this
+// is not one string. Custom work is the only one where YOU choose; on a pack
+// Frappe assigns, and promising a choice that never arrives is worse than
+// saying nothing. `pick` gates the directory link on the same fact.
 const awaitingPartner = computed(() => {
   if (project.value?.service === 'custom') {
-    return { body: 'A partner joins here once you pick one of the firms that respond.', pick: true }
-  }
-  if (project.value?.service === 'onboarding') {
-    return { body: 'A certified consultant joins here once Frappe assigns one.', pick: false }
+    return { body: 'A partner joins here once you choose one of the firms that replied.', pick: true }
   }
   return { body: 'A partner joins here once Frappe assigns one.', pick: false }
 })
@@ -164,7 +168,15 @@ const scopeLine = computed(() => {
 })
 
 // ── Acting on a task ────────────────────────────────────────────────────────
-const booking = ref(false)
+const hosting = ref(false)
+const rating = ref(false)
+const terms = ref(false)
+// The bids section, so a task can send you to it rather than describing where
+// it is. ⚠️ A ref on the element, not an id and a `querySelector`: the section
+// is inside a `ScrollArea`, so the window's own scrolling is a no-op here —
+// `scrollIntoView` walks up and moves whichever ancestor actually holds the
+// overflow. Same trap the router's `scrollBehavior` documents.
+const bidsEl = ref(null)
 
 // ⚠️ The task's `action` names a KIND, not a handler — the data layer knows a
 // task needs a slot booked, and this is the screen that knows what booking a
@@ -173,12 +185,26 @@ const booking = ref(false)
 // the press.
 const act = (task) => {
   if (!project.value) return
-  if (task.action === 'book-slot') {
-    // ⚠️ Needs a partner, and the custom spine has tasks that run before there
-    // is one. Nothing today reaches this without a partner, but the guard is
-    // what stops the dialog being opened on `null` the first time one does.
+  if (task.action === 'hosting') {
+    // ⚠️ Needs a partner: the code is what bills the site to THEM, so there is
+    // nothing to show before one exists. The custom spine reaches this stage
+    // only after a partner is chosen, and the guard is what holds that.
+    if (!partner.value) return toast.info('Choose a partner first')
+    return (hosting.value = true)
+  }
+  if (task.action === 'feedback') {
     if (!partner.value) return toast.info('No partner on this project yet')
-    return (booking.value = true)
+    return (rating.value = true)
+  }
+  if (task.action === 'terms') {
+    if (!partner.value) return toast.info('Choose a partner first')
+    return (terms.value = true)
+  }
+  if (task.action === 'bids') {
+    return bidsEl.value?.$el?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  }
+  if (task.action === 'brief') {
+    return router.push({ name: 'recommendation' })
   }
   if (task.action === 'message') {
     if (!partner.value) return toast.info('No partner on this project yet')
@@ -190,9 +216,9 @@ const act = (task) => {
     // For a pack, the scope is the panel already standing beside this page, so
     // the honest answer is to say where it is rather than open a second copy
     // of it in a dialog.
-    if (pack.value) {
+    if (packs.value.length) {
       return toast.info('The full scope is in the panel', {
-        description: `Everything the ${pack.value.name} pack covers, beside this page.`,
+        description: `Everything your ${packs.value.length > 1 ? 'packs cover' : 'pack covers'}, beside this page.`,
       })
     }
     return toast.info('Editing scope is not built yet', {
@@ -202,20 +228,36 @@ const act = (task) => {
   toast.info('Not built yet')
 }
 
-// Requesting a slot RECORDS it on the project, which is the change that made
-// `BookSlotDialog` worth wiring up: before this it emitted only `close` and the
-// request vanished into a toast. The stage can now say what it is waiting for.
-//
-// ⚠️ It does NOT advance the stage, and it ticks the task rather than the
-// stage moving on. Requesting is not attending — the two pack stages either
-// side (`confirmed`, `intro-call`) are separated by exactly that difference.
-const onBooked = (slot) => {
-  store.recordSlot(project.value.id, slot)
-  const task = stage.value?.yours?.find((t) => t.action === 'book-slot')
+const toggleTask = (key) => store.toggleTask(project.value.id, key)
+
+// Finishing a dialog ticks the task that opened it. ⚠️ Found by ACTION rather
+// than by key, so the two spines can name the same gesture differently — the
+// custom spine's hosting tasks are `custom-fc-code` and the pack's are
+// `fc-code`, and neither this page nor the dialogs should know that.
+const tickByAction = (action) => {
+  const task = stage.value?.yours?.find((t) => t.action === action)
   if (task && !project.value.done.includes(task.key)) store.toggleTask(project.value.id, task.key)
 }
 
-const toggleTask = (key) => store.toggleTask(project.value.id, key)
+// ⚠️ CHOOSING IS THE END OF THE STAGE, and it asks one question on the way out.
+// One tap, four options, and it is the second of the two feedback moments in a
+// project's life — the other is the rating at go-live. What it buys is the only
+// signal that says which of price, speed, profile and responsiveness actually
+// decides these, which is what the comparison table should be sorted by and
+// currently isn't.
+const chosen = ref(null)
+const WHY = ['Price', 'Timeline', 'Their profile', 'How they replied']
+
+const choose = (partnerRecord) => {
+  chosen.value = partnerRecord
+}
+
+const confirmChoice = (why) => {
+  store.choosePartner(project.value.id, chosen.value.id, why)
+  tickByAction('bids')
+  toast.success(`${chosen.value.name} is your partner`)
+  chosen.value = null
+}
 
 // ⚠️ Advancing is the CUSTOMER saying their side is done, not the system
 // deciding. It is offered once every one of your tasks is ticked, and it is an
@@ -247,8 +289,8 @@ const advance = () => {
 
 const chooseService = (value) => {
   store.chooseService(project.value.id, value)
-  // A pack is the one service that needs a second choice — WHICH pack — and
-  // the catalogue is where that is made. The others have nothing left to pick.
+  // A pack is the one service that needs a second choice — WHICH packs — and
+  // the catalogue is where that is made. Custom work has nothing left to pick.
   if (value === 'pack') router.push('/connect/packs')
 }
 </script>
@@ -372,7 +414,6 @@ const chooseService = (value) => {
                   :partner="partner"
                   :awaiting="awaitingPartner"
                   @message="messagePartner(partner)"
-                  @book="booking = true"
                 />
               </div>
 
@@ -404,12 +445,28 @@ const chooseService = (value) => {
                 <Button variant="solid" :label="`Move to ${next.label}`" @click="advance" />
               </div>
 
+              <!-- ── The replies ─────────────────────────────────────────
+                   ⚠️ Only on custom work, and only once a broadcast has gone
+                   out — a pack project has one assigned partner and nothing to
+                   compare. See `ProjectBids` for why the table lives here and
+                   the quotes themselves live in Messages. -->
+              <div v-if="project.service === 'custom' && project.broadcast" class="mt-10">
+                <ProjectBids ref="bidsEl" :project="project" @choose="choose" />
+              </div>
+
               <!-- Below `lg` the panel stacks under the page instead of beside
                    it: a 352px column next to a 352px column is not a layout.
                    `-mx-5` cancels the page padding so its rules run edge to
                    edge. -->
-              <div v-if="pack" class="-mx-5 mt-10 border-t border-outline-gray-1 lg:hidden">
-                <PackPanel :pack="pack" :region="region" />
+              <!-- ⚠️ ONE PANEL PER PACK. The packs are disjoint slices of the
+                   catalogue, so there is no combined scope document to render
+                   and a merged panel would need a heading for a product nobody
+                   sells. -->
+              <div
+                v-if="packs.length"
+                class="-mx-5 mt-10 divide-y divide-outline-gray-1 border-t border-outline-gray-1 lg:hidden"
+              >
+                <PackPanel v-for="p in packs" :key="p.value" :pack="p" :region="region" />
               </div>
             </template>
 
@@ -455,19 +512,57 @@ const chooseService = (value) => {
             :partner="partner"
             :awaiting="awaitingPartner"
             @message="messagePartner(partner)"
-            @book="booking = true"
           />
-          <PackPanel v-if="pack" :pack="pack" :region="region" />
+          <div class="divide-y divide-outline-gray-1">
+            <PackPanel v-for="p in packs" :key="p.value" :pack="p" :region="region" />
+          </div>
+          <!-- ⚠️ THE RAIL IS REFERENCE, and help is reference. It sits under
+               the pack rather than in the page because a business opens a
+               project to see what it owes, not to read a handbook — and a
+               resources block above the checklist would be answering a question
+               nobody had yet. -->
+          <div class="border-t border-outline-gray-1 px-4 py-5">
+            <ProjectResources :partner="partner" @message="messagePartner(partner)" />
+          </div>
         </ScrollArea>
       </aside>
     </div>
 
-    <BookSlotDialog
-      v-if="partner"
-      :open="booking"
+    <!-- ⚠️ CLOSING THIS DOES NOT TICK THE TASK, unlike the two dialogs below
+         it. Reading a code is not entering it — the work happens in another
+         product, and the third step in the dialog says to come back and tick it.
+         A checkbox that ticks itself when you close a dialog is a tracker
+         recording something it did not witness. -->
+    <PartnerCodeDialog v-model:open="hosting" :project="project" :partner="partner" />
+    <RatePartnerDialog
+      v-model:open="rating"
+      :project="project"
       :partner="partner"
-      @book="onBooked"
-      @close="booking = false"
+      @done="tickByAction('feedback')"
     />
+    <AgreeTermsDialog v-model:open="terms" :partner="partner" @agreed="tickByAction('terms')" />
+
+    <!-- ⚠️ CHOOSING ASKS ONE QUESTION ON THE WAY OUT, and it is four buttons
+         rather than a form: the answer is worth having and not worth a screen.
+         Dismissing without answering still chooses the partner — the choice is
+         the point and the question is the favour. -->
+    <Dialog
+      :model-value="Boolean(chosen)"
+      :title="`Why ${chosen?.name ?? ''}?`"
+      @update:model-value="!$event && confirmChoice(null)"
+    >
+      <!-- Default slot, not `#body-content` — see the note in
+           `NewProjectDialog`; the older name fails silently. -->
+      <template #default>
+        <p class="text-p-base leading-relaxed text-ink-gray-6">
+          One tap, and it stays between you and Frappe — it tells us what actually decides these,
+          which is how the replies get sorted better next time.
+        </p>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <Button v-for="w in WHY" :key="w" :label="w" @click="confirmChoice(w)" />
+        </div>
+        <Button class="mt-4" variant="ghost" label="Skip" @click="confirmChoice(null)" />
+      </template>
+    </Dialog>
   </ConnectShell>
 </template>
