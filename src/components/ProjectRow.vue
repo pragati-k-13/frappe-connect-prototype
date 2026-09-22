@@ -6,7 +6,7 @@ import { logoFor } from '../data/logos'
 import { PARTNERS } from '../data/partners'
 import { serviceOf, stageOf, stageWork, windowFor } from '../data/project'
 
-// One project in the Implementation list.
+// One project in the Projects list.
 //
 // ⚠️ The MARK is the fastest thing in the row, so it carries the fact the row
 // is most often scanned for: whether this work has someone on it. A partner's

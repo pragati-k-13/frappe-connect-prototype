@@ -144,7 +144,7 @@ const routes = [
   //
   // A LIST and a detail, not one screen. A business routinely has more than one
   // thing on — a pack running while a custom piece is being scoped — and the
-  // rail's "Implementation" row, inert until now, is this index.
+  // rail's "Projects" row, inert until now, is this index.
   {
     path: '/connect/projects',
     name: 'projects',

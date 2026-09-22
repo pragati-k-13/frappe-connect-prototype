@@ -8,7 +8,7 @@ import ProjectRow from '../components/ProjectRow.vue'
 import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 
-// SCREEN — Implementation. Everything the account is tracking.
+// SCREEN — Projects. Everything the account is tracking.
 //
 // ⚠️ A LIST, not a single project, and that is the decision this screen is
 // built around. A business routinely has more than one thing on — a starter
@@ -16,7 +16,7 @@ import { useConnectStore } from '../stores/connect'
 // months before either — and a single-project screen would have had to pick one
 // of them to be "the" project and hide the rest.
 //
-// It is also the rail's "Implementation" row, which was inert until now. The
+// It is also the rail's "Projects" row, which was inert until now. The
 // row exists in `ConnectShell` for exactly this destination.
 const store = useConnectStore()
 const router = useRouter()
@@ -48,18 +48,13 @@ const create = (details) => {
 </script>
 
 <template>
-  <ConnectShell root-label="Implementation" root-to="/connect/projects">
-    <!-- ⚠️ NO TOP-BAR ACTION, and the gap it leaves is worth knowing about. This
-         screen used to carry New project as the bar's trailing control, on the
-         grounds that it was the one thing here that isn't opening a row.
-
-         With it gone, the only New project button left is the EMPTY STATE's —
-         so an account that already has one project has no way to start a second
-         from this screen. That is survivable because starting a project is no
-         longer something you come here to do: an inquiry makes one
-         (`ContactPartnerDialog`), and so does booking a pack. The tracker
-         tracks. But if a second door is ever wanted back, this is where it
-         went, and the note below it is the argument for the bar over the page.
+  <ConnectShell root-label="Projects" root-to="/connect/projects">
+    <!-- ⚠️ NO TOP-BAR ACTION, and that part still holds. New project lived here
+         as the bar's trailing control on the grounds that it was the one thing
+         on this screen that isn't opening a row; it sits on the list's own
+         header line instead, where it is next to the thing it adds to rather
+         than in the chrome above it. The bar is where you are, not what you can
+         do to it. See the note on that row for why the button itself came back.
     -->
     <!-- 800 and `py-8`, matching the partner list and the pack catalogue. This
          app has one measure for a listing and this is it. -->
@@ -96,16 +91,39 @@ const create = (details) => {
 
       <template v-else>
         <!-- ⚠️ NO `<h1>`, and that is the second version of this screen. The
-             first opened with "Implementation" — which the top bar already
+             first opened with "Projects" — which the top bar already
              says, in the same words, forty pixels above it. The other two
              listings in this app (partners, packs) carry a headline because
              neither top bar names what the list is FOR; this one does.
 
              What is left is the only thing a header can say that the rows
              cannot: how many there are, and which end is the new end. -->
-        <p class="text-p-sm text-ink-gray-5">
-          {{ ordered.length }} {{ ordered.length === 1 ? 'project' : 'projects' }}, newest first
-        </p>
+        <!-- ⚠️ THE SECOND DOOR IS BACK, and the note above the template is the
+             argument it lost. "Starting a project is not something you come
+             here to do" was true of a tracker whose projects all arrived from
+             somewhere else — a booking, an inquiry — but this list is now the
+             index of everything, reached from a rail row called Projects, and a
+             screen that lists a kind of thing and cannot make one is a screen
+             with a hole in it. The empty state has always had this button; it
+             disappeared the moment the first project existed, which is the one
+             moment it starts being needed regularly.
+
+             ⚠️ NOT THE HOME SCREEN'S `+`, deliberately. That one opens the
+             three questions and ends in a recommendation; this one opens
+             `NewProjectDialog` and ends in a project with no service yet. Two
+             different gestures, so two different shapes: an icon there, a named
+             button here. If they are ever meant to be one thing, that is a
+             decision about the flow, not about this row.
+
+             `subtle`, not `solid`: the empty state's button is the only thing
+             on the screen and earns the fill; here it sits above a list whose
+             rows are what the reader came for. -->
+        <div class="flex items-center justify-between gap-4">
+          <p class="text-p-sm text-ink-gray-5">
+            {{ ordered.length }} {{ ordered.length === 1 ? 'project' : 'projects' }}, newest first
+          </p>
+          <Button variant="subtle" size="sm" label="New project" @click="startNew" />
+        </div>
 
         <div class="mt-4">
           <ProjectRow v-for="p in ordered" :key="p.id" :project="p" />

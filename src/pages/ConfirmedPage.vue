@@ -147,7 +147,7 @@ const activity = computed(() => {
 const toastOnce = (title, description) => toast.info(title, { id: 'confirmed', description })
 
 // The project screen exists now, so this goes there. It used to raise a toast
-// naming the gap — `Implementation` in the sidebar was the row holding its
+// naming the gap — `Projects` in the sidebar was the row holding its
 // place, and both are wired up.
 //
 // ⚠️ Falls back to the index when there is no project behind the page, which is

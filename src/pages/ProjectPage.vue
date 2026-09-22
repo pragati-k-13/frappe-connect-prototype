@@ -293,7 +293,7 @@ const chooseService = (value) => {
        scroll. Same frame the Confirmed and Messages screens use. -->
   <ConnectShell
     flush
-    root-label="Implementation"
+    root-label="Projects"
     root-to="/connect/projects"
     :crumb="project?.name ?? 'Project'"
   >

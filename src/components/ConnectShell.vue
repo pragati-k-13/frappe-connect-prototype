@@ -94,7 +94,7 @@ const inHome = computed(() => HOME_ROUTES.has(route.name))
 //
 // ⚠️ GIVE FEEDBACK MOVED HERE FROM A RAIL ROW, and the rail was the wrong
 // place for it. The four rows above are PLACES — Messages, Home, Partners,
-// Starter packs, Implementation — and a fifth that opened a dialog over
+// Starter packs, Projects — and a fifth that opened a dialog over
 // wherever you already were did not belong in a list of destinations, however
 // carefully it was separated from them. This menu is the one that already
 // holds the thing you do rather than the place you go.
@@ -348,7 +348,7 @@ defineProps({
 
         <!-- ── Everywhere you can go ──────────────────────────────────────
              One flat list, no `SidebarLabel`. There used to be two — "Discover"
-             over the first two rows and "Your projects" over Implementation —
+             over the first two rows and "Your projects" over Projects —
              and the second was a heading for a group of one, which labels a
              section that doesn't exist yet rather than the row that's there.
              Dropping both leaves five rows total — six signed in, with Home —
@@ -411,8 +411,18 @@ defineProps({
                way, and `inProjects` is what keeps it lit on a project's own
                detail page — `SidebarItem` compares whole paths, so a child
                route lights nothing on its own. -->
-          <Tooltip text="Implementation" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Implementation" to="/connect/projects" :active="inProjects">
+          <!-- ⚠️ "Projects", AND THE WORD IT REPLACES WAS DOING THREE JOBS.
+               "Implementation" is half a service name (Custom implementation),
+               it is a STAGE inside a pack project — the page under this row has
+               a button reading "Move to Implementation" — and it was the name
+               of the list of everything. Three meanings in one product, and the
+               list was the only one of the three that had another word
+               available. Everything the list actually says already used it: the
+               rows are projects, the count line says "3 projects", the empty
+               state's button says New project, the route is /connect/projects
+               and the home screen says "You have 2 active projects". -->
+          <Tooltip text="Projects" side="right" :offset="8" :disabled="!collapsed">
+            <SidebarItem label="Projects" to="/connect/projects" :active="inProjects">
               <template #prefix><LucideListChecks class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>
