@@ -3,7 +3,16 @@ import { APPS, PARTNERS } from '../data/partners'
 // Two consumers: `industryCounts`, the group totals on the industry filter's
 // headings, and `saveCompany`, which derives a segment's group. Both need to
 // know which segments belong to which group.
-import { bidMessage, bookingThread, briefThread, contactThread, discoveryThreads } from '../data/messages'
+import {
+  DECLINE_REASONS,
+  bidMessage,
+  bookingThread,
+  briefThread,
+  contactThread,
+  declineMessage,
+  discoveryThreads,
+  repFor,
+} from '../data/messages'
 import { demoProjects, inquiryName, nextStage, projectName, stagesFor } from '../data/project'
 import { modulesFor } from '../data/modules'
 import { INDUSTRIES } from '../data/quiz'
@@ -625,28 +634,6 @@ export const useConnectStore = defineStore('connect', {
       // service at all, and one whose partner has not been picked yet. Three
       // of the four would leave a state with no way to see it.
       this.projects = account === 'client' ? demoProjects() : []
-      // ⚠️ THE CUSTOM DEMO PROJECT NEEDS ITS REPLIES. Its own note calls it
-      // "the one the bid table is drawn against", and it was seeded with no
-      // broadcast and no bids — so the table never rendered on it and the
-      // stage had nothing under the bar but a heading. That was survivable
-      // while the stage also carried four checkboxes; the replies list IS the
-      // stage now, so an empty one is an empty screen.
-      //
-      // Seeded through the same two calls the real flow uses, rather than a
-      // hand-written array: `broadcast` names who was written to, and
-      // `simulateReplies` decides who answered and at what price. A demo built
-      // from the product's own functions cannot show a state the product
-      // cannot reach.
-      for (const project of this.projects) {
-        if (project.service !== 'custom' || project.stage !== 'choosing') continue
-        project.broadcast = {
-          at: Date.now() - 5 * 86400000,
-          partnerIds: PARTNERS.filter((p) => p.region === 'asia')
-            .slice(0, 6)
-            .map((p) => p.id),
-        }
-        this.simulateReplies(project.id)
-      }
       // ⚠️ SEEDED for the signed-in personas, because they are meant to read as
       // accounts that finished onboarding — `viewer.company` has said Northwind
       // all along, and `company` saying nothing made the store disagree with
@@ -661,11 +648,82 @@ export const useConnectStore = defineStore('connect', {
           ? { name: '', employees: '', segments: [], operations: '', problems: [] }
           : {
               name: this.viewer.company,
+              // ⚠️ `country` WAS MISSING and everything downstream reads it:
+              // `matchingPartners` turns it into a region, the pack catalogue
+              // prices against it, and the brief card carries it. Unset, a
+              // signed-in persona fell through to defaults everywhere and the
+              // reach line on the recommendation counted partners in no region
+              // at all.
+              country: 'India',
               employees: '11 to 50',
               segments: ['Discrete Manufacturing'],
               operations: 'disconnected',
               problems: ['integration', 'visibility'],
             }
+      // ⚠️ AFTER `company`, AND IT USED TO BE BEFORE IT. The brief each
+      // partner receives carries the industry and the headcount, read off
+      // `this.company` — and this block ran first, so every seeded brief card
+      // went out reading "Industry: Not given" and "Size: people". Nothing
+      // errored; the cards simply described a business with no answers, on the
+      // one screen whose job is showing what a partner was told.
+      // ⚠️ THE CUSTOM DEMO PROJECT NEEDS ITS REPLIES. Its own note calls it
+      // "the one the bid table is drawn against", and it was seeded with no
+      // broadcast and no bids — so the table never rendered on it and the
+      // stage had nothing under the bar but a heading. That was survivable
+      // while the stage also carried four checkboxes; the replies list IS the
+      // stage now, so an empty one is an empty screen.
+      //
+      // Seeded through the same two calls the real flow uses, rather than a
+      // hand-written array: `broadcast` names who was written to, and
+      // `simulateReplies` decides who answered and at what price. A demo built
+      // from the product's own functions cannot show a state the product
+      // cannot reach.
+      for (const project of this.projects) {
+        if (project.service !== 'custom' || project.stage !== 'choosing') continue
+        // ⚠️ EXCLUDES THE FIRM ALREADY ON ANOTHER PROJECT, which is a demo
+        // decision rather than a rule — a business can perfectly well send
+        // requirements to the partner delivering its pack. But the seeded pack
+        // partner was in this list, so its "Frappe has assigned you to us"
+        // conversation was silently dropped for having a thread already, and
+        // the inbox lost a whole conversation type to a coincidence.
+        //
+        // ⚠️ ALL NINE, NOT SIX. `repliesToBrief` answers for about two-thirds,
+        // and two of the silent ones are turned into declines below — at six
+        // that left nobody silent at all, so the "Requirements sent" group
+        // vanished and with it the one state the fold exists to show.
+        const busy = new Set(this.projects.map((pr) => pr.partnerId).filter(Boolean))
+        const partners = PARTNERS.filter((p) => p.region === 'asia' && !busy.has(p.id))
+        project.broadcast = { at: Date.now() - 5 * 86400000, partnerIds: partners.map((p) => p.id) }
+        // ⚠️ THE THREADS HAVE TO BE CREATED TOO, and the first version of this
+        // seed set `broadcast` and called `simulateReplies` without them. That
+        // silently half-worked: `simulateReplies` writes `project.bids` either
+        // way, so the project page showed five replies while the INBOX showed
+        // none — the bid messages were pushed into threads that did not exist.
+        // `briefThread` is what `broadcastBrief` uses, so the seeded inbox has
+        // the same shape a real send produces.
+        const brief = {
+          projectId: project.id,
+          project: project.name,
+          scope: this.brief.scope || 'Barcode scanning on goods receipt, wired into our WMS.',
+          budget: this.brief.budget || 'inr-2',
+          country: this.company.country,
+          employees: this.company.employees,
+          segments: this.company.segments,
+        }
+        for (const partner of partners) {
+          if (!this.threads.some((t) => t.partnerId === partner.id)) {
+            this.threads.push(briefThread(partner, brief))
+          }
+        }
+        this.simulateReplies(project.id)
+        this.seedBroadcastVariety(project)
+      }
+      // ⚠️ CLIENT ONLY, and it was unguarded — so the "Exploring partners"
+      // persona, whose whole point is an inbox of discovery conversations and
+      // nothing else, was handed the client's direct outreach and its quiet
+      // thread as well. The projects loop above is naturally a no-op for that
+      // persona because it has no projects; this one is not.
+      if (account === 'client') this.seedClientConversations()
     },
 
     // Booking a pack starts a conversation carrying three things — see
@@ -808,6 +866,132 @@ export const useConnectStore = defineStore('connect', {
       const project = this.projects.find((p) => p.id === id)
       if (!project) return
       project.partnerId = partnerId
+    },
+
+    // ── The demo inbox ───────────────────────────────────────────────────
+    // ⚠️ A BROADCAST PRODUCES MORE THAN TWO OUTCOMES, and the seed produced
+    // two: quoted, or silent. Real ones also come back declined, and the ones
+    // that were quoted go on to be shortlisted or passed — which is the whole
+    // range the inbox has states for and had nothing to show them with.
+    //
+    // ⚠️ IT WRITES THE SAME SHAPES THE PRODUCT WRITES. A decline is
+    // `declineMessage`, a shortlist goes through `setBidState` so the company
+    // card is appended exactly as it would be in use. A demo assembled by hand
+    // can show a state the product cannot reach; this one cannot.
+    seedBroadcastVariety(project) {
+      const silent = (project.broadcast?.partnerIds ?? []).filter(
+        (id) => !(project.bids ?? []).some((b) => b.partnerId === id),
+      )
+      // ⚠️ ALWAYS LEAVES ONE SILENT. Turning every non-replier into a decline
+      // emptied the "Requirements sent" fold, which is the one place the inbox
+      // shows a broadcast still running — and a broadcast where every firm has
+      // answered one way or the other is exactly what `repliesToBrief` exists
+      // to prevent. Two declines where there is room, one where there is not,
+      // none where only one partner is quiet.
+      silent.slice(0, Math.max(0, Math.min(2, silent.length - 1))).forEach((id, i) => {
+        const partner = PARTNERS.find((p) => p.id === id)
+        const thread = this.threads.find((t) => t.partnerId === id)
+        if (!partner || !thread) return
+        thread.messages.push(
+          declineMessage(partner, DECLINE_REASONS[i % DECLINE_REASONS.length], Date.now() - (i + 1) * 86400000),
+        )
+      })
+
+      // One quote shortlisted and one passed on, so the comparison table opens
+      // with something in it and the inbox shows both settled states.
+      const bids = project.bids ?? []
+      if (bids[0]) this.setBidState(project.id, bids[0].partnerId, 'shortlisted')
+      if (bids[1]) this.setBidState(project.id, bids[1].partnerId, 'passed')
+
+      // ⚠️ THE CONVERSATION CONTINUES AFTER A SHORTLIST, which is the point of
+      // shortlisting — the company card goes out and the two of you start
+      // talking. Without this the "Shortlisted" thread ends on the customer's
+      // own card, which reads as a gesture nobody answered.
+      const first = bids[0] && this.threads.find((t) => t.partnerId === bids[0].partnerId)
+      if (first) {
+        const partner = PARTNERS.find((p) => p.id === bids[0].partnerId)
+        first.messages.push({
+          id: `m-sl-${bids[0].partnerId}`,
+          from: 'them',
+          at: Date.now() - 2 * 3600 * 1000,
+          kind: 'text',
+          author: repFor(partner?.name ?? ''),
+          body: 'Thanks for sharing the details. Could we put half an hour in the diary this week to walk through the warehouse side before we firm up the estimate?',
+        })
+      }
+    },
+
+    // Conversations the client persona has that are NOT the broadcast: the
+    // partner it was assigned with its pack, somebody it approached directly,
+    // and one that went quiet long enough to fall out of the Active tab.
+    //
+    // ⚠️ THE QUIET ONE IS DATED PAST `INACTIVE_AFTER` rather than flagged. The
+    // tab is derived from the last message, so a seed that wants to appear
+    // there has to actually be old — which is also what keeps the demo honest
+    // when somebody changes the threshold.
+    seedClientConversations() {
+      const add = (name, messages, extra = {}) => {
+        const partner = PARTNERS.find((p) => p.name === name)
+        if (!partner || this.threads.some((t) => t.partnerId === partner.id)) return
+        this.threads.push({
+          id: partner.id,
+          partnerId: partner.id,
+          startedAt: messages[0]?.at ?? Date.now(),
+          ...extra,
+          messages,
+        })
+      }
+      const at = (days, hours = 0) => Date.now() - days * 86400000 - hours * 3600 * 1000
+
+      const assigned = PARTNERS.find((p) => p.id === this.projects.find((p2) => p2.service === 'pack')?.partnerId)
+      if (assigned) {
+        add(assigned.name, [
+          {
+            id: 'm-pack-1',
+            from: 'you',
+            at: at(18),
+            kind: 'text',
+            body: 'Hi — we have just bought the Accounts, Sales, Purchase, Stock and Manufacturing starter packs and Frappe has assigned you to us. Here is where we are today.',
+          },
+          { id: 'm-pack-2', from: 'you', at: at(18), kind: 'company' },
+          {
+            id: 'm-pack-3',
+            from: 'them',
+            at: at(17, 20),
+            kind: 'text',
+            author: repFor(assigned.name),
+            body: 'Got it, thanks. We have the site provisioned — once your Frappe Cloud code is on it we can start the import. Is the opening balance data coming from Tally?',
+          },
+        ])
+      }
+
+      add('Korecent', [
+        {
+          id: 'm-direct-1',
+          from: 'you',
+          at: at(3),
+          kind: 'text',
+          body: 'We saw your Shopify case study. Do you take on integration work alongside an implementation somebody else is delivering?',
+        },
+      ])
+
+      add('ALYF', [
+        {
+          id: 'm-quiet-1',
+          from: 'you',
+          at: at(63),
+          kind: 'text',
+          body: 'Hello — are you taking on European clients with an Indian head office?',
+        },
+        {
+          id: 'm-quiet-2',
+          from: 'them',
+          at: at(62),
+          kind: 'text',
+          author: repFor('ALYF'),
+          body: 'We do, though the contracting entity would need to be the German one. Let us know if that works and we can go from there.',
+        },
+      ])
     },
 
     // Record a task as finished.

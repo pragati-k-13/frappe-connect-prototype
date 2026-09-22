@@ -23,7 +23,7 @@ import ConnectShell from '../components/ConnectShell.vue'
 import CompanyDetailsDialog from '../components/CompanyDetailsDialog.vue'
 import { PARTNERS } from '../data/partners'
 import { logoFor } from '../data/logos'
-import { isActive, lastAt } from '../data/messages'
+import { STATUS_LABELS, isActive, lastAt, threadStatus } from '../data/messages'
 import { budgetLabel } from '../data/custom'
 import { useConnectStore } from '../stores/connect'
 
@@ -185,18 +185,47 @@ const preview = (thread) => {
       ? 'Company details'
       : m.kind === 'call'
         ? 'Introduction call'
-        : m.kind === 'bid'
-          ? `Quoted ${m.bid.price}`
-          : m.kind === 'brief'
-            ? m.brief.project
-            : // The project's name, not the word "Inquiry": the preview line is
-              // read down a column of firms, and which project it was about is
-              // the part that tells them apart.
-              m.kind === 'inquiry'
-              ? m.inquiry.project
-              : asText(m.body)
+        : m.kind === 'decline'
+          ? // ⚠️ THE REASON, NOT THE WORD. This said "Declined" until the badge
+            // beside it started saying "Declined" too, and a row reading
+            // "Declined · Declined" is the state printed twice with the one
+            // useful fact — why — left out. The badge carries the state; the
+            // preview carries what was said. Truncation is fine here: the first
+            // few words of "We are at capacity until the new year" are the
+            // part worth scanning.
+            m.reason
+          : m.kind === 'bid'
+            ? // The figure alone, for the same reason: the badge says "Quoted".
+              m.bid.price
+            : m.kind === 'brief'
+              ? m.brief.project
+              : // The project's name, not the word "Inquiry": the preview line
+                // is read down a column of firms, and which project it was
+                // about is the part that tells them apart.
+                m.kind === 'inquiry'
+                ? m.inquiry.project
+                : asText(m.body)
   return m.from === 'you' ? `You: ${body}` : body
 }
+
+// ── What kind of conversation each row is ───────────────────────────────────
+// ⚠️ ONE BADGE, AND MOST ROWS HAVE NONE. A broadcast now produces five
+// outcomes — awaiting, declined, quoted, shortlisted, passed — and the preview
+// line cannot carry them: it is the last thing SAID, which for a shortlisted
+// thread is whatever the two of you talked about afterwards. The badge is the
+// state; the preview is the conversation. A label on every row would be a label
+// on none of them, so an ordinary back-and-forth gets nothing.
+//
+// The bid's state lives on its PROJECT, so it is looked up here and handed to
+// `threadStatus` — that file has no store.
+const bidStateFor = (thread) => {
+  const project = store.projects.find((p) =>
+    (p.bids ?? []).some((b) => b.partnerId === thread.partnerId),
+  )
+  return project?.bids?.find((b) => b.partnerId === thread.partnerId)?.state ?? null
+}
+
+const statusOf = (thread) => STATUS_LABELS[threadStatus(thread, bidStateFor(thread))] ?? null
 
 const details = ref(false)
 
@@ -415,8 +444,17 @@ watch(open, toBottom)
                     </span>
                     <span class="shrink-0 text-p-xs text-ink-gray-5">{{ time(lastAt(t)) }}</span>
                   </span>
-                  <span class="mt-0.5 block truncate text-p-sm text-ink-gray-5">
-                    {{ preview(t) }}
+                  <span class="mt-0.5 flex items-center gap-1.5">
+                    <Badge
+                      v-if="statusOf(t)"
+                      variant="subtle"
+                      size="sm"
+                      :theme="statusOf(t).theme"
+                      :label="statusOf(t).label"
+                    />
+                    <span class="min-w-0 flex-1 truncate text-p-sm text-ink-gray-5">
+                      {{ preview(t) }}
+                    </span>
                   </span>
                 </span>
               </button>
@@ -722,6 +760,26 @@ watch(open, toBottom)
                   <p class="mt-3 text-p-sm text-ink-gray-5">
                     Your company name and contact details are shared only when you approve a reply.
                   </p>
+                </div>
+
+                <!-- ── A partner saying no ────────────────────────────────
+                     ⚠️ A CARD, NOT A GREY SENTENCE, and it carries the reason
+                     in full. A decline is the one partner message the customer
+                     cannot reply their way out of, so the thread should make it
+                     unmistakable — and the reason is the only useful thing in
+                     it: "at capacity until the new year" is worth knowing, "we
+                     have declined" is not.
+                     ⚠️ NO CONTROLS. There is nothing to approve, nothing to
+                     pass on, and offering to message back would invite somebody
+                     to argue with a firm that has already said no. -->
+                <div
+                  v-else-if="m.kind === 'decline'"
+                  class="mt-1.5 w-fit max-w-[480px] rounded-5 border border-outline-gray-2 bg-surface-gray-1 p-3.5"
+                >
+                  <p class="text-p-base font-medium text-ink-gray-8">
+                    {{ open.partner.name }} passed on this
+                  </p>
+                  <p class="mt-1 text-p-base leading-relaxed text-ink-gray-6">{{ m.reason }}</p>
                 </div>
 
                 <!-- ── A quote ────────────────────────────────────────────

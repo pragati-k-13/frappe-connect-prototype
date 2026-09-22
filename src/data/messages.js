@@ -144,6 +144,30 @@ const SEEDS = [
       ['you', ago(71), 'Can you share what a payroll rollout usually costs for 50 people?'],
     ],
   },
+  // ⚠️ THE BALL IS IN YOUR COURT, which is a state the inbox had none of.
+  // Every other seeded thread either ends with the partner answering or with
+  // silence; this one ends with a question waiting on the customer, which is
+  // the most common reason a promising conversation stalls.
+  {
+    name: 'New Indictrans',
+    messages: [
+      ['you', ago(2), 'We are scoping a move off Tally. Do you do the data migration yourselves?'],
+      [
+        'partner',
+        ago(1, 6),
+        'We do, though it depends what shape the data is in. How many years of history are you bringing across, and is it one company or several?',
+      ],
+    ],
+  },
+  // A partner who answered by saying no. See `declineMessage` — the same fact
+  // a broadcast produces, reached from an ordinary conversation instead.
+  {
+    name: 'Hybrowlabs',
+    messages: [
+      ['you', ago(9), 'Do you have availability for a manufacturing implementation starting next month?'],
+      ['decline', ago(8), 'We are at capacity until the new year, so we would not be able to start this properly.'],
+    ],
+  },
 ]
 
 export const discoveryThreads = () =>
@@ -151,8 +175,22 @@ export const discoveryThreads = () =>
     partnerId: idOf(s.name),
     // `author` on partner messages only. The viewer's own name is on the store
     // (`store.viewer`), which is the one human the screen already knew about.
+    //
+    // ⚠️ `'decline'` IS A THIRD SENDER IN THE SEED FORMAT, not a fourth field.
+    // It reads as a sender because that is what it is from the seed's point of
+    // view — the partner said something — and it saves every other row carrying
+    // a `kind` it does not use.
     messages: s.messages.map(([f, at, body]) =>
-      msg(f, at, f === 'partner' ? { body, author: repFor(s.name) } : { body }),
+      f === 'decline'
+        ? {
+            id: `m${++seq}`,
+            from: 'them',
+            at,
+            kind: 'decline',
+            reason: body,
+            author: repFor(s.name),
+          }
+        : msg(f, at, f === 'partner' ? { body, author: repFor(s.name) } : { body }),
     ),
   }))
     .filter((t) => t.partnerId)
@@ -234,6 +272,65 @@ export const bookingThread = ({ partner, packs }) => {
       { id: `m${++seq}`, from: 'you', at, kind: 'company' },
     ],
   }
+}
+
+// ── A partner saying no ─────────────────────────────────────────────────────
+// ⚠️ DECLINING IS NOT SILENCE, and the flow had only silence. A broadcast goes
+// to a dozen firms; some never answer, and some answer to say they are not
+// taking it. Those read identically in an inbox that models only "replied" and
+// "did not", and they are completely different facts to the business waiting:
+// one is a maybe that is still running, the other is a closed door you can stop
+// counting on.
+//
+// ⚠️ IT CARRIES A REASON, and the reasons are short and unapologetic. A partner
+// declining a brief is not a rejection of the company and the copy should not
+// sound like one — "we are full until March" is information; "unfortunately we
+// regret to inform you" is a form letter.
+export const DECLINE_REASONS = [
+  'We are at capacity until the new year, so we would not be able to start this properly.',
+  'This one is outside what we do — we do not take on integrations with legacy warehouse systems.',
+  'Our team does not have the industry experience this needs. We would rather say so than learn on your project.',
+  'The budget band is below the smallest engagement we can staff.',
+]
+
+export const declineMessage = (partner, reason, at = Date.now()) => ({
+  id: `dec-${partner.id}-${++seq}`,
+  from: 'them',
+  at,
+  kind: 'decline',
+  reason,
+  author: repFor(partner.name),
+})
+
+// ⚠️ ONE PLACE DECIDES WHAT A THREAD *IS*, because three surfaces ask: the row
+// badge, the preview line, and the empty-state copy. Derived from the messages
+// plus the project's own bid state — never stored, so a thread cannot disagree
+// with the conversation inside it.
+//
+// `bidState` is passed in rather than looked up, because this file has no
+// access to the store and the project is where a bid's state actually lives.
+export const threadStatus = (thread, bidState = null) => {
+  const msgs = thread?.messages ?? []
+  if (msgs.some((m) => m.kind === 'decline')) return 'declined'
+  const bid = [...msgs].reverse().find((m) => m.kind === 'bid')
+  if (bid) {
+    if (bidState === 'shortlisted') return 'shortlisted'
+    if (bidState === 'passed') return 'passed'
+    return 'quoted'
+  }
+  if (thread?.broadcast && !msgs.some((m) => m.from === 'them')) return 'awaiting'
+  return null
+}
+
+// What each status is called, and how loudly. `null` is the ordinary
+// conversation, which gets no badge at all — a label on every row is a label on
+// none of them.
+export const STATUS_LABELS = {
+  declined: { label: 'Declined', theme: 'gray' },
+  quoted: { label: 'Quoted', theme: 'blue' },
+  shortlisted: { label: 'Shortlisted', theme: 'green' },
+  passed: { label: 'Passed', theme: 'gray' },
+  awaiting: { label: 'Awaiting reply', theme: 'gray' },
 }
 
 // ── The custom broadcast ────────────────────────────────────────────────────
