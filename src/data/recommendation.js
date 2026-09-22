@@ -12,15 +12,18 @@
 // outside the printed scope is a change request. Both of those are real, and
 // the three custom triggers below are what falls out of them. The pack mapping
 // is a reading of the module catalogue, not a rule anybody has agreed.
-import { COMPANY_SIZES, OPERATIONS, PROBLEMS } from './company'
+import { COMPANY_SIZES, OPERATIONS } from './company'
 import { STARTER_PACKS } from './packs'
 import { GROUP_OF_SEGMENT } from './quiz'
 
-// The answer's own words, so a reason can quote the person back to themselves
-// rather than paraphrasing them into our vocabulary. The store holds what was
-// CHOSEN (`'outgrown'`, `['close', 'people']`); these turn it back into what
-// was read on screen.
-const problemLabel = (value) => PROBLEMS.find((p) => p.value === value)?.label ?? ''
+// ⚠️ THE VERDICT'S reasons still print an answer back, and that is a different
+// job from the per-pack lines below. Those recommend a product, so quoting the
+// buyer at themselves reads as a form echoing its own checkbox. These are the
+// EVIDENCE — "here is what we read" — and evidence that paraphrases the thing
+// it is evidence of cannot be checked.
+//
+// The store holds what was CHOSEN (`'outgrown'`, `['close', 'people']`); this
+// turns it back into what was read on screen.
 const operationsLabel = (value) => OPERATIONS.find((o) => o.value === value)?.label ?? ''
 
 // ── The size threshold ──────────────────────────────────────────────────────
@@ -91,9 +94,25 @@ const CUSTOM_TRIGGERS = [
 const anyManufacturing = (segments) =>
   (segments ?? []).some((s) => GROUP_OF_SEGMENT[s] === 'manufacturing')
 
-// Problems that are answered by the four core modules. Used to quote the
-// person's own words back: the reason names the first one they ticked.
-const CORE_PROBLEMS = ['manual-work', 'close', 'visibility', 'scale', 'integration']
+// ⚠️ WHAT THE PACK DOES ABOUT EACH PROBLEM, in the product's words. These used
+// to quote the answer straight back — `Covers "Systems that do not talk to each
+// other"` — which is a form echoing its own checkbox at the reader. It sounds
+// mechanical, it teaches nothing, and the one thing a person does not need
+// explaining is the sentence they just ticked.
+//
+// Each line now says what they GET, phrased against the thing they named. Still
+// answer-specific, so the screen keeps its argument; no longer a quotation, so
+// it reads as advice.
+//
+// ⚠️ The keys are the problems the four core modules answer. A problem that is
+// not here gets no core reason at all — see the fallback in the rule.
+const CORE_REMEDY = {
+  'manual-work': 'Stops the same order being typed into three places',
+  integration: 'One system for orders, invoices and stock, instead of three',
+  close: 'Month-end closes off the ledger your orders already write to',
+  visibility: 'Stock that moves when an order does',
+  scale: 'The base the rest of ERPNext is built on',
+}
 
 const PACK_RULES = {
   'accounts-sales-purchase-stock': (f) => {
@@ -103,22 +122,16 @@ const PACK_RULES = {
     // else gets it, including someone who ticked nothing that maps cleanly —
     // the modules are the floor of running a business on ERPNext.
     if (f.problems.length === 1 && f.problems[0] === 'people') return null
-    const named = f.problems.find((p) => CORE_PROBLEMS.includes(p))
-    // ⚠️ THE QUOTE IS THE WHOLE REASON, so the frame around it is three words.
-    // These carried a trailing clause explaining what the pack does with the
-    // problem — "These four modules are where that lives" — which is the
-    // screen telling somebody what they just read.
-    if (named) return `Covers “${problemLabel(named)}”`
-    return 'The floor — everything else in ERPNext reports into these'
+    const named = f.problems.find((p) => CORE_REMEDY[p])
+    return named ? CORE_REMEDY[named] : 'The base the rest of ERPNext is built on'
   },
   manufacturing: (f) => {
     if (!anyManufacturing(f.segments)) return null
-    const segment = f.segments.find((s) => GROUP_OF_SEGMENT[s] === 'manufacturing')
-    return `You are in ${segment}`
+    return 'Work orders and BOMs, planned against the stock you hold'
   },
   hrms: (f) => {
     if (!f.problems.includes('people')) return null
-    return `Covers “${problemLabel('people')}”`
+    return 'Attendance, leave and salaries off one employee record'
   },
 }
 
