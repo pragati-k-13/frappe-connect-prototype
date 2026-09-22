@@ -45,6 +45,7 @@
 // the two screens look nothing alike.
 import { useRouter } from 'vue-router'
 import { Button, ScrollArea } from 'frappe-ui'
+import SiteRail from '../components/SiteRail.vue'
 import { SUCCESS_STORIES } from '../data/partners'
 // The real mark, taken from frappe.io itself. Its corner radius is baked into
 // the artwork, so it takes no `rounded-*` of its own.
@@ -95,20 +96,6 @@ const BENEFITS = [
   },
 ]
 
-// ⚠️ THE ICON RAIL IS GONE, and it was the page's most convincing wrong thing.
-// Twelve grey glyphs down the left edge, `aria-hidden`, nothing interactive —
-// decoration standing exactly where navigation stands. The first person to look
-// at it clicked the envelope and asked whether it went to the contact page,
-// which is the whole argument: an element that looks like a nav is a nav, and
-// one that answers no click is broken rather than decorative.
-//
-// Wiring the envelope would have been worse — one live icon among eleven dead
-// ones makes the eleven look like a bug instead of a backdrop.
-//
-// It was also not the real site. frappe.io navigates by a horizontal top nav —
-// Home, Products, Partners, Contact — which this page now carries, so the rail
-// was costing a column and the page's only false affordance to imitate
-// something that is not there.
 </script>
 
 <template>
@@ -119,6 +106,8 @@ const BENEFITS = [
        `ScrollArea` gives it frappe-ui's overlay bar: thin, over the content, and
        faded out until you scroll or hover. -->
   <div class="flex h-screen bg-white text-ink-gray-8">
+
+    <SiteRail />
 
     <div class="flex min-h-0 min-w-0 flex-1 flex-col">
       <!-- Site chrome. 14px, the one place on the page that isn't 15.
@@ -135,13 +124,7 @@ const BENEFITS = [
       <header
         class="flex min-h-12 shrink-0 items-center justify-between border-b border-outline-gray-1 bg-white px-4 sm:px-5"
       >
-        <!-- ⚠️ THE MARK LIVES HERE NOW. It used to sit at the rail's top,
-             which was right while there was a rail — and it meant the branding
-             vanished below `md`, where the rail was hidden. In the bar it is
-             present at every width, and the two mocked site pages carry the
-             same chrome, which they should: they are one website. -->
         <nav class="flex items-center gap-2 text-[14px]" aria-label="Breadcrumb">
-          <img :src="frappeMark" alt="" class="size-6" />
           <a href="#" class="text-ink-gray-7 hover:underline">Frappe</a>
           <LucideChevronRight class="size-4 text-ink-gray-4" />
           <span class="text-ink-gray-6">Work with Partners</span>
@@ -154,17 +137,11 @@ const BENEFITS = [
              The wording is the real frappe.io's, and it's what Connect's own top
              bar says too (see `ConnectShell`), so a visitor meets the same
              control either side of the seam. -->
-        <!-- ⚠️ ONE GROUP, because `justify-between` on three children spreads
-             them across the bar and the site nav would have drifted into the
-             middle of it, reading as neither left nor right.
-             The Contact link is here because the two mocked site pages had no
-             way between them: `/contact` was reachable only by typing it, so
-             the walk a reviewer actually takes — site, contact, Connect — could
-             not be taken. -->
+        <!-- ⚠️ NO Contact LINK HERE. One was added when the rail was mistakenly
+             removed, and the real bar does not carry it — the rail does, which
+             is the whole point. Two routes to the same page, one of them
+             invented, would be worse than the nothing this replaced. -->
         <div class="flex items-center gap-5">
-          <RouterLink to="/contact" class="text-[14px] text-ink-gray-6 hover:text-ink-gray-8">
-            Contact
-          </RouterLink>
           <button
             type="button"
             class="flex items-center gap-1.5 text-[14px] font-medium text-ink-gray-7 hover:text-ink-gray-9"
