@@ -10,6 +10,7 @@ import ProjectBids from '../components/ProjectBids.vue'
 import ProjectDetailsPanel from '../components/ProjectDetailsPanel.vue'
 import ProjectPartnerPanel from '../components/ProjectPartnerPanel.vue'
 import ProjectResources from '../components/ProjectResources.vue'
+import FeedbackDialog from '../components/FeedbackDialog.vue'
 import ProjectStages from '../components/ProjectStages.vue'
 import RatePartnerDialog from '../components/RatePartnerDialog.vue'
 import IconArrowRight from '~icons/lucide/arrow-right'
@@ -131,6 +132,7 @@ const countdown = computed(() => {
 // ── Acting on a task ────────────────────────────────────────────────────────
 const hosting = ref(false)
 const rating = ref(false)
+const feedback = ref(false)
 
 // ⚠️ The task's `action` names a KIND, not a handler — the data layer knows a
 // task needs a slot booked, and this is the screen that knows what booking a
@@ -529,7 +531,11 @@ const chooseService = (value) => {
                resources block above the checklist would be answering a question
                nobody had yet. -->
           <div class="border-t border-outline-gray-1 px-4 py-5">
-            <ProjectResources :partner="partner" @message="messagePartner(partner)" />
+            <ProjectResources
+              :partner="partner"
+              @message="messagePartner(partner)"
+              @feedback="feedback = true"
+            />
           </div>
         </ScrollArea>
       </aside>
@@ -553,6 +559,7 @@ const chooseService = (value) => {
          rather than a form: the answer is worth having and not worth a screen.
          Dismissing without answering still chooses the partner — the choice is
          the point and the question is the favour. -->
+    <FeedbackDialog v-model:open="feedback" />
     <HirePartnerDialog
       v-model:open="hiring"
       :partner="chosen"

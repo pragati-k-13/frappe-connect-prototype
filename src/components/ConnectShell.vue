@@ -39,6 +39,7 @@ import {
   Tooltip,
 } from 'frappe-ui'
 import ConnectMark from './ConnectMark.vue'
+import FeedbackDialog from './FeedbackDialog.vue'
 import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 
@@ -139,6 +140,11 @@ const unread = computed(() => (store.hasProject ? 3 : 0))
 // the user has to travel to — the same behaviour as the drag handles in Notion
 // and Linear.
 const railY = ref(0)
+
+// ⚠️ THE ONE PIECE OF STATE THE SHELL OWNS THAT IS NOT NAVIGATION. It is here
+// rather than on each page because the dialog has to be reachable from all of
+// them; see the note beside the rail row.
+const feedback = ref(false)
 const onRailMove = (e) => {
   railY.value = e.clientY - e.currentTarget.getBoundingClientRect().top
 }
@@ -395,8 +401,41 @@ defineProps({
             </SidebarItem>
           </Tooltip>
         </nav>
+
+        <!-- ── Give feedback ─────────────────────────────────────────────
+             ⚠️ IN THE RAIL BECAUSE "ANYTIME" MEANS EVERY SCREEN. It is also in
+             the project page's Help panel, which is where it was asked for —
+             but that panel exists on one screen out of a dozen, so a person who
+             wanted to say something about the checkout, the recommendation or
+             the directory would have had to navigate to a project to say it.
+             The rail is the only surface every screen shares.
+
+             ⚠️ SEPARATED FROM THE NAV, not a fifth row in it. The four above
+             are places in the product and this is not a place — it opens a
+             dialog over wherever you already are, which is the point: the
+             screen you are on is the most useful thing attached to the
+             sentence. `mt-1` and its own `nav`-less wrapper keep it out of the
+             list a screen reader reads as the sections of this app. -->
+        <div class="mt-1">
+          <Tooltip text="Give feedback" side="right" :offset="8" :disabled="!collapsed">
+            <!-- ⚠️ `:on-click`, NOT `@click`. `SidebarItem` declares `onClick`
+                 as a PROP and calls it from its own internal handler
+                 (`props.onClick?.(event)`); a `@click` listener lands on the
+                 component's root `div` as a fallthrough attr instead, so the
+                 inner button's click never reaches the prop and the row does
+                 nothing. It fires, it just fires into the void — verified with
+                 a capture listener before finding this. See FRAPPE-UI-NOTES.md. -->
+            <SidebarItem label="Give feedback" :on-click="() => (feedback = true)">
+              <template #prefix>
+                <LucideMessageSquareQuote class="size-4 text-ink-gray-6" />
+              </template>
+            </SidebarItem>
+          </Tooltip>
+        </div>
       </ScrollArea>
     </Sidebar>
+
+    <FeedbackDialog v-model:open="feedback" />
 
     <div class="relative flex min-w-0 flex-1 flex-col">
       <!-- ── Collapse handle ──────────────────────────────────────────────

@@ -259,6 +259,13 @@ export const useConnectStore = defineStore('connect', {
     // it is published on their profile — and the project is only where it was
     // collected.
     feedback: [],
+    // ⚠️ UNPROMPTED, AND THE ONLY ONE OF THE THREE THAT IS. `recoFeedback` and
+    // `feedback` are both answers to a question Frappe chose to ask at a moment
+    // Frappe chose — which is what makes them answerable, and what makes them
+    // blind to anything nobody predicted. This is whatever somebody types into
+    // the rail's Give feedback dialog, from any screen, at any time:
+    // `{ text, route, at }`. See `FeedbackDialog`.
+    productFeedback: [],
     // What the onboarding screen collected. `name` is the company's, which is
     // also mirrored onto `viewer.company` — the sidebar and the quote header
     // read the viewer, and two names for one company drift apart.
@@ -749,6 +756,13 @@ export const useConnectStore = defineStore('connect', {
     // it is published on their profile — and the project is only where it was
     // collected.
     feedback: [],
+    // ⚠️ UNPROMPTED, AND THE ONLY ONE OF THE THREE THAT IS. `recoFeedback` and
+    // `feedback` are both answers to a question Frappe chose to ask at a moment
+    // Frappe chose — which is what makes them answerable, and what makes them
+    // blind to anything nobody predicted. This is whatever somebody types into
+    // the rail's Give feedback dialog, from any screen, at any time:
+    // `{ text, route, at }`. See `FeedbackDialog`.
+    productFeedback: [],
           partnerId: null,
           stage: null,
           done: [],
@@ -1322,6 +1336,22 @@ export const useConnectStore = defineStore('connect', {
     // to explain it is how a yes/no becomes a form people skip.
     recordRecoFeedback(ok, note = '') {
       this.recoFeedback = { ok, note: note.trim() }
+    },
+
+    // ⚠️ A LIST, NOT A FIELD, and it never replaces. The other two feedback
+    // records are about one thing each — a project's partner, the current
+    // recommendation — so writing over the previous answer is right for them.
+    // This one is unprompted and repeatable: somebody who says two things a
+    // week apart said two things, and keeping only the second would throw away
+    // the one that was bothering them first.
+    //
+    // `route` is recorded rather than asked for. "Which page were you on?" is a
+    // question the product can answer itself, and it is what turns "this is
+    // confusing" from noise into a defect report.
+    recordProductFeedback({ text, route }) {
+      const body = (text ?? '').trim()
+      if (!body) return
+      this.productFeedback = [...this.productFeedback, { text: body, route, at: Date.now() }]
     },
 
     recordFeedback({ projectId, partnerId, rating, text }) {

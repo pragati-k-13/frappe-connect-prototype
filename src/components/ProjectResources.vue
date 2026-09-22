@@ -1,6 +1,7 @@
 <script setup>
 import IconBook from '~icons/lucide/book-open'
 import IconLifeBuoy from '~icons/lucide/life-buoy'
+import IconFeedback from '~icons/lucide/message-square-quote'
 import IconMessage from '~icons/lucide/message-square'
 import IconExternal from '~icons/lucide/arrow-up-right'
 
@@ -10,8 +11,15 @@ import IconExternal from '~icons/lucide/arrow-up-right'
 // ⚠️ IT IS NOT A HELP CENTRE. Three entries, each answering a different
 // question: how do I learn this (the handbook), how do I ask my partner
 // something (the thread), and what if the problem is Frappe rather than the
-// partner (support). A fourth would be a link nobody clicks pushing the three
-// that matter down the panel.
+// partner (support).
+//
+// ⚠️ A FOURTH NOW, AND THE NOTE ABOVE ARGUED AGAINST ONE — "a link nobody
+// clicks pushing the three that matter down the panel". That is the right test
+// and Give feedback passes it, because it is not a fourth way to get help. The
+// three above are for a person who needs something; this is for a person who
+// has something to say, and there is nowhere else in the product to say it
+// except when Frappe asks — at a partner, at go-live, at the recommendation.
+// Feedback you can only give when asked is feedback about the questions.
 //
 // ⚠️ THE TWO CONTACTS ARE SEPARATE ON PURPOSE. "Contact" as one button is the
 // version that sends a complaint about a partner to that partner. The person
@@ -26,7 +34,7 @@ import IconExternal from '~icons/lucide/arrow-up-right'
 defineProps({
   partner: { type: Object, default: null },
 })
-const emit = defineEmits(['message'])
+const emit = defineEmits(['message', 'feedback'])
 
 // ⚠️ A real, public URL. The handbook is Frappe's own and the whole point of
 // linking it is that it is the thing that already exists.
@@ -74,6 +82,20 @@ const HANDBOOK = 'https://frappe.io/handbook'
                from the one above. -->
           <span class="min-w-0 text-p-base text-ink-gray-8">Contact Frappe</span>
         </a>
+      </li>
+      <li>
+        <button
+          type="button"
+          class="-mx-2 flex w-full items-center gap-2.5 rounded-5 px-2 py-1.5 text-left hover:bg-surface-gray-1"
+          @click="emit('feedback')"
+        >
+          <IconFeedback class="size-4 shrink-0 text-ink-gray-6" />
+          <!-- ⚠️ "Give feedback", not "Send feedback" or "Feedback". The verb
+               is the reader's rather than the product's — they are giving
+               something, unasked — and a bare noun would sit in a list of four
+               verbs-and-destinations reading as a section heading. -->
+          <span class="min-w-0 text-p-base text-ink-gray-8">Give feedback</span>
+        </button>
       </li>
     </ul>
   </section>
