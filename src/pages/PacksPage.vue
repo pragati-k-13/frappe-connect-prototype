@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
-import { Button, Tooltip } from 'frappe-ui'
+import { RouterLink, useRouter } from 'vue-router'
+import { Button, Checkbox, Tooltip } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import IconPricing from '~icons/lucide/circle-dollar-sign'
 import IconSpeed from '~icons/lucide/clock'
@@ -14,6 +14,7 @@ import {
   INCLUDED_IN_ALL,
   STRICTLY_EXCLUDED,
   asExclusion,
+  checkoutFor,
   priceFor,
   pricingFor,
   marketFor,
@@ -95,16 +96,41 @@ const packs = computed(() =>
   })),
 )
 
-// ⚠️ NO HANDLERS LEFT. The row used to carry two buttons — an info button that
-// opened the scope in a side panel, and a gated "Get started" that recorded the
-// pack and pushed the confirmation screen. Both are gone, and so is the panel:
-// the whole row is a link to the pack's own page, which now holds the scope,
-// the terms and the Confirm button that used to be four navigations away.
+// ── Picking more than one ───────────────────────────────────────────────────
+// ⚠️ THE ROWS ARE MULTI-SELECT, and the catalogue was the last screen where
+// they were not. The packs are DISJOINT slices of the module catalogue — that
+// is the first thing said at the top of this file — so a business that makes
+// what it sells needs two of them and one with staff needs three. A list of
+// four one-at-a-time links made the reader buy the same way three times, and
+// the recommendation screen four clicks away has had checkboxes and a total for
+// weeks. Two screens selling the same four products disagreed about whether you
+// could buy two.
 //
-// What that page does NOT do is gate on arrival. Reading a pack needs no
-// account and never did; the gate moved to Confirm, which is the gesture that
-// actually belongs to one. `store.selectPack` moved there too — the page reads
-// `?pack=` and writes it — so nothing here has to remember anything.
+// ⚠️ ONE BASKET, SHARED. `store.packs` is the same list the recommendation
+// ticks and the checkout charges, so a pack ticked here is in the basket
+// everywhere — and `seedRecommendedPacks` only fills an EMPTY basket, so
+// visiting the recommendation afterwards will not overwrite what was chosen
+// here.
+//
+// ⚠️ THE ROW IS NO LONGER ONE LINK. It used to be, with the anchor stretched
+// over the whole row (`after:inset-0`) — which cannot survive a checkbox inside
+// it: the stretched layer swallows every click that is not the name. So the
+// name keeps the link and the row keeps the checkbox, and the two jobs the row
+// now has — read this pack, buy this pack — have a target each.
+const router = useRouter()
+
+const bill = computed(() => checkoutFor(store.packRecords(), region.value))
+
+// ⚠️ THE GATE IS THE CHECKOUT, not this page. Reading and picking need no
+// account; paying does. Same `?next=` as the recommendation screen, so the two
+// entry points to the same purchase behave identically.
+const checkout = () => {
+  if (!store.packs.length) return
+  if (!store.signedIn) {
+    return router.push({ name: 'signup', query: { next: '/connect/checkout' } })
+  }
+  router.push({ name: 'checkout' })
+}
 </script>
 
 <template>
@@ -138,7 +164,15 @@ const packs = computed(() =>
       </dl>
 
       <section class="mt-24">
-        <h2 class="text-base font-semibold text-ink-gray-7">Starter Packs for your region</h2>
+        <div class="flex items-baseline justify-between gap-4">
+          <h2 class="text-base font-semibold text-ink-gray-7">Starter Packs for your region</h2>
+          <!-- ⚠️ ONE LINE SAYING THE LIST IS MULTI-SELECT, and it earns its
+               place because checkboxes alone do not say it: four of them read
+               as four independent yes/no purchases, not as one basket. It is
+               here rather than as a standfirst under the h1 — the fact is about
+               this list, and it is read on the way into it. -->
+          <p class="shrink-0 text-p-sm text-ink-gray-5">Take as many as you need</p>
+        </div>
 
         <!-- `divide-y` puts a rule BETWEEN rows and none after the last, which
              is exactly what the design asks for — no wrapper border to undo. -->
@@ -179,8 +213,22 @@ const packs = computed(() =>
                  narrow ribbon at the left with 60% of the row empty beside
                  it. -->
             <div
-              class="fc-partner-row-body flex items-start gap-6 border-b border-outline-gray-1 py-6"
+              class="fc-partner-row-body flex items-start gap-4 border-b border-outline-gray-1 py-6 sm:gap-6"
             >
+              <!-- ⚠️ NO `label` ON THE CHECKBOX. The row prints the pack's name
+                   itself, in a heading, and letting the control print it too
+                   put every name on the screen twice. `aria-label` keeps the
+                   control named for anyone who cannot see the row. Same
+                   decision, same wording, as the recommendation screen's rows.
+                   `mt-1` lands the 14px box on the cap-height of an 18px
+                   heading rather than on its baseline. -->
+              <Checkbox
+                class="mt-1"
+                size="md"
+                :model-value="store.packs.includes(pack.value)"
+                :aria-label="pack.name"
+                @update:model-value="store.togglePack(pack.value)"
+              />
               <div class="min-w-0 flex-1">
                 <!-- ⚠️ The anchor wraps the NAME only and stretches over the row
                      with `after:absolute after:inset-0`, the same device the
@@ -189,10 +237,17 @@ const packs = computed(() =>
                      name; this way the name is the name, and the hit area is
                      still the row. Nothing else in here is interactive, so
                      nothing has to climb back above the stretched layer. -->
+                <!-- ⚠️ THE STRETCHED ANCHOR IS GONE (`after:absolute
+                     after:inset-0`). It made the whole row one link, which is
+                     right for a list whose only gesture is "open this" and
+                     impossible beside a checkbox — the stretched layer sits
+                     over the row and swallows every click that is not the
+                     name, including the tick. The link is the name now, and the
+                     row's hover fill stays as the affordance that it is a row. -->
                 <h3 class="text-lg font-medium text-ink-gray-8">
                   <RouterLink
                     :to="{ name: 'pack', params: { id: pack.value } }"
-                    class="after:absolute after:inset-0 after:content-['']"
+                    class="hover:underline"
                   >
                     {{ pack.name }}
                   </RouterLink>
@@ -223,6 +278,41 @@ const packs = computed(() =>
             </div>
           </li>
         </ul>
+
+        <!-- ── What it comes to ─────────────────────────────────────────
+             ⚠️ UNDER THE LIST, not sticky and not a rail. The recommendation
+             screen carries a sticky rail because it is 1080 wide and its reader
+             has already decided to buy; this page is 800 and its reader is
+             still reading. A bar chasing them down a catalogue would be selling
+             at somebody still browsing — and the recommendation screen rejected
+             exactly that bar for the same reason before settling on the rail.
+             ⚠️ IT DOES NOT LIST THE PACKS. The rows above ARE the line items,
+             with a price on each; repeating them here would be the third
+             printing of the same four figures.
+             ⚠️ The tax is named, and dropped where a market has no decided rate
+             rather than invented — see `checkoutFor`. -->
+        <div
+          v-if="store.packs.length"
+          class="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-6 border border-outline-gray-2 p-4"
+        >
+          <div class="min-w-0">
+            <p class="text-p-sm text-ink-gray-5">
+              {{ store.packs.length }} {{ store.packs.length === 1 ? 'pack' : 'packs' }}
+            </p>
+            <p class="mt-0.5 text-2xl font-semibold tabular-nums text-ink-gray-9">
+              {{ bill.total }}
+            </p>
+            <p class="mt-1 text-p-sm leading-relaxed text-ink-gray-5">
+              <template v-if="bill.exact">{{ bill.subtotal }} plus {{ bill.taxLabel }}</template>
+              <template v-else>{{ bill.subtotal }} before {{ bill.taxLabel }}</template>
+              · {{ bill.hours }} hours
+            </p>
+          </div>
+          <div class="shrink-0">
+            <Button variant="solid" size="md" label="Check out" @click="checkout" />
+            <p class="mt-2 text-p-sm text-ink-gray-5">Paid to Frappe, in full and up front.</p>
+          </div>
+        </div>
       </section>
 
       <!-- ── What every pack does and doesn't cover ─────────────────────
