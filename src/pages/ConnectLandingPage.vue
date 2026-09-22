@@ -43,7 +43,7 @@ const form = reactive(emptyCompanyForm())
 // `companyErrors` in `data/company.js`. There is no Skip on this page any more.
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button, Progress, ScrollArea } from 'frappe-ui'
+import { Button, ScrollArea } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import CompanyQuestions from '../components/CompanyQuestions.vue'
 import DottedWorldMap from '../components/DottedWorldMap.vue'
@@ -76,8 +76,6 @@ const errors = computed(() => (tried.value ? stepErrors(form, step.value) : {}))
 const highlight = computed(() =>
   form.country ? [form.country, REGION_OF[form.country]].filter(Boolean) : [],
 )
-
-const progress = computed(() => (step.value / TOTAL) * 100)
 
 const next = () => {
   if (!stepComplete(form, step.value)) {
@@ -155,19 +153,25 @@ const restartQuiz = () => {
             </span>
           </div>
 
-          <!-- ⚠️ `Progress` with `intervals`, the same control the contact
-               wizard uses for the same three steps — three equal segments, one
-               per question. Hand-rolling a second row of bars is how two
-               surfaces showing one sequence come to disagree about how far
-               along it is. -->
-          <Progress class="mt-2" :value="progress" size="sm" :interval-count="TOTAL" intervals />
+          <!-- ⚠️ NO PROGRESS BAR. There was one here — `Progress` with three
+               intervals, the same control the contact wizard uses — and it sat
+               directly under a "1 / 3" saying the same thing. Two indicators of
+               one position is one too many, and the bar was the weaker of them:
+               it says how far along you are without saying how far there is to
+               go, which over three steps is the only fact worth having. The
+               counter stays. -->
 
           <!-- ⚠️ THE SAME COMPONENT THE CONTACT WIZARD ASKS THESE WITH. They
                were this page's own markup once and the wizard's own markup
                beside it, and the two drifted within a week — one asked for a
                segment, the other for an industry. `CompanyQuestions` is the
                fields; this page owns the sequence and the buttons. -->
-          <div class="mt-4">
+          <!-- ⚠️ `mt-5`, up from `mt-4`. The bar used to sit between this and
+               the step's name and carried its own 8px above it; taking it out
+               left the first field's label 16px under a heading, which is the
+               gap between two fields rather than between a heading and what it
+               heads. -->
+          <div class="mt-5">
             <Transition name="step" mode="out-in">
               <div :key="step">
                 <CompanyQuestions :step="step" :form="form" :errors="errors" />
