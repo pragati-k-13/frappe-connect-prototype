@@ -422,14 +422,20 @@ const chooseService = (value) => {
               </div>
 
               <!-- ── The replies ─────────────────────────────────────────
-                   ⚠️ ONLY WHILE THE STAGE IS "Choosing a partner". The guard
-                   was `service === 'custom' && broadcast`, and a broadcast is
-                   true forever — so the table followed the project into
-                   Hosting, Build and Live, holding five firms' quotes beside
-                   work already under way, with an "Others 4" tab offering to
-                   reopen a decision that had been made. This list IS the
-                   choosing stage; when the stage ends it ends.
-                   The stage key is the whole guard: only the custom spine has
+                   ⚠️ WHILE THE STAGE IS "Choosing a partner" AND NOBODY IS
+                   HIRED YET. Two guards, and the second was missing: the first
+                   pass tied this to the stage alone, on the reasoning that the
+                   window between hiring somebody and pressing "Move to Hosting"
+                   was the stage confirming what you had just done. It is not.
+                   A comparison table with a Shortlisted tab and an Others tab
+                   is a surface for MAKING the decision, and the decision is
+                   made — the row that says "Hired" is the only part still true,
+                   and it is saying it inside a control for choosing between
+                   firms.
+                   Before that, the guard was `service === 'custom' &&
+                   broadcast`, and a broadcast is true forever, so the table
+                   followed the project into Hosting, Build and Live.
+                   The stage key carries the service: only the custom spine has
                    a `choosing`, so testing the service as well would be a
                    second condition saying the same thing.
                    ⚠️ Still above the advance button. That button ends the
@@ -439,7 +445,10 @@ const chooseService = (value) => {
                    the partner in the rail and the quote as the project's Cost —
                    and the quotes themselves are still in each firm's thread in
                    Messages, which is where they arrived. See `ProjectBids`. -->
-              <div v-if="project.stage === 'choosing' && project.broadcast" class="mt-10">
+              <div
+                v-if="project.stage === 'choosing' && project.broadcast && !project.partnerId"
+                class="mt-10"
+              >
                 <ProjectBids :project="project" @choose="choose" />
               </div>
 
