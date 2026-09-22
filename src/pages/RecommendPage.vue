@@ -19,7 +19,6 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, Checkbox, FormControl, Textarea, TextInput, toast } from 'frappe-ui'
-import IconCheck from '~icons/lucide/check'
 import ConnectShell from '../components/ConnectShell.vue'
 import FilterChip from '../components/FilterChip.vue'
 import { useConnectStore } from '../stores/connect'
@@ -174,10 +173,12 @@ watch(view, () => {
          hero is the only screen that opts out, because the map needs width. -->
     <div class="mx-auto w-full max-w-[800px] px-5 py-10 lg:px-10">
       <!-- ── The verdict ─────────────────────────────────────────────── -->
-      <p class="text-p-sm font-medium uppercase tracking-wide text-ink-gray-5">
-        {{ overridden ? 'Your choice' : 'Based on your answers' }}
-      </p>
-      <h1 class="mt-1.5 text-2xl font-semibold text-ink-gray-9">
+      <!-- ⚠️ NO EYEBROW. There was a tracked-out "BASED ON YOUR ANSWERS" above
+           this headline, and it was redundant twice over: the two lines beneath
+           it quote the answers word for word, and an all-caps label above a
+           heading is the most generic device on the page. Nothing was lost by
+           deleting it — the sentences underneath are the label. -->
+      <h1 class="text-2xl font-semibold text-ink-gray-9">
         <!-- ⚠️ FOUR HEADLINES, not two. The recommended path asserts; the
              overridden one describes. "This needs a partner to scope it
              properly" is a judgement, and printing it over a path somebody
@@ -196,21 +197,29 @@ watch(view, () => {
       <!-- ⚠️ THE REASONS ARE THE HEADLINE'S EVIDENCE and they sit directly
            under it, before anything can be bought. A recommendation whose
            justification is below the price list is a price list. -->
-      <ul v-if="!overridden" class="mt-4 space-y-2">
+      <!-- ⚠️ NO TICKS. Each reason carried a check icon, which reads as
+           "included" — the vocabulary of a feature list. These are EVIDENCE for
+           a claim, and dressing an argument as a spec sheet makes it skimmable
+           in exactly the way an argument should not be. Plain sentences.
+           ⚠️ `max-w-[62ch]`, against the page's own 800px. Set to the full
+           measure these ran to about 110 characters a line, which is half again
+           the length anybody reads comfortably. Only the PROSE is capped — the
+           pack rows keep the width, because a row with a price at its right
+           edge needs one. -->
+      <ul v-if="!overridden" class="mt-4 max-w-[62ch] space-y-2">
         <li
           v-for="(reason, i) in reco.reasons"
           :key="i"
-          class="flex gap-2.5 text-p-base leading-relaxed text-ink-gray-7"
+          class="text-p-base leading-relaxed text-ink-gray-7"
         >
-          <IconCheck class="mt-1 size-4 shrink-0 text-ink-gray-5" />
-          <span>{{ reason }}</span>
+          {{ reason }}
         </li>
       </ul>
 
       <!-- The override's one line. It says what we would have said and why,
            without repeating the argument — the visitor has read it and decided
            against it, and making them read it again is nagging. -->
-      <p v-else class="mt-4 text-p-base leading-relaxed text-ink-gray-6">
+      <p v-else class="mt-4 max-w-[62ch] text-p-base leading-relaxed text-ink-gray-6">
         <template v-if="view === 'packs'">
           We'd have pointed you at a scoped implementation rather than a fixed-price pack — the
           packs are ERPNext as it ships, with no custom scripting or workflows. Here they are
@@ -225,7 +234,13 @@ watch(view, () => {
       <!-- ⚠️ The override reads as a question the visitor might be asking, not
            as a tab. Tabs say "these are two equal things"; this screen has just
            said they are not. -->
-      <p class="mt-4 text-p-base text-ink-gray-6">
+      <!-- ⚠️ TWO LINKS OF DIFFERENT WEIGHT, and they were joined by a middot,
+           which made them peers. Changing path is a decision about what to buy;
+           changing your answers is a correction. The first stays here, phrased
+           as the question a doubting reader is already asking. The second moves
+           to the foot of the screen, beside the other thing that belongs to the
+           answers rather than to the products — "Does this look right?". -->
+      <p class="mt-4 max-w-[62ch] text-p-base text-ink-gray-6">
         <template v-if="view === 'packs'">
           <template v-if="!overridden">Bigger job than that? </template>
           <button class="underline hover:text-ink-gray-8" @click="view = 'custom'">
@@ -238,15 +253,13 @@ watch(view, () => {
             {{ overridden ? 'Back to what we recommend' : 'Look at the packs anyway' }}
           </button>
         </template>
-        · <button class="underline hover:text-ink-gray-8" @click="rethink">Change my answers</button>
       </p>
 
       <!-- ── Packs ───────────────────────────────────────────────────── -->
       <section v-if="view === 'packs'" class="mt-8">
         <h2 class="text-p-lg font-semibold text-ink-gray-9">What we'd buy</h2>
-        <p class="mt-1 text-p-base text-ink-gray-6">
-          The ones we recommend are already ticked. They are separate modules, so you can take one,
-          two or all of them — and the price is the sum.
+        <p class="mt-1 max-w-[62ch] text-p-base text-ink-gray-6">
+          Ticked already. They are separate modules, so take one, two or all three.
         </p>
 
         <ul class="mt-4 divide-y divide-outline-gray-2 rounded-6 border border-outline-gray-2">
@@ -274,6 +287,11 @@ watch(view, () => {
               <p v-if="row.reason" class="mt-1 text-p-base leading-relaxed text-ink-gray-6">
                 {{ row.reason }}
               </p>
+              <!-- ⚠️ The un-recommended row keeps its sentence and loses its
+                   weight. It is still a real option and still says honestly why
+                   it is not ticked, but at `gray-5` against the recommended
+                   rows' `gray-6` the eye can take the recommendation in without
+                   reading three paragraphs to find which two were argued for. -->
               <p v-else class="mt-1 text-p-base text-ink-gray-5">
                 Nothing you told us points at this one.
               </p>
@@ -285,31 +303,44 @@ watch(view, () => {
         </ul>
 
         <!-- ── The total ─────────────────────────────────────────────── -->
-        <!-- ⚠️ Tax is named here and only here before the checkout, because
-             this is the first screen with a TOTAL on it. Every other surface
-             quotes a pack ex-tax and says so. -->
-        <div class="mt-5 rounded-6 border border-outline-gray-2 p-4">
-          <dl class="space-y-2 text-p-base">
-            <div v-for="line in bill.lines" :key="line.value" class="flex justify-between gap-4">
-              <dt class="text-ink-gray-7">{{ line.name }}</dt>
-              <dd class="tabular-nums text-ink-gray-8">{{ line.price }}</dd>
-            </div>
-            <div
-              v-if="bill.lines.length"
-              class="flex justify-between gap-4 border-t border-outline-gray-2 pt-2"
-            >
-              <dt class="text-ink-gray-7">{{ bill.taxLabel }}</dt>
-              <!-- Blank where a market's rate isn't decided. See `checkoutFor`. -->
-              <dd class="tabular-nums text-ink-gray-8">{{ bill.tax ?? '—' }}</dd>
-            </div>
-            <div class="flex justify-between gap-4">
-              <dt class="font-medium text-ink-gray-9">Total</dt>
-              <dd class="font-medium tabular-nums text-ink-gray-9">{{ bill.total }}</dd>
-            </div>
-          </dl>
-          <p class="mt-3 text-p-sm text-ink-gray-5">
-            Paid in full to Frappe, in advance. Your partner bills you separately for Frappe Cloud
-            hosting.
+        <!-- ⚠️ THIS PRINTED THE PACK NAMES A SECOND TIME. It was a proper
+             line-item table — every pack, every price — sitting immediately
+             under a list of every pack and every price. Two identical lists
+             stacked, and the second one taught the reader nothing the first had
+             not already said.
+             The rows above ARE the line items. What only this can say is the
+             number that leaves the account, so that is all it says: one figure,
+             with its composition under it in a line small enough to be checked
+             and ignored.
+             ⚠️ The tax is NAMED here and only here before the checkout. Every
+             other surface quotes a pack ex-tax and says so; this is the first
+             screen with a total on it. Where a market has no decided rate the
+             line drops the figure rather than inventing one — see
+             `checkoutFor`. -->
+        <!-- ⚠️ Hidden when the basket is empty. Unticking everything left
+             "₹0 / ₹0 plus 18% GST, for 0 hours of implementation" sitting under
+             the list — four zeroes stating that nothing costs nothing. The
+             button below says what to do instead. -->
+        <div
+          v-if="!nothingPicked"
+          class="mt-5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1"
+        >
+          <div>
+            <p class="text-2xl font-semibold tabular-nums text-ink-gray-9">{{ bill.total }}</p>
+            <p class="mt-0.5 text-p-sm text-ink-gray-5">
+              <template v-if="bill.exact">
+                {{ bill.subtotal }} plus {{ bill.taxLabel }}, for {{ bill.hours }} hours of
+                implementation
+              </template>
+              <template v-else>
+                {{ bill.subtotal }} before {{ bill.taxLabel }}, for {{ bill.hours }} hours of
+                implementation
+              </template>
+            </p>
+          </div>
+          <p class="max-w-[34ch] text-p-sm leading-relaxed text-ink-gray-5">
+            Paid in full to Frappe, in advance. Frappe Cloud hosting is billed separately by your
+            partner.
           </p>
         </div>
 
@@ -330,12 +361,12 @@ watch(view, () => {
       <!-- ── Custom ──────────────────────────────────────────────────── -->
       <section v-else class="mt-8">
         <h2 class="text-p-lg font-semibold text-ink-gray-9">What partners need from you</h2>
-        <p class="mt-1 text-p-base text-ink-gray-6">
+        <p class="mt-1 max-w-[62ch] text-p-base text-ink-gray-6">
           These two go out with your requirements. Without them the first reply from every partner
           is the same two questions, and you lose a week.
         </p>
 
-        <div class="mt-4 space-y-4">
+        <div class="mt-4 max-w-[62ch] space-y-4">
           <div>
             <Textarea
               :model-value="brief.scope"
@@ -364,7 +395,7 @@ watch(view, () => {
 
         <!-- ── Narrowing ─────────────────────────────────────────────── -->
         <h2 class="mt-8 text-p-lg font-semibold text-ink-gray-9">Who should see it</h2>
-        <p class="mt-1 text-p-base text-ink-gray-6">
+        <p class="mt-1 max-w-[62ch] text-p-base text-ink-gray-6">
           Optional. Left alone, this goes to every certified partner in your region who works in
           your industry.
         </p>
@@ -421,7 +452,7 @@ watch(view, () => {
             <span class="font-medium tabular-nums">{{ matches.length }}</span>
             {{ matches.length === 1 ? 'partner matches' : 'partners match' }} right now.
           </p>
-          <p class="mt-1 text-p-base leading-relaxed text-ink-gray-6">
+          <p class="mt-1 max-w-[62ch] text-p-base leading-relaxed text-ink-gray-6">
             Each one gets your requirements, your budget range and your industry — not your company
             name or contact details. Those are shared only with the partners whose replies you
             approve.
@@ -444,13 +475,24 @@ watch(view, () => {
            engine rather than a partner got something wrong — and it is worth
            exactly one line of a screen whose job is something else. -->
       <div class="mt-10 border-t border-outline-gray-2 pt-5">
+        <!-- ⚠️ "Change my answers" LIVES HERE NOW, not up beside the path
+             switch. Both of these belong to the ANSWERS rather than to the
+             products, and pairing a correction with a purchase decision under a
+             middot made them read as two versions of the same move. -->
         <div v-if="!answered" class="flex flex-wrap items-center gap-3">
           <p class="text-p-base text-ink-gray-6">Does this look right?</p>
           <Button variant="subtle" label="Yes" @click="store.recordRecoFeedback(true)" />
           <Button variant="subtle" label="Not really" @click="store.recordRecoFeedback(false)" />
+          <button
+            class="ms-1 text-p-base text-ink-gray-6 underline hover:text-ink-gray-8"
+            @click="rethink"
+          >
+            Change my answers
+          </button>
         </div>
-        <div v-else-if="done" class="text-p-base text-ink-gray-6">
-          Thanks — that helps us get the next one right.
+        <div v-else-if="done" class="flex flex-wrap items-center gap-3 text-p-base text-ink-gray-6">
+          <span>Thanks — that helps us get the next one right.</span>
+          <button class="underline hover:text-ink-gray-8" @click="rethink">Change my answers</button>
         </div>
         <div v-else class="max-w-md">
           <p class="text-p-base text-ink-gray-7">What did we miss?</p>
