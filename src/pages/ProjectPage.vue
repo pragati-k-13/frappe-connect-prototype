@@ -409,7 +409,7 @@ const chooseService = (value) => {
                    `-mx-5` cancels the page padding so its rules run edge to
                    edge. -->
               <div v-if="pack" class="-mx-5 mt-10 border-t border-outline-gray-1 lg:hidden">
-                <PackPanel heading="Booked service" :pack="pack" :region="region" />
+                <PackPanel :pack="pack" :region="region" />
               </div>
             </template>
 
@@ -457,7 +457,7 @@ const chooseService = (value) => {
             @message="messagePartner(partner)"
             @book="booking = true"
           />
-          <PackPanel v-if="pack" heading="Booked service" :pack="pack" :region="region" />
+          <PackPanel v-if="pack" :pack="pack" :region="region" />
         </ScrollArea>
       </aside>
     </div>

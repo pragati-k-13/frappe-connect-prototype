@@ -1,21 +1,19 @@
 <script setup>
 import { computed } from 'vue'
-import { Avatar, Badge } from 'frappe-ui'
+import { Avatar } from 'frappe-ui'
 import IconPack from '~icons/lucide/layers'
-import IconPrice from '~icons/lucide/circle-dollar-sign'
-import IconEffort from '~icons/lucide/hourglass'
-import IconDelivery from '~icons/lucide/calendar'
 import IconChevron from '~icons/lucide/chevron-right'
 import IconChevronDown from '~icons/lucide/chevron-down'
 import IconExcluded from '~icons/lucide/circle-slash'
 import { SCOPE_ICONS } from '../scopeIcons'
+import { FACT_ICONS } from '../packFactIcons'
 import {
   CUSTOMER_RESPONSIBILITIES,
   PACK_SCOPE,
   STRICTLY_EXCLUDED,
   asExclusion,
   commercialTermsFor,
-  priceFor,
+  packFacts,
 } from '../data/packs'
 
 // The pack you are buying, as a PERMANENT panel rather than a card in the page.
@@ -29,16 +27,15 @@ import {
 const props = defineProps({
   pack: { type: Object, required: true },
   region: { type: String, required: true },
-  // "Selected" while you are deciding, "Booked" once you have. The panel is the
-  // same object in both places and only its tense changes.
-  heading: { type: String, default: 'Selected service' },
 })
 
-const facts = computed(() => [
-  { icon: IconPrice, text: priceFor(props.pack, props.region) },
-  { icon: IconEffort, text: `${props.pack.hours} hrs of effort` },
-  { icon: IconDelivery, text: `${props.pack.validity} delivery time` },
-])
+// ⚠️ Worded by `packFacts`, not here. This panel said "60 days DELIVERY TIME"
+// while the catalogue and the pack page said "60 days to deliver" — and
+// `data/project.js` carried a note about the disagreement rather than a fix,
+// because it had to pick one. The distinction is not cosmetic: the scope
+// document runs the validity clock whatever the customer does, so "delivery
+// time" promises a finish date the terms don't give.
+const facts = computed(() => packFacts(props.pack, props.region))
 
 // One row per module the pack is made of, straight out of the scope document,
 // and one row per THING INSIDE each module. Same shape `PackScope` builds for
@@ -89,19 +86,17 @@ const terms = computed(() => [
 </script>
 
 <template>
-  <div>
-    <!-- ── The panel's own header ───────────────────────────────────────
-         A strip, not a line of text above the content: it names the whole
-         panel, so it belongs to the frame rather than to the first section.
-         `min-h-12` is `PageHeader`'s own height, so it sits at the same rhythm
-         as the bar above it, and it sticks while the scope scrolls under it —
-         a panel whose modules are open is long enough to lose its title. -->
-    <header
-      class="sticky top-0 z-10 flex min-h-12 items-center border-b border-outline-gray-1 bg-surface-base px-4"
-    >
-      <h2 class="text-base font-medium text-ink-gray-8">{{ heading }}</h2>
-    </header>
+  <!-- ⚠️ NO HEADER STRIP. It read "Selected service" / "Booked service" over a
+       panel whose first line is the pack's name and whose page is already
+       called Confirm selection — a label for something the next line says.
+       The `heading` prop went with it; both confirmation screens and the
+       project page used to pass one.
 
+       What the strip did carry was the BOUNDARY on the project page's aside,
+       where this panel follows `ProjectPartnerPanel` in one scroller. Hence the
+       rule on the root: a top border when something precedes it, none when this
+       panel is the first thing in its column, which is every other mount. -->
+  <div class="border-t border-outline-gray-1 first:border-t-0">
     <!-- ── What you are buying ──────────────────────────────────────────── -->
     <section class="px-4 py-4">
       <div class="flex items-start gap-3">
@@ -113,12 +108,15 @@ const terms = computed(() => [
           <IconPack class="size-full" />
         </Avatar>
         <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-2">
-            <span class="min-w-0 truncate text-lg font-medium text-ink-gray-8">
-              {{ pack.name }}
-            </span>
-            <Badge variant="subtle" theme="gray" size="sm" label="Starter Pack" />
-          </div>
+          <!-- ⚠️ No "Starter Pack" badge beside the name, and no truncation
+               either — the two went together. The badge said what the panel's
+               own heading says ("Selected service" / "Booked service", on a
+               screen reached from Starter packs), and what it cost was the
+               name: it sat on the same line in a 320px column, so "Accounts,
+               Sales, Purchase, Stock" clipped to "Accounts, Sal…". A label
+               nobody needed, truncating the one thing on this panel the reader
+               does. The name wraps now. -->
+          <p class="text-lg font-medium text-ink-gray-8">{{ pack.name }}</p>
           <!-- ⚠️ `pitch`, not `tagline`. The tagline describes what is in the
                pack, and "Modules covered" lists exactly that a few lines down;
                this line is the only place in the panel that says what the pack
@@ -130,11 +128,15 @@ const terms = computed(() => [
       <ul class="mt-4 space-y-1.5">
         <li
           v-for="f in facts"
-          :key="f.text"
+          :key="f.key"
           class="flex items-start gap-2 text-p-base text-ink-gray-7"
         >
-          <component :is="f.icon" class="mt-0.5 size-4 shrink-0 text-ink-gray-6" />
-          <span class="min-w-0">{{ f.text }}</span>
+          <component
+            :is="FACT_ICONS[f.key]"
+            class="mt-0.5 size-4 shrink-0 text-ink-gray-6"
+            aria-hidden="true"
+          />
+          <span class="min-w-0">{{ f.line }}</span>
         </li>
       </ul>
     </section>

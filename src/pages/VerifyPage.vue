@@ -73,16 +73,25 @@ const verify = () => {
       // the push would be bounced straight back to sign-up by its own guard.
       toast.success('Account created', { id: 'auth' })
       store.completeLogin()
+      // ⚠️ A PACK GOES TO CHECKOUT, and it does NOT get the company dialog
+      // thrown over it. That screen asks for the company itself, as step 1 of
+      // two, and opening the modal on arrival would answer its first step
+      // before the visitor had seen there were two — the accordion would tick
+      // and collapse under a dialog they never chose to open.
+      //
+      // Every other errand still gets the dialog over wherever it lands: those
+      // screens have nowhere else to ask, and Frappe assigns partners off these
+      // answers whatever the errand was.
       if (store.pack) {
-        await router.replace({ name: 'confirm', query: { pack: store.pack } })
-      } else {
-        // Same order as the log-in path below: navigate, THEN run what the gate
-        // was holding, since the action belongs to the screen it interrupted and
-        // often navigates itself.
-        await router.replace(next.value)
-        store.runPending()
+        await router.replace({ name: 'checkout', query: { pack: store.pack } })
+        return
       }
-      // Last, so it opens over wherever the two lines above actually ended up.
+      // Same order as the log-in path below: navigate, THEN run what the gate
+      // was holding, since the action belongs to the screen it interrupted and
+      // often navigates itself.
+      await router.replace(next.value)
+      store.runPending()
+      // Last, so it opens over wherever the line above actually ended up.
       store.openCompanyPrompt()
       return
     }

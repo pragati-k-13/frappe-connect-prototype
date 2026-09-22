@@ -1,9 +1,8 @@
 <script setup>
-import { computed, ref, watchEffect } from 'vue'
+import { computed, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Badge, Button, ScrollArea, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
-import BookSlotDialog from '../components/BookSlotDialog.vue'
 import PackPanel from '../components/PackPanel.vue'
 import ProjectPartnerCard from '../components/ProjectPartnerCard.vue'
 import IconSend from '~icons/lucide/send'
@@ -140,12 +139,6 @@ const activity = computed(() => {
 
 const toastOnce = (title, description) => toast.info(title, { id: 'confirmed', description })
 
-// The same modal the partner's profile opens, and deliberately the same one:
-// this is the screen where booking a slot is the point, and a second design for
-// the same act would be two answers to one question. It already carries the
-// partner, so there is nothing for this screen to pass but the flag.
-const booking = ref(false)
-
 // The project screen exists now, so this goes there. It used to raise a toast
 // naming the gap — `Implementation` in the sidebar was the row holding its
 // place, and both are wired up.
@@ -189,7 +182,14 @@ const cancel = () =>
                block off the panel's edge instead of leaving all the slack on
                one side. -->
           <div v-else class="mx-auto w-full max-w-[700px]">
-            <h1 class="text-lg font-semibold text-ink-gray-8">Confirmed!</h1>
+            <!-- ⚠️ `text-2xl`, and no exclamation mark. The four screens of
+                 this flow head themselves the same way now — the catalogue, the
+                 pack, the checkout and this — and the last one was the only one
+                 at `text-lg`, which read as a smaller moment than the pages
+                 that led to it. The `!` was also the only one in the app's
+                 voice; the sentence under it already says what happened, and a
+                 receipt that congratulates itself is louder than the fact. -->
+            <h1 class="text-2xl font-semibold text-ink-gray-8">Confirmed</h1>
             <!-- One sentence that states what happened, and stops.
                "Here is who you will work with" was the previous try: a pointer
                at the card, which made the line read as a caption waiting for a
@@ -211,20 +211,30 @@ const cancel = () =>
                  structure, and for the three facts it carries.
 
                  ⚠️ No `#actions` slot here. The card takes project-level
-                 controls, and this screen's primary button sits six inches
-                 below offering the same thing — two Request a slot buttons on
-                 one screen is the page asking twice. -->
+                 controls, and this screen is a receipt: what you bought, who
+                 will build it, and where to follow it. Acting on the project
+                 belongs to the project. -->
             <ProjectPartnerCard class="mt-4" :partner="partner" />
 
-            <!-- ⚠️ Requesting a slot is the PRIMARY action on this screen: the
-               pack is paid for later and the partner is already assigned, so the
-               only thing left to do here is meet them.
-
-               "Request", not "Book", and the same word the modal and its
-               confirmation use — the partner confirms the time by email, so book
-               would promise a calendar entry nothing here writes. -->
+            <!-- ⚠️ NO "Request a slot" HERE ANY MORE. It was this screen's
+               primary action, on the argument that the pack was paid for later
+               and meeting the partner was the only thing left to do. The pack
+               is paid for BEFORE this screen now, and the intro call is the
+               project's business: `PACK_STAGES` opens on Confirmed with
+               "Request an introductory call" as its first task, and the project
+               screen and the partner panel both carry the control. A second
+               entry point here asked for the same slot in a different place
+               from the one that tracks it. -->
+            <!-- ⚠️ A PRIMARY AGAIN. Removing "Request a slot" left `Cancel` as
+                 the only button on the screen — a page whose single offered
+                 action is to undo what just happened. What someone actually
+                 wants next is the thing that now holds the work: the project,
+                 where the first task is requesting that call. "Open project"
+                 rather than "Track implementation" because the feed below
+                 already calls it a project, and a flow should keep one word for
+                 one thing. -->
             <div class="mt-4 flex items-center gap-2">
-              <Button variant="solid" label="Request a slot" @click="booking = true" />
+              <Button variant="solid" label="Open project" @click="viewProject" />
               <Button variant="subtle" label="Cancel" @click="cancel" />
             </div>
 
@@ -406,7 +416,7 @@ const cancel = () =>
                a 352px column next to a 352px column is not a layout. `-mx-5`
                cancels the page padding so its own rules run edge to edge. -->
             <div class="-mx-5 mt-8 border-t border-outline-gray-1 lg:hidden">
-              <PackPanel heading="Booked service" :pack="pack" :region="region" />
+              <PackPanel :pack="pack" :region="region" />
             </div>
           </div>
         </div>
@@ -417,21 +427,10 @@ const cancel = () =>
         class="hidden w-[352px] shrink-0 flex-col border-l border-outline-gray-1 lg:flex"
       >
         <ScrollArea class="min-h-0 flex-1">
-          <PackPanel heading="Booked service" :pack="pack" :region="region" />
+          <PackPanel :pack="pack" :region="region" />
         </ScrollArea>
       </aside>
     </div>
 
-    <!-- ⚠️ `@book` records the slot on the project, which is new: the dialog
-         used to emit only `close` and the request went nowhere. The project
-         screen reads it back to say what the stage is waiting for. A URL-only
-         arrival has no project and `recordSlot` no-ops on a missing id. -->
-    <BookSlotDialog
-      v-if="partner"
-      :open="booking"
-      :partner="partner"
-      @book="store.recordSlot(project?.id, $event)"
-      @close="booking = false"
-    />
   </ConnectShell>
 </template>

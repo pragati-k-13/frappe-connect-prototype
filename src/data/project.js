@@ -435,11 +435,11 @@ export const windowFor = (project) => {
     // · 42 days left" is two numbers in the same units where only one of them
     // is a remaining figure. Naming it as a TERM is what separates them.
     //
-    // ⚠️ Also not "delivery time", which is what `PackPanel` calls this same
-    // number. The scope document's own word is validity — it is the period the
-    // hours must be used within, and it says nothing about when you go live.
-    // The panel's wording is the one that is wrong; changing it is a separate
-    // job from this one.
+    // ⚠️ Also not "delivery time", which is what the booking panel used to call
+    // this same number. The scope document's own word is validity — it is the
+    // period the hours must be used within, and it says nothing about when you
+    // go live. That wording is fixed now: every surface takes the phrase from
+    // `packFacts`, which says "to deliver".
     return finishWindow(`${pack.validityDays}-day validity`, from, from + pack.validityDays * DAY)
   }
   if (project.service === 'onboarding') {

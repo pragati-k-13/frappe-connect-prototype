@@ -46,6 +46,24 @@ const routes = [
     name: 'confirm',
     component: () => import('./pages/ConfirmPage.vue'),
   },
+  // Where the money moves: the company answers, a payment method, and the
+  // handoff to a processor. `?pack=` again, for the same reason the pack page
+  // has it — the store is in memory, and this is the screen someone might
+  // reload with a card in their hand.
+  {
+    path: '/connect/checkout',
+    name: 'checkout',
+    component: () => import('./pages/CheckoutPage.vue'),
+    // ⚠️ Guarded, like the confirmation after it. Paying creates a project and
+    // a conversation with an assigned partner, and both are facts about an
+    // ACCOUNT — a signed-out visitor on this URL has nowhere to keep what they
+    // are about to buy. Sign-up carrying `?next=`, so the flow the gate
+    // interrupted resumes here rather than at the top of the catalogue.
+    beforeEnter: (to) => {
+      const store = useConnectStore()
+      return store.signedIn ? true : { name: 'signup', query: { next: to.fullPath } }
+    },
+  },
   // The end of the journey: who Frappe assigned you, and what happens next.
   // Both `?pack=` and `?partner=` are in the URL — this is the screen someone
   // screenshots or forwards, and an assignment that changed on reload would be
@@ -66,8 +84,10 @@ const routes = [
     // the router, so the store exists by the time any navigation resolves.
     //
     // ⚠️ This is the LAST line of defence, not the first. The gate that matters
-    // is on Confirm itself (see `ConfirmPage`), because booking a pack without
-    // an account creates a project and a conversation with nowhere to live.
+    // is one screen earlier — the pack page's "Continue to checkout" sends a
+    // signed-out visitor to sign-up, and `/connect/checkout` guards itself the
+    // same way this does, because paying for a pack creates a project and a
+    // conversation with nowhere to live without an account.
     beforeEnter: (to) => {
       const store = useConnectStore()
       return store.signedIn ? true : { name: 'signup', query: { next: to.fullPath } }

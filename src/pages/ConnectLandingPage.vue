@@ -396,10 +396,20 @@ const restartQuiz = () => {
         <h2 class="text-p-lg font-semibold text-ink-gray-9">
           Starter packs are your fastest way to get started
         </h2>
+        <!-- ⚠️ "You pay Frappe" is the one term that has to survive being read
+             on a partner's page, so it is here and on the profile's pricing
+             section both. A fixed price quoted beside a named partner reads as
+             that partner's invoice, and for a pack it isn't one.
+
+             It sits in this paragraph rather than in a row of the table because
+             the answer is the same for all four packs. The table is the one
+             place on the page for what differs between them — which is also why
+             the Modules row went: with each pack now NAMED by its modules, that
+             row printed its own column header back. -->
         <p class="mt-1.5 max-w-2xl text-p-base text-ink-gray-6">
-          Fixed scope, fixed price, delivered by any certified partner. Pick one now or let the
-          questions above narrow it down for you. Prices for India, before
-          {{ pricingFor(DEFAULT_REGION).tax }}.
+          Fixed scope, fixed price, delivered by any certified partner. You pay Frappe in full, not
+          the partner. Pick one now or let the questions above narrow it down for you. Prices for
+          India, before {{ pricingFor(DEFAULT_REGION).tax }}.
         </p>
 
         <ScrollArea orientation="horizontal" class="mt-5 rounded-6 border border-outline-gray-2">
@@ -408,33 +418,29 @@ const restartQuiz = () => {
               <tr class="bg-surface-gray-1">
                 <th
                   scope="col"
-                  class="w-40 px-4 py-3 text-left text-p-sm font-medium uppercase tracking-wide text-ink-gray-5"
+                  class="w-32 px-4 py-3 text-left text-p-sm font-medium uppercase tracking-wide text-ink-gray-5"
                 >
                   <span class="sr-only">Attribute</span>
                 </th>
+                <!-- ⚠️ NOT uppercased, unlike every other header in the app.
+                     A pack's name is now its module list — "Accounts, Sales,
+                     Purchase, Stock" — which is content in a heading's slot
+                     rather than a label for a column. Uppercase with tracking
+                     put that one across four lines in a 160px cell and made
+                     the header row three times the height of any row under it.
+                     Sentence case and a narrower attribute column bring it to
+                     two. -->
                 <th
                   v-for="pack in STARTER_PACKS"
                   :key="pack.value"
                   scope="col"
-                  class="px-4 py-3 text-center text-p-sm font-medium uppercase tracking-wide text-ink-gray-6"
+                  class="px-4 py-3 text-center text-p-sm font-medium text-ink-gray-7"
                 >
                   {{ pack.name }}
                 </th>
               </tr>
             </thead>
             <tbody>
-              <tr class="border-t border-outline-gray-2">
-                <th scope="row" class="px-4 py-3.5 text-left font-normal text-ink-gray-7">
-                  Modules
-                </th>
-                <td
-                  v-for="p in STARTER_PACKS"
-                  :key="p.value"
-                  class="px-4 py-3.5 text-center text-ink-gray-8"
-                >
-                  {{ p.modules }}
-                </td>
-              </tr>
               <tr class="border-t border-outline-gray-2">
                 <th scope="row" class="px-4 py-3.5 text-left font-normal text-ink-gray-7">
                   Total hours
