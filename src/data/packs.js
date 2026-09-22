@@ -25,16 +25,16 @@ import { REGIONS } from './quiz'
 // pack including `hrms`/`payroll` sells the app; `data/modules.js` carries a
 // separate ERPNext `hr` module that the estimator prices. Don't conflate them.
 
-// The four packs. `value` is the id partners are tagged with in
+// The three packs. `value` is the id partners are tagged with in
 // `data/partners.js` — renaming one orphans every partner that sells it.
 //
 // ⚠️ EACH PACK IS NAMED BY THE MODULES IN IT, and that is the whole shape of
 // the catalogue now. The old set was a ladder of tiers — Core ERPNext,
 // Manufacturing (core plus production), All in one (all of it), Frappe HR —
 // where three packs nested and a name like "All in one" told you nothing about
-// what it contained. These four are disjoint slices of PACK_SCOPE that a buyer
-// combines: Accounts/Sales/Purchase/Stock, Manufacturing, HR, Payroll. Nothing
-// is a prefix of anything, so `name` and `areas` are two renderings of one
+// what it contained. These three are disjoint slices of PACK_SCOPE that a buyer
+// combines: Accounts/Sales/Purchase/Stock, Manufacturing, HR and Payroll.
+// Nothing is a prefix of anything, so `name` and `areas` are two renderings of one
 // list rather than two ways of saying "and the rest".
 //
 // Two consequences worth knowing before editing:
@@ -51,8 +51,8 @@ import { REGIONS } from './quiz'
 //      adding a surface: say the hours, the price, the validity and the
 //      scope, and let the name say the modules.
 //
-// ⚠️ HR is the Frappe HR app's HRMS module, and its `value` is `hrms` rather
-// than `hr` ON PURPOSE: `data/modules.js` has an ERPNext `hr` module that the
+// ⚠️ HR and Payroll are the Frappe HR app's two modules, and the pack's `value`
+// is `hrms` rather than `hr` ON PURPOSE: `data/modules.js` has an ERPNext `hr` module that the
 // estimator prices, and these are not the same thing (see the warning above).
 // A pack id of `hr` would put the two one typo apart.
 //
@@ -89,34 +89,33 @@ export const STARTER_PACKS = [
     validity: '60 days',
   },
   {
+    // ⚠️ ONE PACK, TWO MODULES — and the only pack that isn't a single module.
+    // HR and Payroll shipped as two 5-hour packs and were combined, because
+    // nobody buys attendance and leave without intending to pay people off the
+    // back of it: the split sold half a job twice. Hours are the two added
+    // (5 + 5), so the price is unchanged for anyone who would have bought both
+    // and higher for the handful who wanted one.
+    //
+    // `value` stays `hrms` rather than becoming `hr-payroll`: it is the id
+    // partners are tagged with in `data/partners.js`, and keeping it means the
+    // firms that sold HR still sell this. The `payroll` tag went with the pack.
     value: 'hrms',
-    name: 'HR',
+    name: 'HR and Payroll',
     tagline: 'For a headcount that has outgrown a spreadsheet',
-    pitch: 'Keep people, attendance and leave in one place.',
-    areas: ['hrms'],
+    pitch: 'Keep people in one place, and pay them on time.',
+    areas: ['hrms', 'payroll'],
     apps: ['frappe-hr'],
-    hours: 5,
-    validityDays: 30,
-    validity: '30 days',
-  },
-  {
-    value: 'payroll',
-    name: 'Payroll',
-    tagline: 'For running salaries in-house',
-    pitch: 'Pay people on time, every month.',
-    areas: ['payroll'],
-    apps: ['frappe-hr'],
-    hours: 5,
+    hours: 10,
     validityDays: 30,
     validity: '30 days',
   },
 ]
 
 // Price is `hours × rate`, always — which is how the real India sheet is built:
-// ₹10,000 for 5 hours and ₹20,000 for 10, a flat ₹2,000/hr across all four.
+// ₹10,000 for 5 hours and ₹20,000 for 10, a flat ₹2,000/hr across all three.
 // That rate is unchanged from the sheet the old 30–100 hour packs were priced
 // off (₹80,000 for 40 hours was the same ₹2,000), so the repricing is a change
-// of hours and not of rate. Deriving rather than listing four prices per region
+// of hours and not of rate. Deriving rather than listing three prices per region
 // means a pack's hours and its price cannot disagree.
 //
 // ⚠️ INDIA IS REAL. The other five rates are INVENTED — pricing for those
@@ -204,8 +203,14 @@ const money = (amount, { currency, locale }) =>
 export const priceFor = (pack, region = DEFAULT_REGION) =>
   money(pack.hours * pricingFor(region).rate, pricingFor(region))
 
-// What the checkout charges, broken into the three lines it prints: the pack,
-// the tax, and what leaves the account.
+// What the checkout charges, broken into the lines it prints: one per pack,
+// then the tax, then what leaves the account.
+//
+// ⚠️ TAKES A LIST, because a basket is the normal case now — the packs are
+// disjoint modules and the recommendation screen ticks several at once. A
+// single pack is a list of one; there is no second single-pack function, so no
+// screen can quietly total a basket differently from the one that charges for
+// it.
 //
 // ⚠️ THE ONLY PLACE THAT ADDS TAX. Everywhere else quotes ex-tax and says so —
 // the catalogue's "before 18% GST", the pack page's fact row, the commercial
@@ -216,14 +221,26 @@ export const priceFor = (pack, region = DEFAULT_REGION) =>
 // `exact` is false where a market has no decided rate: the tax line then prints
 // its label with no figure and `total` equals the subtotal, which is honest
 // about what is known rather than quietly charging a made-up percentage.
-export const checkoutFor = (pack, region = DEFAULT_REGION) => {
+export const checkoutFor = (packs, region = DEFAULT_REGION) => {
   const p = pricingFor(region)
-  const subtotal = pack.hours * p.rate
+  const list = [packs].flat().filter(Boolean)
+  const hours = list.reduce((sum, pack) => sum + pack.hours, 0)
+  const subtotal = hours * p.rate
   // Rounded to the currency's whole unit, matching `money`'s own formatting —
-  // a total that doesn't equal the two lines above it as printed is the kind of
+  // a total that doesn't equal the lines above it as printed is the kind of
   // arithmetic a buyer checks and a business gets a support ticket about.
   const tax = p.taxRate == null ? null : Math.round(subtotal * p.taxRate)
   return {
+    // One line per pack, already formatted, so the checkout renders rather than
+    // calculates. `hours` rides along because the basket's total effort is what
+    // the pack window is measured in.
+    lines: list.map((pack) => ({
+      value: pack.value,
+      name: pack.name,
+      hours: pack.hours,
+      price: money(pack.hours * p.rate, p),
+    })),
+    hours,
     subtotal: money(subtotal, p),
     taxLabel: p.tax,
     tax: tax == null ? null : money(tax, p),

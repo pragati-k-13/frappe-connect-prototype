@@ -264,3 +264,29 @@ export const HUB_CITIES = [
 export const GROUP_OF_SEGMENT = Object.fromEntries(
   INDUSTRIES.flatMap((g) => g.segments.map((s) => [s, g.value])),
 )
+
+// ── The intake's country question ───────────────────────────────────────────
+// Every country the programme covers, grouped by region, for the single-select
+// Combobox the intake opens with.
+//
+// ⚠️ ASKED ABOUT THE CUSTOMER, not about the partner — which is the opposite of
+// what the geo question used to mean. The old quiz asked "where can your
+// partner be based?", a constraint someone sets and can set to several places
+// at once. This asks where the business IS, which has exactly one answer, and
+// it is read for two things the old question could not do: the pricing market
+// (`marketFor` in `data/packs.js`) and, for India, the city filter below.
+//
+// The partner directory keeps its own multi-select geo filter. Two questions,
+// two shapes, and the intake's answer seeds the filter rather than replacing it.
+export const COUNTRY_OPTIONS = REGIONS.map((r) => ({
+  group: r.label,
+  key: r.value,
+  options: r.countries.map((c) => ({ label: c, value: c })),
+}))
+
+// Flat, for anything that needs to test membership rather than render a list.
+export const COUNTRIES = REGIONS.flatMap((r) => r.countries)
+
+export const REGION_OF = Object.fromEntries(
+  REGIONS.flatMap((r) => r.countries.map((c) => [c, r.value])),
+)

@@ -2,10 +2,10 @@
 //
 // ⚠️ EVERYTHING HERE IS A MOCK, and it is the one part of the app where that
 // matters beyond invented numbers: money. Nothing in this prototype talks to a
-// payment processor, holds a merchant account or moves a rupee. The sheet these
-// providers open is `PaymentSheetDialog`, which is ours, drawn to read like the
-// handoff — it collects NO card, UPI or bank details and never should. Whatever
-// replaces it is the provider's own hosted sheet, which is the entire reason
+// payment processor, holds a merchant account or moves a rupee. The page this
+// opens is `StripeCheckoutPage`, which is ours, drawn to read like Stripe's own
+// hosted page — it collects NO card, UPI or bank details and never should.
+// Whatever replaces it is Stripe's hosted Checkout, which is the entire reason
 // the buyer's credentials never reach this application.
 //
 // ⚠️ NO BRAND MARKS. The design this came from prints Visa, Mastercard, RuPay
@@ -15,50 +15,43 @@
 // logo reads as a slightly-wrong merchant. The `networks` string says the same
 // thing in words until the real assets are licensed and dropped in.
 
-// The two processors, and what each one is for here. `label` is what the button
-// and the sheet say, because the buyer is about to be handed to them by name.
-export const PROVIDERS = {
-  stripe: {
-    value: 'stripe',
-    label: 'Stripe',
-    // What the sheet says while it pretends to work. Two beats, because a
-    // processor that answered instantly would make the state unreviewable.
-    blurb: 'Card payments outside India',
-  },
-  razorpay: {
-    value: 'razorpay',
-    label: 'Razorpay',
-    blurb: 'UPI, RuPay and Indian cards',
-  },
+// ⚠️ ONE PROCESSOR. This carried Stripe and Razorpay, split by method — cards
+// to Stripe, UPI and RuPay to Razorpay — on the reasoning that UPI is an Indian
+// rail and Razorpay is the Indian gateway. Stripe settles UPI itself, so the
+// second processor bought nothing but a second integration and a second
+// merchant account, and the buyer met a name that changed depending on which
+// button they pressed. `provider` is gone from the methods with it: every
+// method goes to the same place, and a field that always holds one value is a
+// choice nobody is making.
+export const PROVIDER = {
+  value: 'stripe',
+  label: 'Stripe',
+  // What the page says while it pretends to work. Two beats, because a
+  // processor that answered instantly would make the state unreviewable.
+  blurb: 'Cards and UPI',
 }
 
-// ⚠️ The METHOD picks the provider, not the region. A buyer who chooses UPI is
-// going to Razorpay whichever market they are in, and one who chooses a card is
-// going to Stripe — which is what the two processors are actually for here.
-// Region decides the PRICE (see `REGION_PRICING`), and these two facts are
-// deliberately kept apart: a Gulf business paying by card and an Indian one
-// paying by card meet the same sheet and different totals.
+// ⚠️ THE METHOD DOES NOT PICK A PROCESSOR any more — it picks the rail Stripe
+// settles on, which is a fact about the buyer's bank rather than about us.
+// Region decides the PRICE (see `REGION_PRICING`) and these two facts stay
+// apart: a Gulf business paying by card and an Indian one paying by card meet
+// the same page and different totals.
+//
+// ⚠️ RuPay is a card network, not a method. It sat here as a third row only
+// because it routed to the other processor; with one processor it is one of the
+// networks named on the card row, which is what it always was.
 export const PAYMENT_METHODS = [
   {
     value: 'card',
     label: 'Card',
     // Named rather than drawn — see the warning above.
-    networks: 'Visa, Mastercard, Amex',
-    provider: 'stripe',
-    icon: 'card',
-  },
-  {
-    value: 'rupay',
-    label: 'RuPay card',
-    networks: 'RuPay',
-    provider: 'razorpay',
+    networks: 'Visa, Mastercard, RuPay, Amex',
     icon: 'card',
   },
   {
     value: 'upi',
     label: 'UPI',
     networks: 'Any UPI app',
-    provider: 'razorpay',
     icon: 'phone',
     // The one method whose mechanics a buyer might not know, and the one the
     // design marks with an info icon. Kept factual: this is how UPI collect
@@ -68,8 +61,6 @@ export const PAYMENT_METHODS = [
 ]
 
 export const methodBy = (value) => PAYMENT_METHODS.find((m) => m.value === value) ?? null
-
-export const providerFor = (value) => PROVIDERS[methodBy(value)?.provider] ?? null
 
 // ⚠️ There is no payment here and there is nothing to call. The delay exists so
 // the processing state is reviewable — a sheet that resolved inside one frame

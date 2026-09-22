@@ -3,10 +3,14 @@ import { APPS, PARTNERS } from '../data/partners'
 // Two consumers: `industryCounts`, the group totals on the industry filter's
 // headings, and `saveCompany`, which derives a segment's group. Both need to
 // know which segments belong to which group.
-import { bookingThread, contactThread, discoveryThreads } from '../data/messages'
+import { bidMessage, bookingThread, briefThread, contactThread, discoveryThreads } from '../data/messages'
 import { demoProjects, inquiryName, nextStage, projectName, stagesFor } from '../data/project'
 import { modulesFor } from '../data/modules'
 import { INDUSTRIES } from '../data/quiz'
+import { emptyBrief, matchingPartners } from '../data/custom'
+import { bidFor, repliesToBrief } from '../data/bids'
+import { STARTER_PACKS } from '../data/packs'
+import { recommendedPackValues } from '../data/recommendation'
 
 // A skipped question stores `null`, which every filter below reads as "no
 // constraint". That keeps skip and never-asked identical downstream, so the
@@ -231,14 +235,54 @@ export const useConnectStore = defineStore('connect', {
     // ⚠️ Null when they arrived by another door (saving a partner, the top-bar
     // CTA). Onboarding's subtitle then reads generically rather than guessing
     // a pack they never chose.
-    pack: null,
+    // ⚠️ A LIST, because the packs are disjoint modules now and the whole
+    // shape of the recommendation is "these two". It replaces a single `pack`,
+    // and the rename was not cosmetic: every reader had to decide what it meant
+    // to hold one of something that is bought in twos.
+    //
+    // Seeded from the recommendation and then owned by the person — ticking and
+    // unticking on the recommendation screen writes straight here, so the
+    // basket survives sign-up, verification and the checkout.
+    packs: [],
+    // What a custom implementation is asking for. One per account rather than
+    // one per project, for the same reason the intake is: this prototype has
+    // one business in it. `data/custom.js` owns the shape and the rules.
+    brief: emptyBrief(),
+    // ⚠️ THE MOST VALUABLE FEEDBACK IN THE APP and the cheapest to collect:
+    // whether the recommendation was right, asked on the screen that made it,
+    // before anyone has spent anything. It is the only signal that says the
+    // engine is wrong rather than that a partner was. `null` until answered,
+    // then `{ ok, note }`.
+    recoFeedback: null,
+    // Ratings the account has left, `{ projectId, partnerId, rating, text, at }`.
+    // Kept here and not on the project because a rating is about the PARTNER —
+    // it is published on their profile — and the project is only where it was
+    // collected.
+    feedback: [],
     // What the onboarding screen collected. `name` is the company's, which is
     // also mirrored onto `viewer.company` — the sidebar and the quote header
     // read the viewer, and two names for one company drift apart.
     //
     // ⚠️ `operations` and `problems` are free text and optional. They're what a
     // partner reads before the first call; nothing in the app renders them yet.
-    company: { name: '', employees: '', segments: [], operations: '', problems: '' },
+    // What the intake collected, plus the name the account was opened with.
+    //
+    // ⚠️ `name` ARRIVES LAST, which is the reverse of how this used to work.
+    // The intake runs before anyone signs up — three questions on the landing
+    // page, answered anonymously — so everything here except the name exists
+    // before there is an account to hang it on, and `saveAccount` fills the
+    // name in at sign-up. A screen testing "has this account answered the
+    // questions?" must therefore test `country`, not `name`.
+    company: {
+      name: '',
+      country: '',
+      employees: '',
+      segments: [],
+      apps: [],
+      appsOther: '',
+      operations: '',
+      problems: [],
+    },
     // Every implementation the account is tracking. A LIST, because a business
     // routinely has more than one thing on: a starter pack running while a
     // custom piece is being scoped, or an onboarding done months before either.
@@ -329,7 +373,7 @@ export const useConnectStore = defineStore('connect', {
     //
     // Neither is true for the top bar's "Log in or create account": that is the
     // one path where signing up IS the errand, and it keeps the full screen.
-    hasErrand: (state) => Boolean(state.pack) || state.pendingHeld,
+    hasErrand: (state) => state.packs.length > 0 || state.pendingHeld,
     // ⚠️ Derived from the LIST, not from `account`. It used to read
     // `account === 'client'`, which was the same answer while a project could
     // only be created by booking a pack — but the enum's third state means
@@ -345,6 +389,10 @@ export const useConnectStore = defineStore('connect', {
 
     // The project behind a booking, found the way the Confirmed screen has to
     // find it: by the two things that screen carries in its URL.
+    //
+    // ⚠️ SEARCHED FROM THE END, and matched on a PACK as well as the partner —
+    // `packValue` is now one of possibly several a project holds, so the test
+    // is membership rather than equality.
     //
     // ⚠️ SEARCHED FROM THE END, and matched on the PACK as well as the partner.
     // Both were learned from the same bug. The first version took the first
@@ -362,7 +410,7 @@ export const useConnectStore = defineStore('connect', {
       for (let i = state.projects.length - 1; i >= 0; i -= 1) {
         const p = state.projects[i]
         if (p.partnerId !== partnerId) continue
-        if (packValue && p.pack !== packValue) continue
+        if (packValue && !(p.packs ?? []).includes(packValue)) continue
         return p
       }
       return null
@@ -566,7 +614,7 @@ export const useConnectStore = defineStore('connect', {
       this.threads = account === 'exploring' ? discoveryThreads() : []
       // ⚠️ The client persona is seeded with FOUR projects, and the count is
       // the point rather than generosity: between them they cover every state
-      // the tracker has to render — all three services, a project with no
+      // the tracker has to render — both services, a project with no
       // service at all, and one whose partner has not been picked yet. Three
       // of the four would leave a state with no way to see it.
       this.projects = account === 'client' ? demoProjects() : []
@@ -594,7 +642,7 @@ export const useConnectStore = defineStore('connect', {
     // Booking a pack starts a conversation carrying three things — see
     // `bookingThread`. Idempotent by partner: confirming twice with the same
     // partner reopens the thread rather than stacking a second copy of it.
-    startBooking({ partner, pack, slot }) {
+    startBooking({ partner, packs }) {
       // The booking IS the project: one gesture starts both, so nothing else
       // has to remember to create the second one.
       //
@@ -603,28 +651,34 @@ export const useConnectStore = defineStore('connect', {
       // wrote down "ERP rollout" and then bought a Manufacturing pack may well
       // have meant them as two separate things. The list shows both; merging
       // them is a gesture nobody has designed.
+      const list = [packs].flat()
       this.projects = [
         ...this.projects,
         {
           id: `pr-${Date.now()}`,
           // Derived, not typed: this path never asked for a name.
-          name: projectName(pack, this.company.name || this.viewer.company),
+          name: projectName(list, this.company.name || this.viewer.company),
+          apps: [],
           // A pack IS its scope, so the project carries no module list of its
           // own — `PackPanel` renders what the pack covers. Empty rather than
           // absent so every project has the same shape.
           modules: {},
           service: 'pack',
-          pack: pack.value,
+          // ⚠️ A LIST. See the note on `packs` in the state above.
+          packs: list.map((p) => p.value),
           partnerId: partner.id,
           stage: 'confirmed',
           done: [],
           at: Date.now(),
-          slot: slot ?? null,
+          slot: null,
         },
       ]
+      // ⚠️ The message goes out whether or not the customer ever opens the
+      // inbox — see `bookingThread`. An assignment nobody has been told about
+      // is not an assignment.
       const existing = this.threads.find((t) => t.partnerId === partner.id)
       if (existing) return existing.id
-      this.threads = [...this.threads, bookingThread({ partner, pack, slot })]
+      this.threads = [...this.threads, bookingThread({ partner, packs: list })]
       return partner.id
     },
 
@@ -649,7 +703,30 @@ export const useConnectStore = defineStore('connect', {
           // The three that are not decided yet, spelled out rather than left
           // off: a project's shape should not depend on how it was made.
           service: null,
-          pack: null,
+          // ⚠️ A LIST, because the packs are disjoint modules now and the whole
+    // shape of the recommendation is "these two". It replaces a single `pack`,
+    // and the rename was not cosmetic: every reader had to decide what it meant
+    // to hold one of something that is bought in twos.
+    //
+    // Seeded from the recommendation and then owned by the person — ticking and
+    // unticking on the recommendation screen writes straight here, so the
+    // basket survives sign-up, verification and the checkout.
+    packs: [],
+    // What a custom implementation is asking for. One per account rather than
+    // one per project, for the same reason the intake is: this prototype has
+    // one business in it. `data/custom.js` owns the shape and the rules.
+    brief: emptyBrief(),
+    // ⚠️ THE MOST VALUABLE FEEDBACK IN THE APP and the cheapest to collect:
+    // whether the recommendation was right, asked on the screen that made it,
+    // before anyone has spent anything. It is the only signal that says the
+    // engine is wrong rather than that a partner was. `null` until answered,
+    // then `{ ok, note }`.
+    recoFeedback: null,
+    // Ratings the account has left, `{ projectId, partnerId, rating, text, at }`.
+    // Kept here and not on the project because a rating is about the PARTNER —
+    // it is published on their profile — and the project is only where it was
+    // collected.
+    feedback: [],
           partnerId: null,
           stage: null,
           done: [],
@@ -680,13 +757,13 @@ export const useConnectStore = defineStore('connect', {
       project.serviceAt = Date.now()
     },
 
-    // Which pack, once a service of 'pack' has been chosen. Separate from
+    // Which packs, once a service of 'pack' has been chosen. Separate from
     // `chooseService` because the catalogue is a screen away: you decide you
-    // want a pack, then you go and pick one.
-    selectProjectPack(id, packValue) {
+    // want packs, then you go and pick them.
+    selectProjectPacks(id, packValues) {
       const project = this.projects.find((p) => p.id === id)
       if (!project) return
-      project.pack = packValue
+      project.packs = [...packValues]
     },
 
     // Who is doing the work. The custom spine is the caller that matters — it
@@ -954,33 +1031,58 @@ export const useConnectStore = defineStore('connect', {
       return { thread: partner.id, project, created }
     },
 
-    // Which pack the visitor is buying. Set at the moment Get started is
-    // pressed, so it survives the gate, the two auth screens and the verify
-    // step to reach onboarding.
-    selectPack(value) {
-      this.pack = value
+    // ── The basket ───────────────────────────────────────────────────────
+    // What the visitor is buying, by pack value. Set from the recommendation
+    // and then edited by hand, and it survives the gate, the two auth screens
+    // and the verification step because it lives here rather than in a URL.
+    setPacks(values) {
+      this.packs = [...new Set(values)]
     },
 
-    // What the onboarding screen collected. The segments land where the quiz
-    // would have put them, which is the whole point: `matches()` filters on
-    // `answers.segments`, so answering here narrows the partner list the same
-    // way answering the quiz does.
+    togglePack(value) {
+      this.packs = this.packs.includes(value)
+        ? this.packs.filter((v) => v !== value)
+        : [...this.packs, value]
+    },
+
+    // ⚠️ Seeds the basket ONLY IF IT IS EMPTY, which is what makes the
+    // recommendation screen safe to revisit. Someone who unticked a pack and
+    // pressed Back would otherwise find it ticked again, with the screen
+    // insisting on a choice they had already rejected once.
+    seedRecommendedPacks() {
+      if (this.packs.length) return
+      this.packs = recommendedPackValues(this.company)
+    },
+
+    // The pack records behind the basket, in catalogue order rather than the
+    // order they were ticked — a total that reorders itself as you tick is a
+    // total nobody can check.
+    packRecords() {
+      return STARTER_PACKS.filter((p) => this.packs.includes(p.value))
+    },
+
+    // ── The intake ───────────────────────────────────────────────────────
+    // What the three questions on the landing page collected. Answered BEFORE
+    // there is an account — the whole flow is quiz, recommendation, then
+    // sign-up — so this writes a company record with no name on it, and
+    // `saveAccount` fills that in later.
+    //
+    // The segments land where the quiz would have put them, which is the whole
+    // point: `matches()` filters on `answers.segments`, so answering here
+    // narrows the partner list the same way the old quiz did.
     //
     // ⚠️ ORDER MATTERS. `answer('industry', …)` CLEARS segments — changing the
     // group is meant to drop the choices made under the old one — so the group
     // has to be written first and the segments after it. Reversed, this method
     // would silently throw away everything it just collected.
     //
-    // The group is derived rather than asked for: the control is grouped, so
-    // the first pick's heading is the industry. Segments spanning two groups
-    // keep the first, since the quiz's own field holds exactly one.
-    // ⚠️ `apps` and `problems` changed shape with the dialog. `operations` and
-    // `problems` used to be free text from two textareas; they are now a chosen
-    // value and an array of them. `apps` is new and optional. Defaulted here so
-    // the full-screen `CompanyPage`, which still sends neither, keeps working.
-    saveCompany({ name, employees, segments, apps, appsOther, operations, problems }) {
+    // ⚠️ KEEPS THE EXISTING NAME. Someone can go back and change an answer
+    // after signing up, and a spread that dropped `name` would quietly empty
+    // the sidebar.
+    saveCompany({ country, employees, segments, apps, appsOther, operations, problems }) {
       this.company = {
-        name,
+        ...this.company,
+        country: country ?? '',
         employees,
         segments,
         apps: apps ?? [],
@@ -989,10 +1091,180 @@ export const useConnectStore = defineStore('connect', {
         operations: operations ?? null,
         problems: problems ?? [],
       }
-      this.viewer = { ...this.viewer, company: name }
       const group = INDUSTRIES.find((i) => i.segments.includes(segments?.[0]))
       if (group) this.answer('industry', group.value)
       this.answers.segments = segments ?? []
+      // The country answers the partner list's geo filter too — one question,
+      // asked once. `toggleGeo` would flip it off if it were already set, so
+      // this assigns.
+      if (country) this.filters.countries = [country]
+    },
+
+    // The two things sign-up asks that the intake deliberately doesn't: who you
+    // are and what the company is called. See the ⚠️ on `company` above.
+    saveAccount({ name, company }) {
+      this.viewer = { ...this.viewer, name: name.trim(), company: company.trim() }
+      this.company = { ...this.company, name: company.trim() }
+    },
+
+    // ── Custom implementation ────────────────────────────────────────────
+    // The brief, as it is typed. Saved on every change rather than on submit,
+    // because the partner count under the filters moves with it and a count
+    // that only updates when you press something is a count nobody trusts.
+    saveBrief(patch) {
+      this.brief = { ...this.brief, ...patch }
+    },
+
+    // A custom project exists from the moment there is a brief to put in it —
+    // before a partner, before a quote, before anyone has agreed to anything.
+    // That is the difference between the two spines: a pack arrives assigned.
+    //
+    // Idempotent: returns the existing custom project if one is already open,
+    // so pressing Continue twice does not produce two.
+    startCustomProject() {
+      const open = this.projects.find((p) => p.service === 'custom' && !p.partnerId)
+      if (open) return open.id
+      const id = `pr-${Date.now()}`
+      this.projects = [
+        ...this.projects,
+        {
+          id,
+          name: `ERPNext implementation for ${this.company.name || this.viewer.company}`,
+          apps: ['erpnext'],
+          modules: {},
+          service: 'custom',
+          packs: [],
+          partnerId: null,
+          stage: 'requirements',
+          done: [],
+          at: Date.now(),
+          serviceAt: Date.now(),
+          slot: null,
+          // Filled by `broadcastBrief`. Null means the requirements have not
+          // gone anywhere yet, which is a different state from "nobody replied".
+          broadcast: null,
+          bids: [],
+        },
+      ]
+      return id
+    },
+
+    // ⚠️ THE ONE ACTION IN THIS APP THAT CONTACTS SEVERAL COMPANIES AT ONCE, so
+    // it is the one that has to be exactly as wide as the screen said it was.
+    // The list comes from `matchingPartners` — the same function the count
+    // under the filters is computed from — rather than from anything recomputed
+    // here, because a broadcast that reaches one more firm than the number
+    // shown is the worst bug this flow could have.
+    //
+    // Creates one thread per partner carrying the brief, and seeds the replies
+    // that will come back. Not every partner answers; see `repliesToBrief`.
+    broadcastBrief(id) {
+      const project = this.projects.find((p) => p.id === id)
+      if (!project) return null
+      const partners = matchingPartners(this.company, this.brief)
+      const brief = {
+        projectId: id,
+        project: project.name,
+        scope: this.brief.scope.trim(),
+        budget: this.brief.budget,
+        country: this.company.country,
+        employees: this.company.employees,
+        segments: this.company.segments,
+      }
+
+      const threads = []
+      const bids = []
+      for (const partner of partners) {
+        // ⚠️ A broadcast never appends to an existing conversation. Dropping a
+        // requirements card into a thread where the two of you were already
+        // talking about something else reads as a form letter sent to a friend,
+        // which is exactly what it would be.
+        if (!this.threads.some((t) => t.partnerId === partner.id)) {
+          threads.push(briefThread(partner, brief))
+        }
+        if (repliesToBrief(partner)) {
+          const bid = bidFor(partner, { country: this.company.country })
+          bids.push({ ...bid, state: 'pending' })
+        }
+      }
+      this.threads = [...this.threads, ...threads]
+
+      // The replies land in their own threads, so the inbox shows what a
+      // broadcast actually looks like a day later: a dozen sent, most of them
+      // silent, a handful with a number in them.
+      for (const bid of bids) {
+        const thread = this.threads.find((t) => t.partnerId === bid.partnerId)
+        if (thread) thread.messages.push(bidMessage(bid))
+      }
+
+      project.broadcast = { at: Date.now(), partnerIds: partners.map((p) => p.id) }
+      project.bids = bids
+      // ⚠️ THE STAGE MOVES ON ITS OWN HERE, which nothing else in the tracker
+      // does — every other advance is the customer pressing a button. Sending
+      // the brief IS all three of the Requirements tasks: it cannot happen
+      // without a scope and a budget, and it is itself the third. Leaving the
+      // project on "0 of 3 done" immediately after doing them would be the page
+      // failing to notice what the person just did.
+      project.done = [...new Set([...project.done, 'describe', 'set-budget', 'send-brief'])]
+      project.stage = 'choosing'
+      return { sent: partners.length, replies: bids.length }
+    },
+
+    // Approve a reply, or pass on it.
+    //
+    // ⚠️ APPROVING IS WHAT SHARES THE COMPANY. Until this runs, a partner has
+    // the scope, the budget band and the industry and nothing that identifies
+    // the business — so approval is not a formality, it is the moment a
+    // stranger learns who you are. The company card is appended to their thread
+    // here and nowhere else.
+    //
+    // ⚠️ PASSING TELLS THE PARTNER NOTHING. No message is sent and no state
+    // reaches them. A rejection notice from a business that never spoke to you
+    // is worse than silence, and the partner has lost nothing but the hour they
+    // chose to spend on a brief they could see the size of.
+    setBidState(projectId, partnerId, state) {
+      const project = this.projects.find((p) => p.id === projectId)
+      const bid = project?.bids?.find((b) => b.partnerId === partnerId)
+      if (!bid) return
+      const wasApproved = bid.state === 'approved'
+      bid.state = state
+      if (state !== 'approved' || wasApproved) return
+      const thread = this.threads.find((t) => t.partnerId === partnerId)
+      if (thread) thread.messages.push({ id: `c-${Date.now()}`, from: 'you', at: Date.now(), kind: 'company' })
+    },
+
+    // ⚠️ APPROVAL IS A SHORTLIST, NOT A CHOICE. Several bids can be approved —
+    // that is how the comparison table gets more than one row — and this is the
+    // separate, later gesture that ends the stage. The two were one action in
+    // the first version and it forced a decision at the moment someone was
+    // still gathering information.
+    //
+    // `why` is the one-tap reason, kept beside the project because it is
+    // feedback about the marketplace rather than about the partner.
+    choosePartner(projectId, partnerId, why = null) {
+      const project = this.projects.find((p) => p.id === projectId)
+      if (!project) return
+      project.partnerId = partnerId
+      project.chooseReason = why
+    },
+
+    // ── Feedback ─────────────────────────────────────────────────────────
+    // ⚠️ ASKED TWICE IN A PROJECT'S LIFE AND NOT MORE. Once when a partner is
+    // chosen (why that one — a tap, stored above) and once at go-live (a rating
+    // and a sentence, published). A product that asks after every stage stops
+    // being answered by the stage that matters.
+    // Was the recommendation right? One tap, and a field only if the answer is
+    // no — there is nothing to learn from somebody who agrees, and asking them
+    // to explain it is how a yes/no becomes a form people skip.
+    recordRecoFeedback(ok, note = '') {
+      this.recoFeedback = { ok, note: note.trim() }
+    },
+
+    recordFeedback({ projectId, partnerId, rating, text }) {
+      this.feedback = [
+        ...this.feedback.filter((f) => f.projectId !== projectId),
+        { projectId, partnerId, rating, text: text.trim(), at: Date.now() },
+      ]
     },
 
     // What the two auth FORMS record. Neither signs anyone in: the code comes
@@ -1012,12 +1284,21 @@ export const useConnectStore = defineStore('connect', {
     // `regionInferred` clears for the same reason `toggleGeo` clears it — the
     // location was a guess until someone confirmed it, and confirming it is
     // exactly what this screen did.
-    signUp({ name, email, country }) {
+    // ⚠️ COMPANY NAME, NOT COUNTRY. This form used to ask where you are, back
+    // when sign-up was the first thing that happened; the intake asks that now,
+    // on the landing page, because the answer changes the recommendation and
+    // the recommendation comes first.
+    //
+    // ⚠️ WHY THE COMPANY NAME IS ASKED HERE AND NOT IN THE INTAKE. The intake
+    // holds to one rule — every question in it changes the recommendation — and
+    // a company's name changes nothing about which packs fit. It is needed at
+    // exactly two later moments: the invoice, and the point where a custom bid
+    // is approved and the partner learns who they are talking to. Both are
+    // after this screen, so one ask here covers both, and the first ten seconds
+    // of the funnel stay about the business rather than about paperwork.
+    signUp({ name, email, company }) {
       this.viewer = { ...this.viewer, name, email }
-      if (country) {
-        this.filters.countries = [country]
-        this.regionInferred = false
-      }
+      if (company) this.saveAccount({ name, company })
     },
 
     // Logging in knows only the address. The name stays whatever the store

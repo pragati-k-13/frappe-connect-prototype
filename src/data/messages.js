@@ -203,17 +203,76 @@ export const contactThread = (partner, inquiry = null, body = '') => {
   }
 }
 
-export const bookingThread = ({ partner, pack, slot }) => {
+// ⚠️ SENT ON THE CUSTOMER'S BEHALF, before they have typed anything. A pack is
+// paid for and a partner is assigned in the same instant, and the thing that
+// makes that assignment useful rather than administrative is that the partner
+// already knows who they have been given and what they bought. So the thread
+// exists before the customer opens it, with a sentence and the answers they
+// gave the intake.
+//
+// The customer sees exactly what went out — it is in their own thread, from
+// them — which is the only version of "we messaged them for you" that isn't a
+// thing done behind someone's back.
+//
+// `packs` is a LIST. The basket is normally more than one now, and "a Accounts,
+// Sales, Purchase, Stock and HR and Payroll Starter Pack" is not a sentence, so
+// the names are joined and the noun is pluralised by the caller's data rather
+// than by a guess.
+export const bookingThread = ({ partner, packs }) => {
+  const at = Date.now()
+  const names = [packs].flat().map((p) => p.name)
+  const list =
+    names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : (names[0] ?? '')
+  return {
+    id: partner.id,
+    partnerId: partner.id,
+    startedAt: at,
+    messages: [
+      msg('you', at, {
+        body: `Hi — we have just bought the ${list} ${names.length > 1 ? 'starter packs' : 'starter pack'} and Frappe has assigned you to us. Here is where we are today.`,
+      }),
+      { id: `m${++seq}`, from: 'you', at, kind: 'company' },
+    ],
+  }
+}
+
+// ── The custom broadcast ────────────────────────────────────────────────────
+// One of these per matching partner when a brief goes out. Same shape as every
+// other thread, because it IS one: the whole point of putting the broadcast in
+// the inbox rather than in a private queue is that the customer can see exactly
+// what each firm received.
+//
+// ⚠️ NO COMPANY CARD. This is the difference between a broadcast and a booking:
+// twelve firms are being handed a requirement, and until one of them has
+// replied with something the customer approves, none of them get the company's
+// name, its size or its systems. The brief card carries the scope, the budget
+// band and the industry — enough to quote, not enough to cold-call. The company
+// card is appended when a bid is approved.
+export const briefThread = (partner, brief) => {
   const at = Date.now()
   return {
     id: partner.id,
     partnerId: partner.id,
-    messages: [
-      msg('you', at, {
-        body: `Hi, we are looking at a ${pack.name} Starter Pack implementation for ERPNext. Could you take this on?`,
-      }),
-      { id: `m${++seq}`, from: 'you', at, kind: 'company' },
-      { id: `m${++seq}`, from: 'you', at, kind: 'call', when: slot ?? null },
-    ],
+    startedAt: at,
+    // ⚠️ Marks the thread as part of a broadcast, which is what lets the inbox
+    // collapse a dozen of them into one group instead of burying every real
+    // conversation the account has. Carries the project so the group can name
+    // what it was for.
+    broadcast: brief.projectId,
+    messages: [{ id: `m${++seq}`, from: 'you', at, kind: 'brief', brief }],
   }
 }
+
+// A partner's reply to a brief: a price, a timeline and a sentence, as a card
+// the customer approves or passes on. `state` lives on the message rather than
+// on the thread because a thread can in principle carry two — a revised quote
+// is a second bid, not an edit of the first.
+export const bidMessage = (bid) => ({
+  id: `bid-${bid.partnerId}-${++seq}`,
+  from: 'them',
+  // Staggered by partner so a dozen replies don't all land on the same minute,
+  // which is what makes the inbox's ordering meaningless.
+  at: Date.now() - (seq % 7) * 3600 * 1000,
+  kind: 'bid',
+  bid,
+})
