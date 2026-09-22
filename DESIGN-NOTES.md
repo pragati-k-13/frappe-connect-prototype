@@ -90,12 +90,17 @@ pressed to shortlist them, is the product asking for a receipt it wrote itself. 
 survives is the one act nothing on the page observes, and it appears only once there is
 somebody to do it with: agreeing terms.
 
-Replies group into **Shortlisted** and **Others**. Shortlisting is the old "approve",
-renamed rather than softened — it shares the company's name and contact details and opens
-the thread — which is why the control says **Share and talk** and not "Shortlist": the word
-reads as a private bookmark, and a private-sounding button that introduces you to a stranger
-is the one mistake this flow cannot make. The group is named for the state; the button is
-named for the consequence.
+Replies group into **Shortlisted** and **Others**, and the button that fills the first says
+**Shortlist**. Shortlisting is the old "approve", renamed rather than softened: it shares the
+company's name and contact details and opens the thread.
+
+One draft labelled that button "Share and talk", to keep it from reading as a private
+bookmark at the moment a stranger learns who you are. The worry is real and that was the
+wrong place to answer it. An action keeps its name across a flow — the control that says
+Shortlist is what puts a row in the group called Shortlisted — and a button whose words
+appear nowhere else leaves nothing to say which control filled that tab. The consequence
+keeps its own line directly above the button, with the partner named; a label is not long
+enough to be a disclosure and is the wrong shape for one.
 
 **Hiring** is still a separate, later gesture that ends the stage. It and shortlisting were
 one action first and it forced the decision while somebody was still gathering information.

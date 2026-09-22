@@ -25,11 +25,21 @@ import { useConnectStore } from '../stores/connect'
 // above it is the one task nothing here observes.
 //
 // ⚠️ SHORTLISTING IS THE OLD APPROVAL, RENAMED, NOT SOFTENED. It shares the
-// company's name and contact details and opens the thread — see
-// `setBidState`. That is why the control does not say "Shortlist": the word
-// reads as a private bookmark, and a private-sounding button that introduces
-// you to a stranger is the one mistake this flow cannot make. The GROUP is
-// called Shortlisted; the BUTTON says what pressing it does.
+// company's name and contact details and opens the thread — see `setBidState`.
+//
+// ⚠️ THE BUTTON SAYS "Shortlist", AND FOR ONE DRAFT IT SAID "Share and talk".
+// The reasoning was that "Shortlist" reads as a private bookmark and a
+// private-sounding button that introduces you to a stranger is the one mistake
+// this flow cannot make. The worry is real; that was the wrong place to answer
+// it. An action has to keep its name across the flow — the control that says
+// Shortlist puts the row in the group called Shortlisted — and a button whose
+// words appear nowhere else leaves nothing to tell you which one filled that
+// tab. "Share and talk" also had to carry two ideas in three words and named
+// neither: share WHAT, with WHOM.
+//
+// The consequence keeps its own line directly above the button, in full, with
+// the partner named. That sentence is where a disclosure belongs — a button
+// label is not long enough to be a disclosure and is the wrong shape for one.
 const props = defineProps({
   project: { type: Object, required: true },
 })
@@ -262,7 +272,7 @@ const emit = defineEmits(['choose'])
             <div class="mt-2 flex flex-wrap items-center gap-2">
               <Button
                 variant="solid"
-                label="Share and talk"
+                label="Shortlist"
                 @click="store.setBidState(project.id, row.partnerId, 'shortlisted')"
               />
               <Button

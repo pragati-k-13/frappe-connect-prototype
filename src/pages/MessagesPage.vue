@@ -747,17 +747,16 @@ watch(open, toBottom)
                       Shares your company details with {{ open.partner.name }} and opens this
                       conversation to them.
                     </p>
-                    <!-- ⚠️ THE BUTTON NAMES THE CONSEQUENCE, not the bucket.
-                         "Shortlist" is what the row BECOMES and it reads as a
-                         private bookmark — precisely the wrong expectation at
-                         the moment a stranger learns which company they are
-                         talking to. The group is called Shortlisted; the
-                         control says what pressing it does. -->
+                    <!-- ⚠️ THE SAME WORD AS THE PROJECT'S GROUP AND BADGE.
+                         Shortlist here, Shortlisted there, and the sentence
+                         above carries the consequence — see the note in
+                         `ProjectBids` for why that is the right division and
+                         why "Share and talk" was not. -->
                     <div class="mt-2 flex gap-2">
                       <Button
                         variant="solid"
                         size="sm"
-                        label="Share and talk"
+                        label="Shortlist"
                         @click="setBid(m, 'shortlisted')"
                       />
                       <Button variant="subtle" size="sm" label="Pass" @click="setBid(m, 'passed')" />
