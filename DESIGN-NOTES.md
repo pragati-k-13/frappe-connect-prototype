@@ -7,6 +7,100 @@ a fifty-minute read on the front page of the repo.
 Library-level traps that aren't specific to Connect live in
 [FRAPPE-UI-NOTES.md](FRAPPE-UI-NOTES.md) instead.
 
+## ⚠️ The product is now two things, and a screen that picks between them
+
+The largest change this prototype has had. Frappe Connect sold three services — guided
+onboarding, starter packs, custom implementation — and the visitor picked between them off
+a marketing page before anyone had asked them a single question. It now sells **two**, and
+picking is the product's job rather than the visitor's.
+
+**Guided onboarding is gone.** Its landing section, its project spine, its route and
+`data/onboarding.js` all went with it. Nothing in the app sells three-hour teaching any
+more.
+
+**The three questions run in the landing hero and everybody answers them.** They were two
+optional questions that filtered a partner listing, so skipping them produced a wider list
+and that was a fine outcome. They now produce a RECOMMENDATION, and there is no wider
+version of one: skipping "what do you want fixed" doesn't loosen the answer, it removes the
+only evidence there was for it. So there is no Skip on that page any more, and the rule the
+questions hold to is that **every one of them changes the recommendation** — country sets
+the currency and the partner pool, the size band is the threshold that sends a business to
+custom work, the industry picks the Manufacturing pack.
+
+That rule is also why the company's NAME is not asked there. It changes nothing about
+which packs fit; it is needed on the invoice and at the moment a custom bid is approved,
+both of which are downstream of sign-up. Sign-up asks for it, with the person's own name.
+
+**The recommendation screen is the pivot of the whole app.** Everything before it collects
+answers and everything after it sells something, so it is the only screen that makes a
+claim — and therefore the only one that has to justify one. Every assertion on it is
+printed beside the answer it came from, and `data/recommendation.js` is built so a rule and
+its sentence cannot drift apart: a pack rule returns the reason it fired rather than a
+boolean, so there is no way to add a condition and forget to say why.
+
+One verdict, not a ranking. An earlier version scored both paths and showed the loser
+underneath, which reads as a shop rather than as advice. The other path is one plain link
+away, and taking it changes the headline from an assertion to a description — "Get quotes
+from partners", not "This needs a partner to scope it properly" — because printing our
+judgement over a path somebody chose against our advice puts our words in their mouth.
+
+**Sign-up is create-and-verify, and nothing else.** It used to be the first of four steps,
+with company details and project details as screens three and four. Both are gone: the
+intake asks those questions before anyone signs up, and asking them twice was the price of
+the old flow.
+
+### Where the money actually is
+
+Worth stating plainly, because it explains why the hosting stage is early and prominent in
+both project spines rather than buried after the interesting part:
+
+| Flow         | Who is paid         | What Frappe gets                                     |
+| ------------ | ------------------- | ---------------------------------------------------- |
+| Starter pack | Frappe, in full, up front | The pack, and the Frappe Cloud subscription under it |
+| Custom       | The partner, entirely | The Frappe Cloud subscription under it               |
+
+Frappe takes no fee on custom work at all. What it sells in both cases is the hosting, and
+the partner code is the mechanism: the customer enters it on Frappe Cloud, the site is
+billed to the partner, and the partner bills the customer along with the rest of the work.
+That is one short string on one task, and it is the commercial point of the product.
+
+### The custom flow, and why bids live in two places
+
+Requirements go out to every matching partner at once — the count is on the button, and it
+comes from the same function the send uses, because a broadcast that reaches one more firm
+than the number shown is the worst bug this flow could have. The brief carries the scope,
+the budget band, the industry and the headcount, and **not** the company's name or contact
+details. Those are shared only when a reply is approved.
+
+A reply lands as a card **in that partner's own thread**, because that is where the
+conversation with that firm lives and because seeing it there is what makes "twelve
+partners got your requirements" checkable. But a dozen threads cannot be compared by
+scrolling an inbox, so the numbers are also pulled into a table on the project. Both
+surfaces write the same state.
+
+Two consequences in the inbox: threads from a broadcast stay folded into one group until
+the partner answers — nothing is hidden except silence — and not every partner replies,
+because a flow that shows twelve of twelve is lying about what a broadcast looks like a
+week later.
+
+Approving is a shortlist; **choosing** is a separate, later gesture that ends the stage.
+They were one action first and it forced the decision while somebody was still gathering
+information. Passing on a bid tells the partner nothing: a rejection notice from a business
+that never spoke to you is worse than silence.
+
+### The tracker does not track the partner
+
+Neither spine advances on anything a partner does. There is no task list a partner updates,
+no percentage and no per-module state, because partners are unreliable about maintaining
+that and a progress bar nobody moves reads as nothing having happened. The Implementation
+and Build stages are deliberately thin: your own tasks, and one line saying that your calls
+with the partner are where progress actually lives.
+
+Feedback is asked exactly twice in a project's life — one tap on why a partner was chosen,
+and a published rating at go-live — plus one line on the recommendation screen asking
+whether it was right. That last one is the highest-value signal in the app and the only one
+that says the engine rather than a partner got something wrong.
+
 ## Decisions worth knowing
 
 **No dividers between a page's own sections.** Nothing between the profile's header,

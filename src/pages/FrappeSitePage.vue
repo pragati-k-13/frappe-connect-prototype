@@ -24,19 +24,23 @@
 // Buttons are frappe-ui's `Button` at `size="md"`, which is h-8 / px-2.5 /
 // rounded-4 — the same 32px pill the real site uses, measured.
 //
-// This version opens with three calls to action instead of one, because two of
-// the three ways to work with a partner no longer involve browsing a directory:
+// ⚠️ ONE CALL TO ACTION, not three. This page listed the three ways to work
+// with a partner as three cards with three buttons, which was right while they
+// were three products a visitor picked between. They are two now — guided
+// onboarding is gone — and, more to the point, PICKING IS NO LONGER THE
+// VISITOR'S JOB: Frappe Connect asks three questions and tells them which of
+// the two fits. A page that makes someone choose between them first is asking
+// the question the next page exists to answer.
 //
-//   Guided onboarding   a 3-hour partner-led program; Frappe assigns the partner
-//   Starter packs       fixed scope, fixed price;     Frappe assigns the partner
-//   Custom              scoped with a partner;        you choose the partner
+// So the cards describe what exists and the single button goes to the
+// questions. The directory link stays beside it for the visitor who came here
+// to browse firms and should not be forced through a form to do it.
 //
 // Links into Connect open a NEW TAB — `Button`'s `link` prop does that for us —
 // because the fiction is that you're leaving frappe.io and arriving somewhere
 // else.
 import { Avatar, Button, ScrollArea } from 'frappe-ui'
 import { SUCCESS_STORIES } from '../data/partners'
-import { ONBOARDING } from '../data/onboarding'
 // A placeholder portrait for the testimonial. Generated art, like the rest of
 // `assets/media` — see `scripts/`.
 import portrait from '../assets/media/placeholder-2.jpg'
@@ -52,23 +56,14 @@ const connect = (path = '') => `${baseUrl}connect${path}`
 
 // The three doors, in increasing order of commitment.
 //
-// ⚠️ Each of these used to carry a fourth bullet saying who picks the partner:
-// Frappe assigns one for onboarding and packs, you choose your own for custom.
-// That's the real difference between the three products and the thing a reader
-// is most likely to get wrong, and it no longer appears anywhere on this page.
-// It needs saying on the pack and programme views instead.
+// ⚠️ THE LAST BULLET OF EACH NAMES WHO PICKS THE PARTNER, which is the real
+// difference between the two and the thing a reader is most likely to get
+// wrong. It used to be missing from this page entirely.
+//
+// ⚠️ NO `cta` AND NO `link`. Both were removed with the third card: three
+// buttons on this page were three answers to a question the visitor has not
+// been asked yet. There is one button, below, and it goes to the questions.
 const SERVICES = [
-  {
-    id: 'onboarding',
-    title: ONBOARDING.name,
-    points: [
-      'Three focused one hour sessions',
-      'Learn the core workflows by doing them',
-      'Leave with an implementation roadmap',
-    ],
-    cta: 'See the program',
-    link: connect('/onboarding'),
-  },
   {
     id: 'packs',
     title: 'Starter packs',
@@ -76,9 +71,8 @@ const SERVICES = [
       'No customization, ERPNext as it ships',
       'For businesses running under 50 users',
       'Published pricing, no quote to wait for',
+      'Frappe assigns you a certified partner',
     ],
-    cta: 'View packs',
-    link: connect('/packs'),
   },
   {
     id: 'custom',
@@ -87,9 +81,8 @@ const SERVICES = [
       'Built around your processes and integrations',
       'Specialist knowledge transfer',
       'Maintenance and support after go live',
+      'Partners quote, and you choose between them',
     ],
-    cta: 'Browse partners',
-    link: connect(),
   },
 ]
 
@@ -198,7 +191,7 @@ const RAIL = [
         </nav>
         <!-- The account entry, and deliberately not "Get started".
              This is the path a visitor takes when they DON'T pick one of the
-             three services below — they sign in and land on the home with all
+             two products below — they sign in and land on the home with all
              three. The three cards are the product entries; this is the account
              one, and the two shouldn't read as the same offer.
              The wording is the real frappe.io's, and it's what Connect's own top
@@ -239,7 +232,7 @@ const RAIL = [
             </p>
           </section>
 
-          <!-- The three doors -->
+          <!-- The two products, and one way in -->
           <section class="mx-auto max-w-[800px] pb-32">
             <p
               class="text-center text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-gray-5"
@@ -250,11 +243,11 @@ const RAIL = [
               Find the right fit for your business
             </h2>
 
-            <!-- Three rows, not three cards. Boxing each one drew a frame around
-               a title and four bullets, which is most of a card's contents
-               already; the rules between rows separate them with nothing drawn
-               around the outside. Every list on this page is built this way —
-               24px above and below each row. -->
+            <!-- Rows, not cards. Boxing each one drew a frame around a title
+               and four bullets, which is most of a card's contents already; the
+               rules between rows separate them with nothing drawn around the
+               outside. Every list on this page is built this way — 24px above
+               and below each row. -->
             <ul class="mt-10 divide-y divide-outline-gray-1">
               <li
                 v-for="s in SERVICES"
@@ -285,29 +278,30 @@ const RAIL = [
                       {{ p }}
                     </li>
                   </ul>
-                  <div class="mt-4">
-                    <Button size="md" :label="s.cta" :link="s.link">
-                      <template #suffix><LucideArrowRight class="size-4" /></template>
-                    </Button>
-                  </div>
                 </div>
               </li>
             </ul>
 
-            <!-- The fourth path, deliberately quiet. Someone who can't place
-               themselves in any of the three above shouldn't have to guess, but
-               giving this a card of its own would make the choice four wide and
-               the three above are the products.
-               ⚠️ Inert: there's no scheduling screen for the Frappe team yet. -->
-            <p class="mt-6 text-center text-[15px] text-ink-gray-6">
-              Not sure which one you need?
-              <button
-                type="button"
-                class="font-medium text-ink-gray-7 underline underline-offset-2"
+            <!-- ⚠️ ONE BUTTON, AND IT ANSWERS THE HEADING. "Find the right fit
+                 for your business" is a promise this page cannot keep on its
+                 own; the questions behind this button are what keep it, and
+                 that is why the two rows above no longer carry a button each.
+                 Opens in a NEW TAB like every other link into the app. -->
+            <div class="mt-8 flex flex-col items-center gap-3">
+              <Button variant="solid" size="md" label="Find out which one you need" :link="connect()">
+                <template #suffix><LucideArrowRight class="size-4" /></template>
+              </Button>
+              <!-- The escape hatch for the visitor who came here to browse
+                   firms. They are the reason this page exists at all, and being
+                   made to answer three questions first would be a worse page
+                   than the one it replaced. -->
+              <a
+                :href="connect('/partners')"
+                class="text-[15px] text-ink-gray-6 underline underline-offset-2 hover:text-ink-gray-8"
               >
-                Talk to the Frappe team
-              </button>
-            </p>
+                Or browse all 156 partners
+              </a>
+            </div>
           </section>
 
           <!-- Testimonial.
