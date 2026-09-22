@@ -677,6 +677,22 @@ export const partnerCodeFor = (project, partner) => {
   return `${partner.id.slice(0, 3).toUpperCase()}-${String(seed).padStart(5, '0')}`
 }
 
-// Where the code is entered. A real link, and out of the app — the point of the
-// task is that this happens somewhere else.
-export const FRAPPE_CLOUD_URL = 'https://frappecloud.com'
+// Where the code is entered. Out of the app — the point of the task is that
+// this happens somewhere else.
+//
+// ⚠️ THIS PATH IS INVENTED. The mechanism is real and so is its name — Frappe
+// Cloud lets a customer own their account while an implementation partner is
+// billed for it, under "Paid via Partner" — but the public documentation does
+// not say which dashboard screen takes the code, and the dashboard needs a
+// login to look. So the deep link is plausible rather than checked, and it
+// WILL be wrong if the settings are laid out differently.
+//
+// It is a deep link rather than the bare domain because a code is useless
+// beside a home page: the task is "take this string to the one screen that
+// wants it", and sending somebody to frappecloud.com leaves them to find that
+// screen themselves. Signing in first is fine — Frappe Cloud bounces to login
+// and returns here, which is what any dashboard link does.
+//
+// Replace with the real path before this is shown outside the team. Same rule
+// as the invented partner rates and the generated quotes.
+export const FRAPPE_CLOUD_PARTNER_URL = 'https://frappecloud.com/dashboard/settings/partner'

@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { Button, Dialog, toast } from 'frappe-ui'
 import IconCopy from '~icons/lucide/copy'
 import IconExternal from '~icons/lucide/arrow-up-right'
-import { FRAPPE_CLOUD_URL, partnerCodeFor } from '../data/project'
+import { FRAPPE_CLOUD_PARTNER_URL, partnerCodeFor } from '../data/project'
 
 // The Frappe Cloud partner code, and the three steps it belongs to.
 //
@@ -73,14 +73,30 @@ const copy = async () => {
         </Button>
       </div>
 
+      <!-- ⚠️ TWO STEPS, AND THERE WERE THREE. The third read "Come back and
+           tick the task", which has been wrong since tasks stopped being
+           tickable — taking the code is what completes this one, and an
+           instruction to press a control that no longer exists sends somebody
+           hunting for it. Rewriting it as what happens next just restated the
+           paragraph above, which already says the partner is billed and bills
+           you. A list of steps should hold the steps. -->
       <ol class="mt-5 space-y-2 text-p-base text-ink-gray-7">
-        <li>1. Create a Frappe Cloud account, or log in to the one you have.</li>
-        <li>2. Open Settings, then Billing, and enter the code above.</li>
-        <li>3. Come back and tick the task — your partner takes it from there.</li>
+        <li>1. Log in to Frappe Cloud, or create an account.</li>
+        <li>2. Under Billing, choose "Paid via Partner" and enter the code above.</li>
       </ol>
 
       <div class="mt-5 flex items-center gap-2">
-        <Button variant="solid" label="Open Frappe Cloud" :link="FRAPPE_CLOUD_URL">
+        <!-- ⚠️ THE EXACT PAGE, not the home page — a code is useless beside a
+             marketing site. The path is invented; see the note on
+             `FRAPPE_CLOUD_PARTNER_URL`. The label names the destination
+             precisely for the same reason the link is deep: somebody arriving
+             at Frappe Cloud should already know which screen they are looking
+             for, in case the link lands them somewhere else. -->
+        <Button
+          variant="solid"
+          label="Open Frappe Cloud billing"
+          :link="FRAPPE_CLOUD_PARTNER_URL"
+        >
           <template #suffix><IconExternal class="size-4" /></template>
         </Button>
         <Button variant="ghost" label="Close" @click="emit('update:open', false)" />
