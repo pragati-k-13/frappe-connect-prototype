@@ -191,7 +191,7 @@ const packs = computed(() =>
                      nothing has to climb back above the stretched layer. -->
                 <h3 class="text-lg font-medium text-ink-gray-8">
                   <RouterLink
-                    :to="{ name: 'confirm', query: { pack: pack.value } }"
+                    :to="{ name: 'pack', params: { id: pack.value } }"
                     class="after:absolute after:inset-0 after:content-['']"
                   >
                     {{ pack.name }}

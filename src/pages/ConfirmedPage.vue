@@ -1,5 +1,5 @@
 <script setup>
-import { computed, watchEffect } from 'vue'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Badge, Button, ScrollArea, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
@@ -19,26 +19,18 @@ import { useConnectStore } from '../stores/connect'
 // promise is actually kept: Frappe said it would assign you a partner, and this
 // names them.
 //
-// ⚠️ Both the pack and the PARTNER are in the URL, not just the store. Same
-// reason as the confirmation screen before it: the store is in memory, and this
-// is the screen someone screenshots, bookmarks or forwards. An assignment that
-// changed on reload would be worse than one that was never shown.
+// ⚠️ THE PARTNER IS IN THE URL, and the packs come from the PROJECT rather
+// than from the basket — the basket is emptied the moment the payment lands, so
+// reading it here would show a receipt for nothing. The partner stays in the
+// URL because this is the screen someone screenshots, bookmarks or forwards,
+// and an assignment that changed on reload would be worse than one never shown.
 const store = useConnectStore()
 const route = useRoute()
 const router = useRouter()
 
-const pack = computed(
-  () => STARTER_PACKS.find((p) => p.value === (route.query.pack ?? store.pack)) ?? null,
-)
 const partner = computed(() => PARTNERS.find((p) => p.id === route.query.partner) ?? null)
 
-const region = computed(
-  () => marketFor(store.filters.countries[0]) ?? store.answers.region[0] ?? DEFAULT_REGION,
-)
-
-watchEffect(() => {
-  if (pack.value && store.pack !== pack.value.value) store.selectPack(pack.value.value)
-})
+const region = computed(() => marketFor(store.company.country) ?? DEFAULT_REGION)
 
 // First name only — "Tridots will be in contact", not "Tridots Tech Pvt Ltd
 // will be in contact". A sentence about a person you are about to meet.
@@ -57,16 +49,31 @@ const shortName = computed(() => partner.value?.name.split(' ')[0] ?? 'Your part
 // been this screen describing whichever project happened to be created last,
 // and "the first one with this partner" describes the OLDEST thing you ever
 // bought from them. See `projectForBooking`.
-const project = computed(() =>
-  store.projectForBooking(route.query.partner, route.query.pack ?? store.pack),
+const project = computed(() => store.projectForBooking(route.query.partner))
+
+// What was bought, from the project. A list — the basket is normally more than
+// one pack now.
+const packs = computed(() =>
+  (project.value?.packs ?? []).map((v) => STARTER_PACKS.find((p) => p.value === v)).filter(Boolean),
 )
+const pack = computed(() => packs.value[0] ?? null)
+
+// ⚠️ The names joined into a phrase rather than a list, because every sentence
+// on this page has to hold one or three of them. "your Accounts, Sales,
+// Purchase, Stock and Manufacturing packs" reads; a comma-separated dump beside
+// the word "pack" does not.
+const packList = computed(() => {
+  const names = packs.value.map((p) => p.name)
+  if (names.length <= 1) return names[0] ?? ''
+  return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
+})
 // The stage is the project's own (`data/project.js`), not a CRM funnel: a
 // business that just bought a pack is not a "Proposal". `stageOf` takes the
-// SERVICE now, because the three services have different spines — booking a
+// SERVICE now, because the two services have different spines — buying a
 // pack is always 'pack', which is what a URL-only arrival falls back to.
 const stage = computed(() => stageOf(project.value?.service ?? 'pack', project.value?.stage))
 const title = computed(() =>
-  pack.value ? projectName(pack.value, store.company.name || store.viewer.company) : '',
+  packs.value.length ? projectName(packs.value, store.company.name || store.viewer.company) : '',
 )
 
 // A URL-only arrival (a forwarded link, a reload) has no project behind it, so
@@ -98,7 +105,7 @@ const since = (ms) => {
 // in a form. The wording carries that (see the template) because the message
 // body is written in the reader's own voice and they have never seen it.
 const activity = computed(() => {
-  if (!pack.value || !partner.value) return []
+  if (!packs.value.length || !partner.value) return []
   return [
     {
       key: 'email',
@@ -111,7 +118,7 @@ const activity = computed(() => {
         kind: 'email',
         from: 'Frappe',
         address: 'updates@frappe.io',
-        body: `Your ${pack.value.name} Starter Pack is confirmed. ${partner.value.name} will run the implementation and will be in touch.`,
+        body: `Your ${packList.value} ${packs.value.length > 1 ? 'starter packs are' : 'starter pack is'} confirmed. ${partner.value.name} will run the implementation and will be in touch.`,
       },
     },
     {
@@ -124,7 +131,7 @@ const activity = computed(() => {
       // their name. It is the opening line of `bookingThread`.
       card: {
         kind: 'message',
-        label: `Hi, we are looking at a ${pack.value.name} Starter Pack implementation for ERPNext. Could you take this on?`,
+        label: `Hi — we have just bought the ${packList.value} ${packs.value.length > 1 ? 'starter packs' : 'starter pack'} and Frappe has assigned you to us. Here is where we are today.`,
         to: { name: 'messages', query: { thread: partner.value.id } },
       },
     },
@@ -166,7 +173,7 @@ const cancel = () =>
     <div class="flex min-h-0 min-w-0 flex-1">
       <ScrollArea class="min-h-0 min-w-0 flex-1">
         <div class="w-full px-5 py-8 lg:px-8">
-          <div v-if="!pack || !partner" class="py-20 text-center">
+          <div v-if="!packs.length || !partner" class="py-20 text-center">
             <p class="text-p-lg font-medium text-ink-gray-8">Nothing to show here</p>
             <p class="mx-auto mt-1.5 max-w-sm text-p-base text-ink-gray-6">
               This link doesn't name a booking. Start from the packs and this is where you'll land.
@@ -202,7 +209,9 @@ const cancel = () =>
                "This will connect you with the ideal Partner for your needs",
                was future tense on a page that says the connecting is done.) -->
             <p class="mt-1 text-p-base text-ink-gray-6">
-              Your {{ pack.name }} pack is booked and matched with a Partner.
+              Your {{ packList }} {{ packs.length > 1 ? 'packs are' : 'pack is' }} paid for and
+              matched with a Partner. We have already sent {{ shortName }} an introduction with what
+              you told us — you can read exactly what went out below.
             </p>
 
             <!-- Who you were matched with. Extracted to a component the moment
@@ -233,9 +242,27 @@ const cancel = () =>
                  rather than "Track implementation" because the feed below
                  already calls it a project, and a flow should keep one word for
                  one thing. -->
-            <div class="mt-4 flex items-center gap-2">
+            <!-- ⚠️ THREE WAYS ON, and they are the three things somebody
+                 actually wants at this moment: the work, the conversation, and
+                 who these people are. The project leads because it is the one
+                 that holds what happens next; reading the partner's profile is
+                 the one nobody thinks to offer and everybody does. Cancel is a
+                 ghost at the end rather than a peer of them — a page whose
+                 second-loudest control undoes what just happened is a page
+                 that expects you to regret it. -->
+            <div class="mt-4 flex flex-wrap items-center gap-2">
               <Button variant="solid" label="Open project" @click="viewProject" />
-              <Button variant="subtle" label="Cancel" @click="cancel" />
+              <Button
+                variant="subtle"
+                :label="`Message ${shortName}`"
+                :route="{ name: 'messages', query: { thread: partner.id } }"
+              />
+              <Button
+                variant="subtle"
+                label="View partner profile"
+                :route="{ name: 'partner', params: { id: partner.id } }"
+              />
+              <Button variant="ghost" label="Cancel" @click="cancel" />
             </div>
 
             <!-- ── What has happened ───────────────────────────────────────
@@ -415,19 +442,25 @@ const cancel = () =>
             <!-- Below `lg` the panel stacks under the page instead of beside it:
                a 352px column next to a 352px column is not a layout. `-mx-5`
                cancels the page padding so its own rules run edge to edge. -->
-            <div class="-mx-5 mt-8 border-t border-outline-gray-1 lg:hidden">
-              <PackPanel :pack="pack" :region="region" />
+            <!-- ⚠️ ONE PANEL PER PACK, stacked. A basket of three is three
+                 scope documents and there is no combined one — the packs are
+                 disjoint slices of the catalogue, so a merged panel would have
+                 to invent a heading for a product nobody sells. -->
+            <div class="-mx-5 mt-8 divide-y divide-outline-gray-1 border-t border-outline-gray-1 lg:hidden">
+              <PackPanel v-for="p in packs" :key="p.value" :pack="p" :region="region" />
             </div>
           </div>
         </div>
       </ScrollArea>
 
       <aside
-        v-if="pack && partner"
+        v-if="packs.length && partner"
         class="hidden w-[352px] shrink-0 flex-col border-l border-outline-gray-1 lg:flex"
       >
         <ScrollArea class="min-h-0 flex-1">
-          <PackPanel :pack="pack" :region="region" />
+          <div class="divide-y divide-outline-gray-1">
+            <PackPanel v-for="p in packs" :key="p.value" :pack="p" :region="region" />
+          </div>
         </ScrollArea>
       </aside>
     </div>

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, watchEffect } from 'vue'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Button, Tooltip } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
@@ -19,7 +19,6 @@ import {
   DEFAULT_REGION,
 } from '../data/packs'
 import { useConnectStore } from '../stores/connect'
-import { useAuthGate } from '../utils/auth'
 
 // SCREEN — the pack you are about to buy.
 //
@@ -44,7 +43,6 @@ import { useAuthGate } from '../utils/auth'
 // terms are below the button, which is why they are on the page at all rather
 // than a click away in a panel.
 const store = useConnectStore()
-const { requireAccount } = useAuthGate()
 const route = useRoute()
 const router = useRouter()
 
@@ -58,18 +56,25 @@ const router = useRouter()
 //
 // The store still gets written, so the rest of the app agrees with the URL when
 // someone arrives by link rather than by choosing.
-const pack = computed(
-  () => STARTER_PACKS.find((p) => p.value === (route.query.pack ?? store.pack)) ?? null,
-)
+// ⚠️ THE URL IS THE ONLY SOURCE NOW. It used to fall back to a `store.pack`
+// holding the one pack being bought; the basket is a list, and "which pack is
+// this page about" is not answerable from a list. `:id` is the pack's own
+// value, matching how a partner profile is addressed.
+const pack = computed(() => STARTER_PACKS.find((p) => p.value === route.params.id) ?? null)
 
-watchEffect(() => {
-  if (pack.value && store.pack !== pack.value.value) store.selectPack(pack.value.value)
-})
+// ⚠️ Reading the basket, not writing it. Opening a pack's page is not adding it
+// to anything — this screen is the scope document, and someone reads it to
+// decide. The button below is the gesture that adds.
+const inBasket = computed(() => Boolean(pack.value && store.packs.includes(pack.value.value)))
 
-// Same market resolution as the catalogue — the country first, because sign-up
-// writes only that. See `marketFor` in `data/packs.js`.
+// Same market resolution as the catalogue — the intake's country first, since
+// that is the question that asks it. See `marketFor` in `data/packs.js`.
 const region = computed(
-  () => marketFor(store.filters.countries[0]) ?? store.answers.region[0] ?? DEFAULT_REGION,
+  () =>
+    marketFor(store.company.country) ??
+    marketFor(store.filters.countries[0]) ??
+    store.answers.region[0] ??
+    DEFAULT_REGION,
 )
 
 // The three figures that decide whether to go on, worded by `packFacts` rather
@@ -137,21 +142,19 @@ const STEPS = [
   { title: 'Coordinate with partner', body: 'Share data and processes' },
 ]
 
-// ⚠️ THIS NO LONGER BUYS ANYTHING. It used to assign the partner, open the
-// conversation, create the project and push the confirmed screen, all on one
-// click — a purchase behind a button labelled Confirm, with no payment anywhere
-// in the flow. It walks to the checkout now, and every one of those things
-// happens there, after the money.
+// ⚠️ THIS ADDS TO THE BASKET AND GOES TO THE BASKET — it does not buy, and it
+// does not go straight to a checkout either. Both were true of earlier versions
+// of this button and both are wrong now that packs are bought in combinations:
+// somebody reading the Manufacturing scope is very often about to read the HR
+// one, and a button that jumps them to a payment screen ends that.
 //
-// ⚠️ The gate HOLDS the navigation, which the booking version deliberately did
-// not: completing a purchase automatically on the far side of a sign-up form
-// would spend someone's money for them, so that one made them come back and
-// press it again. Landing on a checkout is not spending anything, so a new
-// visitor signs up, verifies, and arrives where they were going. See
-// `VerifyPage`, which routes the pack path here.
-const checkout = () => {
+// ⚠️ NO AUTH GATE. Adding a pack to a basket is not a fact about an account, and
+// the recommendation screen it lands on is deliberately open to a signed-out
+// visitor. The gate is the checkout.
+const addToBasket = () => {
   if (!pack.value) return
-  requireAccount(() => router.push({ name: 'checkout', query: { pack: pack.value.value } }))
+  if (!inBasket.value) store.togglePack(pack.value.value)
+  router.push({ name: 'recommendation' })
 }
 </script>
 
@@ -265,18 +268,21 @@ const checkout = () => {
                button's box on the heading's box, which sets it three pixels
                above the cap height it is meant to line up with.
 
-               ⚠️ "Continue to checkout", not "Confirm". The click used to
-               complete a purchase; it now opens the screen where the purchase
-               is made, and a button that ends in a payment sheet should say
-               where it is going.
+               ⚠️ "Add to my packs", not "Continue to checkout" and not
+               "Confirm". Each label matched what the button did at the time,
+               and this one does too: packs are bought in combinations, so the
+               gesture is adding one to a basket that already holds the others.
+               The label changes once it is in, rather than the button
+               disabling — a pack you have already added is still a route back
+               to the total.
                ⚠️ And no "Cancel" beside it. Nothing has been started on this
                page, so that control was offering to undo reading; the
                breadcrumb is how you go back to the packs. -->
           <Button
             class="mt-5 shrink-0 sm:col-start-2 sm:row-start-1 sm:mt-1 sm:justify-self-end"
             variant="solid"
-            label="Continue to checkout"
-            @click="checkout"
+            :label="inBasket ? 'In your packs — review and check out' : 'Add to my packs'"
+            @click="addToBasket"
           />
         </div>
 
