@@ -214,7 +214,15 @@
   container-name: content;
 }
 
-/* Three across when the column can hold it, stacked when it can't. 640px is
+/* ⚠️ NOTHING USES `.fc-col-3` OR `.fc-col-2` TODAY. Both were the pack detail
+   page's, for its steps row and its included / not-included ledger, and both
+   sections were removed from it when the recommendation screen became the only
+   place those are shown. Kept because the measurements below are real work and
+   the next two-or-three-column block in a container-queried column wants them;
+   deleted the moment that stops being true. The notes inside still describe the
+   rows they were measured against, which no longer exist.
+
+   Three across when the column can hold it, stacked when it can't. 640px is
    where three columns still leave the middle one — the only one padded on both
    sides — enough for its longest label. Measured; see `PacksPage`. At 640 the
    bodies wrap and one title is 6px short of fitting; the layout stacks just

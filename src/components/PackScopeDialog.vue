@@ -49,19 +49,17 @@ const emit = defineEmits(['update:open'])
           <PackScope :pack="pack" />
         </div>
 
-        <div class="mt-6 flex items-center gap-2">
+        <!-- ⚠️ "Open the full pack page" WAS HERE AND ITS REASON HAS GONE. It
+             existed for the reader who wanted the terms as well, which lived on
+             that page and not in here. The terms are on the recommendation
+             screen now and the pack page has been stripped to the scope, the
+             price and a basket button, so the link offered a second copy of
+             what this dialog is already showing, one navigation away from the
+             purchase it was built to keep you inside. The page is still there
+             and the catalogue still links to it, which is the right door for
+             reading a pack on its own. -->
+        <div class="mt-6">
           <Button variant="solid" label="Done" @click="emit('update:open', false)" />
-          <!-- The pack's own page, for the reader who wants the terms as well —
-               commercial terms and customer responsibilities live there and are
-               not repeated here, and so does a second copy of the shared
-               inclusions and exclusions, in the one place a pack is read on its
-               own. Same tab: the basket is on the store, so Back returns to the
-               recommendation with everything still ticked. -->
-          <Button
-            variant="ghost"
-            label="Open the full pack page"
-            :route="{ name: 'pack', params: { id: pack.value } }"
-          />
         </div>
       </div>
     </template>

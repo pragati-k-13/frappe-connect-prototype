@@ -1,18 +1,13 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Avatar, Button, Tooltip } from 'frappe-ui'
+import { Button } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
-import PackTerms from '../components/PackTerms.vue'
 import PackScope from '../components/PackScope.vue'
 import { FACT_ICONS } from '../packFactIcons'
 import {
-  PACK_STEPS,
   STARTER_PACKS,
   packFacts,
-  INCLUDED_IN_ALL,
-  STRICTLY_EXCLUDED,
-  asExclusion,
   pricingFor,
   marketFor,
   DEFAULT_REGION,
@@ -25,16 +20,20 @@ import { useConnectStore } from '../stores/connect'
 // This one says what the pack is and hands over — see the note on `checkout()`
 // below for what moved out of it.
 //
-// ⚠️ THE PACK IS THE PAGE. This used to be a numbered "How this works" list at
-// 700px with the pack held in a 352px aside — the sequence in front, the thing
-// being bought in the margin. It is the other way round now: no steps at all,
-// and the pack's own document runs the full measure. What someone needs before
-// spending money is what they are spending it on.
+// ⚠️ THE PACK IS THE PAGE, and now it is ONLY the pack. This carried four
+// sections: the scope, How it works, True of every pack, and the terms. Every
+// one of the last three is on the recommendation screen, and this page kept
+// them on the argument that it was the screen where the money moved. It has not
+// been for a while — a pack is added to a basket here and checked out two
+// screens later — and four surfaces carrying the same two lists is four places
+// for them to drift, which is the reason `PackTerms` was pulled into a
+// component in the first place.
 //
-// Three things in that order, and the order is the argument: what the pack
-// covers module by module, what ships with every pack and what never does, then
-// the terms. The first is this pack, the second is all four, the third is the
-// contract — narrowest to widest, each one qualifying the one above it.
+// What is left is what is true of THIS pack and no other: what it is for, what
+// it costs, and what is in it. That is what a page per pack is for. A fixed
+// scope is a contract somebody may want to cite or send to a colleague, and a
+// URL is the only way to do either. The selling is done by the screens that
+// sell.
 //
 // ⚠️ Confirm sits under the price rather than at the foot of the document. With
 // the scope collapsed this page is still two screens, and a buying gesture two
@@ -88,44 +87,15 @@ const region = computed(
 // and not the project's, the window runs from a date nobody has set yet — and
 // this is the screen where those conditions are load-bearing.
 //
-// ⚠️ The notes are kept short because the price leads, and the price is in the
-// narrow column: `.fc-col-3` is 0.85/1.15/1fr, tuned for the two rows that
-// carry a long middle label. The notes either side take two lines at the 800px
-// measure, which the equal cell heights absorb — but a longer one starts
-// pushing the row's height around, so trim rather than add.
+// ⚠️ The notes are kept short because the price leads. This band was a
+// three-column `.fc-col-3` grid once and is a wrapping flex row now, so there
+// are no equal cell heights left to absorb a long one: it wraps to a second
+// line instead. Trim rather than add.
 const facts = computed(() => (pack.value ? packFacts(pack.value, region.value) : []))
 
 // The region's own word for its tax — "18% GST" in India, "local VAT" where no
 // rate has been decided — read from the same rate card the checkout bills from.
 const taxLabel = computed(() => pricingFor(region.value).tax)
-
-const notInScope = STRICTLY_EXCLUDED.map(asExclusion)
-
-// What happens after "Continue to checkout" — the three beats between picking a
-// pack and the work beginning. Numbered because this is genuinely a sequence,
-// each step gated on the one before it, not because numbers look tidy.
-//
-// ⚠️ MOVED HERE FROM THE CATALOGUE, where it sat under the four packs. It is an
-// answer to "what happens if I press this", and the button it is about is on
-// this page — on the catalogue it explained a purchase you could not yet make,
-// three sections below the rows that start one.
-//
-// ⚠️ Payment is FIRST, and it used to be second. The list ran introductory call
-// → pay → coordinate, on the argument that meeting the partner Frappe assigned
-// you before any money changed hands was the whole difference between this and
-// being handed an invoice with a name on it. The order is the other way round
-// now — you buy the pack from Frappe, and a partner is assigned against it — so
-// the introductory call is no longer one of the three beats. It still exists in
-// the flow, as the project's first task.
-//
-// ⚠️ Step 1 names WHO is paid, and this is the page's only statement of it.
-// Step 2 hands you a partner, so an unqualified "pay in full" at the head of a
-// list about partners reads as paying one.
-// ⚠️ THE SAME THREE BEATS THE RECOMMENDATION SCREEN SHOWS, from `data/packs.js`
-// rather than written here. They were this page's private list until the screen
-// before it needed them too, and two copies of a sequence is how two screens
-// come to disagree about what order things happen in.
-const STEPS = PACK_STEPS
 
 // ⚠️ THIS ADDS TO THE BASKET AND GOES TO THE BASKET — it does not buy, and it
 // does not go straight to a checkout either. Both were true of earlier versions
@@ -271,40 +241,6 @@ const addToBasket = () => {
           />
         </div>
 
-        <!-- ── How it works ───────────────────────────────────────────────
-             Directly under the button it describes: this is what pressing it
-             sets off, and on the catalogue it was three sections away from
-             anything that could start it.
-
-             ⚠️ An `<ol>`, not a `<dl>`, and the number sits BESIDE the text
-             rather than inside the title's line. The avatar is 28px against a
-             17px line, so with it inside the title the title's row was
-             avatar-height and the 4px below it got measured from the avatar's
-             bottom, not the text's. Out here the title and body are the only
-             things in that column's flow, so the gap is exactly 4px whatever
-             size the avatar is. `<ol>` is also the truer element: the numbers
-             are a sequence.
-
-             ⚠️ `mt-10`, not the `mt-24` the sections below it take. Those are
-             three separate readings of the pack; this belongs to the button
-             above it, and a 96px gap would file it as a fourth. -->
-        <section class="mt-10">
-          <h2 class="text-base font-semibold text-ink-gray-8">How it works</h2>
-
-          <ol class="fc-col-3 mt-5">
-            <li v-for="(step, i) in STEPS" :key="step.title" class="flex items-start gap-2">
-              <!-- `label` renders only its first character, so a digit needs no
-                   slot of its own. No vertical offset: the avatar and the title
-                   share a top edge. -->
-              <Avatar size="lg" :label="String(i + 1)" class="shrink-0" />
-              <div class="min-w-0">
-                <p class="text-base font-medium text-ink-gray-7">{{ step.title }}</p>
-                <p class="mt-1 text-p-base text-ink-gray-6">{{ step.body }}</p>
-              </div>
-            </li>
-          </ol>
-        </section>
-
         <!-- ── This pack, module by module ────────────────────────────────
              `PackScope` renders the scope document and knows nothing about
              where it is mounted — it has been a dialog body, a side panel and
@@ -318,57 +254,19 @@ const addToBasket = () => {
           </div>
         </section>
 
-        <!-- ── True of all four packs ─────────────────────────────────────
-             Lifted from the catalogue, where its own note explains the split:
-             what ships with every pack and what never does belongs to the
-             range, not to this pack. It repeats here because this is the
-             screen where the money moves, and a carve-out first read after
-             paying is the complaint the whole flow exists to avoid. -->
-        <section class="mt-16">
-          <h2 class="text-base font-semibold text-ink-gray-8">True of every pack</h2>
+        <!-- ⚠️ THREE SECTIONS USED TO FOLLOW THIS ONE — How it works, True
+             of every pack, and the terms — and every one of them is now on the
+             recommendation screen, which is where the money actually moves.
+             This page kept them on the argument that it was that screen. It has
+             not been for a while: packs are added to a basket here and checked
+             out there, and four surfaces carrying the same two lists is four
+             places for them to drift.
 
-          <div class="fc-col-2 mt-5">
-            <ul class="space-y-2.5">
-              <li
-                v-for="item in INCLUDED_IN_ALL"
-                :key="item"
-                class="flex items-start gap-2 text-p-base text-ink-gray-7"
-              >
-                <LucideCheck class="mt-0.5 size-4 shrink-0 text-ink-gray-6" />
-                {{ item }}
-              </li>
-            </ul>
-
-            <ul class="space-y-2.5">
-              <li
-                v-for="item in notInScope"
-                :key="item.label"
-                class="flex items-start gap-2 text-p-base text-ink-gray-7"
-              >
-                <LucideX class="mt-0.5 size-4 shrink-0 text-ink-gray-6" />
-                <span>
-                  {{ item.label }}
-                  <!-- ⚠️ The trigger is the SPAN, not the icon. Lucide icons are
-                       `fill="none"`, so the middle of a circle-i is a hole and
-                       only the 1.5px strokes would catch the pointer. Same
-                       device as the catalogue. -->
-                  <Tooltip v-if="item.hint" :text="item.hint">
-                    <span class="ml-0.5 inline-flex -translate-y-px align-middle text-ink-gray-5">
-                      <LucideInfo class="size-4 shrink-0" />
-                    </span>
-                  </Tooltip>
-                </span>
-              </li>
-            </ul>
-          </div>
-        </section>
-
-        <!-- ── What you are agreeing to ───────────────────────────────────
-             Below the Confirm button, deliberately: printing thirteen lines of
-             contract above the scope would bury what you are actually buying.
-             The markup moved to `PackTerms` when the recommendation screen
-             started showing the same two lists. -->
-        <PackTerms class="mt-16 block" :region="region" />
+             What is left is the only thing that is TRUE OF THIS PACK AND NO
+             OTHER: what it is for, what it costs, and what is in it. A pack's
+             scope is a contract somebody may want to cite or send to a
+             colleague, and that is what a page per pack is for. Selling is done
+             by the screens that sell. -->
       </template>
     </div>
   </ConnectShell>
