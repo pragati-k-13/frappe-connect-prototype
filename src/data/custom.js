@@ -86,8 +86,34 @@ export const TIERS = [
 export const asksCity = (country) => country === 'India'
 
 // ── The brief ───────────────────────────────────────────────────────────────
+// ⚠️ THREE TEXT FIELDS, AND IT WAS ONE. The single box asked "What do you need
+// built?" and got a sentence, because one unlabelled box makes somebody guess
+// the GENRE of what is wanted. Two real enquiries Frappe received are the
+// evidence: both arrived as e-mail, where a blank page forces you to say
+// everything, and both answered the same questions in the same order — what we
+// make and who for, how we run it today, what goes wrong, what it must satisfy,
+// which areas. A form is only better than a blank page if its fields cover the
+// same ground; a small box labelled with a noun list is SMALLER than a blank
+// page, which is what this one was.
+//
+// Three of those questions are already asked by the intake — `operations`,
+// `problems`, and the module list on the project — so they are not asked again
+// here. These two are the ones nothing in the product collected:
+//
+//   `customers`    who you sell to, and what they demand of you. One of the two
+//                  enquiries turned entirely on supplying BHEL and RITES, which
+//                  is what put IRIS and ISO 9001 in scope. Nothing asked.
+//   `mustSatisfy`  what it must connect to or be able to prove — audit trails,
+//                  traceability, e-invoicing. The old placeholder said
+//                  "integrations" as the middle of three nouns and got nothing.
+//
+// Both are OPTIONAL. The other enquiry was 200 words about a single constraint
+// and its author would have abandoned a four-field form; the floor stays on
+// `scope` alone.
 export const emptyBrief = () => ({
   scope: '',
+  customers: '',
+  mustSatisfy: '',
   budget: '',
   cities: [],
   tiers: [],

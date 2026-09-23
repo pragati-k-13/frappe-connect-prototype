@@ -704,7 +704,15 @@ export const useConnectStore = defineStore('connect', {
         const brief = {
           projectId: project.id,
           project: project.name,
-          scope: this.brief.scope || 'Barcode scanning on goods receipt, wired into our WMS.',
+          scope:
+            this.brief.scope ||
+            'Barcode scanning on goods receipt, wired into our WMS. Today it is a numbered folder per delivery and a spreadsheet nobody trusts, so stock on hand is a guess by Friday.',
+          customers:
+            this.brief.customers ||
+            'Rail and defence subcontractors. We are audited against IRIS and ISO 9001 every year.',
+          mustSatisfy:
+            this.brief.mustSatisfy ||
+            'Tally for the opening balances, e-invoicing, and a part-by-part audit trail we can show an auditor.',
           modules: project.modules ?? {},
           budget: this.brief.budget || 'inr-2',
           country: this.company.country,
@@ -1394,6 +1402,11 @@ export const useConnectStore = defineStore('connect', {
         projectId: id,
         project: project.name,
         scope: this.brief.scope.trim(),
+        // The two named prompts beside the scope — see `emptyBrief`. Trimmed
+        // and carried even when empty, so a card built from an older brief and
+        // one built today have the same shape.
+        customers: (this.brief.customers ?? '').trim(),
+        mustSatisfy: (this.brief.mustSatisfy ?? '').trim(),
         // ⚠️ THE MODULES GO TOO, and leaving them out was the broadcast quietly
         // sending less than the customer wrote. A project's scope is written in
         // two passes — the modules ticked when it was created, the paragraph

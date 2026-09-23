@@ -173,7 +173,7 @@ const send = () => {
   }
   const id = store.startCustomProject()
   const result = store.broadcastBrief(id)
-  toast.success(`Sent to ${result.sent} partners`, {
+  toast.success(`Sent to ${result.sent} ${result.sent === 1 ? 'partner' : 'partners'}`, {
     description: 'Their replies come back as quotes you can approve or pass on.',
   })
   // ⚠️ A RECEIPT, not the tracker. Sending used to land on the project page —

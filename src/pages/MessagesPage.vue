@@ -749,6 +749,31 @@ watch(open, toBottom)
                   <p class="mt-1.5 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7">
                     {{ m.brief.scope }}
                   </p>
+                  <!-- ⚠️ THE TWO OPTIONAL ANSWERS, EACH UNDER ITS OWN QUESTION.
+                       They are shown as the question that produced them rather
+                       than run together with the scope above: a partner reading
+                       three paragraphs of unattributed prose has to work out
+                       which one is the compliance requirement, and that is the
+                       paragraph the quote turns on. Absent when unanswered —
+                       a heading over nothing is worse than no heading. -->
+                  <template v-if="m.brief.customers || m.brief.mustSatisfy">
+                    <div v-if="m.brief.customers" class="mt-3">
+                      <p class="text-p-sm text-ink-gray-5">Who they sell to</p>
+                      <p
+                        class="mt-0.5 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7"
+                      >
+                        {{ m.brief.customers }}
+                      </p>
+                    </div>
+                    <div v-if="m.brief.mustSatisfy" class="mt-3">
+                      <p class="text-p-sm text-ink-gray-5">Must connect to, or prove</p>
+                      <p
+                        class="mt-0.5 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7"
+                      >
+                        {{ m.brief.mustSatisfy }}
+                      </p>
+                    </div>
+                  </template>
                   <dl class="mt-3 space-y-1 border-t border-outline-gray-2 pt-3">
                     <!-- ⚠️ THE OTHER HALF OF THE SCOPE, and it was missing. The
                          paragraph above is what the customer TYPED when the

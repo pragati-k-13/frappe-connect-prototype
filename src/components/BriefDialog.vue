@@ -8,7 +8,16 @@ import {
   emptyCompanyForm,
   stepErrors,
 } from '../data/company'
-import { briefErrors, budgetBandsFor, matchingPartners } from '../data/custom'
+import FilterChip from './FilterChip.vue'
+import {
+  WORK_STYLES,
+  asksCity,
+  briefErrors,
+  budgetBandsFor,
+  emptyBrief,
+  matchingPartners,
+} from '../data/custom'
+import { INDIA_CITIES } from '../data/partners'
 import { useConnectStore } from '../stores/connect'
 
 // Writing the requirements, from inside the project that wants them.
@@ -51,7 +60,7 @@ const store = useConnectStore()
 // dialog bound straight to `store.company` would have edited them on the way
 // past. Saved in one gesture at the end — see `send`.
 const form = reactive(emptyCompanyForm())
-const brief = reactive({ scope: '', budget: '' })
+const brief = reactive(emptyBrief())
 
 const step = ref(1)
 const tried = ref(false)
@@ -71,7 +80,14 @@ watch(
       operations: store.company.operations ?? '',
       problems: [...(store.company.problems ?? [])],
     })
-    Object.assign(brief, { scope: store.brief.scope ?? '', budget: store.brief.budget ?? '' })
+    // ⚠️ THE WHOLE BRIEF IN, THE WHOLE BRIEF OUT — see the note on `send`.
+    // Naming the fields one by one here is what let a field be forgotten there,
+    // so both ends copy everything and the arrays are cloned so the draft
+    // cannot mutate the store before Send.
+    Object.assign(brief, emptyBrief(), store.brief, {
+      cities: [...(store.brief.cities ?? [])],
+      tiers: [...(store.brief.tiers ?? [])],
+    })
     step.value = 1
     tried.value = false
   },
@@ -84,10 +100,17 @@ const bands = computed(() => budgetBandsFor(form.country))
 // because it is a cold first screen and one question at a time is what gets
 // started; here the reader has a project open and is already committed, so the
 // two shortest steps travel together and the brief gets a step of its own.
+// ⚠️ FOUR STEPS, AND THE FOURTH IS ABOUT THE PARTNER RATHER THAN THE WORK.
+// `data/custom.js` already draws that line — scope and budget are what a
+// partner needs in order to reply, the filters are what the business wants in a
+// partner — and putting them on one screen made a step with two questions look
+// like a step with six. It also puts Send on the step whose subject is the
+// AUDIENCE, which is where a count of who it reaches belongs.
 const STEPS = [
   { n: 1, title: 'Your business', company: [1] },
   { n: 2, title: 'How you work now', company: [2, 3] },
   { n: 3, title: 'What you need built', company: [] },
+  { n: 4, title: 'Who should build it', company: [] },
 ]
 
 const current = computed(() => STEPS.find((s) => s.n === step.value) ?? STEPS[0])
@@ -102,6 +125,18 @@ const problems = computed(() => {
 })
 
 const matches = computed(() => matchingPartners(companyPayload(form), brief))
+
+// ⚠️ THE CITY LIST IS A MULTI-SELECT and the work style is not, which is the
+// same pairing `PartnerFiltersDialog` uses — two cities is a wider net, two
+// answers to "will they come to us" is a contradiction. Re-pressing the
+// selected style clears it, because "no preference" is the ABSENCE of an
+// answer rather than a third chip.
+const toggleCity = (city) =>
+  (brief.cities = brief.cities.includes(city)
+    ? brief.cities.filter((c) => c !== city)
+    : [...brief.cities, city])
+
+const toggleStyle = (value) => (brief.workStyle = brief.workStyle === value ? '' : value)
 
 const next = () => {
   tried.value = true
@@ -123,10 +158,25 @@ const send = () => {
   tried.value = true
   if (Object.keys(companyErrors(form)).length || Object.keys(briefErrors(brief)).length) return
   store.saveCompany(companyPayload(form))
-  store.saveBrief({ scope: brief.scope, budget: brief.budget })
+  // ⚠️ THE WHOLE DRAFT, NOT A NAMED PAIR. This read
+  // `{ scope: brief.scope, budget: brief.budget }`, so the moment the dialog
+  // grew a field the field was dropped on the way out — and the two dropped
+  // first were the CONSTRAINTS. `broadcastBrief` re-runs `matchingPartners`
+  // against the store, so the dialog counted 1 partner, saved no city and no
+  // work style, and sent to 6. That is the exact failure the count's own
+  // comment calls the worst bug this flow could have, introduced by the commit
+  // that added the constraints.
+  //
+  // Spreading cannot drift the same way: a field added to the brief is carried
+  // without this line being touched.
+  store.saveBrief({ ...brief, cities: [...brief.cities], tiers: [...brief.tiers] })
   const result = store.broadcastBrief(props.project?.id)
   emit('update:open', false)
-  toast.success(`Sent to ${result?.sent ?? 0} partners`, {
+  // ⚠️ Pluralised. It read "Sent to 1 partners" — the one line in the flow
+  // whose whole job is to confirm what just happened, and narrowing to a single
+  // firm is now an ordinary outcome rather than an edge case.
+  const sent = result?.sent ?? 0
+  toast.success(`Sent to ${sent} ${sent === 1 ? 'partner' : 'partners'}`, {
     description: 'Their replies come back as quotes you can shortlist or pass on.',
   })
 }
@@ -157,14 +207,38 @@ const send = () => {
           :errors="problems"
         />
 
+        <!-- ── What you need built ────────────────────────────────────
+             Three questions where there was one. See the note on `emptyBrief`
+             for what the single box was getting and why these two are the ones
+             missing rather than any other two. -->
         <template v-if="step === 3">
+          <!-- ⚠️ THE PLACEHOLDER NAMES A SITUATION, not three nouns.
+               "Processes, integrations, and anything you have already tried"
+               reads as a list to fill in, and a list gets list-length answers. -->
           <Textarea
             v-model="brief.scope"
             label="What do you need built?"
-            placeholder="Processes, integrations, and anything you have already tried."
+            placeholder="What you make or sell, how it runs today, and what keeps going wrong."
             :rows="5"
             required
             :error="problems.scope"
+          />
+          <!-- ⚠️ OPTIONAL, AND SHORTER. Three required boxes is a form somebody
+               abandons; two optional ones are two prompts somebody answers if
+               they have an answer. `rows` is 3 rather than 5 for the same
+               reason — the size of a field is a claim about how much is
+               wanted. -->
+          <Textarea
+            v-model="brief.customers"
+            label="Who do you sell to, and what do they require of you?"
+            placeholder="Sectors and customers, and any standards or audits you have to pass."
+            :rows="3"
+          />
+          <Textarea
+            v-model="brief.mustSatisfy"
+            label="What must it connect to, or be able to prove?"
+            placeholder="Existing systems, e-invoicing, audit trails, traceability."
+            :rows="3"
           />
           <!-- ⚠️ A BAND, NOT A FIGURE. See the note in `data/custom.js` — a free
                number invites a placeholder, and partners price against
@@ -178,15 +252,79 @@ const send = () => {
             :options="bands"
             :error="problems.budget"
           />
+        </template>
+
+        <!-- ── Who should build it ────────────────────────────────────── -->
+        <template v-if="step === 4">
+          <!-- ⚠️ THESE TWO ALREADY NARROWED THE BROADCAST AND NOBODY WAS ASKED
+               THEM HERE. `matchingPartners` has honoured `cities` and
+               `workStyle` all along, but the only place that set them was the
+               filters dialog on the recommendation screen — so somebody who
+               reached this flow through a project stated no constraint at all.
+               That is the gap a real enquiry fell straight down: two hundred
+               words insisting on a partner with an office in one city, in a
+               product whose matcher could have answered it and was never
+               asked.
+
+               ⚠️ NOT A REQUIREMENT, AND NOT PROSE. Left alone they constrain
+               nothing and the count stays as wide as it started; pressed, they
+               move the number in the same breath, which is the whole reason
+               this belongs in a field rather than in a paragraph a matcher
+               cannot read. -->
+          <div>
+            <p class="text-p-sm font-medium text-ink-gray-7">How you want to work</p>
+            <div class="mt-1.5 flex flex-wrap gap-2">
+              <FilterChip
+                v-for="w in WORK_STYLES"
+                :key="w.value"
+                :label="w.label"
+                :selected="brief.workStyle === w.value"
+                @toggle="toggleStyle(w.value)"
+              />
+            </div>
+          </div>
+
+          <!-- ⚠️ INDIA ONLY — see `asksCity`. Outside India the directory's
+               biggest city holds one firm, so every option would return one
+               result or none. -->
+          <div v-if="asksCity(form.country)">
+            <p class="text-p-sm font-medium text-ink-gray-7">Where they should be</p>
+            <div class="mt-1.5 flex flex-wrap gap-2">
+              <FilterChip
+                v-for="city in INDIA_CITIES"
+                :key="city"
+                :label="city"
+                :selected="brief.cities.includes(city)"
+                @toggle="toggleCity(city)"
+              />
+            </div>
+          </div>
+
           <!-- ⚠️ WHO THIS REACHES, stated before the button rather than after
                it. The count comes from the same function the send uses, because
                a broadcast that reaches one more firm than the number shown is
                the worst bug this flow could have. -->
-          <p class="text-p-base leading-relaxed text-ink-gray-6">
-            This goes to {{ matches.length }} certified
-            {{ matches.length === 1 ? 'partner' : 'partners' }}. They see the requirements and the
-            budget, not your company name — that is shared when you shortlist a reply.
-          </p>
+          <div class="border-t border-outline-gray-2 pt-4">
+            <p v-if="matches.length" class="text-p-base leading-relaxed text-ink-gray-6">
+              This goes to {{ matches.length }} certified
+              {{ matches.length === 1 ? 'partner' : 'partners' }}. They see the requirements and
+              the budget, not your company name — that is shared when you shortlist a reply.
+            </p>
+            <p v-else class="text-p-base leading-relaxed text-ink-gray-7">
+              No partner matches all of this. Loosen something above.
+            </p>
+            <!-- ⚠️ THE CONSEQUENCE OF A THIN BRIEF, and it is the only argument
+                 that gets anybody to write four more sentences. Not a word
+                 count and not a scold: the thing that actually happens, which
+                 this prototype's own seeded replies already say out loud —
+                 "we would start with a two-day process workshop before quoting
+                 the build properly". A brief a partner can price comes back
+                 with a price. A thin one comes back with a meeting. -->
+            <p class="mt-2 text-p-sm leading-relaxed text-ink-gray-5">
+              The more of the above you answer, the more of them can quote a figure. Partners who
+              cannot price what they have read will offer a workshop first instead.
+            </p>
+          </div>
         </template>
       </div>
 

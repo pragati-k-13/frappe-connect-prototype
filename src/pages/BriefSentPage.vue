@@ -7,6 +7,7 @@ import ConnectShell from '../components/ConnectShell.vue'
 import TierIcon from '../components/TierIcon.vue'
 import { PARTNERS, cityOf } from '../data/partners'
 import { budgetLabel } from '../data/custom'
+import { scopeSentence } from '../data/modules'
 import { useConnectStore } from '../stores/connect'
 
 // SCREEN — the requirements are out.
@@ -96,7 +97,30 @@ const partners = computed(() =>
             <p class="mt-1.5 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7">
               {{ store.brief.scope }}
             </p>
+            <!-- ⚠️ EVERY FIELD THE THREAD'S CARD CARRIES, because the heading
+                 above promises the same card and not a summary of it. This had
+                 already drifted once: the modules were added to the card in
+                 `MessagesPage` and not here, so this screen was quietly showing
+                 less than what went out. Both new answers and the module line
+                 are here for that reason, and anything added to one card from
+                 now on belongs in the other. -->
+            <div v-if="store.brief.customers" class="mt-3">
+              <p class="text-p-sm text-ink-gray-5">Who they sell to</p>
+              <p class="mt-0.5 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7">
+                {{ store.brief.customers }}
+              </p>
+            </div>
+            <div v-if="store.brief.mustSatisfy" class="mt-3">
+              <p class="text-p-sm text-ink-gray-5">Must connect to, or prove</p>
+              <p class="mt-0.5 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7">
+                {{ store.brief.mustSatisfy }}
+              </p>
+            </div>
             <dl class="mt-3 space-y-1 border-t border-outline-gray-2 pt-3">
+              <div v-if="scopeSentence(project.modules)" class="flex gap-6 text-p-base">
+                <dt class="w-28 shrink-0 text-ink-gray-5">Modules</dt>
+                <dd class="text-ink-gray-8">{{ scopeSentence(project.modules) }}</dd>
+              </div>
               <div class="flex gap-6 text-p-base">
                 <dt class="w-28 shrink-0 text-ink-gray-5">Budget</dt>
                 <dd class="text-ink-gray-8">{{ budgetLabel(store.brief.budget) }}</dd>
