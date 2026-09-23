@@ -3,8 +3,8 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Button, Tooltip } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
+import PackTerms from '../components/PackTerms.vue'
 import PackScope from '../components/PackScope.vue'
-import IconChevronDown from '~icons/lucide/chevron-down'
 import { FACT_ICONS } from '../packFactIcons'
 import {
   PACK_STEPS,
@@ -12,9 +12,7 @@ import {
   packFacts,
   INCLUDED_IN_ALL,
   STRICTLY_EXCLUDED,
-  CUSTOMER_RESPONSIBILITIES,
   asExclusion,
-  commercialTermsFor,
   pricingFor,
   marketFor,
   DEFAULT_REGION,
@@ -100,14 +98,6 @@ const facts = computed(() => (pack.value ? packFacts(pack.value, region.value) :
 // The region's own word for its tax — "18% GST" in India, "local VAT" where no
 // rate has been decided — read from the same rate card the checkout bills from.
 const taxLabel = computed(() => pricingFor(region.value).tax)
-
-// ⚠️ Region aware: the commercial terms name a tax and an hourly rate, and
-// quoting a German buyer in rupees is the bug `commercialTermsFor` exists to
-// prevent. Same two lists `PackPanel` shows on the screens after this one.
-const terms = computed(() => [
-  { key: 'commercial', label: 'Commercial terms', lines: commercialTermsFor(region.value) },
-  { key: 'responsibilities', label: 'What we need from you', lines: CUSTOMER_RESPONSIBILITIES },
-])
 
 const notInScope = STRICTLY_EXCLUDED.map(asExclusion)
 
@@ -374,39 +364,11 @@ const addToBasket = () => {
         </section>
 
         <!-- ── What you are agreeing to ───────────────────────────────────
-             ⚠️ Still disclosures, not printed lists, and they are below the
-             Confirm button. Both are deliberate: the terms are on the page
-             rather than behind a panel one navigation away, which is the
-             change, but printing thirteen lines of contract under a purchase
-             would bury the scope that answers what you are actually buying. -->
-        <section class="mt-16">
-          <h2 class="text-base font-semibold text-ink-gray-8">Terms and conditions</h2>
-
-          <div class="mt-3 divide-y divide-outline-gray-1 border-y border-outline-gray-1">
-            <!-- ⚠️ `<details>`, not a hand-rolled toggle: this version of
-                 frappe-ui ships no accordion, and the native element brings the
-                 open state, the keyboard behaviour and the semantics for free.
-                 Same device as `PackScope` above it and `PackPanel` after it. -->
-            <details v-for="t in terms" :key="t.key" class="group">
-              <summary
-                class="flex cursor-pointer list-none items-center gap-2 py-3 text-p-base font-medium text-ink-gray-7 [&::-webkit-details-marker]:hidden"
-              >
-                <span class="min-w-0 flex-1">{{ t.label }}</span>
-                <IconChevronDown
-                  class="size-4 shrink-0 text-ink-gray-5 motion-safe:transition-transform group-open:rotate-180"
-                />
-              </summary>
-              <!-- Bulleted: each line is a separate term, read one at a time.
-                   Without a mark, a term that wraps and the term after it look
-                   the same. -->
-              <ul class="list-disc space-y-1 pb-4 pl-5 marker:text-ink-gray-4">
-                <li v-for="line in t.lines" :key="line" class="text-p-base text-ink-gray-6">
-                  {{ line }}
-                </li>
-              </ul>
-            </details>
-          </div>
-        </section>
+             Below the Confirm button, deliberately: printing thirteen lines of
+             contract above the scope would bury what you are actually buying.
+             The markup moved to `PackTerms` when the recommendation screen
+             started showing the same two lists. -->
+        <PackTerms class="mt-16 block" :region="region" />
       </template>
     </div>
   </ConnectShell>

@@ -35,6 +35,7 @@ import ConnectShell from '../components/ConnectShell.vue'
 import frappeMark from '../assets/frappe.svg'
 import EditAnswersDialog from '../components/EditAnswersDialog.vue'
 import PackScopeDialog from '../components/PackScopeDialog.vue'
+import PackTerms from '../components/PackTerms.vue'
 import PartnerFiltersDialog from '../components/PartnerFiltersDialog.vue'
 import { useConnectStore } from '../stores/connect'
 import { recommendationFor } from '../data/recommendation'
@@ -795,6 +796,18 @@ watch(view, () => {
             </div>
           </div>
         </section>
+
+        <!-- ── What you are agreeing to ───────────────────────────────
+             ⚠️ THE TERMS ARE ON THE SCREEN THAT SELLS, and until now they were
+             one navigation away on the pack's own page. This is where Check out
+             is pressed: a price, a total and a button, with the hourly rate for
+             an overrun, the 50 user ceiling and "anything outside this is a
+             change request" all on a page somebody had no reason to open.
+             Disclosed rather than printed, for the reason `PackTerms` gives.
+             ⚠️ PACKS ONLY. There is nothing to agree to yet on the custom half:
+             the terms of that engagement are the partner's and do not exist
+             until one has quoted. -->
+        <PackTerms v-if="view === 'packs'" class="mt-16 block" :region="region" />
 
         <!-- ── When custom work is the answer ─────────────────────────
              ⚠️ ITS OWN SECTION, AND IT WAS THE SECOND HALF OF A COLUMN. It sat
