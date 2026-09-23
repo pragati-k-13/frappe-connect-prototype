@@ -660,28 +660,50 @@ export const PACK_BLOCKERS = PACK_WONT_COVER.map(
     STRICTLY_EXCLUDED.map(asExclusion).find((e) => e.label === label) ?? { label, hint: null },
 )
 
-// ── The same four, said forwards ────────────────────────────────────────────
+// ── The same four, said both ways ───────────────────────────────────────────
 // ⚠️ THE CONTRACT'S WORDING IS A LIST OF THINGS YOU CANNOT HAVE, and read as a
 // section under the price it is four reasons not to buy. It is the same four
 // facts either way: "API integrations" as an exclusion is "you need API
 // integrations" as a reason to talk to a partner, and only the second is
 // something a reader can check against their own situation.
 //
+// ⚠️ AND THE ANSWER FLIPS WITH THE SCREEN. These four are the line between the
+// two services, so which side of it is worth printing depends entirely on which
+// side the reader is being shown. On the packs half they are the case for
+// leaving: more than 50 people, data to migrate, scripting, integrations. On
+// the custom half the same four tests are the case for a pack, and printing the
+// custom reasons there was the screen arguing for what it had already
+// recommended. One list, two readings, and neither can drift from the other
+// because there is one list.
+//
 // ⚠️ A SEPARATE MAP RATHER THAN A REWRITE. `label` stays exactly as the
 // commercial terms word it, because the pack's own scope panel quotes the
-// document and must go on quoting it. This is the reading, keyed to the label
-// so a renamed exclusion loses its sentence loudly instead of silently keeping
-// the wrong one.
-const SAID_FORWARDS = {
-  [PACK_USER_LIMIT]: 'More than 50 people will use it',
-  [excluded('data cleaning')]: 'You need your data cleaned and migrated',
-  [excluded('custom scripting')]: 'You need custom scripting',
-  [excluded('api integrations')]: 'You need API integrations',
+// document and must go on quoting it. These are the readings, keyed to the
+// label so a renamed exclusion loses its sentences loudly instead of silently
+// keeping the wrong ones.
+const BOTH_WAYS = {
+  [PACK_USER_LIMIT]: {
+    need: 'More than 50 people will use it',
+    fits: 'Fewer than 50 people will use it',
+  },
+  [excluded('data cleaning')]: {
+    need: 'You need your data cleaned and migrated',
+    fits: 'Your data needs no cleaning before it is imported',
+  },
+  [excluded('custom scripting')]: {
+    need: 'You need custom scripting',
+    fits: 'ERPNext as it ships covers how you work',
+  },
+  [excluded('api integrations')]: {
+    need: 'You need API integrations',
+    fits: 'Nothing has to connect to another system',
+  },
 }
 
-export const PACK_CUSTOM_REASONS = PACK_BLOCKERS.map((e) => ({
+export const PACK_FIT_TESTS = PACK_BLOCKERS.map((e) => ({
   ...e,
-  need: SAID_FORWARDS[e.label] ?? e.label,
+  need: BOTH_WAYS[e.label]?.need ?? e.label,
+  fits: BOTH_WAYS[e.label]?.fits ?? e.label,
 }))
 
 // Section 8.

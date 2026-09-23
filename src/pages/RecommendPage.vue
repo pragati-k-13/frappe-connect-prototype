@@ -42,7 +42,7 @@ import { recommendationFor } from '../data/recommendation'
 import {
   INCLUDED_IN_ALL,
   PACK_ADD_ONS,
-  PACK_CUSTOM_REASONS,
+  PACK_FIT_TESTS,
   PACK_STEPS,
   STARTER_PACKS,
   checkoutFor,
@@ -722,17 +722,8 @@ watch(view, () => {
           <Button class="mt-3" variant="subtle" label="Change my answers" @click="rethink" />
         </section>
 
-        <!-- ── The other path ──────────────────────────────────────────── -->
-        <!-- ⚠️ IT USED TO SIT UNDER THE HEADLINE, three lines after a verdict
-             that had just said there was one answer — a second option offered
-             before the first had been read, on a screen whose whole job is to
-             stop somebody choosing from a menu. It belongs after the thing being
-             recommended and after the button that acts on it: read the
-             recommendation, act on it, or, if it is wrong, here is the other
-             route.
-             ⚠️ Still a sentence and not a tab. Tabs say "these are two equal
-             things"; this screen has just said they are not. -->
-        <!-- ⚠️ ONCE, FOR ALL THREE PACKS, and it used to be three times. Every
+        <!-- ── True of every pack ──────────────────────────────────────
+             ⚠️ ONCE, FOR ALL THREE PACKS, and it used to be three times. Every
              row's "What's included" opened a dialog that printed the pack's own
              scope and then the same eight inclusions and eight exclusions —
              true of every pack, and therefore not an answer to "what is in THIS
@@ -747,11 +738,10 @@ watch(view, () => {
              heading would send somebody to get quotes over a print format, and
              printing only the four hid half the contract. The split is derived
              from `PACK_WONT_COVER`, not typed — see `PACK_ADD_ONS`.
-             ⚠️ The link hangs off the second group rather than standing alone.
-             It used to read "Bigger job? Get quotes from partners instead",
-             which asks somebody to self-diagnose against a criterion nobody has
-             given them. Nobody knows whether their job is "bigger"; everybody
-             knows whether they need their data migrated across. -->
+             ⚠️ THE SWITCH TO THE OTHER SERVICE IS NOT IN HERE ANY MORE. It
+             hung off the second group, which put the way out of packs inside a
+             block about what packs include; it is in the fit tests below, under
+             the four lines that are the argument for taking it. -->
         <section v-if="view === 'packs'" class="mt-16">
           <h2 class="text-p-lg font-semibold text-ink-gray-9">True of every pack</h2>
 
@@ -809,27 +799,26 @@ watch(view, () => {
              until one has quoted. -->
         <PackTerms v-if="view === 'packs'" class="mt-16 block" :region="region" />
 
-        <!-- ── When custom work is the answer ─────────────────────────
+        <!-- ── Which service, and when the other one is right ─────────
              ⚠️ ITS OWN SECTION, AND IT WAS THE SECOND HALF OF A COLUMN. It sat
              under "Not included" inside "True of every pack", which made the
              single most consequential thing on the screen — this pack cannot do
              your job, go and talk to somebody — read as the tail of a
              specification.
 
-             ⚠️ SAID FORWARDS. The contract words these as things you cannot
-             have, and four of those under a price is four reasons not to buy.
-             The facts are identical either way: "API integrations" as an
-             exclusion is "you need API integrations" as a reason to talk to a
-             partner, and only the second is something a reader can check
-             against their own situation. See `PACK_CUSTOM_REASONS` — the
-             contract's own wording is untouched and lives on in the pack's
-             scope panel.
+             ⚠️ IT ARGUES FOR THE OTHER SERVICE, AND IT BRIEFLY ARGUED FOR THIS
+             ONE. Both halves were printing "Consider a custom implementation
+             if" off one list, which is right on the packs half and absurd on
+             the custom half: a screen recommending custom work, listing the
+             reasons to choose custom work, under a heading inviting you to
+             consider it. The four tests are the LINE between the services, so
+             which side of it is worth printing is decided by which side the
+             reader is on. See `PACK_FIT_TESTS` — one list, two readings.
 
-             ⚠️ ONE LIST ON BOTH HALVES, and there were two. The custom half had
-             a heading of exactly this name over three reasons I had invented,
-             while the packs half had the real four under a negative heading. A
-             reader flipping between the halves got two different answers to one
-             question, and one of them was made up.
+             ⚠️ THE SWITCH IS IN HERE, and it was a naked button 64px below.
+             The list is the argument and the button is what you do about it;
+             separated by a section gap they read as two subjects, and the
+             button lost the four lines that were its whole reason.
 
              ⚠️ THE QUALIFIERS ARE TOOLTIPS. "You provide clean Excel or CSV
              data" is the sentence that decides whether data migration is your
@@ -838,10 +827,10 @@ watch(view, () => {
              person whose eye stopped on that row. -->
         <section class="mt-16">
           <h2 class="text-p-lg font-semibold text-ink-gray-9">
-            Consider a custom implementation if
+            {{ view === 'packs' ? 'Consider a custom implementation if' : 'Consider a starter pack if' }}
           </h2>
           <ul class="mt-4 max-w-[62ch] space-y-3">
-            <li v-for="item in PACK_CUSTOM_REASONS" :key="item.label" class="flex gap-2.5">
+            <li v-for="item in PACK_FIT_TESTS" :key="item.label" class="flex gap-2.5">
               <IconInfo class="mt-1 size-4 shrink-0 text-ink-gray-5" />
               <!-- ⚠️ THE ICON IS THE AFFORDANCE, and without one a tooltip is a
                    fact nobody finds. Only on the rows that have something to
@@ -849,46 +838,35 @@ watch(view, () => {
                    line. -->
               <Tooltip v-if="item.hint" :text="item.hint">
                 <span class="text-p-base leading-relaxed text-ink-gray-7">
-                  {{ item.need }}
+                  {{ view === 'packs' ? item.need : item.fits }}
                   <IconHelp class="ml-1 inline size-3.5 shrink-0 align-[-0.1em] text-ink-gray-4" />
                 </span>
               </Tooltip>
               <span v-else class="text-p-base leading-relaxed text-ink-gray-7">
-                {{ item.need }}
+                {{ view === 'packs' ? item.need : item.fits }}
               </span>
             </li>
           </ul>
 
-          <!-- ⚠️ Only on the packs half, and only while packs are still the
-               recommendation. On the custom half this list is the case for what
-               the reader is already looking at, so a button here would send
-               them where they are. -->
+          <!-- ⚠️ ONE BUTTON FOR FOUR CASES, and it was two buttons in two
+               places. Whichever half you are on it does the same thing, swap to
+               the other one, and the only thing that changes is whether that is
+               a step away from our advice or back to it.
+               ⚠️ Still a button and not a tab. Tabs say "these are two equal
+               things"; this screen has just said they are not. -->
           <Button
-            v-if="view === 'packs' && !overridden"
             class="mt-5"
             variant="subtle"
-            label="Get quotes from partners instead"
-            @click="view = 'custom'"
+            :label="
+              overridden
+                ? 'Back to what we recommend'
+                : view === 'packs'
+                  ? 'Get quotes from partners instead'
+                  : 'Look at the packs anyway'
+            "
+            @click="view = view === 'packs' ? 'custom' : 'packs'"
           />
         </section>
-
-        <!-- ── The other path ──────────────────────────────────────────── -->
-        <!-- ⚠️ Still a sentence and not a tab. Tabs say "these are two equal
-             things"; this screen has just said they are not. -->
-        <div v-if="view !== 'packs' || overridden" class="mt-16">
-          <Button
-            v-if="view === 'packs'"
-            variant="subtle"
-            label="Back to what we recommend"
-            @click="view = 'custom'"
-          />
-          <Button
-            v-else
-            variant="subtle"
-            :label="overridden ? 'Back to what we recommend' : 'Look at the packs anyway'"
-            @click="view = 'packs'"
-          />
-        </div>
 
         <!-- ── Neither of them ─────────────────────────────────────────── -->
         <!-- ⚠️ THE THIRD ANSWER, and the screen was missing it. It offered two
