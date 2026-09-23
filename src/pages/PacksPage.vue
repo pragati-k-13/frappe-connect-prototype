@@ -134,7 +134,7 @@ const checkout = () => {
 </script>
 
 <template>
-  <ConnectShell root-label="Starter packs" root-to="/connect/packs">
+  <ConnectShell root-label="Starter Packs" root-to="/connect/packs">
     <!-- 800 and `py-8`, matching the partner list and the profile. This screen
          briefly ran at 720/py-10 and was the only one in the app that did. -->
     <div class="mx-auto w-full max-w-[800px] px-5 py-8 lg:px-10">

@@ -50,7 +50,7 @@ const pay = () => {
 </script>
 
 <template>
-  <ConnectShell root-label="Starter packs" root-to="/connect/packs" crumb="Checkout">
+  <ConnectShell root-label="Starter Packs" root-to="/connect/packs" crumb="Checkout">
     <div class="mx-auto w-full max-w-[800px] px-5 py-8 lg:px-10">
       <!-- An empty basket: someone reached this by URL, or reloaded and lost
            it. The recommendation is where it is rebuilt, not the catalogue —

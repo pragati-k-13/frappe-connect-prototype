@@ -253,17 +253,25 @@ watch(view, () => {
            heading is the most generic device on the page. Nothing was lost by
            deleting it — the sentences underneath are the label. -->
       <h1 class="text-2xl font-semibold text-ink-gray-9">
-        <!-- ⚠️ FOUR HEADLINES, not two. The recommended path asserts; the
-             overridden one describes. "This needs a partner to scope it
-             properly" is a judgement, and printing it over a path somebody
-             chose against our advice puts our words in their mouth. -->
+        <!-- ⚠️ FOUR HEADLINES, not two, and the split is who is speaking.
+             Recommended, this is Frappe's opinion and says so: "We recommend a
+             starter pack". Overridden, it drops to the plain noun, because we
+             are not recommending what is on screen and a headline that sounds
+             like we are would put our words in somebody's mouth.
+
+             ⚠️ NOT AN IMPERATIVE. Two of these read "Start with a starter pack"
+             and "Get quotes from partners", which are instructions: the screen
+             telling a business what to do about its own money, in the same
+             grammar as the buttons underneath. A recommendation that cannot be
+             told apart from a command is not one. The verb moved to us, where
+             the opinion actually is, and the reader is left with a decision. -->
         {{
           view === 'packs'
             ? overridden
-              ? 'Starter packs'
-              : 'Start with a starter pack'
+              ? 'Starter Packs'
+              : 'We recommend a Starter Pack'
             : overridden
-              ? 'Get quotes from partners'
+              ? 'Custom implementation'
               : 'We recommend a custom implementation'
         }}
       </h1>
@@ -827,7 +835,7 @@ watch(view, () => {
              person whose eye stopped on that row. -->
         <section class="mt-16">
           <h2 class="text-p-lg font-semibold text-ink-gray-9">
-            {{ view === 'packs' ? 'Consider a custom implementation if' : 'Consider a starter pack if' }}
+            {{ view === 'packs' ? 'Consider a custom implementation if' : 'Consider a Starter Pack if' }}
           </h2>
           <ul class="mt-4 max-w-[62ch] space-y-3">
             <li v-for="item in PACK_FIT_TESTS" :key="item.label" class="flex gap-2.5">

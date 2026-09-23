@@ -273,7 +273,7 @@ const restartQuiz = () => {
     <section id="starter-packs" class="scroll-mt-8 px-5 py-12 lg:px-10">
       <div class="mx-auto w-full max-w-[800px]">
         <h2 class="text-p-lg font-semibold text-ink-gray-9">
-          Starter packs are your fastest way to get started
+          Starter Packs are your fastest way to get started
         </h2>
         <!-- ⚠️ "You pay Frappe" is the one term that has to survive being read
              on a partner's page, so it is here and on the profile's pricing

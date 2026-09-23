@@ -964,7 +964,7 @@ export const useConnectStore = defineStore('connect', {
             from: 'you',
             at: at(18),
             kind: 'text',
-            body: 'Hi — we have just bought the Accounts, Sales, Purchase, Stock and Manufacturing starter packs and Frappe has assigned you to us. Here is where we are today.',
+            body: 'Hi — we have just bought the Accounts, Sales, Purchase, Stock and Manufacturing Starter Packs and Frappe has assigned you to us. Here is where we are today.',
           },
           { id: 'm-pack-2', from: 'you', at: at(18), kind: 'company' },
           {

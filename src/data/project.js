@@ -45,7 +45,7 @@ import { APPS, PARTNERS } from './partners'
 export const SERVICES = [
   {
     value: 'pack',
-    label: 'Starter pack',
+    label: 'Starter Pack',
     // What the row under the project's name reads when the service is set.
     summary: 'Fixed scope, fixed price, fixed hours.',
     to: '/connect/packs',

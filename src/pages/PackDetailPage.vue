@@ -125,9 +125,9 @@ const addToBasket = () => {
        Naming the current page after the thing it shows is also what the partner
        profile does ("Partners / Tridots Tech"). -->
   <ConnectShell
-    root-label="Starter packs"
+    root-label="Starter Packs"
     root-to="/connect/packs"
-    :crumb="pack ? pack.name : 'Starter pack'"
+    :crumb="pack ? pack.name : 'Starter Pack'"
   >
     <div class="mx-auto w-full max-w-[800px] px-5 py-8 lg:px-10">
       <!-- No pack in the store: someone reached this by URL rather than by

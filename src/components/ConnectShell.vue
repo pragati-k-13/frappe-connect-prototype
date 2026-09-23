@@ -401,8 +401,8 @@ defineProps({
               <template #prefix><LucideBuilding2 class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>
-          <Tooltip text="Starter packs" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Starter packs" to="/connect/packs" :active="inPacks">
+          <Tooltip text="Starter Packs" side="right" :offset="8" :disabled="!collapsed">
+            <SidebarItem label="Starter Packs" to="/connect/packs" :active="inPacks">
               <template #prefix><LucidePackage class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>

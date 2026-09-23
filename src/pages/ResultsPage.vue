@@ -76,7 +76,7 @@ const suggestionCopy = (key) => {
     case 'implementation':
       return {
         title: 'Partners who quote custom work',
-        note: 'They scope each project rather than selling fixed-scope starter packs.',
+        note: 'They scope each project rather than selling fixed-scope Starter Packs.',
       }
     case 'app':
       return {

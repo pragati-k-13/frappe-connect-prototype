@@ -272,7 +272,7 @@ export const bookingThread = ({ partner, packs }) => {
     startedAt: at,
     messages: [
       msg('you', at, {
-        body: `Hi — we have just bought the ${list} ${names.length > 1 ? 'starter packs' : 'starter pack'} and Frappe has assigned you to us. Here is where we are today.`,
+        body: `Hi — we have just bought the ${list} ${names.length > 1 ? 'Starter Packs' : 'Starter Pack'} and Frappe has assigned you to us. Here is where we are today.`,
       }),
       { id: `m${++seq}`, from: 'you', at, kind: 'company' },
     ],

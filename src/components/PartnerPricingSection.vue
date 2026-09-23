@@ -83,7 +83,7 @@ const estimating = ref(false)
         </span>
         <div class="min-w-0">
           <p class="text-base font-medium text-ink-gray-7">
-            Starter packs - Standard implementation
+            Starter Packs - Standard implementation
           </p>
           <p class="mt-0.5 text-p-base text-ink-gray-6">{{ hoursLabel }}</p>
           <!-- `-ml-2` cancels the ghost Button's own horizontal padding, so the
@@ -162,7 +162,7 @@ const estimating = ref(false)
          packs so that sitting under both cards doesn't read as a claim about
          custom work, which is priced in a conversation and not here. -->
     <p v-if="hoursLabel" class="mt-3 text-p-sm text-ink-gray-5">
-      Starter packs are paid to Frappe in full, not to the partner.
+      Starter Packs are paid to Frappe in full, not to the partner.
     </p>
 
     <EstimateQuoteDialog

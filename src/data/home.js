@@ -60,7 +60,7 @@ export const GUIDE_ROWS = [
   },
   {
     title: 'What a fixed-scope implementation can and cannot do for you',
-    body: 'Where a starter pack stops, and what a change request costs',
+    body: 'Where a Starter Pack stops, and what a change request costs',
     tag: 'Guides',
     likes: 19,
     comments: 1,

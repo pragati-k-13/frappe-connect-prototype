@@ -118,7 +118,7 @@ const activity = computed(() => {
         kind: 'email',
         from: 'Frappe',
         address: 'updates@frappe.io',
-        body: `Your ${packList.value} ${packs.value.length > 1 ? 'starter packs are' : 'starter pack is'} confirmed. ${partner.value.name} will run the implementation and will be in touch.`,
+        body: `Your ${packList.value} ${packs.value.length > 1 ? 'Starter Packs are' : 'Starter Pack is'} confirmed. ${partner.value.name} will run the implementation and will be in touch.`,
       },
     },
     {
@@ -131,7 +131,7 @@ const activity = computed(() => {
       // their name. It is the opening line of `bookingThread`.
       card: {
         kind: 'message',
-        label: `Hi — we have just bought the ${packList.value} ${packs.value.length > 1 ? 'starter packs' : 'starter pack'} and Frappe has assigned you to us. Here is where we are today.`,
+        label: `Hi — we have just bought the ${packList.value} ${packs.value.length > 1 ? 'Starter Packs' : 'Starter Pack'} and Frappe has assigned you to us. Here is where we are today.`,
         to: { name: 'messages', query: { thread: partner.value.id } },
       },
     },
@@ -169,7 +169,7 @@ const cancel = () =>
        card in the page: it runs the full height beside the content, with its own
        scroll, and the page scrolls under it. Same frame the messages screen
        uses, and the same reason. -->
-  <ConnectShell flush root-label="Starter packs" root-to="/connect/packs" crumb="Confirmed">
+  <ConnectShell flush root-label="Starter Packs" root-to="/connect/packs" crumb="Confirmed">
     <div class="flex min-h-0 min-w-0 flex-1">
       <ScrollArea class="min-h-0 min-w-0 flex-1">
         <div class="w-full px-5 py-8 lg:px-8">
