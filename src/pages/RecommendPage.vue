@@ -187,6 +187,39 @@ const CUSTOM_STEPS = [
   { title: 'Pay per milestone', body: 'Agreed with them' },
 ]
 
+// ⚠️ THE COUNT IS THE COMMITMENT, and the rail states it directly above this
+// button. It used to be in the label as well, until a label that grows with the
+// data turned out to be a control whose width nobody designed.
+//
+// ⚠️ THIS FUNCTION WAS DELETED BY ACCIDENT and nothing said so. A commit that
+// removed an unrelated block from this script took it with it, and `@click`
+// bound to a name that does not exist compiles to NO HANDLER — no warning, no
+// console error, a button that simply does nothing. It is the second time this
+// exact failure has happened on this page; `checkout` went the same way in
+// `1efe037`. Vue will not catch it and neither will the build.
+const send = () => {
+  if (Object.keys(briefErrors(brief.value)).length) {
+    tried.value = true
+    return
+  }
+  if (!store.signedIn) {
+    return router.push({
+      name: 'signup',
+      query: { next: '/connect/recommendation?send=1' },
+    })
+  }
+  const id = store.startCustomProject()
+  const result = store.broadcastBrief(id)
+  toast.success(`Sent to ${result.sent} ${result.sent === 1 ? 'partner' : 'partners'}`, {
+    description: 'Their replies come back as quotes you can shortlist or pass on.',
+  })
+  // ⚠️ A RECEIPT, not the tracker. Sending used to land on the project page —
+  // a screen about work that has not started, reached from a decision screen,
+  // with nothing in between to say what had just happened. Twelve companies had
+  // been written to and the product never mentioned it. See `BriefSentPage`.
+  router.push({ name: 'brief-sent', query: { project: id } })
+}
+
 // ── Was this right? ─────────────────────────────────────────────────────────
 // ⚠️ ASKED HERE AND NOWHERE EARLIER. This is the first moment the app has made
 // a claim, and the last moment before somebody spends money on it — feedback
