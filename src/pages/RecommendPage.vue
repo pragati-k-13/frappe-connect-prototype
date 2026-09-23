@@ -48,7 +48,13 @@ import {
   priceFor,
   DEFAULT_REGION,
 } from '../data/packs'
-import { briefErrors, budgetBandsFor, criteriaLines, matchingPartners } from '../data/custom'
+import {
+  briefErrors,
+  budgetBandsFor,
+  criteriaLines,
+  matchingPartners,
+  scopeHint,
+} from '../data/custom'
 import { INDUSTRIES, GROUP_OF_SEGMENT, REGIONS, REGION_OF } from '../data/quiz'
 
 const store = useConnectStore()
@@ -164,6 +170,11 @@ const CRITERIA_ICONS = {
 }
 
 const criteria = computed(() => criteriaLines(store.company, brief.value))
+
+// ⚠️ LIVE ADVICE ON THE SCOPE, recomputed on every keystroke because the store
+// is the model and the field writes straight to it. It says one thing at a
+// time and it never blocks the send; see `scopeHint`.
+const hint = computed(() => scopeHint(brief.value.scope))
 
 // ⚠️ THE CUSTOM PATH'S OWN THREE BEATS, and they are not the pack's. There you
 // pay Frappe and are assigned somebody; here you pick the firm and pay them per
@@ -284,8 +295,7 @@ watch(view, () => {
          both, so what widens is the part that is a table, not the part that is
          a paragraph. -->
     <div
-      class="mx-auto w-full px-5 py-10 lg:px-10"
-      :class="view === 'packs' ? 'max-w-[1080px]' : 'max-w-[800px]'"
+      class="mx-auto w-full max-w-[1080px] px-5 py-10 lg:px-10"
     >
       <!-- ── The verdict ─────────────────────────────────────────────── -->
       <!-- ⚠️ NO EYEBROW. There was a tracked-out "BASED ON YOUR ANSWERS" above
@@ -374,7 +384,7 @@ watch(view, () => {
                          three things to do, and the thing to do here is tick a
                          box. -->
                     <Button
-                      variant="ghost"
+                      variant="subtle"
                       size="sm"
                       label="What's included"
                       @click="showScope(row.pack)"
@@ -448,114 +458,160 @@ watch(view, () => {
 
       <!-- ── Custom ──────────────────────────────────────────────────── -->
       <section v-else class="mt-8">
-        <!-- ONE CARD: who it goes to, what you tell them, and send. A brief to
-             a list of firms is a dispatch, so the address block and the send
-             control sit on the same surface as the message. -->
-        <div class="rounded-6 border border-outline-gray-2">
-          <div class="p-5">
-            <!-- ⚠️ THE CRITERIA ARE ON THE PAGE NOW, not behind a counted link
-                 reading "3 filters on". A number is not a criterion: somebody
-                 who narrowed to Pune and came back an hour later could not tell
-                 what the brief was about to do without opening a dialog. Five
-                 lines say it, and the button beside them is for changing them
-                 rather than for finding out what they are. -->
-            <div class="flex flex-wrap items-start justify-between gap-3">
-              <div class="min-w-0">
-                <h2 class="text-p-lg font-semibold text-ink-gray-9">
-                  Share requirements with every partner that matches
-                </h2>
+        <!-- ⚠️ THE SAME SHAPE AS THE PACKS HALF, and it should have been from
+             the start: a column of what you are deciding, and a rail carrying
+             the number and the button that acts on it. Both halves of this
+             screen end in one commitment made against one figure, and they were
+             laying that out two different ways. -->
+        <div class="flex flex-col gap-8 lg:flex-row lg:items-start">
+          <div class="min-w-0 flex-1">
+            <div class="rounded-6 border border-outline-gray-2 p-5">
+              <!-- ⚠️ THE CRITERIA ARE ON THE PAGE, not behind a counted link
+                   reading "3 filters on". A number is not a criterion: somebody
+                   who narrowed to Pune and came back an hour later could not
+                   tell what the brief was about to do without opening a dialog.
+                   Five lines say it, and the button beside them is for changing
+                   them rather than for finding out what they are. -->
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <h2 class="text-p-lg font-semibold text-ink-gray-9">
+                    Share requirements with every partner that matches
+                  </h2>
+                  <p class="mt-1 text-p-base text-ink-gray-6">
+                    Sent as a message, never posted publicly.
+                  </p>
+                </div>
+                <Button variant="subtle" label="Edit criteria" @click="showFilters = true">
+                  <template #prefix><IconEdit class="size-4" /></template>
+                </Button>
+              </div>
+
+              <ul class="mt-4 space-y-2">
+                <li
+                  v-for="line in criteria"
+                  :key="line.text"
+                  class="flex items-center gap-2.5 text-p-base text-ink-gray-7"
+                >
+                  <component :is="CRITERIA_ICONS[line.icon]" class="size-4 text-ink-gray-5" />
+                  {{ line.text }}
+                </li>
+              </ul>
+
+              <!-- ── What you tell them ──────────────────────────────────── -->
+              <div class="mt-6">
+                <h3 class="text-p-base font-semibold text-ink-gray-8">
+                  Tell us about your project
+                </h3>
                 <p class="mt-1 text-p-base text-ink-gray-6">
-                  Sent as a message, never posted publicly.
+                  The more you write, the more partners can quote a figure instead of a meeting.
                 </p>
               </div>
-              <Button variant="subtle" label="Edit criteria" @click="showFilters = true">
-                <template #prefix><IconEdit class="size-4" /></template>
-              </Button>
+
+              <div class="mt-4 space-y-4">
+                <!-- ⚠️ A BAND, NOT A FIGURE. See the note in `data/custom.js` —
+                     a free number invites a placeholder, and partners price
+                     against placeholders. -->
+                <FormControl
+                  type="select"
+                  :model-value="brief.budget"
+                  label="Your budget"
+                  placeholder="Select a range"
+                  required
+                  :options="bands"
+                  :error="briefProblems.budget"
+                  @update:model-value="store.saveBrief({ budget: $event })"
+                />
+                <div>
+                  <!-- ⚠️ ONE BOX, AND THE PLACEHOLDER DOES THE WORK. The three
+                       named prompts this replaces are still the right
+                       questions; asking them as three fields on a card that
+                       also carries the criteria and the budget made it read as
+                       a form. They prompt from inside the placeholder instead,
+                       where they occupy nothing. -->
+                  <Textarea
+                    :model-value="brief.scope"
+                    label="What do you want built?"
+                    placeholder="What do you make or sell, who are your customers, how does it run today, what keeps going wrong, and what must it connect to or prove?"
+                    :rows="6"
+                    required
+                    :error="briefProblems.scope"
+                    @update:model-value="store.saveBrief({ scope: $event })"
+                  />
+                  <!-- ⚠️ LIVE, AND IT REPLACES A FIXED `description`. A static
+                       line of advice is read once, before there is anything to
+                       advise about, and is invisible by the time it applies.
+                       This answers what is in the box: nothing yet, not
+                       language, too short, or specific about some of it and
+                       silent on the rest. See `scopeHint`.
+                       ⚠️ NOT THE `error` SLOT, and not a blocker. A brief that
+                       trips every heuristic here still sends, because the
+                       heuristic is a word list and the person writing knows
+                       their business. Amber says "this will cost you a
+                       workshop", red would say "you may not".
+                       ⚠️ SHADE 7 OF BOTH, measured rather than picked. The ink
+                       scales run light to dark and the low shades are pale
+                       enough to fail against white at this size: amber 5 is
+                       oklch lightness .72, amber 7 is .61. -->
+                  <p
+                    class="mt-1.5 text-p-sm leading-relaxed"
+                    :class="{
+                      'text-ink-gray-5': hint.tone === 'neutral',
+                      'text-ink-amber-7': hint.tone === 'warn',
+                      'text-ink-green-7': hint.tone === 'good',
+                    }"
+                  >
+                    {{ hint.text }}
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <ul class="mt-4 space-y-2">
-              <li
-                v-for="line in criteria"
-                :key="line.text"
-                class="flex items-center gap-2.5 text-p-base text-ink-gray-7"
+            <!-- ⚠️ THE OTHER WAY THROUGH, in the column rather than the rail.
+                 The rail holds one commitment and its number; a second button
+                 up there would make them a pair of options and halve the first.
+                 Down here it reads as what it is, the route for somebody who
+                 would rather choose the firms themselves. -->
+            <div class="mt-4">
+              <Button
+                variant="subtle"
+                label="View all partners"
+                :route="{ name: 'results' }"
               >
-                <component :is="CRITERIA_ICONS[line.icon]" class="size-4 text-ink-gray-5" />
-                {{ line.text }}
-              </li>
-            </ul>
-
-            <!-- ── What you tell them ──────────────────────────────────── -->
-            <div class="mt-6">
-              <h3 class="text-p-base font-semibold text-ink-gray-8">Tell us about your project</h3>
-              <p class="mt-1 text-p-base text-ink-gray-6">
-                The more you write, the more partners can quote a figure instead of a meeting.
-              </p>
-            </div>
-
-            <div class="mt-4 space-y-4">
-              <!-- ⚠️ A BAND, NOT A FIGURE. See the note in `data/custom.js` — a
-                   free number invites a placeholder, and partners price against
-                   placeholders. -->
-              <FormControl
-                type="select"
-                :model-value="brief.budget"
-                label="Your budget"
-                placeholder="Select a range"
-                required
-                :options="bands"
-                :error="briefProblems.budget"
-                @update:model-value="store.saveBrief({ budget: $event })"
-              />
-              <!-- ⚠️ ONE BOX, AND THE PLACEHOLDER DOES THE WORK. The three
-                   named prompts this replaces are still the right questions;
-                   asking them as three fields on the screen that also carries
-                   the criteria, the budget and the send made a card that reads
-                   as a form. So the questions moved into the placeholder, where
-                   they prompt without occupying anything, and the description
-                   under the label says what a partner does with the answer.
-                   `description` and `placeholder` are `Textarea`'s own props;
-                   neither is a paragraph this page drew itself. -->
-              <Textarea
-                :model-value="brief.scope"
-                label="What do you want built?"
-                description="Partners quote from this, so the detail you add here comes back as accuracy."
-                placeholder="What do you make or sell, who are your customers, how does it run today, what keeps going wrong, and what must it connect to or prove?"
-                :rows="6"
-                required
-                :error="briefProblems.scope"
-                @update:model-value="store.saveBrief({ scope: $event })"
-              />
+                <template #suffix><IconArrowRight class="size-4" /></template>
+              </Button>
             </div>
           </div>
 
-          <!-- ⚠️ THE HAIRLINE ONLY, NO FILL. A tinted foot came out LIGHTER
-               than the `surface-gray-2` fields above it, which reads as a
-               rendering artefact rather than as a second part. The stroke says
-               where the message stops and the sending starts. -->
-          <div class="border-t border-outline-gray-2 p-5">
-            <p v-if="matches.length" class="text-p-base text-ink-gray-8">
-              We found
-              <span class="font-semibold tabular-nums">{{ matches.length }}</span>
-              {{ matches.length === 1 ? 'partner' : 'partners' }} that match your criteria.
-            </p>
-            <p v-else class="text-p-base text-ink-gray-8">No partner matches these criteria.</p>
-            <p class="mt-1 text-p-base text-ink-gray-6">
-              They see your requirements and budget, not your company name.
-            </p>
+          <!-- ── Who it reaches ──────────────────────────────────────────
+               ⚠️ A RAIL, AND STICKY, for the reason the packs half has one: the
+               button was at the foot of a card, so it left the screen while
+               somebody read four sections about what they were about to do. The
+               figure and the commitment stay in view instead, and neither is
+               ever printed twice. -->
+          <aside class="w-full shrink-0 lg:sticky lg:top-6 lg:w-[300px]">
+            <div class="rounded-6 border border-outline-gray-2 p-4">
+              <template v-if="matches.length">
+                <p class="text-2xl font-semibold tabular-nums text-ink-gray-9">
+                  {{ matches.length }}
+                </p>
+                <p class="mt-0.5 text-p-base text-ink-gray-7">
+                  {{ matches.length === 1 ? 'partner matches' : 'partners match' }} your criteria
+                </p>
+              </template>
+              <template v-else>
+                <p class="text-p-base text-ink-gray-7">No partner matches</p>
+                <p class="mt-1 text-p-sm leading-relaxed text-ink-gray-5">
+                  Loosen a criterion and the number comes back.
+                </p>
+              </template>
 
-            <!-- ⚠️ NO COUNT IN THE LABEL, and it used to read "Send
-                 requirements to 13 partners". The count was on the button
-                 because the button is the commitment, but a label that grows
-                 with the data is a control whose width nobody designed, and it
-                 stuttered against the same figure one line above it. The
-                 sentence carries the number; the button carries the verb.
-                 ⚠️ THE SECOND BUTTON IS THE OTHER WAY THROUGH, and the screen
-                 did not offer it. Broadcasting was the only route on this half,
-                 so choosing partners yourself looked like something the product
-                 did not do. It is `subtle` rather than `solid`: still the
-                 second answer. -->
-            <div class="mt-4 flex flex-wrap items-center gap-2">
+              <!-- ⚠️ NO COUNT IN THE LABEL, and it used to read "Send
+                   requirements to 13 partners". The count was on the button
+                   because the button is the commitment, but a label that grows
+                   with the data is a control whose width nobody designed. The
+                   figure above it is the same number from the same function. -->
               <Button
+                class="mt-4 w-full"
                 variant="solid"
                 size="md"
                 :disabled="matches.length === 0"
@@ -564,16 +620,11 @@ watch(view, () => {
               >
                 <template #prefix><IconSend class="size-4" /></template>
               </Button>
-              <Button
-                variant="subtle"
-                size="md"
-                label="View all partners"
-                :route="{ name: 'results' }"
-              >
-                <template #suffix><IconArrowRight class="size-4" /></template>
-              </Button>
+              <p class="mt-3 text-p-sm leading-relaxed text-ink-gray-5">
+                They see your requirements and budget, not your company name.
+              </p>
             </div>
-          </div>
+          </aside>
         </div>
       </section>
 
@@ -590,7 +641,7 @@ watch(view, () => {
            that produce it are the two numbers on the block above.
            Only on the packs half: the custom half has no rail and takes the
            app's usual 800px, where full width already is the measure. -->
-      <div :class="view === 'packs' ? 'lg:max-w-[calc(100%-332px)]' : ''">
+      <div class="lg:max-w-[calc(100%-332px)]">
         <!-- ── How this works ─────────────────────────────────────
              ⚠️ ADDED BACK ON THIS SCREEN, and it belongs here more than
              anywhere. The recommendation is where somebody decides to pay,
@@ -708,9 +759,12 @@ watch(view, () => {
           <!-- ⚠️ A frappe-ui `Button`, and it was a bare `<button>` with an
                underline class. There is no underlined text button in the design
                system, so every one of them here was a control this page drew
-               itself: same job as `Button variant="ghost"`, different height,
-               different focus ring, no disabled state. -->
-          <Button class="-ml-2 mt-3" variant="ghost" label="Change my answers" @click="rethink" />
+               itself: same job as a `Button`, different height, different focus
+               ring, no disabled state.
+               ⚠️ `subtle`, not `ghost`, and every secondary control on this page
+               matches. A ghost button is a label with a hover state, which is
+               the thing the underlined text already was. -->
+          <Button class="mt-3" variant="subtle" label="Change my answers" @click="rethink" />
         </section>
 
         <!-- ── When custom work is the answer ─────────────────────────
@@ -824,8 +878,8 @@ watch(view, () => {
                      and the line below offers them the way back instead. -->
                 <Button
                   v-if="!overridden"
-                  class="-ml-2 mt-2"
-                  variant="ghost"
+                  class="mt-2"
+                  variant="subtle"
                   label="Get quotes from partners instead"
                   @click="view = 'custom'"
                 />
@@ -843,15 +897,13 @@ watch(view, () => {
         <div v-if="view !== 'packs' || overridden" class="mt-10">
           <Button
             v-if="view === 'packs'"
-            class="-ml-2"
-            variant="ghost"
+            variant="subtle"
             label="Back to what we recommend"
             @click="view = 'custom'"
           />
           <Button
             v-else
-            class="-ml-2"
-            variant="ghost"
+            variant="subtle"
             :label="overridden ? 'Back to what we recommend' : 'Look at the packs anyway'"
             @click="view = 'packs'"
           />

@@ -196,6 +196,135 @@ export const briefErrors = (brief) => {
 
 export const briefComplete = (brief) => Object.keys(briefErrors(brief)).length === 0
 
+// ── Reading the scope back ──────────────────────────────────────────────────
+// ⚠️ A HINT, NEVER A GATE. Everything below decides what to SAY under the box
+// while somebody types; nothing here can stop a brief being sent, and the only
+// hard rule stays the length floor in `briefErrors`. A heuristic that blocks is
+// a heuristic that has to be right, and this one is a word list.
+//
+// ⚠️ IT ADVISES, IT DOES NOT SCORE. No meter, no percentage, no "3 of 4
+// answered". A score invites somebody to write for the score, and the number
+// would be measuring vocabulary rather than usefulness. What comes back is one
+// sentence naming the next thing worth adding, which is the only output a
+// person can act on.
+//
+// ⚠️ THE FOUR TOPICS ARE THE FOUR QUESTIONS the placeholder asks, in the order
+// the two real enquiries answered them. `words` are stems, matched anywhere, so
+// "manufacturing" and "manufacture" both hit `manufactur`.
+const TOPICS = [
+  {
+    key: 'what',
+    ask: 'what you make or sell',
+    words: [
+      'manufactur', 'factor', 'produc', 'trading', 'trade', 'distribut', 'retail',
+      'wholesal', 'sell', 'sales of', 'service', 'agency', 'clinic', 'school',
+      'construct', 'export', 'import', 'trader', 'supply', 'suppli',
+    ],
+  },
+  {
+    key: 'today',
+    ask: 'how it runs today',
+    words: [
+      'spreadsheet', 'excel', 'google sheet', 'tally', 'manual', 'paper', 'folder',
+      'by hand', 'sap', 'zoho', 'quickbook', 'busy', 'legacy', 'current system',
+      'existing system', 'erp we', 'our erp', 'software we',
+    ],
+  },
+  {
+    key: 'wrong',
+    ask: 'what keeps going wrong',
+    words: [
+      'wrong', 'error', 'mistake', 'delay', 'late', 'lost', 'missing', 'blind',
+      'no visibility', 'cannot', "can't", 'slow', 'stuck', 'trapped', 'duplicate',
+      'reconcil', 'chas', 'guess', 'untrack', 'hard to', 'difficult', 'problem',
+      'pain', 'bottleneck',
+    ],
+  },
+  {
+    key: 'must',
+    ask: 'what it must connect to or prove',
+    words: [
+      'integrat', 'api', 'e-invoic', 'einvoic', 'gst', 'audit', 'complian', 'iso',
+      'iris', 'traceab', 'barcode', 'shopify', 'woocommerce', 'amazon', 'bank',
+      'payment gateway', 'whatsapp', 'biometric', 'migrat', 'import our data',
+      'connect to', 'sync',
+    ],
+  },
+]
+
+// ⚠️ KEYBOARD MASH, NOT BAD WRITING. The only thing this tries to catch is text
+// that is not language: no vowels, one enormous token, the same word four
+// times. It deliberately does not judge grammar or length of sentence, because
+// the person most likely to write a short blunt brief is the person who knows
+// their business best.
+// ⚠️ "HAS A VOWEL" IS NOT THE TEST, and it was. Nearly every keyboard mash
+// contains an a or an e — "asdkjh" does — so the first version of this passed
+// a line of pure noise straight through. What separates typing from language is
+// the SHAPE of a word: English keeps vowels at roughly a fifth of its letters
+// and almost never runs four consonants together. Both tests have to fail
+// before a token is doubted, and a majority of tokens have to be doubted before
+// the line is, so one "strengths" costs nothing.
+const isWordShaped = (word) => {
+  const letters = word.length
+  const vowels = (word.match(/[aeiouy]/g) ?? []).length
+  if (vowels / letters < 0.2) return false
+  return !/[bcdfghjklmnpqrstvwxz]{4,}/.test(word)
+}
+
+const looksLikeNonsense = (text) => {
+  const words = text.toLowerCase().match(/[a-z']+/g) ?? []
+  if (!words.length) return text.trim().length > 0
+  if (words.some((w) => w.length > 24)) return true
+  // Short tokens are skipped: acronyms are real and "WMS" is not a word shape.
+  const testable = words.filter((w) => w.length >= 4)
+  if (testable.length >= 3 && testable.filter(isWordShaped).length / testable.length < 0.5) {
+    return true
+  }
+  const distinct = new Set(words).size
+  return words.length >= 6 && distinct / words.length < 0.4
+}
+
+const covered = (text) => {
+  const t = text.toLowerCase()
+  return TOPICS.filter((topic) => topic.words.some((w) => t.includes(w)))
+}
+
+// `{ tone, text }`, where tone is one of 'neutral', 'warn' and 'good'. One
+// sentence, because it sits under a field somebody is mid-thought in.
+export const scopeHint = (raw) => {
+  const text = (raw ?? '').trim()
+  if (!text) {
+    return {
+      tone: 'neutral',
+      text: 'Partners quote from this, so the detail you add here comes back as accuracy.',
+    }
+  }
+  if (looksLikeNonsense(text)) {
+    return {
+      tone: 'warn',
+      text: 'This does not read as a description yet, so partners will answer with a workshop rather than a quote.',
+    }
+  }
+  if (text.length < SCOPE_MIN) {
+    return { tone: 'neutral', text: 'Keep going, a sentence or two is the least anyone can quote from.' }
+  }
+  const hit = covered(text)
+  const missing = TOPICS.filter((t) => !hit.includes(t))
+  // ⚠️ NEUTRAL, NOT AMBER. Amber is for text that is not language; this is
+  // language that has not said much yet, and colouring the two the same tells
+  // somebody who wrote a real sentence that they wrote gibberish.
+  if (!hit.length) {
+    return {
+      tone: 'neutral',
+      text: 'Say what you make and what keeps going wrong, so partners can size it.',
+    }
+  }
+  if (missing.length) {
+    return { tone: 'neutral', text: `Add ${missing[0].ask} and more of them can quote a figure.` }
+  }
+  return { tone: 'good', text: 'That is enough for most partners to quote a figure.' }
+}
+
 // ── Who this reaches ────────────────────────────────────────────────────────
 // The count under the filters, and the list the broadcast actually goes to —
 // ONE function, because a number that doesn't match what happens next is the
