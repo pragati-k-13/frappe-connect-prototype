@@ -91,18 +91,32 @@ const OFFICE = [
                the reader who came to ask "who can implement this for us" —
                which the page cannot answer today except by promising an
                e-mail back. -->
+          <!-- ⚠️ THE BUTTON SAID "Find a partner" AND OPENED THE QUESTIONS.
+               Two things wrong with that, and the second is the one that
+               matters. It named a destination it did not go to — the same fault
+               the partners mock's hero button had. And "Find a partner" is now
+               a specific thing elsewhere in this prototype: the control on
+               /partners that opens the directory. A visitor who presses the
+               same words on two pages and lands in two different places has
+               learnt nothing from the first press.
+
+               What this row actually offers is the opposite of a directory —
+               you do not know which firm you want, which is why you were about
+               to write in. So it says so, and it matches the second door on the
+               partners page word for word: same offer, same words, same
+               destination. -->
           <div class="mt-10 rounded-4 border border-outline-gray-1 p-4">
             <p class="text-[15px] font-medium text-ink-gray-8">Looking for implementation?</p>
             <p class="mt-1 text-[15px] leading-[1.57] text-ink-gray-6">
-              Answer three questions and get a recommendation, with pricing, straight away — no
-              reply to wait for.
+              Answer three questions about your business and we will say which service fits, and
+              what it costs — no reply to wait for.
             </p>
             <button
               type="button"
               class="mt-3 flex items-center gap-1.5 text-[15px] font-medium text-ink-gray-8 hover:underline"
-              @click="router.push('/connect')"
+              @click="router.push('/connect?new=1')"
             >
-              Find a partner
+              Get a recommendation
               <LucideArrowRight class="size-4 text-ink-gray-5" />
             </button>
           </div>
