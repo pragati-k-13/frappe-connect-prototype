@@ -902,7 +902,7 @@ export const useConnectStore = defineStore('connect', {
       // with something in it and the inbox shows both settled states.
       const bids = project.bids ?? []
       if (bids[0]) this.setBidState(project.id, bids[0].partnerId, 'shortlisted')
-      if (bids[1]) this.setBidState(project.id, bids[1].partnerId, 'passed')
+      if (bids[1]) this.setBidState(project.id, bids[1].partnerId, 'not-interested')
 
       // ⚠️ THE CONVERSATION CONTINUES AFTER A SHORTLIST, which is the point of
       // shortlisting — the company card goes out and the two of you start

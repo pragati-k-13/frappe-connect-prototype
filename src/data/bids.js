@@ -108,10 +108,25 @@ export const repliesToBrief = (partner) => hash(partner.id) % (partner.tier === 
 // The three states a bid moves through. `pending` is what arrives; the business
 // moves it on.
 //
-// ⚠️ 'passed', NOT 'rejected'. The word is read by the person who chose it, in
-// a list of firms who spent an hour on their brief, and "rejected" makes a
-// routine narrowing-down feel like a verdict on the company. The partner is not
-// told either way — see the note in `stores/connect.js`.
+// ⚠️ 'not-interested', AND IT WAS 'passed'. Two problems with that word, and
+// the first is the one that got it changed: "pass" meaning "decline" is a
+// phrasal-verb idiom with its particle dropped, and to most people reading
+// English as a second language "Passed" is what happens when you SUCCEED at
+// something. On a badge beside a price it could be read as approved — the exact
+// opposite of what it records. A state label is the last place in a product
+// that can afford to be invertible.
+//
+// The second is why it is not 'rejected' either: the word is read by the person
+// who chose it, in a list of firms who spent an hour on their brief, and
+// "rejected" makes a routine narrowing-down feel like a verdict on the company.
+// "Not interested" is a statement of the reader's own position, which is
+// exactly what this state is — the partner is not told either way, see the note
+// in `stores/connect.js`.
+//
+// ⚠️ THE STORED VALUE MOVED WITH THE LABEL, and that is the rule this file
+// already set for `shortlisted` below: a store that says one word under a UI
+// that says another is the drift every renamed concept in this repo has been
+// caught in.
 //
 // ⚠️ 'shortlisted', AND IT WAS 'approved'. The screen groups replies into
 // "Shortlisted" and "Others", so the state that produces the first group is
@@ -119,4 +134,4 @@ export const repliesToBrief = (partner) => hash(partner.id) % (partner.tier === 
 // shortlisted is the drift every renamed concept in this repo has been caught
 // in. The GESTURE is unchanged and so is its consequence: shortlisting shares
 // the company's details and opens the thread. Only the word moved.
-export const BID_STATES = ['pending', 'shortlisted', 'passed']
+export const BID_STATES = ['pending', 'shortlisted', 'not-interested']

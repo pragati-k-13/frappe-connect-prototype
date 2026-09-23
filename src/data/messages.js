@@ -335,7 +335,7 @@ export const threadStatus = (thread, bidState = null) => {
   const bid = [...msgs].reverse().find((m) => m.kind === 'bid')
   if (bid) {
     if (bidState === 'shortlisted') return 'shortlisted'
-    if (bidState === 'passed') return 'passed'
+    if (bidState === 'not-interested') return 'not-interested'
     return 'quoted'
   }
   if (thread?.broadcast && !msgs.some((m) => m.from === 'them')) return 'awaiting'
@@ -349,7 +349,7 @@ export const STATUS_LABELS = {
   declined: { label: 'Declined', theme: 'gray' },
   quoted: { label: 'Quoted', theme: 'blue' },
   shortlisted: { label: 'Shortlisted', theme: 'green' },
-  passed: { label: 'Passed', theme: 'gray' },
+  'not-interested': { label: 'Not interested', theme: 'gray' },
   awaiting: { label: 'Awaiting reply', theme: 'gray' },
 }
 

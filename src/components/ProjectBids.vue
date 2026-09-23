@@ -59,8 +59,8 @@ const rows = computed(() =>
 )
 
 const shortlisted = computed(() => rows.value.filter((r) => r.state === 'shortlisted'))
-// ⚠️ "Others" IS PENDING AND PASSED TOGETHER, not pending alone. A firm you
-// passed on is not a fourth state of the world, it is one of the others with a
+// ⚠️ "Others" IS PENDING AND NOT-INTERESTED TOGETHER, not pending alone. A firm
+// you turned down is not a fourth state of the world, it is one of the others with a
 // decision already recorded against it — and putting it in a tab of its own
 // would give the rows nobody wants equal billing with the rows they do. Inside
 // the tab it keeps its numbers, loses its two buttons, and offers Undo.
@@ -226,7 +226,7 @@ const emit = defineEmits(['choose'])
           v-for="row in others"
           :key="row.partnerId"
           class="rounded-6 border border-outline-gray-2 p-4"
-          :class="row.state === 'passed' ? 'opacity-60' : ''"
+          :class="row.state === 'not-interested' ? 'opacity-60' : ''"
         >
           <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
             <div class="flex items-center gap-2">
@@ -245,12 +245,13 @@ const emit = defineEmits(['choose'])
           </p>
           <p class="mt-2 text-p-base leading-relaxed text-ink-gray-6">{{ row.note }}</p>
 
-          <!-- A firm you have already passed on. It keeps everything above and
-               loses the decision, because the only thing left to do with it is
-               change your mind. ⚠️ "Passed", never "rejected", and the partner
-               is not told either way — see the note on `BID_STATES`. -->
-          <div v-if="row.state === 'passed'" class="mt-3 flex items-center gap-3">
-            <Badge theme="gray" label="Passed" />
+          <!-- A firm you have already turned down. It keeps everything above
+               and loses the decision, because the only thing left to do with it
+               is change your mind. ⚠️ "Not interested", never "rejected", and
+               the partner is not told either way — see the note on
+               `BID_STATES`. -->
+          <div v-if="row.state === 'not-interested'" class="mt-3 flex items-center gap-3">
+            <Badge theme="gray" label="Not interested" />
             <button
               type="button"
               class="text-p-base text-ink-gray-6 underline hover:text-ink-gray-8"
@@ -277,8 +278,8 @@ const emit = defineEmits(['choose'])
               />
               <Button
                 variant="subtle"
-                label="Pass"
-                @click="store.setBidState(project.id, row.partnerId, 'passed')"
+                label="Not interested"
+                @click="store.setBidState(project.id, row.partnerId, 'not-interested')"
               />
               <Button
                 variant="ghost"

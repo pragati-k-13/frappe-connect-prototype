@@ -856,17 +856,22 @@ watch(open, toBottom)
                         label="Shortlist"
                         @click="setBid(m, 'shortlisted')"
                       />
-                      <Button variant="subtle" size="sm" label="Pass" @click="setBid(m, 'passed')" />
+                      <Button
+                        variant="subtle"
+                        size="sm"
+                        label="Not interested"
+                        @click="setBid(m, 'not-interested')"
+                      />
                     </div>
                   </div>
-                  <!-- Both settled states say so plainly. ⚠️ "Passed", never
-                       "rejected" — see `BID_STATES`. The partner is not told
-                       either way. -->
+                  <!-- Both settled states say so plainly. ⚠️ "Not interested",
+                       never "rejected" — see `BID_STATES`. The partner is not
+                       told either way. -->
                   <Badge
                     v-else
                     class="mt-3"
                     :theme="bidState(m) === 'shortlisted' ? 'green' : 'gray'"
-                    :label="bidState(m) === 'shortlisted' ? 'Shortlisted' : 'Passed'"
+                    :label="bidState(m) === 'shortlisted' ? 'Shortlisted' : 'Not interested'"
                   />
                 </div>
               </div>
