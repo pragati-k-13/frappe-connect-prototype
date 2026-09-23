@@ -214,9 +214,19 @@
   container-name: content;
 }
 
-/* Three across when the column can hold it, stacked when it can't. 640px is
+/* ⚠️ NOTHING USES `.fc-col-3` OR `.fc-col-2` TODAY. Both were the pack detail
+   page's, for its steps row and its included / not-included ledger, and both
+   sections were removed from it when the recommendation screen became the only
+   place those are shown. Kept because the measurements below are real work and
+   the next two-or-three-column block in a container-queried column wants them;
+   deleted the moment that stops being true. The notes inside still describe the
+   rows they were measured against, which no longer exist.
+
+   Three across when the column can hold it, stacked when it can't. 640px is
    where three columns still leave the middle one — the only one padded on both
-   sides — enough for its longest label. Measured; see `PacksPage`. */
+   sides — enough for its longest label. Measured; see `PacksPage`. At 640 the
+   bodies wrap and one title is 6px short of fitting; the layout stacks just
+   below this, and the design width is the 800px column. */
 .fc-col-3 {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -228,8 +238,21 @@
   border-top: 1px solid var(--outline-gray-1);
 }
 @container content (min-width: 640px) {
+  /* ⚠️ NOT three equal columns, and the uneven split is measured rather than
+     felt. The middle column is the only one padded on both sides, so at equal
+     widths it holds 48px less text than its neighbours while carrying the
+     longest label in both rows that use this class — "Frappe assigns a
+     partner" (167px) in the pack page's steps, "Faster implementation" (150px)
+     in the catalogue's points. 0.85/1.15/1 moves ~36px from the first column,
+     which has the shortest labels of the three in both ("Pay in full",
+     "Standardized pricing"), to the one that needs it.
+
+     ⚠️ The two rows are on DIFFERENT SCREENS now — the steps moved to the pack
+     page — so this no longer keeps two sets of dividers in one vertical line.
+     What it still does is hold one measurement for both, and both still have to
+     be checked when it changes. */
   .fc-col-3 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: 0.85fr 1.15fr 1fr;
   }
   .fc-col-3 > * {
     padding-block: 0;
@@ -419,23 +442,3 @@ textarea[data-slot='control'] {
   @apply mt-2;
 }
 
-/* Stage rows on a project reveal their disclosure chevron on hover. Five of
-   them standing permanently down the right edge is an affordance used as
-   decoration — the whole row is the button, and the chevron is only a hint.
-
-   Inside `@media (hover: hover)` so a touch screen, which has no hover to
-   reveal anything with, keeps them visible instead.
-
-   `:focus-within` rather than `:focus`: the focusable thing is the button
-   inside the row, not the row. And the open row keeps its chevron whatever the
-   pointer is doing — it is the one that has something to say. */
-@media (hover: hover) {
-  .fc-stage-row .fc-stage-chevron {
-    opacity: 0;
-  }
-  .fc-stage-row:hover .fc-stage-chevron,
-  .fc-stage-row:focus-within .fc-stage-chevron,
-  .fc-stage-chevron[data-open='true'] {
-    opacity: 1;
-  }
-}

@@ -45,6 +45,28 @@ export const APPS = [
 // The scope document says ₹2,000/hr is the real India rate — so the implausible
 // number was the invented PARTNER rate, not the pack price. India's prices are
 // now the real ones; see `REGION_PRICING`.
+//
+// ⚠️ Every `packs` array below was rewritten when the catalogue stopped being a
+// ladder of tiers and became three module-named packs. The old ids map on like
+// this, and the rule is worth keeping in mind if any partner data arrives from
+// an older copy:
+//
+//   core-erpnext → accounts-sales-purchase-stock   (identical modules)
+//   manufacturing → manufacturing
+//   frappe-hr     → hrms                           (HR and Payroll, one pack)
+//   all-in-one    → all three                      (it was all of them)
+//
+// A partner who sold one tier now sells its constituents, so nobody's offer
+// narrowed in the rewrite. `all-in-one` is gone entirely — there is no bundle
+// left to be "all in one" of, and `payroll` went when HR and Payroll became
+// one pack: `hrms` is now both modules.
+
+// ⚠️ `workStyle` is INVENTED, like the rates and the ratings. It is one of
+// 'remote' | 'onsite' | 'both', and it exists because the custom flow lets a
+// business say it wants someone who will sit in its office — a constraint the
+// directory does not publish and the seed data had no field for. Derived
+// nowhere: a firm's willingness to travel is not a function of its tier or its
+// city, so it is stored per partner and invented per partner.
 
 // `tier` is 'gold' | 'silver' | 'bronze' — the three levels of the partner
 // programme, drawn from Frappe's own partner badge set. Gold renders as a
@@ -577,6 +599,8 @@ const P = (
     // back to the city for a partner added without one.
     address = null,
     accolades = [],
+    // See the note above `tier` — invented, one of 'remote' | 'onsite' | 'both'.
+    workStyle = 'both',
   },
 ) => ({
   id: slug(name),
@@ -600,6 +624,7 @@ const P = (
   vision: visionFor(name),
   founding: foundingFor(name),
   tier,
+  workStyle,
   city,
   region,
   initials,
@@ -624,6 +649,7 @@ export const PARTNERS = [
       'No. 100, Lake View Estate, Kundrathur Main Road, Porur, Chennai 600116, Tamil Nadu, India',
     accolades: [{ title: 'Partner of the Year', year: 2026 }],
     tier: 'gold',
+    workStyle: 'both',
     city: 'Chennai, India',
     region: 'asia',
     initials: 'TT',
@@ -646,12 +672,13 @@ export const PARTNERS = [
       'Chemical Manufacturing',
     ],
     apps: ['erpnext', 'helpdesk', 'crm'],
-    packs: ['core-erpnext', 'manufacturing', 'all-in-one'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
   }),
   P('Software@Work', {
     tagline: 'Running payroll, plants and pipelines on one system since 2011',
     address: 'Unit 402, Marol Business Centre, Andheri East, Mumbai 400059, Maharashtra, India',
     tier: 'gold',
+    workStyle: 'onsite',
     city: 'Mumbai, India',
     region: 'asia',
     initials: 'SW',
@@ -663,13 +690,14 @@ export const PARTNERS = [
     stories: 9,
     industries: ['Discrete Manufacturing', 'Professional services', 'Goods Trading', 'Logistics'],
     apps: ['erpnext', 'frappe-hr', 'crm'],
-    packs: ['core-erpnext', 'manufacturing', 'all-in-one'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
   }),
   P('New Indictrans', {
     tagline: 'Open source for institutions that keep records for decades',
     address:
       '3rd Floor, Deccan Chambers, Senapati Bapat Road, Shivajinagar, Pune 411016, Maharashtra, India',
     tier: 'silver',
+    workStyle: 'remote',
     city: 'Pune, India',
     region: 'asia',
     initials: 'NI',
@@ -681,12 +709,13 @@ export const PARTNERS = [
     stories: 3,
     industries: ['Process Manufacturing', 'Education', 'Government'],
     apps: ['erpnext', 'helpdesk', 'learning'],
-    packs: ['core-erpnext', 'frappe-hr'],
+    packs: ['accounts-sales-purchase-stock', 'hrms'],
   }),
   P('8848 Digital', {
     tagline: 'Traceability from the shop floor up',
     address: 'Office 21, Kharadi Knowledge Park, Kharadi, Pune 411014, Maharashtra, India',
     tier: 'gold',
+    workStyle: 'both',
     city: 'Pune, India',
     region: 'asia',
     initials: '88',
@@ -703,12 +732,13 @@ export const PARTNERS = [
       'Retail',
     ],
     apps: ['erpnext', 'crm', 'frappe-hr', 'insights'],
-    packs: ['core-erpnext', 'manufacturing', 'all-in-one'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
   }),
   P('Greycube Technologies', {
     tagline: 'A small studio setting up ERPNext properly for small teams',
     address: 'B-14, Hiranandani Gardens Annexe, Powai, Mumbai 400076, Maharashtra, India',
     tier: 'bronze',
+    workStyle: 'remote',
     city: 'Mumbai, India',
     region: 'asia',
     initials: 'GC',
@@ -720,12 +750,13 @@ export const PARTNERS = [
     stories: 0,
     industries: ['Goods Trading', 'E-commerce', 'Retail'],
     apps: ['erpnext', 'helpdesk'],
-    packs: ['core-erpnext'],
+    packs: ['accounts-sales-purchase-stock'],
   }),
   P('Wahni', {
     tagline: 'One system across every outlet, from Kerala to the Gulf',
     address: '2nd Floor, Backwater Square, Kakkanad, Kochi 682030, Kerala, India',
     tier: 'gold',
+    workStyle: 'both',
     city: 'Kochi, India',
     region: 'asia',
     initials: 'WA',
@@ -737,12 +768,13 @@ export const PARTNERS = [
     stories: 5,
     industries: ['Food and Beverages', 'Retail', 'Healthcare', 'Education'],
     apps: ['erpnext', 'helpdesk', 'frappe-hr', 'school'],
-    packs: ['core-erpnext', 'manufacturing', 'frappe-hr'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
   }),
   P('Hybrowlabs', {
     tagline: 'Building less on Frappe, so you maintain less',
     address: 'Office 5, Baner Business Bay, Baner Road, Baner, Pune 411045, Maharashtra, India',
     tier: 'silver',
+    workStyle: 'onsite',
     city: 'Pune, India',
     region: 'asia',
     initials: 'HL',
@@ -754,13 +786,14 @@ export const PARTNERS = [
     stories: 2,
     industries: ['Software Development', 'E-commerce', 'Professional services'],
     apps: ['erpnext', 'crm', 'drive', 'framework'],
-    packs: ['core-erpnext', 'frappe-hr'],
+    packs: ['accounts-sales-purchase-stock', 'hrms'],
   }),
   P('Finbyz Tech', {
     tagline: 'Built for the finance team that lives in the ERP',
     address:
       '902, Satellite Trade Centre, Iscon Cross Road, Satellite, Ahmedabad 380015, Gujarat, India',
     tier: 'silver',
+    workStyle: 'both',
     city: 'Ahmedabad, India',
     region: 'asia',
     initials: 'FB',
@@ -772,12 +805,13 @@ export const PARTNERS = [
     stories: 7,
     industries: ['Chemical Manufacturing', 'Goods Trading', 'Finance', 'Logistics'],
     apps: ['erpnext', 'frappe-hr', 'insights'],
-    packs: ['core-erpnext', 'manufacturing'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing'],
   }),
   P('ALYF', {
     tagline: 'Open source ERP for the German Mittelstand',
     address: 'Isarhöfe, Rosenheimer Straße 84, 81669 München, Germany',
     tier: 'silver',
+    workStyle: 'remote',
     city: 'Munich, Germany',
     region: 'europe',
     initials: 'AL',
@@ -789,13 +823,14 @@ export const PARTNERS = [
     stories: 1,
     industries: ['Discrete Manufacturing', 'Real Estate', 'Rental Business'],
     apps: ['erpnext', 'crm'],
-    packs: ['core-erpnext', 'manufacturing'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing'],
   }),
   P('Craft Interactive', {
     tagline: 'Multi-entity, multi-currency, across the Gulf since 2012',
     address:
       'Office 1203, Marasi Bay Tower, Business Bay, PO Box 62579, Dubai, United Arab Emirates',
     tier: 'gold',
+    workStyle: 'both',
     city: 'Dubai, United Arab Emirates',
     region: 'middle-east',
     initials: 'CI',
@@ -812,12 +847,13 @@ export const PARTNERS = [
       'Hotels, Restaurants and Cafes',
     ],
     apps: ['erpnext', 'helpdesk', 'crm'],
-    packs: ['core-erpnext', 'all-in-one'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
   }),
   P('Kingstech Services', {
     tagline: 'One rollout, several jurisdictions, out of Singapore',
     address: '#14-11 Robinson Square, 108 Robinson Road, Singapore 068900',
     tier: 'bronze',
+    workStyle: 'onsite',
     city: 'Singapore',
     region: 'asia',
     initials: 'KS',
@@ -829,13 +865,14 @@ export const PARTNERS = [
     stories: 0,
     industries: ['Goods Trading', 'E-commerce', 'Logistics', 'Professional services'],
     apps: ['erpnext', 'helpdesk', 'crm'],
-    packs: ['core-erpnext', 'all-in-one'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
   }),
   P('Navari', {
     tagline: 'Software built for the conditions East Africa actually works in',
     address:
       '4th Floor, Riverside Court, Kaburu Drive, Kilimani, PO Box 41283-00100, Nairobi, Kenya',
     tier: 'bronze',
+    workStyle: 'remote',
     city: 'Nairobi, Kenya',
     region: 'africa',
     initials: 'NV',
@@ -847,12 +884,13 @@ export const PARTNERS = [
     stories: 2,
     industries: ['Agriculture', 'Goods Trading', 'Nonprofit', 'Logistics'],
     apps: ['erpnext', 'helpdesk', 'frappe-hr'],
-    packs: ['core-erpnext'],
+    packs: ['accounts-sales-purchase-stock'],
   }),
   P('Korecent', {
     tagline: 'ERP as part of your quality system, not beside it',
     address: 'Suite 1750, 1420 West Fulton Market, Chicago, IL 60607, United States',
     tier: 'silver',
+    workStyle: 'both',
     city: 'Chicago, United States',
     region: 'americas',
     initials: 'KO',
@@ -864,7 +902,7 @@ export const PARTNERS = [
     stories: 3,
     industries: ['Medical Device Manufacturing', 'Healthcare', 'Professional services'],
     apps: ['erpnext', 'frappe-hr', 'crm', 'insights'],
-    packs: ['core-erpnext', 'frappe-hr'],
+    packs: ['accounts-sales-purchase-stock', 'hrms'],
   }),
 ]
 
@@ -896,3 +934,24 @@ export const SUCCESS_STORIES = [
     art: ['#c9ced5', '#5a606a'],
   },
 ]
+
+// ── Indian cities with partners in them ─────────────────────────────────────
+// The custom flow lets an Indian business narrow to a city, and this is the
+// list it narrows to: DERIVED from the directory rather than typed, so a city
+// can only appear here if somebody is actually in it. A hand-written list of
+// Indian metros would offer Hyderabad and Kolkata and return nothing.
+//
+// ⚠️ India only, and that is a real limit rather than a first cut. The
+// directory is thirteen firms; outside India the biggest city has one partner
+// in it, so a city filter elsewhere would be a control whose every option
+// returns one result or none. The custom filters say so where the control would
+// otherwise be missing without explanation.
+export const INDIA_CITIES = [
+  ...new Set(
+    PARTNERS.filter((p) => p.countries.includes('India')).map((p) => p.city.split(',')[0].trim()),
+  ),
+].sort()
+
+// The city a partner is in, without its country — the same derivation the list
+// above is built from, so a filter cannot disagree with its own options.
+export const cityOf = (partner) => partner.city.split(',')[0].trim()

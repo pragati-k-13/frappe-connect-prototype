@@ -75,5 +75,15 @@ useAuthExit()
         Create an account
       </RouterLink>
     </p>
+
+    <!-- The same line as sign-up carries, and for the same reason: a certified
+         partner logging in here reaches a customer account. Dead in this
+         prototype — the partner-side app is not mocked. -->
+    <p class="mt-2 text-p-sm text-ink-gray-5">
+      Are you a Frappe partner?
+      <a href="#" class="font-medium text-ink-gray-8 underline underline-offset-2">
+        Log in to the partner portal
+      </a>
+    </p>
   </AuthShell>
 </template>

@@ -5,7 +5,6 @@ import TierIcon from './TierIcon.vue'
 import IconRate from '~icons/lucide/circle-dollar-sign'
 import IconStar from '~icons/lucide/star'
 import IconClock from '~icons/lucide/clock'
-import IconSearch from '~icons/lucide/search'
 import { logoFor } from '../data/logos'
 
 // Who is doing the work, as a PANEL rather than a card in the page.
@@ -25,19 +24,26 @@ import { logoFor } from '../data/logos'
 // name with a badge beside it, then facts stacked with icons. The rail holds
 // two panels now and they have to read as one column, not as two components
 // that happened to end up next to each other.
+// ⚠️ THE PANEL NO LONGER RENDERS AN EMPTY STATE, and the argument for one has
+// been reversed deliberately. It used to say an absent partner is a fact about
+// the project and a rail that silently loses a section reads as a loading
+// failure — so it drew "Not assigned yet" through the whole of the custom
+// spine's first two stages. That is a panel whose content is the absence of
+// content, standing where the answer will go. The rail is REFERENCE: it holds
+// what the project has. Where the project is comes from the stage above the
+// checklist, which names it, and on a custom project the replies list is the
+// thing that ends it. The page renders this only once there is a partner.
 const props = defineProps({
-  // Null while nobody is assigned. The panel renders the WAITING state rather
-  // than disappearing: an absent partner is a fact about the project, and a
-  // rail that silently loses a section reads as a loading failure.
-  partner: { type: Object, default: null },
-  // What to say while there is no partner — `{ body, pick }` from the page,
-  // because the three services assign one differently. See `ProjectPage`.
-  awaiting: { type: Object, default: null },
+  partner: { type: Object, required: true },
 })
 
-defineEmits(['message', 'book'])
+// ⚠️ 'book' IS GONE. This panel carried a "Request a slot" button back when
+// the pack spine opened with an introductory call; that stage no longer exists
+// — a pack is paid for and assigned in one gesture, and the first thing the
+// project asks for is a start date, which is a message rather than a booking.
+defineEmits(['message', 'profile'])
 
-const logo = computed(() => (props.partner ? logoFor(props.partner.id) : null))
+const logo = computed(() => logoFor(props.partner.id))
 
 // The listing row's three facts, stacked rather than strung along a line —
 // 352px cannot hold them side by side, and the rail's own idiom is a stacked
@@ -66,7 +72,6 @@ const facts = computed(() => {
     </header>
 
     <section class="px-4 py-4">
-      <template v-if="partner">
         <div class="flex items-start gap-3">
           <Avatar
             v-if="logo"
@@ -126,34 +131,16 @@ const facts = computed(() => {
 
         <div class="mt-4 flex flex-wrap gap-2">
           <Button variant="subtle" size="sm" label="Message" @click="$emit('message')" />
-          <Button variant="subtle" size="sm" label="Request a slot" @click="$emit('book')" />
+          <!-- The profile, because "who are these people" is the other question
+               a partner card is opened with, and until now the only way to it
+               was through the directory. -->
+          <Button
+            variant="subtle"
+            size="sm"
+            label="View profile"
+            :route="{ name: 'partner', params: { id: partner.id } }"
+          />
         </div>
-      </template>
-
-      <!-- ⚠️ A REAL STATE, not a panel that failed to load, and it says which
-           stage will end it. Custom work spends its first two stages here. -->
-      <template v-else>
-        <div class="flex items-start gap-3">
-          <span
-            class="grid size-[46px] shrink-0 place-items-center rounded-[10px] bg-surface-gray-2 text-ink-gray-5"
-            aria-hidden="true"
-          >
-            <IconSearch class="size-4" />
-          </span>
-          <div class="min-w-0 flex-1">
-            <p class="text-lg font-medium text-ink-gray-8">Not assigned yet</p>
-            <p class="mt-1 text-p-base text-ink-gray-6">{{ awaiting?.body }}</p>
-          </div>
-        </div>
-        <Button
-          v-if="awaiting?.pick"
-          class="mt-4"
-          variant="subtle"
-          size="sm"
-          label="Browse partners"
-          route="/connect/partners"
-        />
-      </template>
     </section>
   </div>
 </template>

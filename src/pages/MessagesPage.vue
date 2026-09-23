@@ -18,11 +18,14 @@ import IconEmoji from '~icons/lucide/smile-plus'
 import IconMore from '~icons/lucide/ellipsis'
 import IconExternal from '~icons/lucide/external-link'
 import IconSend from '~icons/lucide/send-horizontal'
+import IconChevronDown from '~icons/lucide/chevron-down'
 import ConnectShell from '../components/ConnectShell.vue'
 import CompanyDetailsDialog from '../components/CompanyDetailsDialog.vue'
+import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
 import { PARTNERS } from '../data/partners'
 import { logoFor } from '../data/logos'
-import { isActive, lastAt } from '../data/messages'
+import { STATUS_LABELS, isActive, lastAt, threadStatus } from '../data/messages'
+import { budgetLabel } from '../data/custom'
 import { useConnectStore } from '../stores/connect'
 
 // SCREEN — messages. The destination the confirmed screen has been promising
@@ -57,6 +60,25 @@ const shown = computed(() => threads.value.filter((t) => t.active === (filter.va
 // rides along on the option and comes back through the `#suffix` slot, which
 // forwards the whole `button` object. That's the documented place for a count on
 // a tab; see the `#suffix` usage in the template.
+// ── The broadcast group ─────────────────────────────────────────────────────
+// ⚠️ A DOZEN THREADS ARRIVE AT ONCE when a custom brief goes out, and without
+// this they bury every real conversation the account has under eleven copies of
+// the same sent message. The inbox is a flat list of firms; a broadcast is one
+// gesture that touches twelve of them, and those are not the same kind of
+// thing.
+//
+// So a broadcast thread stays folded into a group UNTIL THE PARTNER ANSWERS.
+// The moment there is a reply the thread leaves the group and takes its place
+// in the list by recency, because at that point it is a conversation. That rule
+// is what keeps the fold honest: nothing is hidden except silence.
+const hasReply = (t) => t.messages.some((m) => m.from === 'them')
+const inGroup = (t) => Boolean(t.broadcast) && !hasReply(t)
+
+const loose = computed(() => shown.value.filter((t) => !inGroup(t)))
+const grouped = computed(() => shown.value.filter(inGroup))
+
+const groupOpen = ref(false)
+
 const tabs = computed(() => [
   { label: 'Active', value: 'active', count: threads.value.filter((t) => t.active).length },
   { label: 'Inactive', value: 'inactive', count: threads.value.filter((t) => !t.active).length },
@@ -155,21 +177,87 @@ const preview = (thread) => {
   // guard stays, because reading `.kind` off `undefined` is what it prevents
   // and the row needs a sentence where every other row has one.
   if (!m) return 'No messages yet'
+  // ⚠️ Every CARD kind needs a line here, because a card has no body text and
+  // the preview would come out blank — which in a column of firms reads as a
+  // conversation that failed to load. A bid says its NUMBER rather than the
+  // word "quote": down a list of replies, the figure is what tells them apart.
   const body =
     m.kind === 'company'
       ? 'Company details'
       : m.kind === 'call'
         ? 'Introduction call'
-        : // The project's name, not the word "Inquiry": the preview line is
-          // read down a column of firms, and which project it was about is the
-          // part that tells them apart.
-          m.kind === 'inquiry'
-          ? m.inquiry.project
-          : asText(m.body)
+        : m.kind === 'decline'
+          ? // ⚠️ THE REASON, NOT THE WORD. This said "Declined" until the badge
+            // beside it started saying "Declined" too, and a row reading
+            // "Declined · Declined" is the state printed twice with the one
+            // useful fact — why — left out. The badge carries the state; the
+            // preview carries what was said. Truncation is fine here: the first
+            // few words of "We are at capacity until the new year" are the
+            // part worth scanning.
+            m.reason
+          : m.kind === 'bid'
+            ? // The figure alone, for the same reason: the badge says "Quoted".
+              m.bid.price
+            : m.kind === 'brief'
+              ? m.brief.project
+              : // The project's name, not the word "Inquiry": the preview line
+                // is read down a column of firms, and which project it was
+                // about is the part that tells them apart.
+                m.kind === 'inquiry'
+                ? m.inquiry.project
+                : asText(m.body)
   return m.from === 'you' ? `You: ${body}` : body
 }
 
+// ── What kind of conversation each row is ───────────────────────────────────
+// ⚠️ ONE BADGE, AND MOST ROWS HAVE NONE. A broadcast now produces five
+// outcomes — awaiting, declined, quoted, shortlisted, passed — and the preview
+// line cannot carry them: it is the last thing SAID, which for a shortlisted
+// thread is whatever the two of you talked about afterwards. The badge is the
+// state; the preview is the conversation. A label on every row would be a label
+// on none of them, so an ordinary back-and-forth gets nothing.
+//
+// The bid's state lives on its PROJECT, so it is looked up here and handed to
+// `threadStatus` — that file has no store.
+const bidStateFor = (thread) => {
+  const project = store.projects.find((p) =>
+    (p.bids ?? []).some((b) => b.partnerId === thread.partnerId),
+  )
+  return project?.bids?.find((b) => b.partnerId === thread.partnerId)?.state ?? null
+}
+
+const statusOf = (thread) => STATUS_LABELS[threadStatus(thread, bidStateFor(thread))] ?? null
+
 const details = ref(false)
+
+// ⚠️ THE BRIEF ITSELF, not a boolean: a thread can in principle carry two
+// requirements, and a dialog opened by a flag would show whichever one the
+// template found first.
+const briefDetails = ref(null)
+
+// ── Bids in the thread ──────────────────────────────────────────────────────
+// ⚠️ THE STATE LIVES ON THE PROJECT, not on the message. A message is a record
+// of something that was said and does not change; whether a quote is approved
+// is a decision the business made afterwards, and the project's own bid list is
+// where the comparison table reads it from. Two copies of that fact would
+// disagree the first time one surface updated and the other didn't.
+const bidProject = computed(() =>
+  store.projects.find((p) => (p.bids ?? []).some((b) => b.partnerId === open.value?.partnerId)) ??
+  null,
+)
+
+const bidState = (m) =>
+  bidProject.value?.bids?.find((b) => b.partnerId === m.bid.partnerId)?.state ?? 'pending'
+
+const setBid = (m, state) => {
+  if (!bidProject.value) return
+  store.setBidState(bidProject.value.id, m.bid.partnerId, state)
+  if (state === 'shortlisted') {
+    toast.success('Approved', {
+      description: `${open.value.partner.name} can now see your company details.`,
+    })
+  }
+}
 
 // ⚠️ Inert by instruction: the call lives in a calendar the prototype has no
 // access to. Saying so is the point of the click.
@@ -338,7 +426,7 @@ watch(open, toBottom)
           </p>
 
           <ul>
-            <li v-for="t in shown" :key="t.id">
+            <li v-for="t in loose" :key="t.id">
               <button
                 type="button"
                 class="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors"
@@ -362,11 +450,70 @@ watch(open, toBottom)
                     </span>
                     <span class="shrink-0 text-p-xs text-ink-gray-5">{{ time(lastAt(t)) }}</span>
                   </span>
-                  <span class="mt-0.5 block truncate text-p-sm text-ink-gray-5">
-                    {{ preview(t) }}
+                  <span class="mt-0.5 flex items-center gap-1.5">
+                    <Badge
+                      v-if="statusOf(t)"
+                      variant="subtle"
+                      size="sm"
+                      :theme="statusOf(t).theme"
+                      :label="statusOf(t).label"
+                    />
+                    <span class="min-w-0 flex-1 truncate text-p-sm text-ink-gray-5">
+                      {{ preview(t) }}
+                    </span>
                   </span>
                 </span>
               </button>
+            </li>
+
+            <!-- ── The silent half of a broadcast ───────────────────────
+                 ⚠️ It says how many and it says what they were sent, because
+                 the number is the thing the person who sent it is
+                 accountable for. Collapsed, not hidden: "who else got this"
+                 is a fair question and it is one click. -->
+            <li v-if="grouped.length" class="border-t border-outline-gray-1">
+              <button
+                type="button"
+                class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-gray-1"
+                :aria-expanded="groupOpen"
+                @click="groupOpen = !groupOpen"
+              >
+                <span
+                  class="grid size-8 shrink-0 place-items-center rounded-4 bg-surface-gray-2 text-ink-gray-6"
+                  aria-hidden="true"
+                >
+                  <IconSend class="size-4" />
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-base font-medium text-ink-gray-8">
+                    Requirements sent
+                  </span>
+                  <span class="mt-0.5 block truncate text-p-sm text-ink-gray-5">
+                    {{ grouped.length }} {{ grouped.length === 1 ? 'partner has' : 'partners have' }}
+                    not replied yet
+                  </span>
+                </span>
+                <IconChevronDown
+                  class="size-4 shrink-0 text-ink-gray-5 transition-transform"
+                  :class="groupOpen && 'rotate-180'"
+                />
+              </button>
+
+              <ul v-if="groupOpen" class="bg-surface-gray-1">
+                <li v-for="t in grouped" :key="t.id">
+                  <button
+                    type="button"
+                    class="flex w-full items-center gap-3 py-2 pl-11 pr-4 text-left transition-colors"
+                    :class="open?.id === t.id ? 'bg-surface-gray-3' : 'hover:bg-surface-gray-2'"
+                    @click="select(t.id)"
+                  >
+                    <span class="min-w-0 flex-1 truncate text-p-base text-ink-gray-7">
+                      {{ t.partner.name }}
+                    </span>
+                    <span class="shrink-0 text-p-xs text-ink-gray-5">{{ time(lastAt(t)) }}</span>
+                  </button>
+                </li>
+              </ul>
             </li>
           </ul>
         </ScrollArea>
@@ -585,6 +732,146 @@ watch(open, toBottom)
                     <template #icon><IconExternal class="size-4" /></template>
                   </Button>
                 </div>
+
+                <!-- ── The brief a broadcast carried ──────────────────────
+                     ⚠️ WHAT THIS CARD DOES NOT CONTAIN is the point of it: no
+                     company name, no contact, no size band beyond the headcount
+                     — a dozen firms got this, and until one of their replies is
+                     approved none of them are told who sent it. The customer
+                     sees the same card the partner got, in their own thread,
+                     which is what makes "we sent your requirements to twelve
+                     partners" a checkable claim rather than a promise. -->
+                <div
+                  v-else-if="m.kind === 'brief'"
+                  class="mt-1.5 w-fit max-w-[480px] rounded-5 border border-outline-gray-2 p-3.5"
+                >
+                  <p class="text-p-base font-medium text-ink-gray-8">{{ m.brief.project }}</p>
+                  <!-- ⚠️ THREE FACTS AND A DOOR, where this printed nine. The
+                       brief grew two optional answers, a module list and five
+                       criteria, and the card grew with it until it WAS the
+                       brief — at which point the thing it is for, deciding
+                       whether to read the brief, had to be done by reading the
+                       brief. What is left is what that decision is made on:
+                       what they need, what they will pay, and how much more
+                       there is. Everything else is one press away.
+                       ⚠️ `line-clamp-4`, not a truncated string. The scope is
+                       whatever somebody typed, and cutting it in JavaScript
+                       picks a length for a box whose width nobody knows. -->
+                  <p
+                    class="mt-1.5 line-clamp-4 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7"
+                  >
+                    {{ m.brief.scope }}
+                  </p>
+                  <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <p class="text-p-base text-ink-gray-8">
+                      <span class="text-ink-gray-5">Budget</span>
+                      {{ budgetLabel(m.brief.budget) }}
+                    </p>
+                  </div>
+                  <Button
+                    class="-ml-2 mt-2"
+                    variant="ghost"
+                    size="sm"
+                    label="View details"
+                    @click="briefDetails = m.brief"
+                  />
+                  <p class="mt-3 text-p-sm text-ink-gray-5">
+                    Your company name and contact details are shared only when you shortlist a
+                    reply.
+                  </p>
+                </div>
+
+                <!-- ── A partner saying no ────────────────────────────────
+                     ⚠️ A CARD, NOT A GREY SENTENCE, and it carries the reason
+                     in full. A decline is the one partner message the customer
+                     cannot reply their way out of, so the thread should make it
+                     unmistakable — and the reason is the only useful thing in
+                     it: "at capacity until the new year" is worth knowing, "we
+                     have declined" is not.
+                     ⚠️ NO CONTROLS. There is nothing to approve, nothing to
+                     pass on, and offering to message back would invite somebody
+                     to argue with a firm that has already said no.
+
+                     ⚠️ ONLY ON A BROADCAST THREAD. The card is heavy on purpose
+                     — a firm is dropping out of a set the business is counting
+                     — and that weight is only earned when there was a set. In a
+                     one-to-one conversation the same words are somebody
+                     answering a question, so they render as what they are: a
+                     message. See `threadStatus`, which withholds the badge for
+                     the same reason. -->
+                <div
+                  v-else-if="m.kind === 'decline' && open.broadcast"
+                  class="mt-1.5 w-fit max-w-[480px] rounded-5 border border-outline-gray-2 bg-surface-gray-1 p-3.5"
+                >
+                  <p class="text-p-base font-medium text-ink-gray-8">
+                    {{ open.partner.name }} passed on this
+                  </p>
+                  <p class="mt-1 text-p-base leading-relaxed text-ink-gray-6">{{ m.reason }}</p>
+                </div>
+
+                <!-- The same fact outside a broadcast: no frame, no heading, no
+                     tint — the sentence, in the same type as every other thing
+                     this partner has said. -->
+                <p
+                  v-else-if="m.kind === 'decline'"
+                  class="mt-1 max-w-[480px] text-p-base text-ink-gray-8"
+                >
+                  {{ m.reason }}
+                </p>
+
+                <!-- ── A quote ────────────────────────────────────────────
+                     ⚠️ THE DECISION IS ON THE CARD, in the thread, and the
+                     project's table is where the numbers are compared. Both
+                     surfaces write to the same state — see `ProjectBids` for
+                     why the split is deliberate — so approving here is the same
+                     act as approving there. -->
+                <div
+                  v-else-if="m.kind === 'bid'"
+                  class="mt-1.5 w-fit max-w-[480px] rounded-5 border border-outline-gray-2 p-3.5"
+                >
+                  <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                    <p class="text-p-lg font-semibold tabular-nums text-ink-gray-9">
+                      {{ m.bid.price }}
+                    </p>
+                    <p class="text-p-base text-ink-gray-6">about {{ m.bid.weeks }} weeks</p>
+                  </div>
+                  <p class="mt-2 text-p-base leading-relaxed text-ink-gray-7">{{ m.bid.note }}</p>
+
+                  <div v-if="bidState(m) === 'pending'" class="mt-3">
+                    <p class="text-p-sm text-ink-gray-5">
+                      Shares your company details with {{ open.partner.name }} and opens this
+                      conversation to them.
+                    </p>
+                    <!-- ⚠️ THE SAME WORD AS THE PROJECT'S GROUP AND BADGE.
+                         Shortlist here, Shortlisted there, and the sentence
+                         above carries the consequence — see the note in
+                         `ProjectBids` for why that is the right division and
+                         why "Share and talk" was not. -->
+                    <div class="mt-2 flex gap-2">
+                      <Button
+                        variant="solid"
+                        size="sm"
+                        label="Shortlist"
+                        @click="setBid(m, 'shortlisted')"
+                      />
+                      <Button
+                        variant="subtle"
+                        size="sm"
+                        label="Not interested"
+                        @click="setBid(m, 'not-interested')"
+                      />
+                    </div>
+                  </div>
+                  <!-- Both settled states say so plainly. ⚠️ "Not interested",
+                       never "rejected" — see `BID_STATES`. The partner is not
+                       told either way. -->
+                  <Badge
+                    v-else
+                    class="mt-3"
+                    :theme="bidState(m) === 'shortlisted' ? 'green' : 'gray'"
+                    :label="bidState(m) === 'shortlisted' ? 'Shortlisted' : 'Not interested'"
+                  />
+                </div>
               </div>
 
               <!-- ── Per-message actions ────────────────────────────────────
@@ -690,9 +977,9 @@ watch(open, toBottom)
       <section v-else class="flex min-h-0 min-w-0 flex-1 items-center justify-center px-6">
         <div class="max-w-sm text-center">
           <p class="text-p-lg font-medium text-ink-gray-8">No conversation open</p>
-          <!-- ⚠️ Service agnostic, and no CTA. A Starter Pack is one way a
-               conversation starts and not the only one: guided onboarding books
-               the same way, and a visitor can reach out to a partner from the
+          <!-- ⚠️ Service agnostic, and no CTA. A starter pack is one way a
+               conversation starts and not the only one: a custom brief opens a
+               dozen at once, and a visitor can reach out to a partner from the
                directory without buying anything. There is no single next step
                to offer, and a button here would pick one of them for you. -->
           <p class="mt-1.5 text-p-base text-ink-gray-6">
@@ -703,5 +990,10 @@ watch(open, toBottom)
     </div>
 
     <CompanyDetailsDialog :open="details" @close="details = false" />
+    <BriefDetailsDialog
+      :open="Boolean(briefDetails)"
+      :brief="briefDetails"
+      @update:open="!$event && (briefDetails = null)"
+    />
   </ConnectShell>
 </template>

@@ -66,7 +66,7 @@ import { useConnectStore } from '../stores/connect'
 // booking a pack have no third step to put the questions in front of.
 //
 // ⚠️ "Has a project" means `store.inquiryProjects` — custom and undecided work
-// only. A pack and a guided onboarding are bought as a fixed scope, so they are
+// only. A pack is bought as a fixed scope, so it is
 // not requirements anyone is asking a partner to estimate; see the getter.
 //
 // ⚠️ Mounted at the APP ROOT (`App.vue`), not on a page, for the same reason
@@ -88,12 +88,21 @@ const firstName = computed(() => partner.value?.name.split(' ')[0] ?? '')
 
 // Does this account still owe us the company answers?
 //
-// ⚠️ `store.company.name`, NOT `viewer.company`. The viewer carries a company
-// name from the moment the app boots (the demo's "Northwind"), so testing it
-// would say yes for an account that has answered nothing. `company.name` is
-// written by `saveCompany` and by nothing else, which makes it the record of
-// having actually been asked.
-const needsCompany = computed(() => !store.company.name.trim())
+// ⚠️ `store.company.country`, NOT the company NAME and not `viewer.company`.
+// Two reasons, and the second one is new:
+//
+//   1. The viewer carries a company name from the moment the app boots (the
+//      demo's "Northwind"), so testing that would say yes for an account that
+//      has answered nothing.
+//   2. The NAME is now collected at sign-up rather than by these questions, so
+//      it is set for every account and says nothing about whether the intake
+//      was answered. `country` is written by `saveCompany` and by nothing else,
+//      which makes it the record of having actually been asked.
+//
+// ⚠️ In practice this is almost always false now: the intake runs on the
+// landing page before anyone signs up, so an account reaching Contact has
+// answered. The wizard stays for the account that somehow hasn't.
+const needsCompany = computed(() => !store.company.country)
 
 const company = reactive(emptyCompanyForm())
 

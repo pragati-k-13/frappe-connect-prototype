@@ -9,6 +9,11 @@ import { useConnectStore } from './stores/connect'
 // marketing site.
 const routes = [
   { path: '/', name: 'website', component: () => import('./pages/FrappeSitePage.vue') },
+  // frappe.io/contact — the OTHER discovery surface, and the reason it is
+  // mocked at all: a large share of implementation leads arrive here rather
+  // than on the partners page, and they arrive with a question rather than an
+  // intention to buy. It is not part of Frappe Connect; it triages into it.
+  { path: '/contact', name: 'site-contact', component: () => import('./pages/ContactSitePage.vue') },
   { path: '/connect', name: 'connect', component: () => import('./pages/ConnectLandingPage.vue') },
   // The two auth screens. Routes rather than a dialog, and outside
   // `ConnectShell`: sign-up is the first of four steps (create account, verify,
@@ -37,14 +42,66 @@ const routes = [
   },
   // Where the booking flow stops: confirm the pack and book the call.
   //
-  // `?pack=` names what is being confirmed. It is in the URL rather than read
-  // from the store alone because the store is in memory: reloading this screen
-  // used to lose the selection, and a confirmation page is the one you might
-  // refresh or send on before paying.
+  // What the intake adds up to, and the basket it produces. This replaced
+  // `/connect/confirm`, which confirmed ONE pack: the recommendation screen is
+  // where packs are ticked, totalled and paid for, so a separate confirm step
+  // between the two was a screen that only said the same thing again.
+  //
+  // ⚠️ NOT GUARDED, and nothing on it is. It is reachable signed-out on
+  // purpose — someone who has answered three questions is owed the answer
+  // before being asked to make an account. The gate is on Checkout.
   {
-    path: '/connect/confirm',
-    name: 'confirm',
-    component: () => import('./pages/ConfirmPage.vue'),
+    path: '/connect/recommendation',
+    name: 'recommendation',
+    component: () => import('./pages/RecommendPage.vue'),
+  },
+  // Where the money moves: the basket, a payment method, and the handoff to
+  // Stripe. The basket is in the store rather than the URL — it is a list now,
+  // and a query string carrying three pack ids is a URL nobody can read and
+  // everybody can edit.
+  {
+    path: '/connect/checkout',
+    name: 'checkout',
+    component: () => import('./pages/CheckoutPage.vue'),
+    // ⚠️ Guarded, like the confirmation after it. Paying creates a project and
+    // a conversation with an assigned partner, and both are facts about an
+    // ACCOUNT — a signed-out visitor on this URL has nowhere to keep what they
+    // are about to buy. Sign-up carrying `?next=`, so the flow the gate
+    // interrupted resumes here rather than at the top of the catalogue.
+    beforeEnter: (to) => {
+      const store = useConnectStore()
+      return store.signedIn ? true : { name: 'signup', query: { next: to.fullPath } }
+    },
+  },
+  // The processor's own page, as a full screen rather than a modal over ours.
+  // ⚠️ THE FICTION IS THAT YOU HAVE LEFT. Stripe hosts its checkout, which is
+  // the entire reason a card number never reaches this application — so drawing
+  // it as a dialog floating over our own chrome would be drawing a lie. It
+  // takes no app shell, no sidebar and no back button of ours.
+  {
+    path: '/connect/checkout/pay',
+    name: 'pay',
+    component: () => import('./pages/StripeCheckoutPage.vue'),
+    beforeEnter: (to) => {
+      const store = useConnectStore()
+      return store.signedIn ? true : { name: 'signup', query: { next: to.fullPath } }
+    },
+  },
+  // The custom path's own receipt, and the counterpart of `/connect/confirmed`.
+  // `?project=` names what was sent — this is a page somebody might leave open
+  // or come back to, and the brief on the store keeps being edited while the
+  // broadcast does not.
+  //
+  // ⚠️ Guarded like the pack confirmation: it names the firms that were written
+  // to on this account's behalf, which is a fact about an account.
+  {
+    path: '/connect/requirements-sent',
+    name: 'brief-sent',
+    component: () => import('./pages/BriefSentPage.vue'),
+    beforeEnter: (to) => {
+      const store = useConnectStore()
+      return store.signedIn ? true : { name: 'signup', query: { next: to.fullPath } }
+    },
   },
   // The end of the journey: who Frappe assigned you, and what happens next.
   // Both `?pack=` and `?partner=` are in the URL — this is the screen someone
@@ -66,20 +123,14 @@ const routes = [
     // the router, so the store exists by the time any navigation resolves.
     //
     // ⚠️ This is the LAST line of defence, not the first. The gate that matters
-    // is on Confirm itself (see `ConfirmPage`), because booking a pack without
-    // an account creates a project and a conversation with nowhere to live.
+    // is one screen earlier — the pack page's "Continue to checkout" sends a
+    // signed-out visitor to sign-up, and `/connect/checkout` guards itself the
+    // same way this does, because paying for a pack creates a project and a
+    // conversation with nowhere to live without an account.
     beforeEnter: (to) => {
       const store = useConnectStore()
       return store.signedIn ? true : { name: 'signup', query: { next: to.fullPath } }
     },
-  },
-  // The last step of signing up, and sign-up only — a returning customer
-  // answered these once, so `login-verify` goes straight to `next`. This is
-  // where the account actually lands: see the note at the top of the page.
-  {
-    path: '/connect/signup/company',
-    name: 'signup-company',
-    component: () => import('./pages/CompanyPage.vue'),
   },
   // The inbox. `?thread=` names the open conversation, for the same reason
   // `?pack=` names the pack two screens earlier: reloading should not lose
@@ -93,7 +144,7 @@ const routes = [
   //
   // A LIST and a detail, not one screen. A business routinely has more than one
   // thing on — a pack running while a custom piece is being scoped — and the
-  // rail's "Implementation" row, inert until now, is this index.
+  // rail's "Projects" row, inert until now, is this index.
   {
     path: '/connect/projects',
     name: 'projects',
@@ -120,6 +171,15 @@ const routes = [
   // and a shared link opens the right pack — none of which a dialog with no
   // route can do.
   { path: '/connect/packs', name: 'packs', component: () => import('./pages/PacksPage.vue') },
+  // A pack's own scope document, terms and price. Nested under the catalogue
+  // and addressed by the pack's `value`, exactly as a partner profile is
+  // addressed by its slug — this used to be `/connect/confirm?pack=`, a URL
+  // named after a gesture the page no longer performs.
+  {
+    path: '/connect/packs/:id',
+    name: 'pack',
+    component: () => import('./pages/PackDetailPage.vue'),
+  },
   // Nested under the listing so the URL carries the depth the breadcrumb shows.
   // `:id` is the partner slug — the same id that resolves their logo file.
   {

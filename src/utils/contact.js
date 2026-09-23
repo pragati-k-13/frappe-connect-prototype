@@ -51,7 +51,7 @@ export function useContactPartner() {
   //
   // ⚠️ NOT gated, and that is not an oversight. You are on a project's own page
   // with a partner assigned to it — the requirements are the thing the page is
-  // about, and a pack or a guided onboarding has a published fixed scope rather
+  // about, and a pack has a published fixed scope rather
   // than requirements a partner estimates. Asking "which modules are you
   // interested in?" of someone whose implementation is at kickoff is the
   // product forgetting what it already knows.

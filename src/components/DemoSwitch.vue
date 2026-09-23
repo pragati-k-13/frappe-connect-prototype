@@ -92,6 +92,19 @@ const project = computed(() =>
   route.name === 'project' ? store.projectBy(route.params.id) : null,
 )
 const stages = computed(() => (project.value ? stagesFor(project.value.service) : []))
+
+// ⚠️ TIME, AS A MENU ITEM. Quotes take days and a prototype has neither days
+// nor a server, so the only honest way to show a brief being answered is to let
+// the reviewer ask for it. The real send deliberately leaves the project with
+// no replies — see `broadcastBrief` — because a project that opens reading
+// "5 of 8 replied" one second after Send lies about the thing the whole flow is
+// built around.
+//
+// Offered only where it means something: a custom project whose brief has gone
+// out and whose replies have not come back.
+const awaitingReplies = computed(
+  () => Boolean(project.value?.broadcast) && !project.value?.bids?.length,
+)
 const checkStage = (key) => (project.value?.stage === key ? 'lucide-check' : 'lucide-minus')
 
 const options = computed(() => [
@@ -152,6 +165,21 @@ const options = computed(() => [
               description: 'Signed in, four projects under way',
               icon: checkAccount('client'),
               onClick: () => setAccount('client'),
+            },
+          ],
+        },
+      ]
+    : []),
+  ...(awaitingReplies.value
+    ? [
+        {
+          group: 'Time',
+          options: [
+            {
+              label: 'Partners reply',
+              description: 'A few days later, as quotes',
+              icon: 'lucide-clock',
+              onClick: () => store.simulateReplies(project.value.id),
             },
           ],
         },

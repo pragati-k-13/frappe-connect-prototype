@@ -39,6 +39,7 @@ import {
   Tooltip,
 } from 'frappe-ui'
 import ConnectMark from './ConnectMark.vue'
+import FeedbackDialog from './FeedbackDialog.vue'
 import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 
@@ -62,7 +63,7 @@ const route = useRoute()
 // screens of buying a pack, while their own breadcrumb read "Starter packs".
 // The rail and the breadcrumb should never disagree about which section you
 // are in. A new screen in this flow belongs in this set.
-const PACK_ROUTES = new Set(['packs', 'confirm', 'confirmed'])
+const PACK_ROUTES = new Set(['packs', 'pack', 'checkout', 'pay', 'confirmed'])
 const inPacks = computed(() => PACK_ROUTES.has(route.name))
 const inMessages = computed(() => route.name === 'messages')
 // The tracker's two routes. NAMES rather than a path prefix, for the same
@@ -70,15 +71,18 @@ const inMessages = computed(() => route.name === 'messages')
 // screen that leaves the prefix later should not fall out of its own rail row.
 const PROJECT_ROUTES = new Set(['projects', 'project'])
 const inProjects = computed(() => PROJECT_ROUTES.has(route.name))
-// ⚠️ Everything under /connect that isn't one of the other sections. Each new
-// destination has to be subtracted here too, or the rail lights two rows.
-const inDirectory = computed(
-  () =>
-    route.path.startsWith('/connect') &&
-    !inPacks.value &&
-    !inMessages.value &&
-    !inProjects.value,
-)
+// ⚠️ THE DIRECTORY IS NOW ITS OWN DESTINATION, matched by name rather than by
+// subtraction. It used to be "everything under /connect that isn't one of the
+// other sections", because the rail's first row pointed at /connect and the
+// directory had no row of its own — which was true while /connect WAS a partner
+// list behind two questions. It is the intake and the recommendation now, so
+// the two are separate places and each has its row.
+const DIRECTORY_ROUTES = new Set(['results', 'partner'])
+const inDirectory = computed(() => DIRECTORY_ROUTES.has(route.name))
+
+// The front door: the questions, and the answer they produce.
+const HOME_ROUTES = new Set(['connect', 'recommendation'])
+const inHome = computed(() => HOME_ROUTES.has(route.name))
 
 // The header is already a Dropdown trigger — `SidebarHeader` takes `menuItems`
 // and renders the chevron itself, so clicking the logo opens this rather than
@@ -86,11 +90,31 @@ const inDirectory = computed(
 //
 // Signing out does the real thing: it puts the demo back in the signed-out
 // state, so the switch is reachable from the product and not only from the
-// demo control in the corner. Nothing to offer a signed-out visitor, so the
-// menu is empty and the chevron doesn't appear.
-const logoMenu = computed(() =>
-  store.signedIn ? [{ label: 'Log out', icon: 'lucide-log-out', onClick: logOut }] : [],
-)
+// demo control in the corner.
+//
+// ⚠️ GIVE FEEDBACK MOVED HERE FROM A RAIL ROW, and the rail was the wrong
+// place for it. The four rows above are PLACES — Messages, Home, Partners,
+// Starter packs, Projects — and a fifth that opened a dialog over
+// wherever you already were did not belong in a list of destinations, however
+// carefully it was separated from them. This menu is the one that already
+// holds the thing you do rather than the place you go.
+//
+// It still reaches every screen, which was the whole requirement: the menu
+// hangs off the shell's own header, and the shell is on all of them.
+//
+// ⚠️ OFFERED TO SIGNED-OUT VISITORS TOO, which is why the menu is no longer
+// empty for them. Somebody who bounced off the intake without making an account
+// is exactly the person with something worth hearing, and the old menu had
+// nothing in it — so the chevron never appeared and there was no way to say so.
+// ⚠️ THE ONE PIECE OF STATE THIS SHELL OWNS THAT IS NOT NAVIGATION, and it is
+// here rather than on each page because the dialog has to be reachable from all
+// of them.
+const feedback = ref(false)
+
+const logoMenu = computed(() => [
+  { label: 'Give feedback', icon: 'lucide-message-square-quote', onClick: () => (feedback.value = true) },
+  ...(store.signedIn ? [{ label: 'Log out', icon: 'lucide-log-out', onClick: logOut }] : []),
+])
 
 // `store.logOut()` rather than `setAccount('visitor')`: logging out has to drop
 // the saved list too. It didn't before, so every bookmark you'd filled stayed
@@ -136,6 +160,7 @@ const unread = computed(() => (store.hasProject ? 3 : 0))
 // the user has to travel to — the same behaviour as the drag handles in Notion
 // and Linear.
 const railY = ref(0)
+
 const onRailMove = (e) => {
   railY.value = e.clientY - e.currentTarget.getBoundingClientRect().top
 }
@@ -323,7 +348,7 @@ defineProps({
 
         <!-- ── Everywhere you can go ──────────────────────────────────────
              One flat list, no `SidebarLabel`. There used to be two — "Discover"
-             over the first two rows and "Your projects" over Implementation —
+             over the first two rows and "Your projects" over Projects —
              and the second was a heading for a group of one, which labels a
              section that doesn't exist yet rather than the row that's there.
              Dropping both leaves five rows total — six signed in, with Home —
@@ -350,27 +375,34 @@ defineProps({
              the directory of partner companies, and search is a control that
              lives inside it. -->
         <nav class="mt-4 space-y-0.5">
-          <!-- ⚠️ Signed-in only, and first: Home is the place an account lands,
-               so it has no meaning for a visitor who arrived on the public
-               marketing page and has nothing to come home TO. Gated on
-               `signedIn` rather than `hasProject` — you have a home the moment
-               you have an account, not the moment you buy something.
-
-               Inert, like Implementation below: the row exists so the rail
-               shows where the signed-in landing screen goes. No `to` and no
-               `:active` until that screen is designed. -->
-          <Tooltip v-if="store.signedIn" text="Home" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Home">
+          <!-- ⚠️ HOME IS LIVE NOW, AND IT IS FOR EVERYONE. It was an inert row
+               shown only to signed-in accounts, on the reasoning that a visitor
+               who arrived from a marketing page has nothing to come home to.
+               That was true while /connect was a marketing page. It is the three
+               questions and the recommendation they produce — the one screen
+               that holds what this account has told us — so a visitor has a home
+               from their first answer. -->
+          <Tooltip text="Home" side="right" :offset="8" :disabled="!collapsed">
+            <SidebarItem label="Home" to="/connect" :active="inHome">
               <template #prefix><LucideHouse class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>
-          <Tooltip text="Find partners" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Find partners" to="/connect" :active="inDirectory">
+          <!-- ⚠️ "Partners", pointing at the DIRECTORY. This row said "Find
+               partners" and went to /connect, which stopped being a partner
+               search the day that page became an intake — it asked three
+               questions about your business and recommended a product. The
+               label named something the destination no longer did.
+               The directory itself had no row at all, reachable only from a
+               link on the landing page, so the fix is one move rather than a
+               rename: the building icon means the directory of partner
+               companies, which is what this row always meant. -->
+          <Tooltip text="Partners" side="right" :offset="8" :disabled="!collapsed">
+            <SidebarItem label="Partners" to="/connect/partners" :active="inDirectory">
               <template #prefix><LucideBuilding2 class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>
-          <Tooltip text="Starter packs" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Starter packs" to="/connect/packs" :active="inPacks">
+          <Tooltip text="Starter Packs" side="right" :offset="8" :disabled="!collapsed">
+            <SidebarItem label="Starter Packs" to="/connect/packs" :active="inPacks">
               <template #prefix><LucidePackage class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>
@@ -379,14 +411,27 @@ defineProps({
                way, and `inProjects` is what keeps it lit on a project's own
                detail page — `SidebarItem` compares whole paths, so a child
                route lights nothing on its own. -->
-          <Tooltip text="Implementation" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Implementation" to="/connect/projects" :active="inProjects">
+          <!-- ⚠️ "Projects", AND THE WORD IT REPLACES WAS DOING THREE JOBS.
+               "Implementation" is half a service name (Custom implementation),
+               it is a STAGE inside a pack project — the page under this row has
+               a button reading "Move to Implementation" — and it was the name
+               of the list of everything. Three meanings in one product, and the
+               list was the only one of the three that had another word
+               available. Everything the list actually says already used it: the
+               rows are projects, the count line says "3 projects", the empty
+               state's button says New project, the route is /connect/projects
+               and the home screen says "You have 2 active projects". -->
+          <Tooltip text="Projects" side="right" :offset="8" :disabled="!collapsed">
+            <SidebarItem label="Projects" to="/connect/projects" :active="inProjects">
               <template #prefix><LucideListChecks class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>
         </nav>
+
       </ScrollArea>
     </Sidebar>
+
+    <FeedbackDialog v-model:open="feedback" />
 
     <div class="relative flex min-w-0 flex-1 flex-col">
       <!-- ── Collapse handle ──────────────────────────────────────────────

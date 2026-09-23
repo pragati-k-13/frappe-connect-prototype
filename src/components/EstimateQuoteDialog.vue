@@ -594,7 +594,7 @@ const close = () => {
           variant="subtle"
           class="mt-2 w-full"
           :link="packsHref"
-          label="What's in a starter pack?"
+          label="What's in a Starter Pack?"
         >
           <template #suffix><LucideArrowUpRight class="size-4" /></template>
         </Button>

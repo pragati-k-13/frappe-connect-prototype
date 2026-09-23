@@ -1,9 +1,10 @@
 <script setup>
 import { computed, watch } from 'vue'
-import { Checkbox, FormControl, MultiSelect, Radio, RadioGroup } from 'frappe-ui'
+import { Checkbox, Combobox, FormControl, MultiSelect, Radio, RadioGroup } from 'frappe-ui'
 import {
   APPS_OTHER,
   COMPANY_SIZES,
+  COUNTRY_OPTIONS,
   CURRENT_APPS,
   OPERATIONS,
   PROBLEMS,
@@ -70,13 +71,23 @@ const toggleProblem = (value, on) => {
 <template>
   <!-- ── Step 1: who you are ──────────────────────────────────────────────── -->
   <div v-if="step === 1" class="space-y-4">
-    <FormControl
-      v-model="form.company"
-      type="text"
-      label="Company name"
-      placeholder="Company name"
+    <!-- ⚠️ `Combobox`, not `Select`: this is 43 countries under five region
+         headings, and frappe-ui's `Select` renders neither a group nor a search
+         box — it is a native-shaped picker for short lists. `trigger="button"`
+         puts the search inside the popover rather than making the closed
+         control look like a text field somebody should type their country into.
+
+         One country, not several. The directory's own geo filter takes many,
+         because "where can my partner be?" is a constraint; this asks where the
+         business IS, which has one answer and decides the currency. -->
+    <Combobox
+      v-model="form.country"
+      label="Where is your business based?"
+      placeholder="Select a country"
+      trigger="button"
       required
-      :error="errors.company"
+      :options="COUNTRY_OPTIONS"
+      :error="errors.country"
     />
     <FormControl
       v-model="form.employees"
@@ -112,6 +123,7 @@ const toggleProblem = (value, on) => {
       label="How would you describe your operations today?"
       padded
       size="md"
+      :error="errors.operations"
     >
       <Radio v-for="o in OPERATIONS" :key="o.value" :value="o.value" :label="o.label" />
     </RadioGroup>
@@ -174,6 +186,11 @@ const toggleProblem = (value, on) => {
           @update:model-value="toggleProblem(p.value, $event)"
         />
       </div>
+      <!-- ⚠️ Hand-rolled for the same reason the legend is: with no
+           `CheckboxGroup` there is no `InputError` to inherit, so the message
+           reproduces what one emits. Only reachable once Continue has been
+           pressed on an empty list — the parent owns that gate. -->
+      <p v-if="errors.problems" class="mt-1.5 text-sm text-ink-red-3">{{ errors.problems }}</p>
     </fieldset>
   </div>
 </template>

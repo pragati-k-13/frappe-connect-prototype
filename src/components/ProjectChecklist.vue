@@ -1,81 +1,86 @@
 <script setup>
 import { computed } from 'vue'
-import { Button, Checkbox } from 'frappe-ui'
+import { Button } from 'frappe-ui'
+import IconCheck from '~icons/lucide/check'
 import IconArrowRight from '~icons/lucide/arrow-right'
+import { isTaskDone } from '../data/project'
 
-// What this stage needs, split by who owes it.
+// What this stage needs, split by who owes it and by what can be KNOWN.
 //
-// ⚠️ A CHECKLIST AND A SENTENCE, not two lists, and the difference in KIND is
-// the whole design. Your side is checkboxes: you did them, you record them, and
-// you can untick one you recorded wrongly. The partner's side is a line of
-// prose, because it is context rather than work you can act on.
+// ⚠️ NOTHING HERE IS TICKED BY HAND, and that is the change. Every row used to
+// be a `Checkbox` the customer set themselves — eighteen of them across the
+// spine — on the reasoning that it was their own record and a record you cannot
+// correct is worse than one you can. The reasoning was wrong in one place and
+// it is the place that matters: a tracker whose state is typed in by the person
+// being tracked is not tracking anything. It can say a project is finished with
+// nothing done.
 //
-// It was two parallel lists first — a checkbox on your side, an open ring on
-// theirs. At 14px an empty circle beside an empty square does not read as a
-// different KIND of thing: the partner's work scanned as three more boxes YOU
-// had left unticked, which is the opposite of the point. Prose cannot be
-// mistaken for a checklist at any size, and it needs no "Tridots is doing"
-// heading above it either, since a sentence names its own subject. Two
-// problems, one fix.
+// So a task is now something the product can SEE — a message sent, a dialog
+// confirmed, a code taken, a brief broadcast — and the mark beside it is a
+// STATUS, not a control. Everything the product cannot see stopped being a task
+// and became the stage's one line of `expects`. See the note on `task` in
+// `data/project.js`.
 //
-// The partner's half exists at all because most of a project is spent WAITING,
-// and a stage showing "0 of 0 done" and nothing else reads as a screen that has
-// stopped working.
+// ⚠️ THREE KINDS, AND THEY MUST NOT LOOK ALIKE. Tasks carry a mark and, where
+// there is one, the control that finishes them. `expects` and the partner's
+// work are both prose, because prose cannot be mistaken for a checklist at any
+// size — which was already the fix for the partner's half when it was drawn as
+// a column of empty rings and read as three more boxes the customer had failed
+// to tick.
 const props = defineProps({
-  // A stage from `data/project.js` — `{ yours, theirs, ... }`.
+  // A stage from `data/project.js` — `{ yours, expects, theirs }`.
   stage: { type: Object, required: true },
-  // Task keys already ticked, flat across the whole spine.
-  done: { type: Array, default: () => [] },
+  // The project, for tasks whose done-ness is derived rather than recorded.
+  project: { type: Object, required: true },
+  // Facts the page knows and the data layer cannot reach. See `isTaskDone`.
+  context: { type: Object, default: () => ({}) },
   // Who the sentence is about. The partner's first name once there is one, and
   // "Frappe" before that — custom work spends two stages being matched, and
   // during them the other side of the table really is Frappe rather than a
   // firm nobody has picked yet.
   otherParty: { type: String, default: 'Frappe' },
-  // The slot this project has asked for, if any — `{ at, label }` from
-  // `BookSlotDialog`. Rendered under the task that requested it, because a
-  // request with no time attached to it is the screen forgetting what you just
-  // told it: you press Request a slot, the row ticks, and nothing anywhere says
-  // WHICH slot. It is also the honest state of that task — requested, not
-  // confirmed. The partner confirms by email.
-  // ⚠️ NOT named `slot`. That is a reserved attribute in Vue templates (a
-  // Vue 2 holdover the compiler still treats specially), so binding `:slot`
-  // on a component is asking for a silent, confusing failure.
-  requestedSlot: { type: Object, default: null },
-  // Past stages render their checklist for reference but nothing is tickable:
-  // the stage is over, and offering to change its record invites a click that
-  // means nothing.
-  readonly: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['toggle', 'act'])
+const emit = defineEmits(['act'])
 
-const isDone = (key) => props.done.includes(key)
+const isDone = (t) => isTaskDone(t, props.project, props.context)
 
 // What the help button SAYS, by the kind of help it is.
 //
 // ⚠️ Keyed on the action rather than written on each task, because the label
-// describes the KIND and the kinds are few — every `book-slot` task in every
-// spine opens the same dialog, and three tasks spelling that out three times is
-// three chances for one of them to say something else. A task may still
-// override with `actionLabel` where its own wording is better.
+// describes the KIND and the kinds are few. A task may still override with
+// `actionLabel` where its own wording is better.
 //
 // "Do this" was the first version and it was the button admitting it did not
 // know: a control whose label is a pronoun makes the reader press it to find
 // out where it goes.
 const ACTION_LABELS = {
-  'book-slot': 'Request a slot',
   message: 'Message',
   scope: 'View scope',
   partners: 'Browse partners',
   packs: 'See the packs',
+  hosting: 'Get the code',
+  brief: 'Open requirements',
+  feedback: 'Rate them',
 }
 
-// "2 of 3 done" — and it counts ONLY your side. The partner's column has no
-// completion state to read (nothing here knows whether they have finished), so
-// including it would make the fraction a guess.
+// ⚠️ THE STAGES WHERE FRAPPE CONNECT KNOWS NOTHING, said out loud.
+//
+// These two are the weeks the partner is actually building, and this product
+// does not track what happens inside them: there is no task list a partner
+// updates, no percentage, no per-module state. That is a decision rather than a
+// gap — partners are unreliable about maintaining that kind of record, and a
+// progress bar nobody moves is read as nothing having happened.
+const LINE = 'Frappe does not track your partner’s progress — your calls with them do.'
+const UNTRACKED = { implementation: LINE, build: LINE }
+
+const notice = computed(() => UNTRACKED[props.stage.key] || null)
+
+// "1 of 2 done" — and it counts ONLY your side. The partner's column has no
+// completion state to read, so including it would make the fraction a guess.
 const tally = computed(() => {
   const yours = props.stage.yours ?? []
-  return { done: yours.filter((t) => isDone(t.key)).length, total: yours.length }
+  return { done: yours.filter(isDone).length, total: yours.length }
 })
 
 // "Tridots is installing ERPNext on Frappe Cloud, setting up standard user
@@ -93,23 +98,18 @@ const theirWork = computed(() => {
 
 defineExpose({ tally })
 </script>
-
 <template>
   <div class="space-y-5">
+    <!-- ⚠️ ABOVE the checklist, not below it, and in the same grey as the
+         partner's sentence. Read after the tasks it would sound like an excuse
+         for a short list; read before them it explains why the list is short.
+         See `UNTRACKED`. -->
+    <p v-if="notice" class="text-p-base leading-relaxed text-ink-gray-6">{{ notice }}</p>
+
     <!-- ── Yours ───────────────────────────────────────────────────────── -->
     <section v-if="stage.yours?.length">
       <div class="flex items-baseline justify-between gap-3">
-        <!-- ⚠️ "Needed from you" STAYS, and the critique that flagged it as
-             passive was right about the grammar and wrong about the fix. It was
-             passive next to "Tridots is doing", where the two headings wanted
-             to be parallel — but that pairing is gone now the partner's half is
-             a sentence, and on its own this is the plainest possible label for
-             a list of checkboxes. Rewriting it to match a heading that no
-             longer exists would only have made it worse. -->
         <h4 class="text-p-sm font-medium text-ink-gray-7">Needed from you</h4>
-        <!-- The fraction, not a progress bar: three items do not need a bar,
-             and there is already one at the top of the page measuring the
-             thing that actually has distance in it. -->
         <span class="shrink-0 text-p-sm text-ink-gray-5">
           {{ tally.done }} of {{ tally.total }} done
         </span>
@@ -117,50 +117,48 @@ defineExpose({ tally })
 
       <ul class="mt-2 space-y-2.5">
         <!-- ⚠️ Stacks below `sm`. Side by side on a phone, the button held its
-             width and squeezed the label into three lines of two words —
-             "Review the / partners / who respond" — which is the row's most
-             important text losing to its least. The button drops under the
-             label instead, indented to it. -->
+             width and squeezed the label into three lines of two words, which
+             is the row's most important text losing to its least. -->
         <li
           v-for="t in stage.yours"
           :key="t.key"
           class="flex flex-col items-start gap-1.5 sm:flex-row sm:gap-3"
         >
-          <div class="min-w-0 flex-1">
-            <Checkbox
-              :model-value="isDone(t.key)"
-              :label="t.label"
-              :disabled="readonly"
-              size="sm"
-              @update:model-value="emit('toggle', t.key)"
-            />
-            <!-- ⚠️ Indented to the label, not to the checkbox. `Checkbox` sets
-                 its own `gap-2` beside a control whose box is 14px at `sm`, so
-                 22px is where the label's first character lands. A hint
-                 starting under the box reads as a second, unlabelled row. -->
-            <!-- ⚠️ The slot REPLACES the hint on a booking task once there is
-                 one. The hint tells you what to do; the slot says what you
-                 did, and keeping both would leave instructions standing under
-                 a task that is finished. -->
-            <p
-              v-if="requestedSlot && t.action === 'book-slot' && isDone(t.key)"
-              class="ms-[22px] mt-0.5 text-p-sm text-ink-gray-6"
+          <div class="flex min-w-0 flex-1 gap-2">
+            <!-- ⚠️ A MARK, NOT A CONTROL — no input, no label element, nothing
+                 to press. It was a `Checkbox` and the whole point of this pass
+                 is that it no longer is: the state is the product's answer, not
+                 the customer's claim. Same 14px box and 22px text offset so the
+                 rows sit where they always did.
+                 A filled tick behind you, an empty box ahead: the difference in
+                 FILL rather than in shape, so a row that is waiting still reads
+                 as a row rather than as a gap. -->
+            <span
+              class="mt-[3px] grid size-3.5 shrink-0 place-items-center rounded-[3px]"
+              :class="
+                isDone(t)
+                  ? 'bg-surface-gray-7 text-ink-white'
+                  : 'border border-[var(--outline-gray-3)]'
+              "
+              aria-hidden="true"
             >
-              {{ requestedSlot.label }}
-              <span class="text-ink-gray-5">· awaiting confirmation by email</span>
-            </p>
-            <p v-else-if="t.hint" class="ms-[22px] mt-0.5 text-p-sm text-ink-gray-5">
-              {{ t.hint }}
-            </p>
+              <IconCheck v-if="isDone(t)" class="size-2.5" />
+            </span>
+            <div class="min-w-0">
+              <p class="text-base" :class="isDone(t) ? 'text-ink-gray-5' : 'text-ink-gray-7'">
+                {{ t.label }}
+                <span class="sr-only">{{ isDone(t) ? ' — done' : ' — not done yet' }}</span>
+              </p>
+              <p v-if="t.hint && !isDone(t)" class="mt-0.5 text-p-sm text-ink-gray-5">
+                {{ t.hint }}
+              </p>
+            </div>
           </div>
 
-          <!-- The help. A task that can be finished ON THIS SCREEN says so and
-               offers the control; one you do elsewhere is a plain tick you come
-               back and record. Hidden once done — the offer is spent — and on a
-               past stage, where it would be inviting you back into work that is
-               over. -->
+          <!-- The control that FINISHES it, which is now the only way it gets
+               finished. Hidden once done — the offer is spent. -->
           <Button
-            v-if="t.action && !isDone(t.key) && !readonly"
+            v-if="t.action && !isDone(t)"
             class="ms-[22px] shrink-0 sm:ms-0"
             variant="subtle"
             size="sm"
@@ -173,15 +171,20 @@ defineExpose({ tally })
       </ul>
     </section>
 
+    <!-- ── What the stage wants that nobody here can see ────────────────── -->
+    <!-- ⚠️ PROSE, AND THAT IS THE POINT. These were checkboxes — have your data
+         ready, keep strictly to the scope, nominate a champion — and not one of
+         them was knowable to this screen, so every tick was a claim. As a
+         sentence they say the same thing and promise nothing. -->
+    <p v-if="stage.expects" class="text-p-base leading-relaxed text-ink-gray-6">
+      Yours away from here: {{ stage.expects }}
+    </p>
+
     <!-- ── Theirs ──────────────────────────────────────────────────────── -->
     <!-- ⚠️ Rendered only when there is something in it. The custom spine's
          first stage has no other side — you are writing requirements and
          nobody has seen them yet — and a sentence claiming activity that has
-         not started is worse than silence.
-
-         No heading, no marks, no indent matching the checkboxes above: every
-         one of those was what made the old version read as a second checklist.
-         What separates it now is that it is a sentence. -->
+         not started is worse than silence. -->
     <p v-if="theirWork" class="text-p-base text-ink-gray-6">{{ theirWork }}</p>
   </div>
 </template>

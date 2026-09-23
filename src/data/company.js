@@ -1,4 +1,4 @@
-import { INDUSTRIES } from './quiz'
+import { COUNTRY_OPTIONS, INDUSTRIES } from './quiz'
 
 // The company questions: what is asked, in what order, and what counts as an
 // answer. Moved out of `CompanySignupDialog` when a SECOND surface started
@@ -17,6 +17,20 @@ import { INDUSTRIES } from './quiz'
 export const COMPANY_STEPS = 3
 
 // ── Step 1: who you are ──────────────────────────────────────────────────────
+
+// ⚠️ NO COMPANY NAME. It was the first field here and it is now asked at
+// sign-up, with the person's own name, because of a rule this section holds to:
+// every question in it changes the recommendation. Country sets the pricing
+// market and the partner pool, the size band is the threshold that sends a
+// business to custom work, the industry picks a pack. A company's name changes
+// nothing that happens before the account exists — and for custom work it is
+// deliberately withheld from partners until a bid is approved, so collecting it
+// in the first ten seconds bought nobody anything.
+//
+// The country list is the directory's own, grouped by region — see
+// `COUNTRY_OPTIONS`. Re-exported rather than imported twice: this file is what
+// the intake form reads.
+export { COUNTRY_OPTIONS }
 
 // ⚠️ PLACEHOLDER BANDS, invented — nothing in the repo defines sizes. The 50
 // matters more than it looks: Starter Packs are scoped "for businesses running
@@ -98,6 +112,12 @@ export const asksApps = (operations) => Boolean(operations) && operations !== OP
 // describes their month that way.
 export const PROBLEMS = [
   { value: 'manual-work', label: 'Manual work that should be automated' },
+  // ⚠️ THE ONE PEOPLE PROBLEM, and it was added rather than found. The other
+  // six are all operations and finance symptoms, which meant the HR and Payroll
+  // pack could never be recommended off this question — a business could say
+  // nothing that pointed at it, and the engine would offer the ERP packs to
+  // somebody whose whole problem was salaries. See `data/recommendation.js`.
+  { value: 'people', label: 'Payroll, leave and attendance are run by hand' },
   { value: 'integration', label: 'Systems that do not talk to each other' },
   { value: 'close', label: 'Month-end close and reporting take too long' },
   { value: 'visibility', label: 'No reliable view of stock and orders' },
@@ -106,7 +126,7 @@ export const PROBLEMS = [
 ]
 
 export const emptyCompanyForm = () => ({
-  company: '',
+  country: '',
   employees: '',
   segments: [],
   apps: [],
@@ -115,25 +135,45 @@ export const emptyCompanyForm = () => ({
   problems: [],
 })
 
-// ⚠️ ALL the validation is the FIRST step's. Steps 2 and 3 require nothing: they
-// sharpen the match, they do not gate it, and a form that refuses to move on
-// until you have opinions about your month-end close is a wall rather than a
-// form.
+// ⚠️ EVERY STEP IS NOW REQUIRED, which is a reversal. These questions used to
+// be optional past the first — they sharpened a partner match and a wider match
+// is a fine outcome. They now produce a RECOMMENDATION, and there is no wider
+// version of that: skipping "what do you want fixed" doesn't loosen the answer,
+// it removes the only evidence there was for one. A screen that told someone
+// what to buy on the strength of three blanks would be guessing and hiding it.
 //
-// What "cannot proceed without answering" protects is the company, its size and
-// its industry, which are what the matcher actually reads.
+// Keyed by field, and the page asks only about the fields on the step it is on
+// — see `stepErrors`.
 export const companyErrors = (form) => {
   const e = {}
-  if (!form.company.trim()) e.company = 'Enter your company name'
+  if (!form.country) e.country = 'Select a country'
   if (!form.employees) e.employees = 'Select a size'
   if (!form.segments.length) e.segments = 'Select an industry'
+  if (!form.operations) e.operations = 'Pick the closest description'
+  if (!form.problems.length) e.problems = 'Pick at least one'
   return e
 }
+
+// Which fields belong to which step, so a page can validate the step it is on
+// without knowing what the other two ask. The intake walks these one at a time;
+// the contact wizard shows the same three.
+export const STEP_FIELDS = {
+  1: ['country', 'employees', 'segments'],
+  2: ['operations'],
+  3: ['problems'],
+}
+
+export const stepErrors = (form, step) => {
+  const all = companyErrors(form)
+  return Object.fromEntries((STEP_FIELDS[step] ?? []).filter((k) => all[k]).map((k) => [k, all[k]]))
+}
+
+export const stepComplete = (form, step) => Object.keys(stepErrors(form, step)).length === 0
 
 // What `saveCompany` is given. Trimmed here rather than at each call site, so
 // two surfaces collecting the same answers cannot store them differently.
 export const companyPayload = (form) => ({
-  name: form.company.trim(),
+  country: form.country,
   employees: form.employees,
   segments: form.segments,
   apps: form.apps,

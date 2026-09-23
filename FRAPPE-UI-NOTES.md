@@ -208,6 +208,13 @@ wrong" when the margin is fine.
 **No currency or number formatter is exported.** The chart formatters are deliberately
 unexported because they hardcode `en-US`.
 
+**`SidebarItem` takes an `onClick` PROP, not a click listener.** It renders the row as a
+`div` wrapping a `RouterLink` or a `button`, and its own handler calls `props.onClick?.(e)`.
+Write `@click="..."` on it and the listener falls through onto the outer `div` — the inner
+button's click never reaches the prop, and the row silently does nothing. Nothing errors and
+the DOM click fires normally, so a capture listener on the button proves the event is real
+while the handler is not. Pass `:on-click="() => ..."` instead.
+
 ## Not frappe-ui, but adjacent
 
 **A sticky `<thead>` positions but doesn't paint.** Put `sticky`, the background and the

@@ -1,12 +1,19 @@
 // The Starter Pack catalogue.
 //
-// Everything here except the non-India prices is REAL, lifted from
-// "Starter Pack Scope Document – India" (ERPNext & Frappe HR) — the four packs,
-// their hours and validity, the module-by-module scope tables, what ships with
-// every pack, what is strictly excluded, and the commercial and contractual
-// terms. That document is the contract a customer buys, so this file is the one
-// place its wording lives; the pack detail modal renders it rather than
-// paraphrasing it.
+// Everything here except the non-India prices is REAL: the module-by-module
+// scope tables, what ships with every pack, what is strictly excluded and the
+// commercial and contractual terms come from "Starter Pack Scope Document –
+// India" (ERPNext & Frappe HR). That document is the contract a customer buys,
+// so this file is the one place its wording lives; the pack detail modal
+// renders it rather than paraphrasing it.
+//
+// ⚠️ THE LINEUP AND THE HOURS ARE NEWER THAN THAT DOCUMENT. The packs are now
+// named by their modules and priced at 5 hours each (10 for Manufacturing),
+// which is a later pricing decision — the document still describes four
+// nesting tiers of 30–100 hours. Where the two disagree, the lineup below
+// wins and the scope tables are still the document's. `validity` is the one
+// figure carried over from it unchanged, because the new sheet doesn't set
+// one.
 //
 // ⚠️ The scope document is INDIA-ONLY. Its accounting scope names GST and TDS,
 // its payroll scope names India tax configuration, and its prices are rupees
@@ -18,78 +25,98 @@ import { REGIONS } from './quiz'
 // pack including `hrms`/`payroll` sells the app; `data/modules.js` carries a
 // separate ERPNext `hr` module that the estimator prices. Don't conflate them.
 
-// The four packs. `value` is the id partners are tagged with in
+// The three packs. `value` is the id partners are tagged with in
 // `data/partners.js` — renaming one orphans every partner that sells it.
+//
+// ⚠️ EACH PACK IS NAMED BY THE MODULES IN IT, and that is the whole shape of
+// the catalogue now. The old set was a ladder of tiers — Core ERPNext,
+// Manufacturing (core plus production), All in one (all of it), Frappe HR —
+// where three packs nested and a name like "All in one" told you nothing about
+// what it contained. These three are disjoint slices of PACK_SCOPE that a buyer
+// combines: Accounts/Sales/Purchase/Stock, Manufacturing, HR and Payroll.
+// Nothing is a prefix of anything, so `name` and `areas` are two renderings of one
+// list rather than two ways of saying "and the rest".
+//
+// Two consequences worth knowing before editing:
+//
+//   1. `tagline` can no longer describe contents ("Everything in Core ERPNext,
+//      plus production") — the name does that, and the row prints them
+//      together. It says who the pack is for.
+//   2. EVERY OTHER RESTATEMENT OF THE MODULE LIST IS GONE, because the name is
+//      that list and each of them printed it a second line later. With them
+//      went the two display strings that fed them: `modules` (the comparison
+//      table's Modules row on `/connect`) and `moduleList` (the catalogue
+//      row's first detail line on `/connect/packs`). A one-module pack also
+//      drops the heading in its scope panel — see `PackScope`. The rule when
+//      adding a surface: say the hours, the price, the validity and the
+//      scope, and let the name say the modules.
+//
+// ⚠️ HR and Payroll are the Frappe HR app's two modules, and the pack's `value`
+// is `hrms` rather than `hr` ON PURPOSE: `data/modules.js` has an ERPNext `hr` module that the
+// estimator prices, and these are not the same thing (see the warning above).
+// A pack id of `hr` would put the two one typo apart.
 //
 // `areas` keys into PACK_SCOPE below, in the order the detail view lists them.
 // The pack is exactly the sum of its areas, so a pack's coverage can't drift
 // from the scope tables the way a hand-written summary would.
 export const STARTER_PACKS = [
   {
-    value: 'core-erpnext',
-    name: 'Core ERPNext',
-    // The one-line version, for the marketing page and the comparison table.
-    modules: 'Finance + Sales + Purchase + Inventory',
-    // ⚠️ `tagline` says what is IN the pack, `pitch` says what it is FOR. Three
-    // of the four taglines describe contents ("Everything in Core ERPNext, plus
-    // production"), which reads as a summary of the module list rather than a
-    // reason to buy — fine on a catalogue row where the modules aren't shown,
-    // wrong in the booking panel where they are listed six lines below. The
-    // panel takes `pitch`; everywhere else still takes `tagline`.
+    value: 'accounts-sales-purchase-stock',
+    name: 'Accounts, Sales, Purchase, Stock',
+    // ⚠️ `tagline` says who the pack is FOR, `pitch` says what it lets you do.
+    // Neither one lists modules any more — the name is the module list, and on
+    // the catalogue row the tagline sits directly under it.
     tagline: 'Where most businesses start',
     pitch: 'Run the business without spreadsheets.',
-    moduleList: 'Finance, Sales, Purchase and Inventory modules',
+    // ⚠️ The document's own labels for these four are Accounting, Selling,
+    // Buying and Inventory. The pack is named in the pricing sheet's
+    // vocabulary; the scope tables keep the document's. Same four modules.
     areas: ['accounting', 'selling', 'buying', 'inventory'],
     apps: ['erpnext'],
-    hours: 40,
+    hours: 5,
     validityDays: 30,
     validity: '30 days',
   },
   {
     value: 'manufacturing',
     name: 'Manufacturing',
-    modules: 'Core ERPNext + Manufacturing',
-    tagline: 'Everything in Core ERPNext, plus production',
+    tagline: 'For businesses that make what they sell',
     pitch: 'Plan production against real stock.',
-    moduleList: 'Finance, Sales, Purchase, Inventory and Manufacturing modules',
-    areas: ['accounting', 'selling', 'buying', 'inventory', 'manufacturing'],
+    areas: ['manufacturing'],
     apps: ['erpnext'],
-    hours: 70,
+    hours: 10,
     validityDays: 60,
     validity: '60 days',
   },
   {
-    value: 'all-in-one',
-    name: 'All in one',
-    modules: 'Core ERPNext + Manufacturing + Frappe HR',
-    tagline: 'Everything in Manufacturing, plus HR and payroll',
-    pitch: 'Run operations and payroll in one place.',
-    moduleList: 'Finance, Sales, Purchase, Inventory, Manufacturing and Frappe HR modules',
-    areas: ['accounting', 'selling', 'buying', 'inventory', 'manufacturing', 'hrms', 'payroll'],
-    apps: ['erpnext', 'frappe-hr'],
-    hours: 100,
-    validityDays: 90,
-    validity: '90 days',
-  },
-  {
-    value: 'frappe-hr',
-    name: 'Frappe HR',
-    modules: 'HRMS + Payroll',
-    tagline: 'HR and payroll, on their own',
-    pitch: 'Pay people on time, every month.',
-    moduleList: 'HRMS and Payroll modules',
+    // ⚠️ ONE PACK, TWO MODULES — and the only pack that isn't a single module.
+    // HR and Payroll shipped as two 5-hour packs and were combined, because
+    // nobody buys attendance and leave without intending to pay people off the
+    // back of it: the split sold half a job twice. Hours are the two added
+    // (5 + 5), so the price is unchanged for anyone who would have bought both
+    // and higher for the handful who wanted one.
+    //
+    // `value` stays `hrms` rather than becoming `hr-payroll`: it is the id
+    // partners are tagged with in `data/partners.js`, and keeping it means the
+    // firms that sold HR still sell this. The `payroll` tag went with the pack.
+    value: 'hrms',
+    name: 'HR and Payroll',
+    tagline: 'For a headcount that has outgrown a spreadsheet',
+    pitch: 'Keep people in one place, and pay them on time.',
     areas: ['hrms', 'payroll'],
     apps: ['frappe-hr'],
-    hours: 30,
+    hours: 10,
     validityDays: 30,
     validity: '30 days',
   },
 ]
 
 // Price is `hours × rate`, always — which is how the real India sheet is built:
-// ₹80,000 for 40 hours, ₹1,40,000 for 70, ₹2,00,000 for 100, ₹60,000 for 30, a
-// flat ₹2,000/hr across all four. Deriving rather than listing four prices per
-// region means a pack's hours and its price cannot disagree.
+// ₹10,000 for 5 hours and ₹20,000 for 10, a flat ₹2,000/hr across all three.
+// That rate is unchanged from the sheet the old 30–100 hour packs were priced
+// off (₹80,000 for 40 hours was the same ₹2,000), so the repricing is a change
+// of hours and not of rate. Deriving rather than listing three prices per region
+// means a pack's hours and its price cannot disagree.
 //
 // ⚠️ INDIA IS REAL. The other five rates are INVENTED — pricing for those
 // regions isn't decided yet. They're each set below the local partner rates in
@@ -99,13 +126,19 @@ export const STARTER_PACKS = [
 // One currency per region rather than per country: the directory groups
 // partners this way (see `data/quiz.js`), and a mock that invents a rate for
 // every market would assert far more than it knows.
+//
+// ⚠️ `taxRate` is set for INDIA ONLY, and the absence elsewhere is the point.
+// 18% GST is in the scope document; no other market's rate has been decided, and
+// a checkout that adds an invented VAT charges a number nobody agreed. Where it
+// is null the checkout prints the tax line without a figure and the total is the
+// subtotal — see `checkoutFor`.
 const REGION_RATES = {
-  india: { currency: 'INR', locale: 'en-IN', rate: 2000, tax: '18% GST', real: true },
-  asia: { currency: 'USD', locale: 'en-US', rate: 40, tax: 'local taxes' },
-  'middle-east': { currency: 'USD', locale: 'en-US', rate: 55, tax: 'local VAT' },
-  africa: { currency: 'USD', locale: 'en-US', rate: 35, tax: 'local taxes' },
-  europe: { currency: 'EUR', locale: 'en-IE', rate: 70, tax: 'local VAT' },
-  americas: { currency: 'USD', locale: 'en-US', rate: 85, tax: 'sales tax' },
+  india: { currency: 'INR', locale: 'en-IN', rate: 2000, tax: '18% GST', taxRate: 0.18, real: true },
+  asia: { currency: 'USD', locale: 'en-US', rate: 40, tax: 'local taxes', taxRate: null },
+  'middle-east': { currency: 'USD', locale: 'en-US', rate: 55, tax: 'local VAT', taxRate: null },
+  africa: { currency: 'USD', locale: 'en-US', rate: 35, tax: 'local taxes', taxRate: null },
+  europe: { currency: 'EUR', locale: 'en-IE', rate: 70, tax: 'local VAT', taxRate: null },
+  americas: { currency: 'USD', locale: 'en-US', rate: 85, tax: 'sales tax', taxRate: null },
 }
 
 // The display name comes from the directory's own region list rather than being
@@ -169,6 +202,98 @@ const money = (amount, { currency, locale }) =>
 // folding it in would misstate the invoice.
 export const priceFor = (pack, region = DEFAULT_REGION) =>
   money(pack.hours * pricingFor(region).rate, pricingFor(region))
+
+// What the checkout charges, broken into the lines it prints: one per pack,
+// then the tax, then what leaves the account.
+//
+// ⚠️ TAKES A LIST, because a basket is the normal case now — the packs are
+// disjoint modules and the recommendation screen ticks several at once. A
+// single pack is a list of one; there is no second single-pack function, so no
+// screen can quietly total a basket differently from the one that charges for
+// it.
+//
+// ⚠️ THE ONLY PLACE THAT ADDS TAX. Everywhere else quotes ex-tax and says so —
+// the catalogue's "before 18% GST", the pack page's fact row, the commercial
+// terms' "charged on top" — because that is how the scope document prices. The
+// checkout is where the buyer needs the figure that actually leaves the
+// account, so this is the one function that produces it.
+//
+// `exact` is false where a market has no decided rate: the tax line then prints
+// its label with no figure and `total` equals the subtotal, which is honest
+// about what is known rather than quietly charging a made-up percentage.
+export const checkoutFor = (packs, region = DEFAULT_REGION) => {
+  const p = pricingFor(region)
+  const list = [packs].flat().filter(Boolean)
+  const hours = list.reduce((sum, pack) => sum + pack.hours, 0)
+  const subtotal = hours * p.rate
+  // Rounded to the currency's whole unit, matching `money`'s own formatting —
+  // a total that doesn't equal the lines above it as printed is the kind of
+  // arithmetic a buyer checks and a business gets a support ticket about.
+  const tax = p.taxRate == null ? null : Math.round(subtotal * p.taxRate)
+  return {
+    // One line per pack, already formatted, so the checkout renders rather than
+    // calculates. `hours` rides along because the basket's total effort is what
+    // the pack window is measured in.
+    lines: list.map((pack) => ({
+      value: pack.value,
+      name: pack.name,
+      hours: pack.hours,
+      price: money(pack.hours * p.rate, p),
+    })),
+    hours,
+    subtotal: money(subtotal, p),
+    taxLabel: p.tax,
+    tax: tax == null ? null : money(tax, p),
+    total: money(subtotal + (tax ?? 0), p),
+    exact: tax != null,
+  }
+}
+
+// THE THREE FACTS, worded once.
+//
+// ⚠️ This exists because the same pack was described four different ways across
+// four screens of one purchase: "10 hrs of effort" on the catalogue and "10 hrs
+// / Of implementation effort" on the pack page, "60 days to deliver" here and
+// "60 days delivery time" in the booking panel — a wording `data/project.js`
+// already carried a note about, because it had to pick one. A buyer crossing
+// four screens should meet one object described one way; the only thing that
+// changes is what they can do to it.
+//
+// Each fact carries both shapes it is needed in, and no surface composes its
+// own: `line` for the one-line lists (catalogue row, booking panel), `value`
+// plus `note` for the two-line row (the pack page). Adding a fifth surface
+// means picking one of the two, not writing a fifth phrasing.
+//
+// ⚠️ "to deliver", NOT "delivery time". The scope document puts data readiness,
+// approvals and user availability on the CUSTOMER and runs the validity clock
+// regardless, so "60 days delivery time" reads as Frappe committing to finish
+// inside the window — a promise the terms don't give. This is the line that
+// kept drifting back; it lives here now so it can only be wrong in one place.
+export const packFacts = (pack, region = DEFAULT_REGION) => {
+  const price = priceFor(pack, region)
+  return [
+    {
+      key: 'price',
+      value: price,
+      line: price,
+      // The two conditions on the figure, and the payee is the one this flow
+      // has to keep saying: a price beside a partner reads as the partner's.
+      note: `To Frappe, before ${pricingFor(region).tax}`,
+    },
+    {
+      key: 'effort',
+      value: `${pack.hours} hrs`,
+      line: `${pack.hours} hrs of effort`,
+      note: 'Of implementation effort',
+    },
+    {
+      key: 'delivery',
+      value: pack.validity,
+      line: `${pack.validity} to deliver`,
+      note: 'To deliver, from the start date',
+    },
+  ]
+}
 
 // Hours beyond the pack are billed at the same rate the pack is priced at —
 // the India sheet's ₹2,000/hr add-on rate is exactly its pack rate, so there's
@@ -401,15 +526,39 @@ export const PACK_SCOPE = {
 
 // Every module area the catalogue covers, in the document's own order.
 //
-// The four packs are four slices of THIS list, and three of them nest: Core is
-// the first four, Manufacturing adds the fifth, All in one adds the last two.
-// Frappe HR is the only one that isn't a prefix — it's the last two on their
-// own. That shape is the most useful thing a buyer can know about the four, so
-// it's exported rather than left implicit in each pack's `areas`.
+// The four packs are four DISJOINT slices of this list, and together they are
+// exactly it: Accounts/Sales/Purchase/Stock takes the first four, Manufacturing
+// the fifth, HR and Payroll one each. Nothing nests and nothing overlaps, so a
+// buyer who wants production on top of the basics buys two packs rather than a
+// bigger one. That shape is the most useful thing a buyer can know about the
+// four, so it's exported rather than left implicit in each pack's `areas`.
 export const SCOPE_AREAS = Object.keys(PACK_SCOPE).map((key) => ({
   key,
   label: PACK_SCOPE[key].label,
 }))
+
+// ── What buying one actually sets off ───────────────────────────────────────
+// ⚠️ THREE THINGS IN ORDER, and the order is the product. You buy the pack from
+// Frappe; a partner is assigned against it; the two of you get on with it. This
+// is the one fact the rest of the flow leaves implicit — the price sits beside
+// a partner's name on several screens, and a fixed price beside a named firm
+// reads as that firm's invoice.
+//
+// ⚠️ Step 1 names WHO IS PAID, and it is the page's only statement of it. Step 2
+// hands you a partner, so an unqualified "pay in full" above a list about
+// partners reads as paying one.
+//
+// ⚠️ Lifted out of `PackDetailPage`, which owned it privately, when the
+// recommendation screen needed the same three lines. Two copies of a sequence
+// is how the two screens come to disagree about what order things happen in.
+export const PACK_STEPS = [
+  { title: 'Pay in full', body: 'To Frappe, up front' },
+  // ⚠️ The middle line is the tight one wherever this is laid out in three
+  // columns — it is the only cell padded on both sides. "Frappe assigns you a
+  // partner" measured 195px and took two lines while its neighbours took one.
+  { title: 'Frappe assigns a partner', body: 'By industry and region' },
+  { title: 'Coordinate with partner', body: 'Share data and processes' },
+]
 
 // Section 4 — ships with every pack regardless of which one you buy.
 export const INCLUDED_IN_ALL = [
@@ -450,6 +599,113 @@ export const STRICTLY_EXCLUDED = [
 // A line is a bare string until it needs a caveat. One place decides which.
 export const asExclusion = (item) => (typeof item === 'string' ? { label: item, hint: null } : item)
 
+// ── When a pack is the wrong thing to buy ───────────────────────────────────
+// ⚠️ THIS ANSWERS A QUESTION THE RECOMMENDATION SCREEN WAS ASKING BADLY. That
+// screen offered "Bigger job? Get quotes from partners instead" — a link asking
+// somebody to self-diagnose against a criterion nobody had given them, three
+// lines after being told a pack fits. Nobody knows whether their job is
+// "bigger". Everybody knows whether they need their data migrated.
+//
+// ⚠️ LIFTED FROM THE CONTRACT, NOT WRITTEN. Three of the four are the scope
+// document's own exclusions, matched by fragment so the wording here cannot
+// drift from the wording a customer is held to — the same device
+// `data/project.js` uses for the customer responsibilities, and it throws at
+// module load rather than falling back silently. The fourth is the user limit
+// from the commercial terms, which is a real figure too.
+//
+// ⚠️ FOUR, out of eight exclusions. The rest are add-ons you can buy against a
+// pack — UAT training, post-go-live support — and listing those here would say
+// "go custom" about things a pack handles perfectly well with a change request.
+// These four are the ones with no version that fits inside a fixed scope.
+const excluded = (fragment) => {
+  const found = STRICTLY_EXCLUDED.map(asExclusion).find((e) =>
+    e.label.toLowerCase().includes(fragment),
+  )
+  if (!found) throw new Error(`No exclusion matching "${fragment}"`)
+  return found.label
+}
+
+// Real, from the commercial terms below — the one hard number in the set, and
+// named because it is the one line here that is NOT a section 5 exclusion. A
+// screen printing the exclusions has to be able to put it in the same list
+// without the list pretending it came from the same section.
+export const PACK_USER_LIMIT = 'More than 50 people using it'
+
+export const PACK_WONT_COVER = [
+  PACK_USER_LIMIT,
+  excluded('data cleaning'),
+  excluded('custom scripting'),
+  excluded('api integrations'),
+]
+
+// ── The exclusions, split by what you can do about them ─────────────────────
+// ⚠️ A PARTITION, DERIVED. Section 5 says every one of these is available as a
+// paid add-on, and that is true of five of them; the other three plus the user
+// limit are the ones with no version that fits a fixed scope. A screen that
+// lists all eight under one heading tells somebody to go and get quotes over a
+// print format, and one that lists only four hides half the contract.
+//
+// Membership is computed from `PACK_WONT_COVER` rather than typed twice, so an
+// exclusion cannot land in both lists or in neither — the same reason
+// `excluded()` matches by fragment instead of retyping the document's wording.
+export const PACK_ADD_ONS = STRICTLY_EXCLUDED.map(asExclusion).filter(
+  (e) => !PACK_WONT_COVER.includes(e.label),
+)
+
+// The four as `{ label, hint }`, so one row template prints either list. The
+// user limit has no section 5 entry and therefore no hint, which is correct:
+// there is nothing to qualify about it.
+export const PACK_BLOCKERS = PACK_WONT_COVER.map(
+  (label) =>
+    STRICTLY_EXCLUDED.map(asExclusion).find((e) => e.label === label) ?? { label, hint: null },
+)
+
+// ── The same four, said both ways ───────────────────────────────────────────
+// ⚠️ THE CONTRACT'S WORDING IS A LIST OF THINGS YOU CANNOT HAVE, and read as a
+// section under the price it is four reasons not to buy. It is the same four
+// facts either way: "API integrations" as an exclusion is "you need API
+// integrations" as a reason to talk to a partner, and only the second is
+// something a reader can check against their own situation.
+//
+// ⚠️ AND THE ANSWER FLIPS WITH THE SCREEN. These four are the line between the
+// two services, so which side of it is worth printing depends entirely on which
+// side the reader is being shown. On the packs half they are the case for
+// leaving: more than 50 people, data to migrate, scripting, integrations. On
+// the custom half the same four tests are the case for a pack, and printing the
+// custom reasons there was the screen arguing for what it had already
+// recommended. One list, two readings, and neither can drift from the other
+// because there is one list.
+//
+// ⚠️ A SEPARATE MAP RATHER THAN A REWRITE. `label` stays exactly as the
+// commercial terms word it, because the pack's own scope panel quotes the
+// document and must go on quoting it. These are the readings, keyed to the
+// label so a renamed exclusion loses its sentences loudly instead of silently
+// keeping the wrong ones.
+const BOTH_WAYS = {
+  [PACK_USER_LIMIT]: {
+    need: 'More than 50 people will use it',
+    fits: 'Fewer than 50 people will use it',
+  },
+  [excluded('data cleaning')]: {
+    need: 'You need your data cleaned and migrated',
+    fits: 'Your data needs no cleaning before it is imported',
+  },
+  [excluded('custom scripting')]: {
+    need: 'You need custom scripting',
+    fits: 'ERPNext as it ships covers how you work',
+  },
+  [excluded('api integrations')]: {
+    need: 'You need API integrations',
+    fits: 'Nothing has to connect to another system',
+  },
+}
+
+export const PACK_FIT_TESTS = PACK_BLOCKERS.map((e) => ({
+  ...e,
+  need: BOTH_WAYS[e.label]?.need ?? e.label,
+  fits: BOTH_WAYS[e.label]?.fits ?? e.label,
+}))
+
 // Section 8.
 export const CUSTOMER_RESPONSIBILITIES = [
   'Keep strictly to the scope',
@@ -465,7 +721,11 @@ export const CUSTOMER_RESPONSIBILITIES = [
 export const commercialTermsFor = (region = DEFAULT_REGION) => {
   const p = pricingFor(region)
   return [
-    'Payment in full, in advance',
+    // ⚠️ "to Frappe" is the whole point of the line. A pack is bought from
+    // Frappe and delivered by the partner Frappe assigns, so the money never
+    // goes to the partner — and every other surface a buyer sees this on names
+    // a partner somewhere on the same screen.
+    'Payment to Frappe in full, in advance',
     `${p.tax} charged on top`,
     `Extra hours beyond the pack: ${additionalHourRateFor(region)} per hour, plus ${p.tax}`,
     'For businesses running fewer than 50 users',

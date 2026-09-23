@@ -43,53 +43,36 @@ const verify = () => {
   loading.value = true
   timer = setTimeout(async () => {
     loading.value = false
-    // ⚠️ The two paths end differently, and this is the fork.
+    // ⚠️ ONE ENDING NOW, AND THERE WERE THREE. This handler forked on whether
+    // the visitor was signing up, then again on whether they had an errand, and
+    // two of the three branches were broken:
     //
-    // Signing up isn't finished here — one more screen asks about the company,
-    // and THAT is where the account lands and the held action runs. So this
-    // hands off and stays quiet: no toast, no `completeLogin`, or the app would
-    // congratulate someone halfway through and then let them wander off with
-    // the gate's errand still armed.
+    //   No errand went to `{ name: 'signup-company' }`, a route that was
+    //   DELETED in `409f003` when the company questions moved to the landing
+    //   page. The navigation throws, nothing is caught, and sign-up dead-ends
+    //   on this screen with no account and no error on the page.
     //
-    // Logging in has nothing left to ask, and finishes here as before.
-    if (isSignup.value) {
-      // ⚠️ THE SECOND FORK, and it is about what the visitor was DOING.
-      //
-      // No errand — they pressed "Log in or create account" in the top bar, so
-      // signing up IS the errand. Nothing is waiting behind a dialog, and the
-      // company questions keep the full screen that lands the account itself.
-      if (!store.hasErrand) {
-        router.replace({ name: 'signup-company', query: route.query })
-        return
-      }
-
-      // An errand in hand: a pack half-bought, a partner half-saved, a message
-      // half-sent. Land the account HERE, put them back where they were, and
-      // ask over it — the thing they were doing stays on screen behind the card
-      // rather than being replaced by a form.
-      //
-      // ⚠️ `completeLogin` before the navigation, not after. The confirmed and
-      // confirm screens are gated on `signedIn`, so an account that lands after
-      // the push would be bounced straight back to sign-up by its own guard.
-      toast.success('Account created', { id: 'auth' })
-      store.completeLogin()
-      if (store.pack) {
-        await router.replace({ name: 'confirm', query: { pack: store.pack } })
-      } else {
-        // Same order as the log-in path below: navigate, THEN run what the gate
-        // was holding, since the action belongs to the screen it interrupted and
-        // often navigates itself.
-        await router.replace(next.value)
-        store.runPending()
-      }
-      // Last, so it opens over wherever the two lines above actually ended up.
-      store.openCompanyPrompt()
-      return
-    }
-    // This toast before the held action, which raises one of its own — the pair
-    // only reads in the right order if the account lands before what the account
-    // let you do.
-    toast.success(`Logged in as ${store.viewer.name}`, { id: 'auth' })
+    //   An errand plus a basket went to checkout, overruling `next`. The basket
+    //   fills itself — `seedRecommendedPacks` ticks the recommended packs when
+    //   the recommendation screen mounts, whatever the verdict — so somebody
+    //   told to get quotes, who wrote a brief and pressed Share requirements,
+    //   arrived at a PAYMENT SCREEN for a service that takes no payment up
+    //   front, with their brief unsent and the errand dropped.
+    //
+    // Both forks existed to decide where to go, and `next` already knows: every
+    // control that sends somebody here sets it, and `nextFrom` falls back to
+    // /connect. Sign-up and log-in now differ only in what the toast says.
+    toast.success(isSignup.value ? 'Account created' : `Logged in as ${store.viewer.name}`, {
+      id: 'auth',
+    })
+    // ⚠️ `completeLogin` BEFORE the navigation. The checkout, confirm and
+    // brief-sent screens are all gated on `signedIn`, so an account that landed
+    // after the push would be bounced straight back to sign-up by the guard on
+    // the route it was being sent to.
+    //
+    // The toast is before the held action, which raises one of its own: the
+    // pair only reads in the right order if the account lands before what the
+    // account let you do.
     store.completeLogin()
     // ⚠️ Navigate FIRST, then run what the gate was holding — see `runPending`
     // in the store. The action belongs to the screen the gate interrupted, and

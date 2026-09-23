@@ -1,13 +1,14 @@
 <!-- ⚠️ A plain `<script>` beside `<script setup>`: this block runs ONCE for the
      module rather than once per component instance. See `step` below. -->
 <script>
-import { ref } from 'vue'
+import { reactive, ref } from 'vue'
+import { emptyCompanyForm } from '../data/company'
 
-// Which question the quiz is showing, deliberately at MODULE scope.
+// Which question the intake is showing, deliberately at MODULE scope.
 //
 // ⚠️ Inside `setup` this was re-created on every mount, so leaving the page and
-// coming back rewound the quiz to question 1 — and asked an industry it already
-// had the answer to, with that answer still visibly selected in the radios. The
+// coming back rewound the questions to the first one — and asked an industry it
+// already had the answer to, with that answer still visibly selected. The
 // ANSWERS were never the problem; they live on the store and survive fine. The
 // position in the sequence was.
 //
@@ -15,371 +16,249 @@ import { ref } from 'vue'
 // `ConnectShell`. Session-only: a reload starts over, like everything else in
 // this prototype.
 const step = ref(1)
+
+// ⚠️ THE FORM IS AT MODULE SCOPE TOO, and for a different reason than `step`.
+// It is not saved to the store until the last question is answered — a
+// half-filled intake is not a company record, and writing one would make every
+// screen that asks "has this account answered?" say yes to somebody who
+// answered one question and left. So the draft has to outlive the component, or
+// scrolling down to the packs table and back would empty the form.
+const form = reactive(emptyCompanyForm())
 </script>
 
 <script setup>
 // SCREENS 2–4 — the Frappe Connect landing page.
 //
 // Frappe Connect deliberately does NOT open on a listing. The hero is a
-// three-question qualifier, and the partner list is what you get for finishing
-// it. Everything below the fold (starter packs, success stories, footer CTA)
-// exists to give someone who isn't ready to answer a reason to stay — and
-// every one of those sections routes back into the same quiz.
-
+// three-question intake, and what you get for finishing it is a recommendation:
+// buy these packs, or have this scoped by a partner. Everything below the fold
+// (starter packs, success stories, footer CTA) exists to give someone who isn't
+// ready to answer a reason to stay — and every one of those sections routes
+// back into the same three questions.
+//
+// ⚠️ EVERYONE ANSWERS THESE, which is the change this page carries. They used
+// to be two optional questions that filtered a partner listing, so skipping
+// them was a supported move that produced a wider list. They now produce a
+// RECOMMENDATION, and there is no wider version of that — see the note on
+// `companyErrors` in `data/company.js`. There is no Skip on this page any more.
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { Button, Radio, RadioGroup, ScrollArea, Select } from 'frappe-ui'
+import { useRoute, useRouter } from 'vue-router'
+import { Button, ScrollArea } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
+import HomeDashboard from '../components/HomeDashboard.vue'
+import CompanyQuestions from '../components/CompanyQuestions.vue'
 import DottedWorldMap from '../components/DottedWorldMap.vue'
-import FilterChip from '../components/FilterChip.vue'
 import { useConnectStore } from '../stores/connect'
-import { INDUSTRIES, GEO_CHOICES } from '../data/quiz'
+import { COMPANY_STEPS, companyPayload, stepComplete, stepErrors } from '../data/company'
 import { SUCCESS_STORIES } from '../data/partners'
-// Pack pricing is per region now. This table has no region to read — the quiz
-// asks for one, but a visitor can skip it — so it quotes the default, India,
-// and says so in the line above it.
+import { REGION_OF } from '../data/quiz'
+// Pack pricing is per country now. This table has no answer to read until the
+// intake is finished — and a visitor scrolling past it may not have started —
+// so it quotes the default, India, and says so in the line above it.
 import { STARTER_PACKS, priceFor, pricingFor, DEFAULT_REGION } from '../data/packs'
 
 const store = useConnectStore()
 const router = useRouter()
+const route = useRoute()
 
-const TOTAL = 2
+// ── One address, three faces ────────────────────────────────────────────────
+// ⚠️ `/connect` IS THE LANDING PAGE AND THE HOME SCREEN, and which one you get
+// depends on whether you are signed in. It could have been a second route with
+// a redirect; it is not, because the rail's Home row points here, and because a
+// returning customer typing the address they bookmarked should land on their
+// projects rather than be bounced.
+//
+// The third face is `?new=1`: the questions again, for a customer starting a
+// second thing. It shows the hero and NOTHING BELOW IT — the starter packs
+// explainer, the success stories and the footer CTA are all written for
+// somebody deciding whether to buy, and they have bought. What is left is the
+// questions and the map, which is what the intake actually is.
+const startingSomethingNew = computed(() => Boolean(route.query.new))
+const showDashboard = computed(() => store.signedIn && !startingSomethingNew.value)
+
+// ⚠️ THE PITCH IS FOR VISITORS ONLY. A signed-in customer never sees it —
+// not on the dashboard, and not on the way to a second project.
+const showPitch = computed(() => !store.signedIn && !startingSomethingNew.value)
+
+const TOTAL = COMPANY_STEPS
 const quizTop = ref(null)
-// Is question `n` already answered? Same two tests `hasAnswer` makes, asked of
-// a given step rather than the current one — see the note there for why the geo
-// question has to check both halves.
-const answeredAt = (n) =>
-  n === 1
-    ? Boolean(store.answers.industry)
-    : store.answers.region.length > 0 || store.filters.countries.length > 0
 
-// The first question still missing an answer, or the last one if none are.
-const firstGap = () => (!answeredAt(1) ? 1 : !answeredAt(2) ? 2 : TOTAL)
-
+// ⚠️ THE COUNTRY ARRIVES PRE-ANSWERED, from `inferredGeo` — the store's
+// stand-in for GeoIP, which resolves to India because that is where most of
+// this traffic and eight of the thirteen partners are. So the first question
+// costs a confirmation instead of a decision, and the visitor who is somewhere
+// else changes it in one click.
+//
+// ⚠️ SEEDED, NOT LOCKED, and the field still shows its answer. A silently
+// pre-filled country would be the dishonest version of this: it decides the
+// currency every price on the next screen is quoted in, and that is not a fact
+// to assume on someone's behalf without showing them.
+//
+// ⚠️ Only when the field is EMPTY. The draft outlives the component (see
+// `form`), so someone who picked Singapore, scrolled down to the packs table
+// and came back must not find India in the box again.
 onMounted(() => {
-  // Location is pre-answered from "where we think you are" so this question
-  // costs a confirmation instead of a decision. The hint under the chips says
-  // so — a silently pre-filled answer would be the dishonest version of this.
-  // FIRST, because the clamp below reads the answer it writes.
-  store.seedInferredGeo()
-
-  // ⚠️ `min`, not an assignment: never further along than the first unanswered
-  // question, but never pushed forward past where you actually left off.
-  //
-  // Resuming alone isn't enough, because `store.reset()` — Clear filters on the
-  // results screen — wipes the answers without touching this. Coming back after
-  // that would strand you on question 2 with nothing selected, Continue
-  // disabled, and no way back to question 1 short of the CTA below the fold.
-  step.value = Math.min(step.value, firstGap())
+  if (!form.country) form.country = store.inferredGeo.country
 })
 
-const selectedIndustry = computed(() => INDUSTRIES.find((i) => i.value === store.answers.industry))
-// All four groups branch — every one has real segments in the directory's
-// taxonomy. The branch is OPTIONAL: picking an industry is a complete answer to
-// this step, and the segment narrows it further if you want it to.
-//
-// How "no segment" is stored is the part worth reading. `answers.industry` does
-// not filter anything — partners are tagged at the SEGMENT level, so `segments`
-// is the whole constraint (see `stores/connect.js`). Left empty, "Services"
-// would therefore mean "no constraint at all", and Continue would land you on
-// the same unfiltered listing as Skip.
-//
-// So picking an industry selects EVERY segment in it. The results filter unions
-// segments ("any of these"), so a group's full set is exactly what that group
-// means as a filter, and the answer now does what the visitor thinks it does.
-// Picking one segment from the Select narrows that set to the one.
-const segmentsOf = (value) => INDUSTRIES.find((i) => i.value === value)?.segments ?? []
+// ⚠️ Errors are held back until Continue has been pressed ON THIS STEP, and the
+// flag resets as the step changes. Validating as someone types tells them their
+// answer is wrong before they have finished giving it; validating never leaves
+// a disabled button with no explanation.
+const tried = ref(false)
+const errors = computed(() => (tried.value ? stepErrors(form, step.value) : {}))
 
-// ⚠️ No partner count beside each option, and that was a decision rather than an
-// omission. One was built and taken out: the numbers are derived from the mock's
-// thirteen partners over an INVENTED partner→segment mapping, eleven of the
-// thirty-five segments come out at zero, and a bare number here has no obvious
-// referent — this question is about the visitor's own industry, so "Education 3"
-// doesn't read as "three partners" the way "India 71" does one question later,
-// where the question itself is about partners. Labelling it ("3 partners") would
-// have fixed the ambiguity; it wasn't worth 14 repetitions of the word for a
-// figure this soft.
-const segmentOptions = computed(() =>
-  segmentsOf(store.answers.industry).map((s) => ({ label: s, value: s })),
+// What the map lights up. The intake asks for ONE country, so the map answers
+// with that country and the region around it — which is the honest reading of
+// "here is who is near you", and the only thing this panel is for now that the
+// geo question it used to illustrate is gone.
+const highlight = computed(() =>
+  form.country ? [form.country, REGION_OF[form.country]].filter(Boolean) : [],
 )
-
-// ⚠️ The Select shows a value only when ONE segment is held. Any other length
-// is the implicit "whole industry" set written below, which is not a choice the
-// visitor made in this control — rendering `segments[0]` there would show
-// "Aviation Industry" as picked the moment someone chose Services.
-const chosenSegment = computed(() =>
-  store.answers.segments.length === 1 ? store.answers.segments[0] : undefined,
-)
-
-const pickIndustry = (value) => {
-  // Order matters: `answer('industry')` clears `segments` (changing industry
-  // must drop a segment picked under the old one), so the full set goes in
-  // after it.
-  store.answer('industry', value)
-  const segments = segmentsOf(value)
-  if (segments.length) store.answer('segments', segments)
-}
-
-// Continue is disabled until the current step has an answer. Skip sits beside it
-// and stays enabled, so the step is never a trap: not answering is a supported
-// move, it just isn't this button's move.
-//
-// The SEGMENT IS OPTIONAL. Picking an industry is enough to move on, and there
-// is no error for leaving the segment empty — the Select's "Pick a segment"
-// placeholder is the whole prompt.
-//
-// ⚠️ This step used to keep Continue enabled and then REFUSE the press, raising
-// "Pick a segment, or skip the question." An enabled button that doesn't do the
-// thing is worse than a disabled one, and the sentence only repeated the
-// placeholder in red after you'd been rejected once. Both are gone: the button
-// is disabled when there is nothing, enabled when there is something, and it
-// always does what it says.
-//
-// ⚠️ Worth knowing what the enabled state buys on step 1: `answers.industry`
-// does NOT filter. The directory's taxonomy is two levels, partners are tagged
-// at the segment level, and `segments` is the whole constraint — see
-// `stores/connect.js`. So continuing with an industry and no segment reaches
-// the same unfiltered listing that Skip does. That's fine and intended; the
-// answer is still recorded, and the results page's own segment filter is where
-// someone narrows it. Don't "fix" this by requiring the segment.
-const hasAnswer = computed(() => {
-  if (step.value === 1) return Boolean(store.answers.industry)
-  // ⚠️ BOTH halves. The geo question holds a region in `answers.region` and a
-  // country in `filters.countries`, and either one on its own is a complete
-  // answer — the India chip writes only the second. Checking `region` alone
-  // disabled Continue for anyone whose inferred location seeded a country,
-  // which is the default path for most visitors.
-  return store.answers.region.length > 0 || store.filters.countries.length > 0
-})
-
-const goToResults = () => router.push('/connect/partners')
 
 const next = () => {
-  if (step.value === TOTAL) return goToResults()
-  step.value += 1
+  if (!stepComplete(form, step.value)) {
+    tried.value = true
+    return
+  }
+  tried.value = false
+  if (step.value < TOTAL) {
+    step.value += 1
+    return
+  }
+  // ⚠️ SAVED ONLY HERE, at the end. See the note on `form` above.
+  store.saveCompany(companyPayload(form))
+  // ⚠️ The basket is seeded on the recommendation screen rather than here, so
+  // that changing an answer and coming back re-runs the engine. Seeding at this
+  // point would freeze the first answer the intake ever produced.
+  router.push({ name: 'recommendation' })
 }
 
 const back = () => {
-  if (step.value > 1) step.value -= 1
+  if (step.value > 1) {
+    step.value -= 1
+    tried.value = false
+  }
 }
 
-// Skip clears the answer for this step rather than leaving a stale one behind —
-// otherwise skipping after going Back would silently keep the old choice.
-const skip = () => {
-  const key = { 1: 'industry', 2: 'region' }[step.value]
-  store.skip(key)
-  if (step.value === TOTAL) return goToResults()
-  step.value += 1
-}
-
-// Below-the-fold CTAs return to the quiz rather than jumping past it — the
-// listing stays behind the questions no matter which path you take in.
+// Below-the-fold CTAs return to the questions rather than jumping past them —
+// the recommendation stays behind them no matter which path you take in.
 const restartQuiz = () => {
-  step.value = 1
   quizTop.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 </script>
 
 <template>
-  <ConnectShell>
-    <!-- ── Hero: the qualifier ───────────────────────────────────────── -->
-    <!-- The qualifier owns the first screen: 100vh minus the 3rem top bar, so
-         the question and the map are the only things visible and everything
-         below the fold has to be scrolled to deliberately. -->
+  <!-- ⚠️ THE ROOT CRUMB DEPENDS ON WHICH FACE THIS IS. `ConnectShell` defaults
+       to "Partners", which is right for the directory and was wrong here the
+       moment `/connect` became a home screen: the bar read "Partners" over a
+       list of the customer's own projects. It reads "Home" once signed in, and
+       "Get started" on the way to a second project — the only two things this
+       address is when it is not the landing page. -->
+  <ConnectShell
+    :root-label="showPitch ? 'Partners' : showDashboard ? 'Home' : 'Get started'"
+    root-to="/connect"
+  >
+    <HomeDashboard v-if="showDashboard" />
+
+    <template v-else>
+    <!-- ── Hero: the three questions ─────────────────────────────────── -->
+    <!-- The intake owns the first screen: 100vh minus the 3rem top bar, so the
+         question and the map are the only things visible and everything below
+         the fold has to be scrolled to deliberately. -->
     <section
       ref="quizTop"
       class="mx-auto grid w-full max-w-[1600px] gap-8 px-5 py-10 lg:min-h-[calc(100vh-3rem)] lg:grid-cols-2 lg:gap-14 lg:px-10 lg:pb-8 lg:pt-4 xl:grid-cols-[minmax(0,460px)_minmax(0,1fr)]"
     >
       <!-- ⚠️ Two column rules, and the breakpoint between them is the point.
            460px is the narrowest column that keeps the headline on one line at
-           its 18px size (it measures 410px) with room to spare — but 460px is a
-           FIXED max, so grid hands the question its full width before the map
-           gets anything left over. Below `xl` that starved the map: at a
-           1184px window with the rail open the split was 460 / 348, and at the
-           `lg` boundary itself it would have been 460 / 188. The two halves of
-           a two-up hero should not be that far apart.
-
-           So the 460 cap only applies from `xl`, where there is room for it
-           (460 / 444 at 1280). Between `lg` and `xl` the halves are simply
-           equal, and the headline is allowed to wrap to two lines — a wrapped
-           hero headline is a far smaller cost than a map squeezed to a third of
-           the row.
-
-           Centred, then biased upward by the bottom padding so the block sits
-           above the optical middle rather than dead centre. -->
-      <div class="flex min-w-0 flex-col justify-center lg:pb-24">
-        <h1 class="text-2xl font-semibold text-ink-gray-9">
-          Work with certified partners with vast expertise
-        </h1>
+           its 18px size with room to spare — but 460px is a FIXED max, so grid
+           hands the question its full width before the map gets anything left
+           over. Below `xl` that starved the map, so the 460 cap only applies
+           from `xl`, where there is room for it. Between `lg` and `xl` the
+           halves are simply equal. -->
+      <div class="flex min-w-0 flex-col justify-center lg:pb-16">
+        <!-- ⚠️ SHORT ENOUGH TO HOLD ONE LINE at this column's 460px, which is
+             what the previous headline did not: "Tell us about your business,
+             and we'll tell you how to start" ran to two lines and left "start"
+             alone on the second, which is the worst possible break — an orphan
+             on the largest type on the page. `text-balance` is insurance for
+             the widths where it does wrap. -->
+        <!-- ⚠️ THE COUNTER RIDES ON THE HEADLINE, which is what let the step
+             name go. Each step used to be titled — "Your business", "How you
+             work today", "What you want fixed" — with the counter opposite it
+             on its own row. Every one of those titles restated the question
+             directly beneath it ("What you want fixed" over "What are you
+             trying to fix?"), so the row cost a line of type and a line of
+             reading to say the same thing twice. The fields name themselves.
+             Baseline-aligned: 24px semibold against 13px, and aligning boxes
+             rather than baselines would float the counter off the cap line. -->
+        <div class="flex items-baseline justify-between gap-4">
+          <h1 class="text-balance text-2xl font-semibold text-ink-gray-9">
+            Tell us about your business
+          </h1>
+          <span class="shrink-0 text-p-sm tabular-nums text-ink-gray-5">
+            {{ step }} / {{ TOTAL }}
+          </span>
+        </div>
+        <!-- ⚠️ THE PROMISE, and it is here because two different doors lead to
+             this page. Somebody arriving from frappe.io/partners expects a
+             directory; somebody arriving from the contact page expects a reply
+             by email. Both of them get a form, so it has to say what it gives
+             back before it asks for anything — including the part people most
+             want to know, which is whether a salesperson is about to call.
+             ⚠️ TWO LINES, AND IT WAS FOUR. The long version also named what the
+             recommendation picks between ("a fixed-price starter pack you can
+             buy today, or quotes from partners who do your kind of work"), which
+             is a paragraph of reading above a form that has not asked anything
+             yet — and the next screen says it anyway, with prices. What is left
+             is the two facts that decide whether someone starts: how long this
+             takes, and that nobody rings them. -->
         <p class="mt-2 max-w-md text-p-base leading-relaxed text-ink-gray-6">
-          Frappe builds innovative products and our global network of partners help businesses
-          implement them smoothly.
+          Three questions, about a minute, and you'll get a recommendation straight away. No sales
+          call in between.
         </p>
 
-        <!-- The gap between the intro and the question. Big enough to read as a
-             break — the copy above is the pitch, this is the form — but it was
-             36px, which on the short questions left the whole block floating in
-             the middle of the column. -->
+        <!-- ⚠️ NO PROGRESS BAR EITHER. There was one under the step name —
+             `Progress` with three intervals, the same control the contact
+             wizard uses — and it sat directly below a "1 / 3" saying the same
+             thing. Two indicators of one position is one too many, and the bar
+             was the weaker of them: it says how far along you are without
+             saying how far there is to go, which over three steps is the only
+             fact worth having. -->
         <div class="relative mt-6">
-          <Transition name="step" mode="out-in">
-            <!-- Q1 — industry, with the one branching follow-up -->
-            <fieldset v-if="step === 1" key="1" class="w-full">
-              <div class="flex items-baseline justify-between gap-4">
-                <legend class="text-p-base font-semibold text-ink-gray-9">
-                  Which industry do you work in?
-                </legend>
-                <span class="shrink-0 text-p-sm tabular-nums text-ink-gray-5">
-                  {{ step }} / {{ TOTAL }}
-                </span>
+          <!-- ⚠️ THE SAME COMPONENT THE CONTACT WIZARD ASKS THESE WITH. They
+               were this page's own markup once and the wizard's own markup
+               beside it, and the two drifted within a week — one asked for a
+               segment, the other for an industry. `CompanyQuestions` is the
+               fields; this page owns the sequence and the buttons. -->
+          <div>
+            <Transition name="step" mode="out-in">
+              <div :key="step">
+                <CompanyQuestions :step="step" :form="form" :errors="errors" />
               </div>
+            </Transition>
+          </div>
 
-              <RadioGroup
-                class="mt-1.5 -ml-3"
-                :model-value="store.answers.industry ?? undefined"
-                padded
-                size="md"
-                aria-label="Industry"
-                @update:model-value="pickIndustry"
-              >
-                <!-- The branching follow-up opens directly under the row that
-                     asked for it, as a sibling of the Radio rather than a child
-                     — a Radio row is itself a `role="radio"` button, so nesting
-                     an interactive control inside one would be invalid and the
-                     click would toggle the radio. Indented to the label, not
-                     fenced off with a rule. -->
-                <template v-for="opt in INDUSTRIES" :key="opt.value">
-                  <Radio :value="opt.value" :label="opt.label" />
-
-                  <Transition name="branch">
-                    <div
-                      v-if="opt.segments && store.answers.industry === opt.value"
-                      class="pb-1 pl-9 pt-1"
-                    >
-                      <!-- `w-full` is what widens this at all — frappe-ui's
-                           Select trigger is `inline-flex`, so left alone it
-                           shrink-wraps its content and any max-width only caps
-                           it. Full width, no cap: it's the answer to the radio
-                           it hangs off, and a control narrower than the option
-                           above it read as a detail rather than a question. The
-                           `pl-9` on the wrapper still holds its left edge under
-                           the label, so "full" means the rest of the column. -->
-                      <!-- "All segments" rather than "Pick a segment": with an
-                           industry chosen, every one of its segments is already
-                           in the filter, so an empty-looking control is not an
-                           unanswered question — it's the widest answer. The old
-                           placeholder read as a prompt for something still
-                           required, which it isn't.
-
-                           No partner count on the options — see the note on
-                           `segmentOptions`. -->
-                      <Select
-                        :model-value="chosenSegment"
-                        :options="segmentOptions"
-                        placeholder="All segments"
-                        size="md"
-                        class="w-full"
-                        @update:model-value="store.answer('segments', [$event])"
-                      />
-                    </div>
-                  </Transition>
-                </template>
-              </RadioGroup>
-
-              <div class="mt-5 flex items-center justify-between">
-                <Button variant="solid" label="Continue" :disabled="!hasAnswer" @click="next" />
-                <Button variant="ghost" label="Skip" @click="skip" />
-              </div>
-            </fieldset>
-
-            <!-- Q2 — location. Pre-answered from inferred location.
-
-                 ⚠️ Asked about the PARTNER, not about the visitor. It used to
-                 read "Where is your company based?", which asked for a fact
-                 about them and then quietly used it as a filter on somebody
-                 else — and the answer to that question can only be one place,
-                 while this control takes several. Reframed, the multi-answer
-                 shape stops being odd: an implementation can be run from
-                 anywhere, and what the visitor is actually deciding is how far
-                 they're willing to look.
-
-                 "can", not "should" or "would you like": this is a constraint
-                 the visitor sets, and ticking three regions means all three are
-                 acceptable rather than ranked. Their own region is pre-ticked
-                 from inferred location, which under this framing is a sensible
-                 default rather than a guess about them — see
-                 `seedInferredGeo`. -->
-            <fieldset v-else-if="step === 2" key="2" class="w-full">
-              <div class="flex items-baseline justify-between gap-4">
-                <legend class="text-p-base font-semibold text-ink-gray-9">
-                  Where can your partner be based?
-                </legend>
-                <span class="shrink-0 text-p-sm tabular-nums text-ink-gray-5">
-                  {{ step }} / {{ TOTAL }}
-                </span>
-              </div>
-
-              <!-- mt-3 against the radio steps' mt-1.5: chips have no internal
-                   top padding, so the larger margin lands on the same visual
-                   gap below the question. -->
-              <!-- India is a chip of its own here, and a COUNTRY rather than a
-                   region — most visitors are in it, and asking them to find
-                   themselves inside "Asia" is a worse question. The results
-                   filter puts the same answer where it belongs taxonomically,
-                   as the first country under Asia; `toggleGeo` is what lets one
-                   chip row hold both granularities. See `GEO_CHOICES`. -->
-              <div class="mt-3 flex flex-wrap gap-2">
-                <FilterChip
-                  v-for="c in GEO_CHOICES"
-                  :key="c.region ?? c.country"
-                  :label="c.label"
-                  :count="c.count"
-                  :selected="
-                    c.country
-                      ? store.filters.countries.includes(c.country)
-                      : store.answers.region.includes(c.region)
-                  "
-                  @toggle="store.toggleGeo(c)"
-                />
-              </div>
-
-              <div class="mt-5 flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <Button
-                    variant="solid"
-                    label="Find partners"
-                    :disabled="!hasAnswer"
-                    @click="next"
-                  />
-                  <Button variant="subtle" label="Back" @click="back" />
-                </div>
-                <Button variant="ghost" label="Skip" @click="skip" />
-              </div>
-            </fieldset>
-
-          </Transition>
+          <div class="mt-5 flex items-center gap-2">
+            <Button
+              variant="solid"
+              :label="step === TOTAL ? 'See what we recommend' : 'Continue'"
+              @click="next"
+            />
+            <Button v-if="step > 1" variant="subtle" label="Back" @click="back" />
+          </div>
         </div>
       </div>
 
       <!-- Map: a stable frame beside the changing question. Its hubs light up
-           for whichever region is currently answered. -->
-      <!-- Just the map. There used to be a row of labelled counts pinned to the
-           bottom of this panel — "90 Asia, 32 Middle East, …" — and they were
-           the same numbers the geo question's own chips carry a few hundred
-           pixels to the left, on screen at the same time. One of the two had to
-           go, and it wasn't the one attached to the control you answer with. -->
+           for the country answered on the first step, and stay lit. -->
       <div class="flex min-w-0 flex-col justify-center rounded-7 bg-surface-gray-1 p-6 lg:p-8">
-        <!-- The region answer is pre-seeded from inferred location before the
-             quiz starts, so without this guard the map would emphasise Asia
-             while you're still on question 1 — highlighting an answer nothing
-             on screen has asked for yet. It holds until the region question is
-             actually reached, then stays lit for the rest of the quiz. -->
-        <DottedWorldMap
-          :highlight="step >= 2 ? [...store.answers.region, ...store.filters.countries] : []"
-          class="mx-auto w-full"
-        />
+        <DottedWorldMap :highlight="highlight" class="mx-auto w-full" />
       </div>
     </section>
 
+    <template v-if="showPitch">
     <!-- ── Starter packs ─────────────────────────────────────────────── -->
     <!-- Everything below the hero shares one 800px column, the same cap the
          results screen uses — so the reading width is constant from here to the
@@ -394,12 +273,22 @@ const restartQuiz = () => {
     <section id="starter-packs" class="scroll-mt-8 px-5 py-12 lg:px-10">
       <div class="mx-auto w-full max-w-[800px]">
         <h2 class="text-p-lg font-semibold text-ink-gray-9">
-          Starter packs are your fastest way to get started
+          Starter Packs are your fastest way to get started
         </h2>
+        <!-- ⚠️ "You pay Frappe" is the one term that has to survive being read
+             on a partner's page, so it is here and on the profile's pricing
+             section both. A fixed price quoted beside a named partner reads as
+             that partner's invoice, and for a pack it isn't one.
+
+             It sits in this paragraph rather than in a row of the table because
+             the answer is the same for all four packs. The table is the one
+             place on the page for what differs between them — which is also why
+             the Modules row went: with each pack now NAMED by its modules, that
+             row printed its own column header back. -->
         <p class="mt-1.5 max-w-2xl text-p-base text-ink-gray-6">
-          Fixed scope, fixed price, delivered by any certified partner. Pick one now or let the
-          questions above narrow it down for you. Prices for India, before
-          {{ pricingFor(DEFAULT_REGION).tax }}.
+          Fixed scope, fixed price, delivered by any certified partner. You pay Frappe in full, not
+          the partner. Pick one now or let the questions above narrow it down for you. Prices for
+          India, before {{ pricingFor(DEFAULT_REGION).tax }}.
         </p>
 
         <ScrollArea orientation="horizontal" class="mt-5 rounded-6 border border-outline-gray-2">
@@ -408,33 +297,29 @@ const restartQuiz = () => {
               <tr class="bg-surface-gray-1">
                 <th
                   scope="col"
-                  class="w-40 px-4 py-3 text-left text-p-sm font-medium uppercase tracking-wide text-ink-gray-5"
+                  class="w-32 px-4 py-3 text-left text-p-sm font-medium uppercase tracking-wide text-ink-gray-5"
                 >
                   <span class="sr-only">Attribute</span>
                 </th>
+                <!-- ⚠️ NOT uppercased, unlike every other header in the app.
+                     A pack's name is now its module list — "Accounts, Sales,
+                     Purchase, Stock" — which is content in a heading's slot
+                     rather than a label for a column. Uppercase with tracking
+                     put that one across four lines in a 160px cell and made
+                     the header row three times the height of any row under it.
+                     Sentence case and a narrower attribute column bring it to
+                     two. -->
                 <th
                   v-for="pack in STARTER_PACKS"
                   :key="pack.value"
                   scope="col"
-                  class="px-4 py-3 text-center text-p-sm font-medium uppercase tracking-wide text-ink-gray-6"
+                  class="px-4 py-3 text-center text-p-sm font-medium text-ink-gray-7"
                 >
                   {{ pack.name }}
                 </th>
               </tr>
             </thead>
             <tbody>
-              <tr class="border-t border-outline-gray-2">
-                <th scope="row" class="px-4 py-3.5 text-left font-normal text-ink-gray-7">
-                  Modules
-                </th>
-                <td
-                  v-for="p in STARTER_PACKS"
-                  :key="p.value"
-                  class="px-4 py-3.5 text-center text-ink-gray-8"
-                >
-                  {{ p.modules }}
-                </td>
-              </tr>
               <tr class="border-t border-outline-gray-2">
                 <th scope="row" class="px-4 py-3.5 text-left font-normal text-ink-gray-7">
                   Total hours
@@ -473,8 +358,15 @@ const restartQuiz = () => {
           </table>
         </ScrollArea>
 
-        <div class="mt-4">
-          <Button variant="subtle" label="Explore partners" @click="restartQuiz" />
+        <!-- ⚠️ TWO WAYS OUT, and the second one is the escape hatch this page
+             needs. Somebody who arrived from frappe.io/partners came for a
+             directory and has been handed a form; telling them the directory is
+             still there costs one link and keeps a visitor who would otherwise
+             leave. The questions stay the primary route because they are the
+             only one that ends in an answer. -->
+        <div class="mt-4 flex flex-wrap items-center gap-2">
+          <Button variant="subtle" label="Answer three questions" @click="restartQuiz" />
+          <Button variant="ghost" label="Or browse all partners" :route="{ name: 'results' }" />
         </div>
       </div>
     </section>
@@ -507,15 +399,17 @@ const restartQuiz = () => {
     <!-- ── Footer CTA — back into the quiz ───────────────────────────── -->
     <section class="bg-surface-gray-1 px-5 py-14 lg:px-10">
       <div class="mx-auto w-full max-w-[800px] text-center">
-        <h2 class="text-xl font-semibold text-ink-gray-9">Ready to find your partner?</h2>
+        <h2 class="text-xl font-semibold text-ink-gray-9">Ready to start?</h2>
         <p class="mx-auto mt-2 max-w-md text-p-base text-ink-gray-6">
-          Three questions, about thirty seconds. We'll narrow 156 certified partners down to the
-          ones who've done your kind of project.
+          Three questions, about a minute. You'll know whether a fixed-price pack covers you, or
+          whether this needs scoping — and either way, who can do it.
         </p>
         <div class="mt-5">
-          <Button variant="solid" size="md" label="Find a partner" @click="restartQuiz" />
+          <Button variant="solid" size="md" label="Get a recommendation" @click="restartQuiz" />
         </div>
       </div>
     </section>
+    </template>
+    </template>
   </ConnectShell>
 </template>
