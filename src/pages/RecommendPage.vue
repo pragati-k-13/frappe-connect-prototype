@@ -21,7 +21,17 @@ import { useRoute, useRouter } from 'vue-router'
 import { Button, Checkbox, FormControl, Textarea, TextInput, toast } from 'frappe-ui'
 import IconCheck from '~icons/lucide/check'
 import IconX from '~icons/lucide/x'
+import IconEdit from '~icons/lucide/square-pen'
+import IconSend from '~icons/lucide/send'
+import IconArrowRight from '~icons/lucide/arrow-right'
+import IconInfo from '~icons/lucide/circle-alert'
+import IconMapPin from '~icons/lucide/map-pin'
+import IconBriefcase from '~icons/lucide/briefcase'
+import IconCalendar from '~icons/lucide/calendar'
+import IconAward from '~icons/lucide/award'
+import IconUsers from '~icons/lucide/users'
 import ConnectShell from '../components/ConnectShell.vue'
+import frappeMark from '../assets/frappe.svg'
 import EditAnswersDialog from '../components/EditAnswersDialog.vue'
 import PackScopeDialog from '../components/PackScopeDialog.vue'
 import PartnerFiltersDialog from '../components/PartnerFiltersDialog.vue'
@@ -38,7 +48,7 @@ import {
   priceFor,
   DEFAULT_REGION,
 } from '../data/packs'
-import { briefErrors, budgetBandsFor, matchingPartners } from '../data/custom'
+import { briefErrors, budgetBandsFor, criteriaLines, matchingPartners } from '../data/custom'
 import { INDUSTRIES, GROUP_OF_SEGMENT, REGIONS, REGION_OF } from '../data/quiz'
 
 const store = useConnectStore()
@@ -140,6 +150,40 @@ const reachLine = computed(() => {
 
 // ⚠️ A DIALOG, not a disclosure on the page. See `PartnerFiltersDialog`.
 const showFilters = ref(false)
+
+// The five criteria, built by the same function the partner's own copy of them
+// is built by — see `criteriaLines`. The map is here rather than in the data
+// file because an icon is a rendering decision and that file has no components
+// in it.
+const CRITERIA_ICONS = {
+  'map-pin': IconMapPin,
+  briefcase: IconBriefcase,
+  calendar: IconCalendar,
+  award: IconAward,
+  users: IconUsers,
+}
+
+const criteria = computed(() => criteriaLines(store.company, brief.value))
+
+// ⚠️ THE CUSTOM PATH'S OWN THREE BEATS, and they are not the pack's. There you
+// pay Frappe and are assigned somebody; here you pick the firm and pay them per
+// milestone, which is a different product described by the same heading.
+const CUSTOM_STEPS = [
+  { title: 'Contact partners', body: 'Share your requirements' },
+  { title: 'Hire a partner', body: 'Whichever quote fits' },
+  { title: 'Pay per milestone', body: 'Agreed with them' },
+]
+
+// ⚠️ GENERIC, AND THAT IS THE DIFFERENCE FROM THE LIST ABOVE IT. "Why we think
+// this is the best choice" prints the reasons the engine derived from this
+// account's own answers; these are the cases custom work exists for, true of
+// everybody, and they are here for the reader whose situation the three
+// questions did not reach.
+const CUSTOM_IF = [
+  'You need customisations beyond what ERPNext ships with',
+  'You need custom print formats, QR codes, or more users',
+  'You need help migrating your data across',
+]
 
 // What the trigger says. It COUNTS rather than labelling, because somebody who
 // narrowed the list and closed the dialog needs to see that they did without
@@ -261,7 +305,7 @@ watch(view, () => {
               : 'Start with a starter pack'
             : overridden
               ? 'Get quotes from partners'
-              : 'This needs a partner to scope it properly'
+              : 'We recommend a custom implementation'
         }}
       </h1>
 
@@ -317,7 +361,7 @@ watch(view, () => {
                   <p v-else class="mt-1 text-p-base text-ink-gray-5">
                     Not suggested by your answers
                   </p>
-                  <p class="mt-1 flex flex-wrap items-center gap-x-2 text-p-sm text-ink-gray-5">
+                  <div class="mt-1 flex flex-wrap items-center gap-x-2 text-p-sm text-ink-gray-5">
                     <span>{{ row.pack.hours }} hours · {{ row.pack.validity }} to deliver</span>
                     <!-- ⚠️ THE SCOPE, ON THE ROW. "Is payment reconciliation in
                          this or not" is the question somebody has while looking
@@ -329,13 +373,13 @@ watch(view, () => {
                          own: three rows each carrying a second control read as
                          three things to do, and the thing to do here is tick a
                          box. -->
-                    <button
-                      class="underline hover:text-ink-gray-8"
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      label="What's included"
                       @click="showScope(row.pack)"
-                    >
-                      What's included
-                    </button>
-                  </p>
+                    />
+                  </div>
                 </div>
               </li>
             </ul>
@@ -404,118 +448,131 @@ watch(view, () => {
 
       <!-- ── Custom ──────────────────────────────────────────────────── -->
       <section v-else class="mt-8">
-        <!-- ⚠️ ONE SURFACE, AND IT WAS THREE THINGS FLOATING. The two fields
-             sat unbordered at 62ch, a bordered card stating the reach sat below
-             them at the page's full width, and the send button sat naked under
-             that — read as a form, then a notice, then an action, with nothing
-             saying they were the same errand. The mismatched widths did half
-             the damage on their own.
-             ⚠️ AND THE FIX IS NOT A STRONGER LINK BETWEEN THEM, because the
-             dependency people expect is not there: the count comes from the
-             intake and from the filters inside the foot, and NOTHING the two
-             fields collect narrows it — see the note on `matchingPartners`.
-             Drawing an arrow from the budget to the number would be drawing a
-             claim that is false.
-             What is true is that this is ONE OUTGOING ITEM. A brief going to a
-             list of firms is a dispatch: the message, then who it is addressed
-             to, then send — and in every tool that does this, the address block
-             and the send control sit on the same surface as the body. So they
-             do here. The hairline is card anatomy, not decoration: above it is
-             content, below it is addressing.
-             ⚠️ NO HEADING. It read "What partners need from you", which labels
-             the fields and mislabels the foot under them — the foot is about
-             who the partners ARE. Its stated job was saying who the answers
-             were for, and the foot now does that by naming them. -->
-        <div class="max-w-[62ch] rounded-6 border border-outline-gray-2">
-          <div class="space-y-4 p-4">
-            <Textarea
-              :model-value="brief.scope"
-              label="What do you need built?"
-              placeholder="Processes, integrations, and anything you have already tried."
-              :rows="5"
-              required
-              :error="briefProblems.scope"
-              @update:model-value="store.saveBrief({ scope: $event })"
-            />
-            <!-- ⚠️ A BAND, NOT A FIGURE. See the note in `data/custom.js` — a
-                 free number invites a placeholder, and partners price against
-                 placeholders. -->
-            <FormControl
-              type="select"
-              :model-value="brief.budget"
-              label="What can you spend?"
-              placeholder="Select a range"
-              required
-              :options="bands"
-              :error="briefProblems.budget"
-              @update:model-value="store.saveBrief({ budget: $event })"
-            />
+        <!-- ONE CARD: who it goes to, what you tell them, and send. A brief to
+             a list of firms is a dispatch, so the address block and the send
+             control sit on the same surface as the message. -->
+        <div class="rounded-6 border border-outline-gray-2">
+          <div class="p-5">
+            <!-- ⚠️ THE CRITERIA ARE ON THE PAGE NOW, not behind a counted link
+                 reading "3 filters on". A number is not a criterion: somebody
+                 who narrowed to Pune and came back an hour later could not tell
+                 what the brief was about to do without opening a dialog. Five
+                 lines say it, and the button beside them is for changing them
+                 rather than for finding out what they are. -->
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h2 class="text-p-lg font-semibold text-ink-gray-9">
+                  Share requirements with every partner that matches
+                </h2>
+                <p class="mt-1 text-p-base text-ink-gray-6">
+                  Sent as a message, never posted publicly.
+                </p>
+              </div>
+              <Button variant="subtle" label="Edit criteria" @click="showFilters = true">
+                <template #prefix><IconEdit class="size-4" /></template>
+              </Button>
+            </div>
+
+            <ul class="mt-4 space-y-2">
+              <li
+                v-for="line in criteria"
+                :key="line.text"
+                class="flex items-center gap-2.5 text-p-base text-ink-gray-7"
+              >
+                <component :is="CRITERIA_ICONS[line.icon]" class="size-4 text-ink-gray-5" />
+                {{ line.text }}
+              </li>
+            </ul>
+
+            <!-- ── What you tell them ──────────────────────────────────── -->
+            <div class="mt-6">
+              <h3 class="text-p-base font-semibold text-ink-gray-8">Tell us about your project</h3>
+              <p class="mt-1 text-p-base text-ink-gray-6">
+                The more you write, the more partners can quote a figure instead of a meeting.
+              </p>
+            </div>
+
+            <div class="mt-4 space-y-4">
+              <!-- ⚠️ A BAND, NOT A FIGURE. See the note in `data/custom.js` — a
+                   free number invites a placeholder, and partners price against
+                   placeholders. -->
+              <FormControl
+                type="select"
+                :model-value="brief.budget"
+                label="Your budget"
+                placeholder="Select a range"
+                required
+                :options="bands"
+                :error="briefProblems.budget"
+                @update:model-value="store.saveBrief({ budget: $event })"
+              />
+              <!-- ⚠️ ONE BOX, AND THE PLACEHOLDER DOES THE WORK. The three
+                   named prompts this replaces are still the right questions;
+                   asking them as three fields on the screen that also carries
+                   the criteria, the budget and the send made a card that reads
+                   as a form. So the questions moved into the placeholder, where
+                   they prompt without occupying anything, and the description
+                   under the label says what a partner does with the answer.
+                   `description` and `placeholder` are `Textarea`'s own props;
+                   neither is a paragraph this page drew itself. -->
+              <Textarea
+                :model-value="brief.scope"
+                label="What do you want built?"
+                description="Partners quote from this, so the detail you add here comes back as accuracy."
+                placeholder="What do you make or sell, who are your customers, how does it run today, what keeps going wrong, and what must it connect to or prove?"
+                :rows="6"
+                required
+                :error="briefProblems.scope"
+                @update:model-value="store.saveBrief({ scope: $event })"
+              />
+            </div>
           </div>
 
-          <!-- ── Addressed to ───────────────────────────────────────────
-               ⚠️ THE FILTERS WERE A SECTION OF THEIR OWN, open by default: a
-               heading, a standfirst and ten chips across three groups, above
-               the button and below two questions nobody had answered yet. It
-               made a screen with one thing to do look like a screen with
-               fifteen, and it offered to refine a search before the thing being
-               searched for had been written. They are behind one line now: the
-               sentence states who this reaches in words, and the control opens
-               only for the person who disagrees with it.
-               ⚠️ THE COUNT IS ON THE BUTTON AND NOWHERE ELSE. It used to be in
-               both — "This goes to 13 certified partners" two lines above "Send
-               requirements to 13 partners" — which was tolerable while a gap
-               separated them and is a stutter now they share a foot. The
-               sentence keeps the criteria, which is the part a number cannot
-               carry; the button keeps the figure, because the button is the
-               commitment and a send control that does not name what it is about
-               to do is how twelve firms hear from somebody who meant three. -->
-          <!-- ⚠️ THE HAIRLINE ONLY, NO FILL. The foot was tinted
-               `surface-gray-1` to read as a different register, and it could
-               not: the fields above it are `surface-gray-2`, so the foot came
-               out LIGHTER than the inputs it sits under, and a band that is
-               paler than the thing above it reads as a rendering artefact
-               rather than as a second part. Matching them would have made the
-               card heavy at both ends. The stroke says where the message stops
-               and the addressing starts, which is all that needed saying. -->
-          <div class="border-t border-outline-gray-2 p-4">
-            <template v-if="matches.length">
-              <p class="text-p-base leading-relaxed text-ink-gray-8">
-                Going to certified partners{{ reachLine }}.
-              </p>
-              <!-- ⚠️ THE PRIVACY LINE STAYS, cut to one sentence. It is the
-                   only copy here that says what you give away by pressing the
-                   button beside it, so it earns its line — but it ran to three,
-                   and the middle one listed the fields above it. -->
-              <p class="mt-1 text-p-base leading-relaxed text-ink-gray-6">
-                They see the requirements and the budget, not your company name — that is shared
-                when you approve a reply.
-              </p>
-            </template>
-            <!-- Nobody left. A real state — the filters can narrow to zero —
-                 and it names the control that caused it, because the only way
-                 back is the one link under it. -->
-            <p v-else class="text-p-base leading-relaxed text-ink-gray-8">
-              No partners match these filters.
+          <!-- ⚠️ THE HAIRLINE ONLY, NO FILL. A tinted foot came out LIGHTER
+               than the `surface-gray-2` fields above it, which reads as a
+               rendering artefact rather than as a second part. The stroke says
+               where the message stops and the sending starts. -->
+          <div class="border-t border-outline-gray-2 p-5">
+            <p v-if="matches.length" class="text-p-base text-ink-gray-8">
+              We found
+              <span class="font-semibold tabular-nums">{{ matches.length }}</span>
+              {{ matches.length === 1 ? 'partner' : 'partners' }} that match your criteria.
+            </p>
+            <p v-else class="text-p-base text-ink-gray-8">No partner matches these criteria.</p>
+            <p class="mt-1 text-p-base text-ink-gray-6">
+              They see your requirements and budget, not your company name.
             </p>
 
-            <!-- ⚠️ The label counts what is ON rather than saying "Filters", so
-                 somebody who narrowed the list and closed the dialog can see
-                 that they did without opening it again. -->
-            <button
-              class="mt-3 block text-p-base text-ink-gray-6 underline hover:text-ink-gray-8"
-              @click="showFilters = true"
-            >
-              {{ filterSummary }}
-            </button>
-
-            <Button
-              class="mt-4"
-              variant="solid"
-              size="md"
-              :disabled="matches.length === 0"
-              :label="`Send requirements to ${matches.length} ${matches.length === 1 ? 'partner' : 'partners'}`"
-              @click="send"
-            />
+            <!-- ⚠️ NO COUNT IN THE LABEL, and it used to read "Send
+                 requirements to 13 partners". The count was on the button
+                 because the button is the commitment, but a label that grows
+                 with the data is a control whose width nobody designed, and it
+                 stuttered against the same figure one line above it. The
+                 sentence carries the number; the button carries the verb.
+                 ⚠️ THE SECOND BUTTON IS THE OTHER WAY THROUGH, and the screen
+                 did not offer it. Broadcasting was the only route on this half,
+                 so choosing partners yourself looked like something the product
+                 did not do. It is `subtle` rather than `solid`: still the
+                 second answer. -->
+            <div class="mt-4 flex flex-wrap items-center gap-2">
+              <Button
+                variant="solid"
+                size="md"
+                :disabled="matches.length === 0"
+                label="Share requirements"
+                @click="send"
+              >
+                <template #prefix><IconSend class="size-4" /></template>
+              </Button>
+              <Button
+                variant="subtle"
+                size="md"
+                label="View all partners"
+                :route="{ name: 'results' }"
+              >
+                <template #suffix><IconArrowRight class="size-4" /></template>
+              </Button>
+            </div>
           </div>
         </div>
       </section>
@@ -534,8 +591,64 @@ watch(view, () => {
            Only on the packs half: the custom half has no rail and takes the
            app's usual 800px, where full width already is the measure. -->
       <div :class="view === 'packs' ? 'lg:max-w-[calc(100%-332px)]' : ''">
-        <!-- ── Why, after the thing itself ─────────────────────────────
-             ⚠️ THIS USED TO SIT UNDER THE HEADLINE, above everything. The
+        <!-- ── How this works ─────────────────────────────────────
+             ⚠️ ADDED BACK ON THIS SCREEN, and it belongs here more than
+             anywhere. The recommendation is where somebody decides to pay,
+             and until now the one question it left unanswered was WHO does
+             the work — the answer arrived two screens later, on the
+             confirmation. Three lines settle it before the money.
+             ⚠️ NUMBERED, which this app avoids by default. It is earned
+             here: these are not three features, they are three things that
+             happen in order, and the order is the point — you pay Frappe
+             first, and a partner is assigned against that. Reversing them
+             would describe a different product.
+             The same three beats as the pack page's own "How it works";
+             both read `PACK_STEPS` so they cannot drift.
+             ⚠️ PACKS ONLY. It describes buying a fixed scope from Frappe and
+             being assigned somebody to deliver it, which is not what happens on
+             the custom path — there you choose the partner and pay them. It sat
+             inside the packs branch until the justification moved below the
+             button and pushed it out; the guard is what that move cost. -->
+        <section class="mt-8">
+          <h2 class="text-p-lg font-semibold text-ink-gray-9">
+            {{ view === 'packs' ? 'How this works' : 'How custom implementations work' }}
+          </h2>
+          <!-- ⚠️ THE CUSTOM HALF HAD NO VERSION OF THIS, and its absence was
+               the gap the design names. The pack's three beats describe paying
+               Frappe and being assigned somebody, which is not what happens
+               here, so the guard that hid this block was right and the fix is a
+               second set rather than dropping the guard. -->
+          <ol class="mt-3 grid gap-4 sm:grid-cols-3">
+            <li
+              v-for="(step, i) in view === 'packs' ? PACK_STEPS : CUSTOM_STEPS"
+              :key="step.title"
+              class="flex gap-2.5"
+            >
+              <span
+                class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-surface-gray-2 text-p-xs font-medium tabular-nums text-ink-gray-6"
+                aria-hidden="true"
+              >
+                {{ i + 1 }}
+              </span>
+              <span class="min-w-0">
+                <span class="block text-p-base font-medium text-ink-gray-8">
+                  {{ step.title }}
+                </span>
+                <span class="mt-0.5 block text-p-sm text-ink-gray-5">{{ step.body }}</span>
+              </span>
+            </li>
+          </ol>
+        </section>
+
+        <!-- ── Why, after the thing itself and after how it works ─────
+             ⚠️ IT NOW SITS BELOW "How this works", and it sat directly under
+             the card before that. The old note argued that somebody who doubts
+             the recommendation scrolls and should find the working immediately
+             under the button they declined to press, which is true and is not
+             the first question: before "why me" comes "what am I being asked to
+             do". The three beats answer that in one line each, and the case for
+             the choice reads better after them than in front of them.
+             ⚠️ THIS ALSO USED TO SIT UNDER THE HEADLINE, above everything. The
              reasoning was that a recommendation whose justification is below the
              price list is a price list — which is true of a screen with no
              headline. This one opens with the verdict as its first line, so the
@@ -555,24 +668,23 @@ watch(view, () => {
                covers this" — and printing that under "Why we're recommending
                this" would have the screen arguing against its own heading. -->
           <h2 class="text-p-lg font-semibold text-ink-gray-9">
-            {{ overridden ? "What we'd have recommended" : "Why we're recommending this" }}
+            {{ overridden ? "What we'd have recommended" : 'Why we think this is the best choice for you' }}
           </h2>
 
-          <!-- ⚠️ NO TICKS. Each reason carried a check icon, which reads as
-               "included" — the vocabulary of a feature list. These are EVIDENCE
-               for a claim, and dressing an argument as a spec sheet makes it
-               skimmable in exactly the way an argument should not be.
-               ⚠️ `max-w-[62ch]`, against the page's own 800px. At the full measure
-               these ran to about 110 characters a line. Only the PROSE is capped —
-               the pack rows keep the width, because a row with a price at its
-               right edge needs one. -->
-          <ul v-if="!overridden" class="mt-3 max-w-[62ch] space-y-2">
-            <li
-              v-for="(reason, i) in reco.reasons"
-              :key="i"
-              class="text-p-base leading-relaxed text-ink-gray-7"
-            >
-              {{ reason }}
+          <!-- ⚠️ TICKS, AND THEY WERE REMOVED ONCE. The argument then was that a
+               check reads as "included" and dresses evidence as a spec sheet.
+               What the unmarked list actually produced was three sentences with
+               no left edge, indistinguishable from the standfirst above them —
+               the section had a heading and no structure. The design marks each
+               reason, and a mark is what makes a list of reasons scannable as a
+               list. The generic block below carries a different mark for the
+               same reason: these two lists are not the same kind of claim.
+               ⚠️ `max-w-[62ch]`, against the page's own 800px. At the full
+               measure these ran to about 110 characters a line. -->
+          <ul v-if="!overridden" class="mt-3 max-w-[62ch] space-y-2.5">
+            <li v-for="(reason, i) in reco.reasons" :key="i" class="flex gap-2.5">
+              <IconCheck class="mt-1 size-4 shrink-0 text-ink-gray-5" />
+              <span class="text-p-base leading-relaxed text-ink-gray-7">{{ reason }}</span>
             </li>
           </ul>
 
@@ -593,50 +705,30 @@ watch(view, () => {
                people finds out at exactly that line.
                Quiet: body type, underlined, no button. Louder than this and it
                competes with the recommendation it explains. -->
-          <button
-            class="mt-3 text-p-base text-ink-gray-6 underline hover:text-ink-gray-8"
-            @click="rethink"
-          >
-            Change my answers
-          </button>
+          <!-- ⚠️ A frappe-ui `Button`, and it was a bare `<button>` with an
+               underline class. There is no underlined text button in the design
+               system, so every one of them here was a control this page drew
+               itself: same job as `Button variant="ghost"`, different height,
+               different focus ring, no disabled state. -->
+          <Button class="-ml-2 mt-3" variant="ghost" label="Change my answers" @click="rethink" />
         </section>
 
-        <!-- ── How this works ─────────────────────────────────────
-             ⚠️ ADDED BACK ON THIS SCREEN, and it belongs here more than
-             anywhere. The recommendation is where somebody decides to pay,
-             and until now the one question it left unanswered was WHO does
-             the work — the answer arrived two screens later, on the
-             confirmation. Three lines settle it before the money.
-             ⚠️ NUMBERED, which this app avoids by default. It is earned
-             here: these are not three features, they are three things that
-             happen in order, and the order is the point — you pay Frappe
-             first, and a partner is assigned against that. Reversing them
-             would describe a different product.
-             The same three beats as the pack page's own "How it works";
-             both read `PACK_STEPS` so they cannot drift.
-             ⚠️ PACKS ONLY. It describes buying a fixed scope from Frappe and
-             being assigned somebody to deliver it, which is not what happens on
-             the custom path — there you choose the partner and pay them. It sat
-             inside the packs branch until the justification moved below the
-             button and pushed it out; the guard is what that move cost. -->
-        <section v-if="view === 'packs'" class="mt-8">
-          <h2 class="text-p-lg font-semibold text-ink-gray-9">How this works</h2>
-          <ol class="mt-3 grid gap-4 sm:grid-cols-3">
-            <li v-for="(step, i) in PACK_STEPS" :key="step.title" class="flex gap-2.5">
-              <span
-                class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-surface-gray-2 text-p-xs font-medium tabular-nums text-ink-gray-6"
-                aria-hidden="true"
-              >
-                {{ i + 1 }}
-              </span>
-              <span class="min-w-0">
-                <span class="block text-p-base font-medium text-ink-gray-8">
-                  {{ step.title }}
-                </span>
-                <span class="mt-0.5 block text-p-sm text-ink-gray-5">{{ step.body }}</span>
-              </span>
+        <!-- ── When custom work is the answer ─────────────────────────
+             ⚠️ GENERIC, AND DELIBERATELY SO. The block above prints what the
+             engine read in this account's own answers; this one is the standing
+             case for custom work, for the reader whose situation the three
+             questions never reached. Two lists of claims need two marks, or the
+             second reads as more evidence about you. -->
+        <section v-if="view !== 'packs'" class="mt-10">
+          <h2 class="text-p-lg font-semibold text-ink-gray-9">
+            Consider a custom implementation if
+          </h2>
+          <ul class="mt-3 max-w-[62ch] space-y-2.5">
+            <li v-for="item in CUSTOM_IF" :key="item" class="flex gap-2.5">
+              <IconInfo class="mt-1 size-4 shrink-0 text-ink-gray-5" />
+              <span class="text-p-base leading-relaxed text-ink-gray-7">{{ item }}</span>
             </li>
-          </ol>
+          </ul>
         </section>
 
         <!-- ── The other path ──────────────────────────────────────────── -->
@@ -730,13 +822,13 @@ watch(view, () => {
                 <!-- ⚠️ Only when this is still the recommendation. Overridden,
                      the visitor is already looking at packs against our advice
                      and the line below offers them the way back instead. -->
-                <button
+                <Button
                   v-if="!overridden"
-                  class="mt-2 text-p-base text-ink-gray-6 underline hover:text-ink-gray-8"
+                  class="-ml-2 mt-2"
+                  variant="ghost"
+                  label="Get quotes from partners instead"
                   @click="view = 'custom'"
-                >
-                  Get quotes from partners instead
-                </button>
+                />
               </div>
             </div>
           </div>
@@ -748,22 +840,22 @@ watch(view, () => {
              On the packs half the switch lives on the exclusions above, so this
              is only the two cases that block has no room for: an overridden
              packs view, and the custom half. -->
-        <p
-          v-if="view !== 'packs' || overridden"
-          class="mt-10 max-w-[62ch] text-p-base text-ink-gray-6"
-        >
-          <template v-if="view === 'packs'">
-            <button class="underline hover:text-ink-gray-8" @click="view = 'custom'">
-              Back to what we recommend
-            </button>
-          </template>
-          <template v-else>
-            <template v-if="!overridden">Would a fixed price do it? </template>
-            <button class="underline hover:text-ink-gray-8" @click="view = 'packs'">
-              {{ overridden ? 'Back to what we recommend' : 'Look at the packs anyway' }}
-            </button>
-          </template>
-        </p>
+        <div v-if="view !== 'packs' || overridden" class="mt-10">
+          <Button
+            v-if="view === 'packs'"
+            class="-ml-2"
+            variant="ghost"
+            label="Back to what we recommend"
+            @click="view = 'custom'"
+          />
+          <Button
+            v-else
+            class="-ml-2"
+            variant="ghost"
+            :label="overridden ? 'Back to what we recommend' : 'Look at the packs anyway'"
+            @click="view = 'packs'"
+          />
+        </div>
 
         <!-- ── Neither of them ─────────────────────────────────────────── -->
         <!-- ⚠️ THE THIRD ANSWER, and the screen was missing it. It offered two
@@ -778,17 +870,18 @@ watch(view, () => {
              Quiet: below the path switch, above the feedback, in body type. A
              "talk to us" offer at the weight of the buy button is a product that
              does not believe its own recommendation. -->
-        <p class="mt-3 max-w-[62ch] text-p-base text-ink-gray-6">
-          Neither of these?
+        <div class="mt-8">
+          <h2 class="text-p-lg font-semibold text-ink-gray-9">Still unsure?</h2>
           <!-- ⚠️ THROUGH THE ROUTER, and it used to open a new tab. The
                contact page is mocked inside this prototype, so the tab was not
                leaving for the real site — it was opening a second copy of the
                same prototype beside the one under review. See the note in
                `FrappeSitePage`. -->
-          <RouterLink to="/contact" class="underline hover:text-ink-gray-8">
-            Talk to someone at Frappe
-          </RouterLink>
-        </p>
+          <Button class="mt-3" variant="subtle" label="Contact Frappe" :route="{ path: '/contact' }">
+            <template #prefix><img :src="frappeMark" alt="" class="size-4" /></template>
+            <template #suffix><IconArrowRight class="size-4" /></template>
+          </Button>
+        </div>
 
         <!-- ── Was this right? ─────────────────────────────────────────── -->
         <!-- ⚠️ ONE LINE, at the bottom, and it disappears once answered. It is

@@ -16,7 +16,7 @@
 // yet, somewhere in this order of magnitude".
 import { PARTNERS, cityOf } from './partners'
 import { marketFor } from './packs'
-import { GROUP_OF_SEGMENT, REGION_OF } from './quiz'
+import { GROUP_OF_SEGMENT, INDUSTRIES, REGION_OF, REGIONS } from './quiz'
 
 // ── Budget ──────────────────────────────────────────────────────────────────
 // ⚠️ EVERY FIGURE HERE IS INVENTED. Frappe publishes no guidance on what a
@@ -72,6 +72,23 @@ export const WORK_STYLES = [
 export const matchesWorkStyle = (partner, want) =>
   !want || partner.workStyle === 'both' || partner.workStyle === want
 
+// ⚠️ THE TIMELINE NARROWS NOTHING, AND THE SCREEN SAYS SO. It is collected
+// because a partner deciding whether to quote needs it more than they need the
+// tier, and because the criteria list reads as a set with a hole in it when the
+// most obvious question about a project is missing. It is not a filter, for the
+// same reason the budget is not one: there is nothing on a partner to test it
+// against until the partner side is asked when they are free. See the note on
+// `matchingPartners`.
+export const TIMELINES = [
+  { value: 'now', label: 'Ready to start now' },
+  { value: 'quarter', label: 'Within three months' },
+  { value: 'half', label: 'Within six months' },
+  { value: 'none', label: 'No specific timelines' },
+]
+
+export const timelineLabel = (value) =>
+  TIMELINES.find((t) => t.value === value)?.label ?? 'No specific timelines'
+
 export const TIERS = [
   { value: 'gold', label: 'Gold' },
   { value: 'silver', label: 'Silver' },
@@ -118,7 +135,46 @@ export const emptyBrief = () => ({
   cities: [],
   tiers: [],
   workStyle: '',
+  timeline: '',
 })
+
+// ── The criteria, as sentences ──────────────────────────────────────────────
+// ⚠️ ONE BUILDER, TWO READERS, AND THEY ARE ON OPPOSITE SIDES. The
+// recommendation card shows these to the business before it sends, and the
+// brief's details dialog shows them to the partner who received it. A partner
+// reading a different list from the one the customer was shown is the worst
+// kind of drift this file can produce, so there is one function.
+//
+// Every line is a full clause, because half of them are the ABSENCE of a
+// constraint and an absence has no natural phrasing: "Tier" over nothing reads
+// as a missing value, "All tiers" reads as an answer.
+export const criteriaLines = (company, brief) => {
+  const region = REGIONS.find((r) => r.value === REGION_OF[company?.country])
+  const group = INDUSTRIES.find((i) => i.value === GROUP_OF_SEGMENT[company?.segments?.[0]])
+  const cities = brief?.cities ?? []
+  const tiers = brief?.tiers ?? []
+  const tierLabels = TIERS.filter((t) => tiers.includes(t.value)).map((t) => t.label)
+  const style = WORK_STYLES.find((w) => w.value === brief?.workStyle)
+  return [
+    {
+      icon: 'map-pin',
+      text: cities.length
+        ? `Based in ${listOf(cities)}`
+        : `Based anywhere in ${region?.label ?? 'your region'}`,
+    },
+    {
+      icon: 'briefcase',
+      text: group ? `Offer services for ${group.label}` : 'Offer services for any industry',
+    },
+    { icon: 'calendar', text: timelineLabel(brief?.timeline) },
+    { icon: 'award', text: tierLabels.length ? `${listOf(tierLabels)} tier` : 'All tiers' },
+    { icon: 'users', text: style?.label ?? 'Remote or on premises' },
+  ]
+}
+
+// "Pune", "Pune and Mumbai", "Pune, Mumbai and Kochi".
+const listOf = (items) =>
+  items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items.at(-1)}` : (items[0] ?? '')
 
 // ⚠️ A LENGTH FLOOR ON THE SCOPE, which is unusual in this app and deliberate
 // here. This text is broadcast to a dozen firms who will each spend an hour on

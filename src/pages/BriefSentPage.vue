@@ -86,10 +86,13 @@ const partners = computed(() =>
         </div>
 
         <!-- ── What they got ─────────────────────────────────────────── -->
-        <!-- ⚠️ THE SAME CARD THE PARTNERS RECEIVED, not a summary of it. This
-             is the one screen where somebody checks what was said in their
-             name, and a paraphrase here would be the product telling them what
-             it sent rather than showing them. -->
+        <!-- ⚠️ EVERYTHING THAT WENT OUT, IN FULL, and this is the one surface
+             that shows it that way. The partner's own card in the inbox now
+             holds the top of the brief and a View details button, because a
+             card there is read to decide whether to read the brief. Here there
+             is nothing to decide: somebody is checking what was said in their
+             name, and a receipt that hides half of it behind a button is a
+             receipt that has to be interrogated. -->
         <section class="mt-10">
           <h2 class="text-p-lg font-semibold text-ink-gray-9">What they received</h2>
           <div class="mt-3 max-w-[62ch] rounded-6 border border-outline-gray-2 p-4">

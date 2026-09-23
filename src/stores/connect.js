@@ -715,6 +715,10 @@ export const useConnectStore = defineStore('connect', {
             'Tally for the opening balances, e-invoicing, and a part-by-part audit trail we can show an auditor.',
           modules: project.modules ?? {},
           budget: this.brief.budget || 'inr-2',
+          cities: [...(this.brief.cities ?? [])],
+          tiers: [...(this.brief.tiers ?? [])],
+          workStyle: this.brief.workStyle ?? '',
+          timeline: this.brief.timeline || 'quarter',
           country: this.company.country,
           employees: this.company.employees,
           segments: this.company.segments,
@@ -1419,6 +1423,18 @@ export const useConnectStore = defineStore('connect', {
         // moving and what a partner quoted against has to stay as it was sent.
         modules: project.modules ?? {},
         budget: this.brief.budget,
+        // ⚠️ THE CRITERIA TRAVEL WITH IT, and they did not. `BriefDetailsDialog`
+        // builds the partner's copy of "who they asked for" from this object
+        // with `criteriaLines`, the same function the recommendation screen
+        // draws it with — so a snapshot missing them did not fail, it FELL BACK:
+        // a business that narrowed to Pune and asked for somebody on site had
+        // its requirement read as "based anywhere in Asia, remote or on
+        // premises". A default is the most expensive kind of missing field,
+        // because nothing about it looks missing.
+        cities: [...(this.brief.cities ?? [])],
+        tiers: [...(this.brief.tiers ?? [])],
+        workStyle: this.brief.workStyle ?? '',
+        timeline: this.brief.timeline ?? '',
         country: this.company.country,
         employees: this.company.employees,
         segments: this.company.segments,

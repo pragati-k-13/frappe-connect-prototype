@@ -21,11 +21,11 @@ import IconSend from '~icons/lucide/send-horizontal'
 import IconChevronDown from '~icons/lucide/chevron-down'
 import ConnectShell from '../components/ConnectShell.vue'
 import CompanyDetailsDialog from '../components/CompanyDetailsDialog.vue'
+import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
 import { PARTNERS } from '../data/partners'
 import { logoFor } from '../data/logos'
 import { STATUS_LABELS, isActive, lastAt, threadStatus } from '../data/messages'
 import { budgetLabel } from '../data/custom'
-import { scopeSentence } from '../data/modules'
 import { useConnectStore } from '../stores/connect'
 
 // SCREEN — messages. The destination the confirmed screen has been promising
@@ -228,12 +228,12 @@ const bidStateFor = (thread) => {
 
 const statusOf = (thread) => STATUS_LABELS[threadStatus(thread, bidStateFor(thread))] ?? null
 
-// The modules a brief carried, as the same sentence the project's own rail
-// prints. Snapshotted onto the brief when it was sent, so an older card keeps
-// naming what went out even after the project's scope has moved on.
-const scopeOf = (brief) => scopeSentence(brief?.modules)
-
 const details = ref(false)
+
+// ⚠️ THE BRIEF ITSELF, not a boolean: a thread can in principle carry two
+// requirements, and a dialog opened by a flag would show whichever one the
+// template found first.
+const briefDetails = ref(null)
 
 // ── Bids in the thread ──────────────────────────────────────────────────────
 // ⚠️ THE STATE LIVES ON THE PROJECT, not on the message. A message is a record
@@ -746,65 +746,38 @@ watch(open, toBottom)
                   class="mt-1.5 w-fit max-w-[480px] rounded-5 border border-outline-gray-2 p-3.5"
                 >
                   <p class="text-p-base font-medium text-ink-gray-8">{{ m.brief.project }}</p>
-                  <p class="mt-1.5 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7">
+                  <!-- ⚠️ THREE FACTS AND A DOOR, where this printed nine. The
+                       brief grew two optional answers, a module list and five
+                       criteria, and the card grew with it until it WAS the
+                       brief — at which point the thing it is for, deciding
+                       whether to read the brief, had to be done by reading the
+                       brief. What is left is what that decision is made on:
+                       what they need, what they will pay, and how much more
+                       there is. Everything else is one press away.
+                       ⚠️ `line-clamp-4`, not a truncated string. The scope is
+                       whatever somebody typed, and cutting it in JavaScript
+                       picks a length for a box whose width nobody knows. -->
+                  <p
+                    class="mt-1.5 line-clamp-4 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7"
+                  >
                     {{ m.brief.scope }}
                   </p>
-                  <!-- ⚠️ THE TWO OPTIONAL ANSWERS, EACH UNDER ITS OWN QUESTION.
-                       They are shown as the question that produced them rather
-                       than run together with the scope above: a partner reading
-                       three paragraphs of unattributed prose has to work out
-                       which one is the compliance requirement, and that is the
-                       paragraph the quote turns on. Absent when unanswered —
-                       a heading over nothing is worse than no heading. -->
-                  <template v-if="m.brief.customers || m.brief.mustSatisfy">
-                    <div v-if="m.brief.customers" class="mt-3">
-                      <p class="text-p-sm text-ink-gray-5">Who they sell to</p>
-                      <p
-                        class="mt-0.5 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7"
-                      >
-                        {{ m.brief.customers }}
-                      </p>
-                    </div>
-                    <div v-if="m.brief.mustSatisfy" class="mt-3">
-                      <p class="text-p-sm text-ink-gray-5">Must connect to, or prove</p>
-                      <p
-                        class="mt-0.5 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7"
-                      >
-                        {{ m.brief.mustSatisfy }}
-                      </p>
-                    </div>
-                  </template>
-                  <dl class="mt-3 space-y-1 border-t border-outline-gray-2 pt-3">
-                    <!-- ⚠️ THE OTHER HALF OF THE SCOPE, and it was missing. The
-                         paragraph above is what the customer TYPED when the
-                         requirements went out; this is what they TICKED when the
-                         project was made, and a partner pricing the work needs
-                         both — "barcode scanning on goods receipt" quoted
-                         without knowing Inventory and Manufacturing are in scope
-                         is a quote against half a job.
-                         First in the list, and above the money: it says what is
-                         being bought, and the three rows under it qualify who is
-                         buying. Absent when nothing was ticked, like every other
-                         derived row in this app. -->
-                    <div v-if="scopeOf(m.brief)" class="flex gap-6 text-p-base">
-                      <dt class="w-28 shrink-0 text-ink-gray-5">Modules</dt>
-                      <dd class="text-ink-gray-8">{{ scopeOf(m.brief) }}</dd>
-                    </div>
-                    <div class="flex gap-6 text-p-base">
-                      <dt class="w-28 text-ink-gray-5">Budget</dt>
-                      <dd class="text-ink-gray-8">{{ budgetLabel(m.brief.budget) }}</dd>
-                    </div>
-                    <div class="flex gap-6 text-p-base">
-                      <dt class="w-28 text-ink-gray-5">Industry</dt>
-                      <dd class="text-ink-gray-8">{{ m.brief.segments?.[0] || 'Not given' }}</dd>
-                    </div>
-                    <div class="flex gap-6 text-p-base">
-                      <dt class="w-28 text-ink-gray-5">Size</dt>
-                      <dd class="text-ink-gray-8">{{ m.brief.employees }} people</dd>
-                    </div>
-                  </dl>
+                  <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <p class="text-p-base text-ink-gray-8">
+                      <span class="text-ink-gray-5">Budget</span>
+                      {{ budgetLabel(m.brief.budget) }}
+                    </p>
+                  </div>
+                  <Button
+                    class="-ml-2 mt-2"
+                    variant="ghost"
+                    size="sm"
+                    label="View details"
+                    @click="briefDetails = m.brief"
+                  />
                   <p class="mt-3 text-p-sm text-ink-gray-5">
-                    Your company name and contact details are shared only when you approve a reply.
+                    Your company name and contact details are shared only when you shortlist a
+                    reply.
                   </p>
                 </div>
 
@@ -1017,5 +990,10 @@ watch(open, toBottom)
     </div>
 
     <CompanyDetailsDialog :open="details" @close="details = false" />
+    <BriefDetailsDialog
+      :open="Boolean(briefDetails)"
+      :brief="briefDetails"
+      @update:open="!$event && (briefDetails = null)"
+    />
   </ConnectShell>
 </template>

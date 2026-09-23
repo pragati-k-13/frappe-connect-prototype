@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { Button, Dialog } from 'frappe-ui'
 import FilterChip from './FilterChip.vue'
-import { TIERS, WORK_STYLES, asksCity, matchingPartners } from '../data/custom'
+import { TIERS, TIMELINES, WORK_STYLES, asksCity, matchingPartners } from '../data/custom'
 import { INDIA_CITIES } from '../data/partners'
 import { useConnectStore } from '../stores/connect'
 
@@ -50,17 +50,22 @@ const toggleIn = (key, value) => {
   })
 }
 
-const clear = () => store.saveBrief({ cities: [], tiers: [], workStyle: '' })
+const clear = () =>
+  store.saveBrief({ cities: [], tiers: [], workStyle: '', timeline: '' })
 
 const count = computed(
-  () => brief.value.cities.length + brief.value.tiers.length + (brief.value.workStyle ? 1 : 0),
+  () =>
+    brief.value.cities.length +
+    brief.value.tiers.length +
+    (brief.value.workStyle ? 1 : 0) +
+    (brief.value.timeline ? 1 : 0),
 )
 </script>
 
 <template>
   <Dialog
     :model-value="open"
-    title="Send it to fewer partners"
+    title="Edit criteria"
     @update:model-value="emit('update:open', $event)"
   >
     <template #default>
@@ -94,6 +99,29 @@ const count = computed(
               @toggle="toggleIn('tiers', t.value)"
             />
           </div>
+        </div>
+
+        <!-- ⚠️ THE ONE ANSWER IN HERE THAT NARROWS NOTHING, and it says so on
+             the line under it rather than in a tooltip. A partner deciding
+             whether to quote wants it more than they want the tier, so it is
+             collected and printed on the brief; there is nothing on a partner
+             to test it against until the partner side is asked when they are
+             free. Every chip beside it carries a count and this one cannot,
+             which is the same fact stated twice. -->
+        <div>
+          <p class="text-sm text-ink-gray-7">When you want to start</p>
+          <div class="mt-1.5 flex flex-wrap gap-2">
+            <FilterChip
+              v-for="t in TIMELINES"
+              :key="t.value"
+              :label="t.label"
+              :selected="brief.timeline === t.value"
+              @toggle="store.saveBrief({ timeline: brief.timeline === t.value ? '' : t.value })"
+            />
+          </div>
+          <p class="mt-1.5 text-p-sm text-ink-gray-5">
+            Partners see this on your requirements, but it does not narrow the list.
+          </p>
         </div>
 
         <div>
