@@ -18,13 +18,14 @@
 // the other one is a wall.
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Button, Checkbox, FormControl, Textarea, TextInput, toast } from 'frappe-ui'
+import { Button, Checkbox, FormControl, Textarea, TextInput, Tooltip, toast } from 'frappe-ui'
 import IconCheck from '~icons/lucide/check'
 import IconX from '~icons/lucide/x'
 import IconEdit from '~icons/lucide/square-pen'
 import IconSend from '~icons/lucide/send'
 import IconArrowRight from '~icons/lucide/arrow-right'
 import IconInfo from '~icons/lucide/circle-alert'
+import IconHelp from '~icons/lucide/circle-help'
 import IconMapPin from '~icons/lucide/map-pin'
 import IconBriefcase from '~icons/lucide/briefcase'
 import IconCalendar from '~icons/lucide/calendar'
@@ -40,7 +41,7 @@ import { recommendationFor } from '../data/recommendation'
 import {
   INCLUDED_IN_ALL,
   PACK_ADD_ONS,
-  PACK_BLOCKERS,
+  PACK_CUSTOM_REASONS,
   PACK_STEPS,
   STARTER_PACKS,
   checkoutFor,
@@ -184,59 +185,6 @@ const CUSTOM_STEPS = [
   { title: 'Hire a partner', body: 'Whichever quote fits' },
   { title: 'Pay per milestone', body: 'Agreed with them' },
 ]
-
-// ⚠️ GENERIC, AND THAT IS THE DIFFERENCE FROM THE LIST ABOVE IT. "Why we think
-// this is the best choice" prints the reasons the engine derived from this
-// account's own answers; these are the cases custom work exists for, true of
-// everybody, and they are here for the reader whose situation the three
-// questions did not reach.
-const CUSTOM_IF = [
-  'You need customisations beyond what ERPNext ships with',
-  'You need custom print formats, QR codes, or more users',
-  'You need help migrating your data across',
-]
-
-// What the trigger says. It COUNTS rather than labelling, because somebody who
-// narrowed the list and closed the dialog needs to see that they did without
-// opening it again.
-const filterCount = computed(
-  () =>
-    brief.value.cities.length + brief.value.tiers.length + (brief.value.workStyle ? 1 : 0),
-)
-
-const filterSummary = computed(() =>
-  filterCount.value
-    ? `${filterCount.value} ${filterCount.value === 1 ? 'filter' : 'filters'} on`
-    : 'Send it to fewer partners',
-)
-
-// ⚠️ THE COUNT IS THE COMMITMENT. The button names the number it is about to
-// message, and the number comes from the same function the send does — see
-// `broadcastBrief`. A button reading "Send requirements" with the count
-// somewhere above it is how twelve firms get contacted by someone who thought
-// they were contacting three.
-const send = () => {
-  if (Object.keys(briefErrors(brief.value)).length) {
-    tried.value = true
-    return
-  }
-  if (!store.signedIn) {
-    return router.push({
-      name: 'signup',
-      query: { next: '/connect/recommendation?send=1' },
-    })
-  }
-  const id = store.startCustomProject()
-  const result = store.broadcastBrief(id)
-  toast.success(`Sent to ${result.sent} ${result.sent === 1 ? 'partner' : 'partners'}`, {
-    description: 'Their replies come back as quotes you can approve or pass on.',
-  })
-  // ⚠️ A RECEIPT, not the tracker. Sending used to land on the project page —
-  // a screen about work that has not started, reached from a decision screen,
-  // with nothing in between to say what had just happened. Twelve companies had
-  // been written to and the product never mentioned it. See `BriefSentPage`.
-  router.push({ name: 'brief-sent', query: { project: id } })
-}
 
 // ── Was this right? ─────────────────────────────────────────────────────────
 // ⚠️ ASKED HERE AND NOWHERE EARLIER. This is the first moment the app has made
@@ -641,7 +589,13 @@ watch(view, () => {
            that produce it are the two numbers on the block above.
            Only on the packs half: the custom half has no rail and takes the
            app's usual 800px, where full width already is the measure. -->
-      <div class="lg:max-w-[calc(100%-332px)]">
+      <!-- ⚠️ `mt-4` HERE PLUS `mt-16` ON EACH SECTION. The sections below are
+           reference and reasoning, and they were separated from each other and
+           from the thing above them by the same 32 to 40px the parts INSIDE a
+           section use. At that spacing a page of eight headings reads as one
+           long column of text with bold lines in it; the eye needs a gap it can
+           tell from a paragraph break to know a subject has changed. -->
+      <div class="mt-4 lg:max-w-[calc(100%-332px)]">
         <!-- ── How this works ─────────────────────────────────────
              ⚠️ ADDED BACK ON THIS SCREEN, and it belongs here more than
              anywhere. The recommendation is where somebody decides to pay,
@@ -660,7 +614,7 @@ watch(view, () => {
              the custom path — there you choose the partner and pay them. It sat
              inside the packs branch until the justification moved below the
              button and pushed it out; the guard is what that move cost. -->
-        <section class="mt-8">
+        <section class="mt-16">
           <h2 class="text-p-lg font-semibold text-ink-gray-9">
             {{ view === 'packs' ? 'How this works' : 'How custom implementations work' }}
           </h2>
@@ -709,7 +663,7 @@ watch(view, () => {
              Someone who accepts the recommendation never needs to read this.
              Someone who doubts it scrolls, and finds it directly under the
              button they declined to press. -->
-        <section class="mt-10">
+        <section class="mt-16">
           <!-- ⚠️ A HEADING, which this block did not need when it sat under the
                headline — the position said what it was. Below a price and a
                button it needs saying.
@@ -767,24 +721,6 @@ watch(view, () => {
           <Button class="mt-3" variant="subtle" label="Change my answers" @click="rethink" />
         </section>
 
-        <!-- ── When custom work is the answer ─────────────────────────
-             ⚠️ GENERIC, AND DELIBERATELY SO. The block above prints what the
-             engine read in this account's own answers; this one is the standing
-             case for custom work, for the reader whose situation the three
-             questions never reached. Two lists of claims need two marks, or the
-             second reads as more evidence about you. -->
-        <section v-if="view !== 'packs'" class="mt-10">
-          <h2 class="text-p-lg font-semibold text-ink-gray-9">
-            Consider a custom implementation if
-          </h2>
-          <ul class="mt-3 max-w-[62ch] space-y-2.5">
-            <li v-for="item in CUSTOM_IF" :key="item" class="flex gap-2.5">
-              <IconInfo class="mt-1 size-4 shrink-0 text-ink-gray-5" />
-              <span class="text-p-base leading-relaxed text-ink-gray-7">{{ item }}</span>
-            </li>
-          </ul>
-        </section>
-
         <!-- ── The other path ──────────────────────────────────────────── -->
         <!-- ⚠️ IT USED TO SIT UNDER THE HEADLINE, three lines after a verdict
              that had just said there was one answer — a second option offered
@@ -815,7 +751,7 @@ watch(view, () => {
              which asks somebody to self-diagnose against a criterion nobody has
              given them. Nobody knows whether their job is "bigger"; everybody
              knows whether they need their data migrated across. -->
-        <section v-if="view === 'packs'" class="mt-10">
+        <section v-if="view === 'packs'" class="mt-16">
           <h2 class="text-p-lg font-semibold text-ink-gray-9">True of every pack</h2>
 
           <div class="mt-4 grid gap-x-10 gap-y-6 sm:grid-cols-2">
@@ -833,7 +769,7 @@ watch(view, () => {
               </ul>
             </div>
 
-            <div class="space-y-6">
+            <div>
               <div>
                 <h3 class="text-p-base font-medium text-ink-gray-8">Not included</h3>
                 <ul class="mt-2 space-y-1.5">
@@ -856,45 +792,77 @@ watch(view, () => {
                 </p>
               </div>
 
-              <div>
-                <h3 class="text-p-base font-medium text-ink-gray-8">Not possible in a pack</h3>
-                <ul class="mt-2 space-y-1.5">
-                  <li
-                    v-for="item in PACK_BLOCKERS"
-                    :key="item.label"
-                    class="flex gap-2 text-p-base text-ink-gray-6"
-                  >
-                    <IconX class="mt-1 size-3.5 shrink-0 text-ink-gray-5" />
-                    <span class="min-w-0">
-                      {{ item.label }}
-                      <span v-if="item.hint" class="block text-p-sm text-ink-gray-5">
-                        {{ item.hint }}
-                      </span>
-                    </span>
-                  </li>
-                </ul>
-                <!-- ⚠️ Only when this is still the recommendation. Overridden,
-                     the visitor is already looking at packs against our advice
-                     and the line below offers them the way back instead. -->
-                <Button
-                  v-if="!overridden"
-                  class="mt-2"
-                  variant="subtle"
-                  label="Get quotes from partners instead"
-                  @click="view = 'custom'"
-                />
-              </div>
             </div>
           </div>
         </section>
 
+        <!-- ── When custom work is the answer ─────────────────────────
+             ⚠️ ITS OWN SECTION, AND IT WAS THE SECOND HALF OF A COLUMN. It sat
+             under "Not included" inside "True of every pack", which made the
+             single most consequential thing on the screen — this pack cannot do
+             your job, go and talk to somebody — read as the tail of a
+             specification.
+
+             ⚠️ SAID FORWARDS. The contract words these as things you cannot
+             have, and four of those under a price is four reasons not to buy.
+             The facts are identical either way: "API integrations" as an
+             exclusion is "you need API integrations" as a reason to talk to a
+             partner, and only the second is something a reader can check
+             against their own situation. See `PACK_CUSTOM_REASONS` — the
+             contract's own wording is untouched and lives on in the pack's
+             scope panel.
+
+             ⚠️ ONE LIST ON BOTH HALVES, and there were two. The custom half had
+             a heading of exactly this name over three reasons I had invented,
+             while the packs half had the real four under a negative heading. A
+             reader flipping between the halves got two different answers to one
+             question, and one of them was made up.
+
+             ⚠️ THE QUALIFIERS ARE TOOLTIPS. "You provide clean Excel or CSV
+             data" is the sentence that decides whether data migration is your
+             problem, and as a grey sub-line under every second item it turned a
+             scannable list into a paragraph. On hover it is there for the
+             person whose eye stopped on that row. -->
+        <section class="mt-16">
+          <h2 class="text-p-lg font-semibold text-ink-gray-9">
+            Consider a custom implementation if
+          </h2>
+          <ul class="mt-4 max-w-[62ch] space-y-3">
+            <li v-for="item in PACK_CUSTOM_REASONS" :key="item.label" class="flex gap-2.5">
+              <IconInfo class="mt-1 size-4 shrink-0 text-ink-gray-5" />
+              <!-- ⚠️ THE ICON IS THE AFFORDANCE, and without one a tooltip is a
+                   fact nobody finds. Only on the rows that have something to
+                   say, so it marks the difference rather than decorating every
+                   line. -->
+              <Tooltip v-if="item.hint" :text="item.hint">
+                <span class="text-p-base leading-relaxed text-ink-gray-7">
+                  {{ item.need }}
+                  <IconHelp class="ml-1 inline size-3.5 shrink-0 align-[-0.1em] text-ink-gray-4" />
+                </span>
+              </Tooltip>
+              <span v-else class="text-p-base leading-relaxed text-ink-gray-7">
+                {{ item.need }}
+              </span>
+            </li>
+          </ul>
+
+          <!-- ⚠️ Only on the packs half, and only while packs are still the
+               recommendation. On the custom half this list is the case for what
+               the reader is already looking at, so a button here would send
+               them where they are. -->
+          <Button
+            v-if="view === 'packs' && !overridden"
+            class="mt-5"
+            variant="subtle"
+            label="Get quotes from partners instead"
+            @click="view = 'custom'"
+          />
+        </section>
+
         <!-- ── The other path ──────────────────────────────────────────── -->
         <!-- ⚠️ Still a sentence and not a tab. Tabs say "these are two equal
-             things"; this screen has just said they are not.
-             On the packs half the switch lives on the exclusions above, so this
-             is only the two cases that block has no room for: an overridden
-             packs view, and the custom half. -->
-        <div v-if="view !== 'packs' || overridden" class="mt-10">
+             things"; this screen has just said they are not. -->
+        <div v-if="view !== 'packs' || overridden" class="mt-16">
           <Button
             v-if="view === 'packs'"
             variant="subtle"
@@ -922,7 +890,7 @@ watch(view, () => {
              Quiet: below the path switch, above the feedback, in body type. A
              "talk to us" offer at the weight of the buy button is a product that
              does not believe its own recommendation. -->
-        <div class="mt-8">
+        <div class="mt-16">
           <h2 class="text-p-lg font-semibold text-ink-gray-9">Still unsure?</h2>
           <!-- ⚠️ THROUGH THE ROUTER, and it used to open a new tab. The
                contact page is mocked inside this prototype, so the tab was not
@@ -940,7 +908,7 @@ watch(view, () => {
              the highest-value feedback in the app — the only signal that the
              engine rather than a partner got something wrong — and it is worth
              exactly one line of a screen whose job is something else. -->
-        <div class="mt-5 border-t border-outline-gray-2 pt-5">
+        <div class="mt-16 border-t border-outline-gray-2 pt-6">
           <!-- ⚠️ "Change my answers" IS NOT HERE, and it was. Both it and this
                row are about the answers rather than the products, which is why
                they were paired — but they are different ACTS. This asks Frappe a

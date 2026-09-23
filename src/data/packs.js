@@ -660,6 +660,30 @@ export const PACK_BLOCKERS = PACK_WONT_COVER.map(
     STRICTLY_EXCLUDED.map(asExclusion).find((e) => e.label === label) ?? { label, hint: null },
 )
 
+// ── The same four, said forwards ────────────────────────────────────────────
+// ⚠️ THE CONTRACT'S WORDING IS A LIST OF THINGS YOU CANNOT HAVE, and read as a
+// section under the price it is four reasons not to buy. It is the same four
+// facts either way: "API integrations" as an exclusion is "you need API
+// integrations" as a reason to talk to a partner, and only the second is
+// something a reader can check against their own situation.
+//
+// ⚠️ A SEPARATE MAP RATHER THAN A REWRITE. `label` stays exactly as the
+// commercial terms word it, because the pack's own scope panel quotes the
+// document and must go on quoting it. This is the reading, keyed to the label
+// so a renamed exclusion loses its sentence loudly instead of silently keeping
+// the wrong one.
+const SAID_FORWARDS = {
+  [PACK_USER_LIMIT]: 'More than 50 people will use it',
+  [excluded('data cleaning')]: 'You need your data cleaned and migrated',
+  [excluded('custom scripting')]: 'You need custom scripting',
+  [excluded('api integrations')]: 'You need API integrations',
+}
+
+export const PACK_CUSTOM_REASONS = PACK_BLOCKERS.map((e) => ({
+  ...e,
+  need: SAID_FORWARDS[e.label] ?? e.label,
+}))
+
 // Section 8.
 export const CUSTOMER_RESPONSIBILITIES = [
   'Keep strictly to the scope',
