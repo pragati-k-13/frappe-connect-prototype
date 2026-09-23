@@ -135,9 +135,23 @@ const checkout = () => {
 
 <template>
   <ConnectShell root-label="Starter Packs" root-to="/connect/packs">
-    <!-- 800 and `py-8`, matching the partner list and the profile. This screen
-         briefly ran at 720/py-10 and was the only one in the app that did. -->
-    <div class="mx-auto w-full max-w-[800px] px-5 py-8 lg:px-10">
+    <!-- ⚠️ 1080 NOW, AND IT WAS 800. The basket moved out of the page and
+         into a rail beside it, which is 300px plus a `gap-8`; at 800 that would
+         have taken the list down to 468 and turned a row with a price at its
+         right edge into two lines. Same width as the recommendation screen,
+         which is the other page in the app that carries one. -->
+    <div class="mx-auto w-full max-w-[1080px] px-5 py-8 lg:px-10">
+      <!-- ⚠️ THE COLUMN HOLDS THE WHOLE PAGE, not just the list. On the
+           recommendation screen the rail sits beside one section and stops
+           being sticky where that section ends; here the reader is picking
+           packs the whole way down — the exclusions and the scope link below
+           are part of that decision — so the rail runs the length of it and
+           the total stays in view for all of it.
+           ⚠️ NO RAIL UNTIL THERE IS A BASKET. An empty column of a "0 packs"
+           card is a price tag for nothing, and the flex row simply gives the
+           width back to the list. -->
+      <div class="flex flex-col gap-8 lg:flex-row lg:items-start">
+      <div class="min-w-0 flex-1">
       <h1 class="text-2xl font-semibold text-ink-gray-8">
         Hit the ground running with Starter Packs for ERPNext
       </h1>
@@ -279,40 +293,6 @@ const checkout = () => {
           </li>
         </ul>
 
-        <!-- ── What it comes to ─────────────────────────────────────────
-             ⚠️ UNDER THE LIST, not sticky and not a rail. The recommendation
-             screen carries a sticky rail because it is 1080 wide and its reader
-             has already decided to buy; this page is 800 and its reader is
-             still reading. A bar chasing them down a catalogue would be selling
-             at somebody still browsing — and the recommendation screen rejected
-             exactly that bar for the same reason before settling on the rail.
-             ⚠️ IT DOES NOT LIST THE PACKS. The rows above ARE the line items,
-             with a price on each; repeating them here would be the third
-             printing of the same four figures.
-             ⚠️ The tax is named, and dropped where a market has no decided rate
-             rather than invented — see `checkoutFor`. -->
-        <div
-          v-if="store.packs.length"
-          class="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-6 border border-outline-gray-2 p-4"
-        >
-          <div class="min-w-0">
-            <p class="text-p-sm text-ink-gray-5">
-              {{ store.packs.length }} {{ store.packs.length === 1 ? 'pack' : 'packs' }}
-            </p>
-            <p class="mt-0.5 text-2xl font-semibold tabular-nums text-ink-gray-9">
-              {{ bill.total }}
-            </p>
-            <p class="mt-1 text-p-sm leading-relaxed text-ink-gray-5">
-              <template v-if="bill.exact">{{ bill.subtotal }} plus {{ bill.taxLabel }}</template>
-              <template v-else>{{ bill.subtotal }} before {{ bill.taxLabel }}</template>
-              · {{ bill.hours }} hours
-            </p>
-          </div>
-          <div class="shrink-0">
-            <Button variant="solid" size="md" label="Check out" @click="checkout" />
-            <p class="mt-2 text-p-sm text-ink-gray-5">Paid to Frappe, in full and up front.</p>
-          </div>
-        </div>
       </section>
 
       <!-- ── What every pack does and doesn't cover ─────────────────────
@@ -378,6 +358,50 @@ const checkout = () => {
           </Button>
         </div>
       </section>
+      </div>
+
+        <!-- ── What it comes to ─────────────────────────────────────────
+             ⚠️ A RAIL, AND IT WAS A BAND UNDER THE LIST. The note that used to
+             sit here argued the opposite: a sticky total is selling at somebody
+             who is still browsing, and this page is a catalogue rather than a
+             decision. What that missed is that the list is MULTI-SELECT now.
+             Ticking a fourth pack four rows below the total means the figure
+             the ticking is about has left the screen, so the one thing the
+             control needs to report is the one thing it cannot.
+             ⚠️ IT DOES NOT LIST THE PACKS. The rows beside it ARE the line
+             items, each with its price; repeating them here would be the third
+             printing of the same four figures.
+             ⚠️ The tax is named, and dropped where a market has no decided rate
+             rather than invented — see `checkoutFor`. -->
+        <aside
+          v-if="store.packs.length"
+          class="w-full shrink-0 lg:sticky lg:top-6 lg:w-[300px]"
+        >
+          <div class="rounded-6 border border-outline-gray-2 p-4">
+            <p class="text-p-sm text-ink-gray-5">
+              {{ store.packs.length }} {{ store.packs.length === 1 ? 'pack' : 'packs' }}
+            </p>
+            <p class="mt-0.5 text-2xl font-semibold tabular-nums text-ink-gray-9">
+              {{ bill.total }}
+            </p>
+            <p class="mt-1 text-p-sm leading-relaxed text-ink-gray-5">
+              <template v-if="bill.exact">{{ bill.subtotal }} plus {{ bill.taxLabel }}</template>
+              <template v-else>{{ bill.subtotal }} before {{ bill.taxLabel }}</template>
+              · {{ bill.hours }} hours
+            </p>
+            <Button
+              class="mt-4 w-full"
+              variant="solid"
+              size="md"
+              label="Check out"
+              @click="checkout"
+            />
+            <p class="mt-3 text-p-sm leading-relaxed text-ink-gray-5">
+              Paid to Frappe, in full and up front.
+            </p>
+          </div>
+        </aside>
+      </div>
     </div>
   </ConnectShell>
 </template>
