@@ -700,11 +700,31 @@ const BOTH_WAYS = {
   },
 }
 
-export const PACK_FIT_TESTS = PACK_BLOCKERS.map((e) => ({
-  ...e,
-  need: BOTH_WAYS[e.label]?.need ?? e.label,
-  fits: BOTH_WAYS[e.label]?.fits ?? e.label,
-}))
+// ⚠️ THE FIFTH TEST IS NOT AN EXCLUSION, and it is the only one here that
+// reads in one direction. The four above are the contract's own carve-outs, so
+// each is a fact that works both ways: over 50 users pushes you out of a pack
+// and under 50 keeps you in. Budget is not like that. A tight one is a real
+// reason to take the fixed price, and a large one is NOT a reason to go and
+// have work scoped — nobody buys a bigger implementation because they can. So
+// it carries no `need`, and the screen drops it on the half that has none.
+//
+// It comes last because it is the only one that is about you rather than about
+// the work.
+const TIGHT_BUDGET = {
+  label: 'Budget',
+  hint: 'A pack is a fixed price agreed up front, where custom work is quoted per project.',
+  need: null,
+  fits: 'Your budget is tight',
+}
+
+export const PACK_FIT_TESTS = [
+  ...PACK_BLOCKERS.map((e) => ({
+    ...e,
+    need: BOTH_WAYS[e.label]?.need ?? e.label,
+    fits: BOTH_WAYS[e.label]?.fits ?? e.label,
+  })),
+  TIGHT_BUDGET,
+]
 
 // Section 8.
 export const CUSTOMER_RESPONSIBILITIES = [

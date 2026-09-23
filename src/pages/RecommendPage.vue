@@ -178,6 +178,12 @@ const criteria = computed(() => criteriaLines(store.company, brief.value))
 // time and it never blocks the send; see `scopeHint`.
 const hint = computed(() => scopeHint(brief.value.scope))
 
+// The four contract tests plus the budget one, minus whichever have nothing to
+// say on the half being read. See `PACK_FIT_TESTS`.
+const fitTests = computed(() =>
+  PACK_FIT_TESTS.filter((t) => (view.value === 'packs' ? t.need : t.fits)),
+)
+
 // ⚠️ THE CUSTOM PATH'S OWN THREE BEATS, and they are not the pack's. There you
 // pay Frappe and are assigned somebody; here you pick the firm and pay them per
 // milestone, which is a different product described by the same heading.
@@ -870,8 +876,12 @@ watch(view, () => {
           <h2 class="text-p-lg font-semibold text-ink-gray-9">
             {{ view === 'packs' ? 'Consider a custom implementation if' : 'Consider a Starter Pack if' }}
           </h2>
+          <!-- ⚠️ FILTERED, because one test reads in a single direction. A
+               tight budget is a reason to take the fixed price and a large one
+               is no reason at all to have work scoped, so that row carries no
+               `need` and is absent from the packs half. See `PACK_FIT_TESTS`. -->
           <ul class="mt-4 max-w-[62ch] space-y-3">
-            <li v-for="item in PACK_FIT_TESTS" :key="item.label" class="flex gap-2.5">
+            <li v-for="item in fitTests" :key="item.label" class="flex gap-2.5">
               <IconInfo class="mt-1 size-4 shrink-0 text-ink-gray-5" />
               <!-- ⚠️ THE ICON IS THE AFFORDANCE, and without one a tooltip is a
                    fact nobody finds. Only on the rows that have something to
