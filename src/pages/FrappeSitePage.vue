@@ -3,38 +3,48 @@
 //
 // The discovery surface, not part of Frappe Connect. A stand-in for a page that
 // already exists on the marketing site, so it's styled as *website* rather than
-// *app*: serif headings, a 600px measure, a decorative product rail down the
-// left, no app chrome.
+// *app*: serif headings, a 600px measure, the product rail down the left, no
+// app chrome.
 //
-// ⚠️ TYPE IS THE REAL SITE'S, measured off frappe.io/partners rather than
-// chosen. Don't "tidy" these into the product scale — they're what makes the
-// page read as the marketing site:
+// ⚠️ READ OFF THE LIVE PAGE IN A REAL BROWSER, twice now. A text summary of
+// this site has been wrong about it once before — it invented four "how can we
+// help" cards on /contact — so every number and every sentence below was
+// measured in the DOM rather than recalled. What that produced:
 //
-//   headline    Newsreader 32/41.6, weight 500 — the ONLY serif on the page
-//   heading     Inter 20, weight 600
 //   eyebrow     Inter 11, weight 600, uppercase, 0.09em tracking
+//   headline    Newsreader 32/41.6, weight 500
+//   section     Newsreader 24, weight 500
 //   body        Inter 15/23.55
 //   label       Inter 15, weight 600
 //   site chrome Inter 14
+//   measure     598px, LEFT aligned, not centred
+//   hero image  598x200 (partners-photo.webp)
+//   benefits    stacked rows, 40px icon, 24px gutter
 //
-// The real site sets its section headings in the serif too. Four serif headings
-// down one page read as a run of title cards; one reads as a headline, which is
-// the job the serif is here to do.
+// ⚠️ SECTION HEADINGS ARE SERIF NOW, and they were Inter 20 semibold on the
+// argument that four serif headings down one page read as a run of title cards
+// while one reads as a headline. That is a real effect and it was still the
+// wrong call for this file: the page is a stand-in, and the thing a stand-in
+// owes is recognisability. The real site sets them in Newsreader 24, so they
+// are Newsreader 24. The hierarchy survives on size alone — 32 against 24.
 //
-// Buttons are frappe-ui's `Button` at `size="md"`, which is h-8 / px-2.5 /
-// rounded-4 — the same 32px pill the real site uses, measured.
+// ⚠️ THE HERO IS LEFT ALIGNED, likewise measured. This mock centred it, which
+// is the single loudest difference between the two pages at a glance.
 //
-// ⚠️ ONE CALL TO ACTION, not three. This page listed the three ways to work
-// with a partner as three cards with three buttons, which was right while they
-// were three products a visitor picked between. They are two now — guided
-// onboarding is gone — and, more to the point, PICKING IS NO LONGER THE
-// VISITOR'S JOB: Frappe Connect asks three questions and tells them which of
-// the two fits. A page that makes someone choose between them first is asking
-// the question the next page exists to answer.
+// ⚠️ TWO THINGS ON THE LIVE PAGE ARE BROKEN, and both are reproduced HERE as
+// what they were plainly meant to be rather than as what they say:
 //
-// So the cards describe what exists and the single button goes to the
-// questions. The directory link stays beside it for the visitor who came here
-// to browse firms and should not be forced through a form to do it.
+//   1. The line under the hero image reads "Frappe Partners to find the best
+//      match for your business." — a sentence with its subject edited away. It
+//      is written out below.
+//   2. The success-stories section's body is the literal string "Some content
+//      comes here maybe?", with a headline over it. That is placeholder copy
+//      shipped to production, which is why this mock's own success stories
+//      section stands instead of it.
+//
+// Copying a typo into a design mock is not fidelity, it is transplanting a bug;
+// but neither is quietly rewriting a page somebody else owns. So: repaired,
+// and recorded here.
 //
 // ⚠️ LINKS INTO CONNECT NAVIGATE IN PLACE, and they used to open a new tab on
 // the argument that the fiction is you are leaving frappe.io for somewhere
@@ -51,51 +61,39 @@ import { SUCCESS_STORIES } from '../data/partners'
 // the artwork, so it takes no `rounded-*` of its own.
 import frappeMark from '../assets/frappe.svg'
 
-// Where the app is mounted — '/' locally, '/frappe-connect-prototype/' on
-// GitHub Pages. Only the hand-written links below need it; every other link in
-// the app goes through the router, which handles the base itself.
 const router = useRouter()
 
 // Into the app, through the router, so Back comes back here.
 const go = (path = '') => router.push(`/connect${path}`)
 
-// The three doors, in increasing order of commitment.
+// ⚠️ THE REAL PAGE'S THREE, VERBATIM — titles and bodies both. What stood here
+// was a rewrite of them: "Quality you can check" for "Quality focus", and three
+// bodies tightened into one sentence each. Better copy is not this file's job,
+// and every word I improved was a word that no longer matched the page a
+// visitor had just been reading.
 //
-// ⚠️ THE LAST BULLET OF EACH NAMES WHO PICKS THE PARTNER, which is the real
-// difference between the two and the thing a reader is most likely to get
-// wrong. It used to be missing from this page entirely.
-//
-// ⚠️ THE "Services" SECTION IS GONE, and it was the most detailed thing on
-// this page: two rows of four bullets each, with full-height gradient art,
-// under "Find the right fit for your business". It broke the two offers down
-// further than frappe.io/partners breaks anything down, on a page whose job is
-// to get somebody INTO Connect rather than to explain what is inside it — and
-// every bullet was a claim this mock had invented and would have to keep in
-// step with the recommendation screen, the pack catalogue and the contract.
-//
-// The invented testimonial went with it, for a harder reason: a quote is a
-// commercial claim, and the person, the company and the words were all made up.
-//
-// What is left is the real page's shape — who partners are, why you would use
-// one, what they have delivered — and one way in.
+// ⚠️ ICONS, NOT GREY BLOCKS. The live page draws each of these as a 40px SVG,
+// so by the letter of "grey block for an image" they would be three grey
+// squares — which communicates nothing where the original communicates a
+// category. The grey block stands in for the PHOTOGRAPH, which is art nobody
+// can reproduce; a 40px glyph is a shape anybody can.
 const BENEFITS = [
   {
     title: 'Worldwide presence',
-    body: 'Partners in more than 30 countries, each with deep experience of the businesses and processes in their region.',
+    body: 'With our partners in 30+ countries having vast experience in their respective regional businesses and processes, find the best for yourself to support your mission-critical ERPNext system.',
     icon: 'globe',
   },
   {
     title: 'Certified professionals',
-    body: 'Every partner is ERPNext certified and trained to run complex implementations, then support them afterwards.',
+    body: 'Our ERPNext-certified partners are highly skilled in implementing complex systems. They are extensively trained to manage the support smoothly and help you with your business needs.',
     icon: 'badge',
   },
   {
-    title: 'Quality you can check',
-    body: 'Frappe audits partners regularly and publishes a maturity rating on every profile, so you are not choosing blind.',
+    title: 'Quality focus',
+    body: 'We work closely with our partners to ensure you get high quality service. Frappe provides best practices and regularly audits the partners as well. You can find a partner’s maturity rating on the listing.',
     icon: 'gauge',
   },
 ]
-
 </script>
 
 <template>
@@ -106,134 +104,172 @@ const BENEFITS = [
        `ScrollArea` gives it frappe-ui's overlay bar: thin, over the content, and
        faded out until you scroll or hover. -->
   <div class="flex h-screen bg-white text-ink-gray-8">
-
     <SiteRail />
 
     <div class="flex min-h-0 min-w-0 flex-1 flex-col">
       <!-- Site chrome. 14px, the one place on the page that isn't 15.
            `min-h-12` and the gray-1 rule are Connect's own top bar, measured
            from `ConnectShell` — the two screens sit a click apart and a header
-           that changes height across that seam reads as a different app.
-
-           ⚠️ It used to be `sticky top-0 z-10`, because this page scrolled the
-           document and the bar had to hold itself in place. It now sits OUTSIDE
-           the `ScrollArea` below, exactly as Connect's own bar sits outside the
-           shell's — so it is fixed by construction, and the account CTA stays in
-           reach without a stacking context or an opaque background to stop the
-           hero sliding under it. -->
+           that changes height across that seam reads as a different app. -->
       <header
         class="flex min-h-12 shrink-0 items-center justify-between border-b border-outline-gray-1 bg-white px-4 sm:px-5"
       >
         <nav class="flex items-center gap-2 text-[14px]" aria-label="Breadcrumb">
           <a href="#" class="text-ink-gray-7 hover:underline">Frappe</a>
           <LucideChevronRight class="size-4 text-ink-gray-4" />
-          <span class="text-ink-gray-6">Work with Partners</span>
+          <span class="text-ink-gray-6">Partners</span>
         </nav>
-        <!-- The account entry, and deliberately not "Get started".
-             This is the path a visitor takes when they DON'T pick one of the
-             two products below — they sign in and land on the home with all
-             three. The three cards are the product entries; this is the account
-             one, and the two shouldn't read as the same offer.
-             The wording is the real frappe.io's, and it's what Connect's own top
+        <!-- The wording is the real frappe.io's, and it's what Connect's own top
              bar says too (see `ConnectShell`), so a visitor meets the same
-             control either side of the seam. -->
-        <!-- ⚠️ NO Contact LINK HERE. One was added when the rail was mistakenly
+             control either side of the seam.
+             ⚠️ NO Contact LINK HERE. One was added when the rail was mistakenly
              removed, and the real bar does not carry it — the rail does, which
-             is the whole point. Two routes to the same page, one of them
-             invented, would be worse than the nothing this replaced. -->
-        <div class="flex items-center gap-5">
-          <button
-            type="button"
-            class="flex items-center gap-1.5 text-[14px] font-medium text-ink-gray-7 hover:text-ink-gray-9"
-            @click="go('/signup')"
-          >
-            Log in or create account
-            <LucideArrowRight class="size-4" />
-          </button>
-        </div>
+             is the whole point. -->
+        <button
+          type="button"
+          class="flex items-center gap-1.5 text-[14px] font-medium text-ink-gray-7 hover:text-ink-gray-9"
+          @click="go('/signup')"
+        >
+          Log in or create account
+          <LucideArrowRight class="size-4" />
+        </button>
       </header>
 
       <!-- Everything below the bar scrolls, and it scrolls HERE rather than in
            the document — see the note on the root.
 
-           600px is the real site's measure, so it lives on each section rather
-           than on one wrapper: the service cards need 800 (four bullets beside
-           a full-height image doesn't fit a 600 column), and anything else that
-           needs the extra width later can take it without moving the rest. -->
+           600px is the real site's measure (598, rounded), and it sits on each
+           section rather than on one wrapper so a later section that needs more
+           width can take it without moving the rest. -->
       <ScrollArea class="min-h-0 flex-1">
         <div class="px-6 pb-32">
-          <!-- ⚠️ THE REAL PAGE'S HEADLINE AND STANDFIRST, verbatim. What stood
-               here — "Get the best Frappe experience from trained and certified
-               partners" — was mine, and better copy is not the job: this page
-               is a stand-in whose only purpose is to be recognisable as the
-               marketing site a visitor arrives from. -->
-          <section class="mx-auto max-w-[600px] pt-16 text-center">
-            <h1
-              class="font-serif text-[32px] font-medium leading-[1.3] tracking-[0.01em] text-ink-gray-8"
-            >
+          <!-- ── Hero ──────────────────────────────────────────────────── -->
+          <section class="mx-auto max-w-[600px] pt-16">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-gray-5">
               Frappe Partners
-            </h1>
-            <p
-              class="mx-auto mt-2 max-w-[440px] text-balance text-[15px] leading-[1.57] text-ink-gray-6"
+            </p>
+            <h1
+              class="mt-2 font-serif text-[32px] font-medium leading-[1.3] tracking-[0.01em] text-ink-gray-8"
             >
-              Meet a global community of committed open source entrepreneurs.
+              Meet a global community of committed open source entrepreneurs
+            </h1>
+            <p class="mt-3 text-[15px] leading-[1.57] text-ink-gray-6">
+              Frappe builds innovative products and our global network of partners help businesses
+              implement them smoothly. Our partners are trained and certified to ensure our
+              customers get the best Frappe experience.
             </p>
-          </section>
 
-          <!-- ── The way in ──────────────────────────────────────────────
-               ⚠️ THE REAL PAGE'S "Find a partner" BUTTON, pointed somewhere
-               else. There it opens a regional directory and leaves the visitor
-               to pick a firm; here it opens the three questions, because
-               picking is the thing Connect exists to stop being the visitor's
-               job. The directory is still one line below for anybody who came
-               to browse — they are the reason this page exists at all, and
-               making them answer three questions first would be a worse page
-               than the one it replaced. -->
-          <section class="mx-auto max-w-[600px] pb-32 pt-10 text-center">
-            <p class="text-[15px] leading-[1.57] text-ink-gray-6">
-              Partners implement Frappe products for businesses in more than 30 countries. Tell us
-              what you are running and we will say which of them fits, and what it costs.
+            <!-- ⚠️ A GREY BLOCK, as asked, at the real image's 598x200 — so
+                 dropping the photograph in later reflows nothing. `aria-hidden`
+                 rather than a `role="img"` with a label: a placeholder that
+                 announces itself to a screen reader is announcing something
+                 that is not there. -->
+            <div class="mt-8 aspect-[3/1] w-full rounded-4 bg-surface-gray-2" aria-hidden="true" />
+
+            <!-- The sentence under the image, with its subject restored — see
+                 the note at the top of this file. -->
+            <p class="mt-8 text-[15px] leading-[1.57] text-ink-gray-6">
+              Browse through our list of Frappe Partners to find the best match for your business.
             </p>
-            <div class="mt-6 flex flex-col items-center gap-3">
-              <Button variant="solid" size="md" label="Find a partner" @click="go()">
+
+            <!-- ⚠️ "Find a partner" GOES TO THE LIST, which is what it does on
+                 the real page: there it opens a regional directory, here it
+                 opens the partner directory inside Connect. It used to open the
+                 three questions instead — a button that names one destination
+                 and delivers another, on the one page whose job is to be
+                 recognisable. Answering questions is what the SECOND door
+                 below is for, and it says so. -->
+            <div class="mt-6">
+              <Button variant="solid" size="md" label="Find a partner" @click="go('/partners')">
                 <template #suffix><LucideArrowRight class="size-4" /></template>
               </Button>
-              <button
-                type="button"
-                class="text-[15px] text-ink-gray-6 underline underline-offset-2 hover:text-ink-gray-8"
-                @click="go('/partners')"
-              >
-                Or browse all 156 partners
-              </button>
             </div>
+
+            <!-- ── The second door ────────────────────────────────────────
+                 ⚠️ THIS REPLACED "Or browse all 156 partners", which was the
+                 same offer as the button above it wearing a number — and the
+                 number was the problem: a page cannot read the directory, so
+                 156 was a figure this mock would have to keep in step with the
+                 partner list by hand, on the page a visitor trusts least.
+
+                 What it says instead is the thing the directory cannot do for
+                 somebody who does not know what they are looking at. Quiet, and
+                 second: most people who reach this page came to see the firms,
+                 and being asked three questions before you are allowed to look
+                 is the experience this whole flow exists to replace. -->
+            <p class="mt-10 border-t border-outline-gray-1 pt-6 text-[15px] leading-[1.57] text-ink-gray-6">
+              Not sure what you need built? Answer three questions about your business and we will
+              say which service fits, and what it costs.
+            </p>
+            <button
+              type="button"
+              class="mt-2 flex items-center gap-1.5 text-[15px] font-medium text-ink-gray-8 hover:underline"
+              @click="go('?new=1')"
+            >
+              Get a recommendation
+              <LucideArrowRight class="size-4 text-ink-gray-5" />
+            </button>
           </section>
 
-          <!-- Benefits -->
-          <section class="mx-auto max-w-[600px] pb-32">
-            <h2 class="text-[20px] font-semibold leading-[1.3] text-ink-gray-8">
+          <!-- ── Benefits ──────────────────────────────────────────────────
+               ⚠️ NO EYEBROW, and the real page has one: "Join us", sitting over
+               a section about the benefits of HIRING a partner. It belongs to
+               the become-a-partner section at the foot of the page and has come
+               adrift. Reproducing it would make this mock unreadable in the one
+               way the original is. -->
+          <section class="mx-auto max-w-[600px] pt-24">
+            <h2 class="font-serif text-[24px] font-medium leading-[1.3] text-ink-gray-8">
               Benefits of working with a Frappe Partner
             </h2>
-            <dl class="mt-10 divide-y divide-outline-gray-1">
-              <div v-for="b in BENEFITS" :key="b.title" class="flex gap-4 py-6 first:pt-0">
-                <div class="mt-0.5 shrink-0 text-ink-gray-5" aria-hidden="true">
-                  <LucideGlobe v-if="b.icon === 'globe'" class="size-5" />
-                  <LucideBadgeCheck v-else-if="b.icon === 'badge'" class="size-5" />
-                  <LucideGauge v-else class="size-5" />
+            <!-- Stacked rows with the icon in a 40px gutter, as measured — not
+                 the three-across grid this kind of section usually gets. At the
+                 site's 600px measure three columns would be 190px each, which
+                 is a column for the title and a paragraph broken into six
+                 lines. -->
+            <dl class="mt-10 space-y-8">
+              <div v-for="b in BENEFITS" :key="b.title" class="flex gap-6">
+                <div class="shrink-0 text-ink-gray-5" aria-hidden="true">
+                  <LucideGlobe v-if="b.icon === 'globe'" class="size-10" stroke-width="1.25" />
+                  <LucideBadgeCheck
+                    v-else-if="b.icon === 'badge'"
+                    class="size-10"
+                    stroke-width="1.25"
+                  />
+                  <LucideGauge v-else class="size-10" stroke-width="1.25" />
                 </div>
-                <div>
-                  <dt class="text-[15px] font-medium text-ink-gray-7">{{ b.title }}</dt>
-                  <dd class="mt-1 text-[15px] leading-[1.57] text-ink-gray-6">{{ b.body }}</dd>
+                <div class="min-w-0">
+                  <dt class="text-[15px] font-semibold text-ink-gray-8">{{ b.title }}</dt>
+                  <dd class="mt-1 text-[15px] leading-[1.57] text-ink-gray-6">
+                    {{ b.body }}
+                    <!-- The real page's own link, to the page that explains the
+                         rating. It leaves the prototype entirely, so it is the
+                         one link here that opens a tab rather than navigating
+                         in place. -->
+                    <a
+                      v-if="b.icon === 'gauge'"
+                      href="https://frappe.io/partners/maturity-model"
+                      target="_blank"
+                      rel="noreferrer"
+                      class="underline underline-offset-2 hover:text-ink-gray-8"
+                    >
+                      Here is what it means.
+                    </a>
+                  </dd>
                 </div>
               </div>
             </dl>
           </section>
 
-          <!-- Case studies -->
-          <section class="mx-auto max-w-[600px]">
+          <!-- ── Success stories ───────────────────────────────────────────
+               Left as it was, by instruction — and the live page is the
+               argument for keeping it: its success-stories section is a
+               headline over the words "Some content comes here maybe?". This
+               one at least points at real ERPNext case studies. -->
+          <section class="mx-auto max-w-[600px] pt-24">
             <p class="text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-gray-5">
               Case studies
             </p>
-            <h2 class="mt-2 text-[20px] font-semibold leading-[1.3] text-ink-gray-8">
+            <h2 class="mt-2 font-serif text-[24px] font-medium leading-[1.3] text-ink-gray-8">
               Success stories
             </h2>
 
@@ -275,6 +311,32 @@ const BENEFITS = [
                 />
               </li>
             </ul>
+          </section>
+
+          <!-- ── Become a partner ──────────────────────────────────────────
+               The real page's fourth section, and the only one addressed to
+               somebody who is not a customer. It is here because the ask was
+               fidelity and this is a quarter of the page — but the partner side
+               of this prototype does not exist, so the button says so rather
+               than going somewhere that would have to be invented. Same
+               treatment as the inert "Get in touch" on the contact mock. -->
+          <section class="mx-auto max-w-[600px] pt-24">
+            <h2 class="font-serif text-[24px] font-medium leading-[1.3] text-ink-gray-8">
+              Join us, become a Frappe Partner
+            </h2>
+            <p class="mt-3 text-[15px] leading-[1.57] text-ink-gray-6">
+              Becoming a Frappe Partner is more than just a title or a discount, it’s a chance to
+              use Frappe’s bank of resources to help your customers join the open source community
+              and grow your business effectively.
+            </p>
+            <button
+              type="button"
+              disabled
+              class="mt-6 flex items-center gap-1.5 rounded-4 bg-surface-gray-2 px-3 py-1.5 text-[15px] text-ink-gray-5"
+            >
+              Become a partner
+              <LucideArrowRight class="size-4" />
+            </button>
           </section>
         </div>
       </ScrollArea>
