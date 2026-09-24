@@ -86,7 +86,7 @@ const facts = computed(() => {
                colour. Same 46px and 10px radius as `3xl`. -->
           <div
             v-else
-            class="flex size-[46px] shrink-0 items-center justify-center rounded-[10px] text-sm font-semibold text-white"
+            class="flex size-[46px] shrink-0 items-center justify-center rounded-5 text-sm font-semibold text-white"
             :style="{ backgroundColor: partner.color }"
             aria-hidden="true"
           >

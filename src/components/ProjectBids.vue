@@ -1,8 +1,11 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Badge, Button, ScrollArea, TabButtons } from 'frappe-ui'
+import { useRouter } from 'vue-router'
+import { Badge, Button, Dropdown, ScrollArea, TabButtons } from 'frappe-ui'
 import TierIcon from './TierIcon.vue'
+import { List, ListCell, ListHeader, ListHeaderCell, ListRow } from 'frappe-ui/list'
 import IconMessage from '~icons/lucide/message-square'
+import IconMore from '~icons/lucide/ellipsis'
 import { PARTNERS, cityOf } from '../data/partners'
 import { useConnectStore } from '../stores/connect'
 
@@ -24,18 +27,16 @@ import { useConnectStore } from '../stores/connect'
 // for a receipt it wrote itself. The replies list is the stage; what is left
 // above it is the one task nothing here observes.
 //
-// ⚠️ SHORTLISTING IS THE OLD APPROVAL, RENAMED, NOT SOFTENED. It shares the
+// ⚠️ "INTERESTED" IS THE OLD APPROVAL, RENAMED, NOT SOFTENED. It shares the
 // company's name and contact details and opens the thread — see `setBidState`.
+// The stored state is still `'shortlisted'`; only the words changed.
 //
-// ⚠️ THE BUTTON SAYS "Shortlist", AND FOR ONE DRAFT IT SAID "Share and talk".
-// The reasoning was that "Shortlist" reads as a private bookmark and a
-// private-sounding button that introduces you to a stranger is the one mistake
-// this flow cannot make. The worry is real; that was the wrong place to answer
-// it. An action has to keep its name across the flow — the control that says
-// Shortlist puts the row in the group called Shortlisted — and a button whose
-// words appear nowhere else leaves nothing to tell you which one filled that
-// tab. "Share and talk" also had to carry two ideas in three words and named
-// neither: share WHAT, with WHOM.
+// ⚠️ THE BUTTON SAYS "Interested", AND IT SAID "Shortlist" BEFORE. A shortlist
+// reads as a private list, and a private-sounding button that introduces you to
+// a stranger is the one mistake this flow cannot make. What the gesture means
+// is "we want to take this forward", and "Interested" pairs with the "Not
+// interested" beside it as two answers to one question. It keeps its name across
+// the flow: the button, the tab, the badge and the partner's line all say it.
 //
 // The consequence keeps its own line directly above the button, in full, with
 // the partner named. That sentence is where a disclosure belongs — a button
@@ -45,17 +46,20 @@ const props = defineProps({
 })
 
 const store = useConnectStore()
+const router = useRouter()
 
 const partnerOf = (id) => PARTNERS.find((p) => p.id === id) ?? null
+
+const TIER_RANK = { gold: 0, silver: 1, bronze: 2 }
+const tierRank = (p) => TIER_RANK[p.tier] ?? 3
 
 const rows = computed(() =>
   (props.project.bids ?? [])
     .map((bid) => ({ ...bid, partner: partnerOf(bid.partnerId) }))
     .filter((r) => r.partner)
-    // Cheapest first. ⚠️ Not "best first" — there is no such sort, and any
-    // ordering that mixed price with tier or rating would be this screen
-    // quietly recommending one firm over another while pretending to tabulate.
-    .sort((a, b) => a.amount - b.amount),
+    // By tier — gold, silver, bronze, then untiered — as the partner listing
+    // does, and cheapest first within a tier.
+    .sort((a, b) => tierRank(a.partner) - tierRank(b.partner) || a.amount - b.amount),
 )
 
 const shortlisted = computed(() => rows.value.filter((r) => r.state === 'shortlisted'))
@@ -82,7 +86,7 @@ watch(
 )
 
 const tabs = computed(() => [
-  { label: `Shortlisted ${shortlisted.value.length}`, value: 'shortlisted' },
+  { label: `Interested ${shortlisted.value.length}`, value: 'shortlisted' },
   { label: `Others ${others.value.length}`, value: 'others' },
 ])
 
@@ -96,6 +100,27 @@ const sent = computed(() => props.project.broadcast?.partnerIds?.length ?? 0)
 // They were one action in the first version and it forced the decision at the
 // moment somebody was still gathering information.
 const emit = defineEmits(['choose'])
+
+// What sits under More on an Others row. Not interested is reversible, so a
+// row already marked offers the way back instead.
+const moreFor = (row) => [
+  row.state === 'not-interested'
+    ? {
+        label: 'Undo not interested',
+        icon: 'lucide-undo-2',
+        onClick: () => store.setBidState(props.project.id, row.partnerId, 'pending'),
+      }
+    : {
+        label: 'Not interested',
+        icon: 'lucide-ban',
+        onClick: () => store.setBidState(props.project.id, row.partnerId, 'not-interested'),
+      },
+  {
+    label: 'Read the thread',
+    icon: 'lucide-message-square',
+    onClick: () => router.push({ name: 'messages', query: { thread: row.partnerId } }),
+  },
+]
 </script>
 
 <template>
@@ -136,159 +161,134 @@ const emit = defineEmits(['choose'])
           v-if="!shortlisted.length"
           class="rounded-6 border border-outline-gray-2 px-4 py-8 text-center"
         >
-          <p class="text-p-base text-ink-gray-7">Nobody shortlisted yet</p>
+          <p class="text-p-base text-ink-gray-7">No one marked interested yet</p>
           <p class="mx-auto mt-1 max-w-sm text-p-base text-ink-gray-6">
-            Shortlist a reply in Others and it lands here, next to the rest, for comparing.
+            Mark a reply Interested in Others and it lands here, next to the rest, for comparing.
           </p>
         </div>
 
-        <ScrollArea v-else orientation="horizontal" class="rounded-6 border border-outline-gray-2">
-          <table class="w-full min-w-[560px] border-collapse text-p-base">
-            <thead>
-              <tr class="bg-surface-gray-1 text-p-sm uppercase tracking-wide text-ink-gray-5">
-                <th scope="col" class="px-4 py-2.5 text-left font-medium">Partner</th>
-                <th scope="col" class="px-4 py-2.5 text-right font-medium">Quote</th>
-                <th scope="col" class="px-4 py-2.5 text-right font-medium">Timeline</th>
-                <th scope="col" class="px-4 py-2.5 text-left font-medium">
-                  <span class="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="row in shortlisted"
-                :key="row.partnerId"
-                class="border-t border-outline-gray-2"
-              >
-                <th scope="row" class="px-4 py-3 text-left font-normal">
+        <!-- frappe-ui's List in column mode. Static rows: each carries a
+             profile link and two buttons of its own, so the row itself is not
+             a click target. Fixed tracks for the figures so they line up. -->
+        <ScrollArea v-else orientation="horizontal">
+          <List
+            class="min-w-[560px]"
+            :columns="['minmax(0,1fr)', '7.5rem', '6.5rem', '9rem']"
+            :row-height="60"
+          >
+            <ListHeader>
+              <ListHeaderCell>Partner</ListHeaderCell>
+              <ListHeaderCell class="justify-end">Quote</ListHeaderCell>
+              <ListHeaderCell class="justify-end">Timeline</ListHeaderCell>
+              <ListHeaderCell><span class="sr-only">Actions</span></ListHeaderCell>
+            </ListHeader>
+            <ListRow v-for="row in shortlisted" :key="row.partnerId">
+              <ListCell>
+                <div class="min-w-0">
                   <span class="flex items-center gap-2">
                     <RouterLink
                       :to="{ name: 'partner', params: { id: row.partnerId } }"
-                      class="text-ink-gray-8 hover:underline"
+                      class="truncate text-base text-ink-gray-8 hover:underline"
                     >
                       {{ row.partner.name }}
                     </RouterLink>
                     <TierIcon :tier="row.partner.tier" />
                   </span>
-                  <span class="mt-0.5 block text-p-sm text-ink-gray-5">
+                  <span class="mt-0.5 block truncate text-sm text-ink-gray-6">
                     {{ cityOf(row.partner) }}
                   </span>
-                </th>
-                <td class="px-4 py-3 text-right tabular-nums text-ink-gray-8">{{ row.price }}</td>
-                <td class="px-4 py-3 text-right tabular-nums text-ink-gray-8">
-                  {{ row.weeks }} weeks
-                </td>
-                <td class="px-4 py-3">
-                  <div class="flex items-center justify-end gap-1.5">
-                    <Button
-                      variant="ghost"
-                      :aria-label="`Message ${row.partner.name}`"
-                      :route="{ name: 'messages', query: { thread: row.partnerId } }"
-                    >
-                      <IconMessage class="size-4" />
-                    </Button>
-                    <!-- ⚠️ "Hire", and it was "Choose". The word is the point of
-                         the whole rewrite: this is the control that ENDS the
-                         stage, and it used to sit above a checkbox asking you
-                         to confirm you had chosen somebody. One gesture, named
-                         for what it is. Once a partner is hired the other rows
-                         keep their numbers, which is what the table is for, and
-                         lose the control. -->
-                    <Badge
-                      v-if="project.partnerId === row.partnerId"
-                      theme="green"
-                      label="Hired"
-                    />
-                    <Button
-                      v-else-if="!project.partnerId"
-                      variant="solid"
-                      label="Hire"
-                      @click="emit('choose', row.partner)"
-                    />
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                </div>
+              </ListCell>
+              <ListCell class="justify-end">
+                <span class="text-base tabular-nums text-ink-gray-6">{{ row.price }}</span>
+              </ListCell>
+              <ListCell class="justify-end">
+                <span class="text-base tabular-nums text-ink-gray-6">{{ row.weeks }} weeks</span>
+              </ListCell>
+              <ListCell class="justify-end gap-1.5">
+                <Button
+                  variant="ghost"
+                  :aria-label="`Message ${row.partner.name}`"
+                  :route="{ name: 'messages', query: { thread: row.partnerId } }"
+                >
+                  <IconMessage class="size-4" />
+                </Button>
+                <Badge v-if="project.partnerId === row.partnerId" theme="green" label="Hired" />
+                <Button
+                  v-else-if="!project.partnerId"
+                  variant="solid"
+                  label="Hire"
+                  @click="emit('choose', row.partner)"
+                />
+              </ListCell>
+            </ListRow>
+          </List>
         </ScrollArea>
       </div>
 
       <!-- ── Others ───────────────────────────────────────────────────── -->
-      <div v-else class="mt-3 space-y-2">
+      <div v-else class="mt-3">
         <div
           v-if="!others.length"
           class="rounded-6 border border-outline-gray-2 px-4 py-8 text-center"
         >
-          <p class="text-p-base text-ink-gray-7">Everyone who replied is shortlisted</p>
+          <p class="text-p-base text-ink-gray-7">You're interested in everyone who replied</p>
         </div>
 
-        <article
-          v-for="row in others"
-          :key="row.partnerId"
-          class="rounded-6 border border-outline-gray-2 p-4"
-          :class="row.state === 'not-interested' ? 'opacity-60' : ''"
-        >
-          <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <div class="flex items-center gap-2">
-              <RouterLink
-                :to="{ name: 'partner', params: { id: row.partnerId } }"
-                class="text-p-base font-medium text-ink-gray-8 hover:underline"
-              >
-                {{ row.partner.name }}
-              </RouterLink>
-              <TierIcon :tier="row.partner.tier" />
-            </div>
-            <p class="text-p-base font-medium tabular-nums text-ink-gray-9">{{ row.price }}</p>
-          </div>
-          <p class="mt-0.5 text-p-sm text-ink-gray-5">
-            {{ cityOf(row.partner) }} · about {{ row.weeks }} weeks
-          </p>
-          <p class="mt-2 text-p-base leading-relaxed text-ink-gray-6">{{ row.note }}</p>
-
-          <!-- A firm you have already turned down. It keeps everything above
-               and loses the decision, because the only thing left to do with it
-               is change your mind. ⚠️ "Not interested", never "rejected", and
-               the partner is not told either way — see the note on
-               `BID_STATES`. -->
-          <div v-if="row.state === 'not-interested'" class="mt-3 flex items-center gap-3">
-            <Badge theme="gray" label="Not interested" />
-            <button
-              type="button"
-              class="text-p-base text-ink-gray-6 underline hover:text-ink-gray-8"
-              @click="store.setBidState(project.id, row.partnerId, 'pending')"
-            >
-              Undo
-            </button>
-          </div>
-
-          <template v-else>
-            <!-- ⚠️ THE CONSEQUENCE IS ON THE BUTTON'S OWN LINE, not in a tooltip
-                 and not discovered afterwards. This is the moment a stranger
-                 learns which company they are talking to, and that is not
-                 something to find out from a toast. -->
-            <p class="mt-3 text-p-sm text-ink-gray-5">
-              Shares your company name and contact details with {{ row.partner.name }}, and opens
-              the conversation.
-            </p>
-            <div class="mt-2 flex flex-wrap items-center gap-2">
-              <Button
-                variant="solid"
-                label="Shortlist"
-                @click="store.setBidState(project.id, row.partnerId, 'shortlisted')"
-              />
-              <Button
-                variant="subtle"
-                label="Not interested"
-                @click="store.setBidState(project.id, row.partnerId, 'not-interested')"
-              />
-              <Button
-                variant="ghost"
-                label="Read the thread"
-                :route="{ name: 'messages', query: { thread: row.partnerId } }"
-              />
-            </div>
-          </template>
-        </article>
+        <!-- The same columns as Interested, so the two tabs read as one table.
+             The decision is the one button; the rest waits under More. -->
+        <ScrollArea v-else orientation="horizontal">
+          <List
+            class="min-w-[560px]"
+            :columns="['minmax(0,1fr)', '7.5rem', '6.5rem', '9rem']"
+            :row-height="60"
+          >
+            <ListHeader>
+              <ListHeaderCell>Partner</ListHeaderCell>
+              <ListHeaderCell class="justify-end">Quote</ListHeaderCell>
+              <ListHeaderCell class="justify-end">Timeline</ListHeaderCell>
+              <ListHeaderCell><span class="sr-only">Actions</span></ListHeaderCell>
+            </ListHeader>
+            <ListRow v-for="row in others" :key="row.partnerId">
+              <ListCell>
+                <div class="min-w-0">
+                  <span class="flex items-center gap-2">
+                    <RouterLink
+                      :to="{ name: 'partner', params: { id: row.partnerId } }"
+                      class="truncate text-base text-ink-gray-8 hover:underline"
+                    >
+                      {{ row.partner.name }}
+                    </RouterLink>
+                    <TierIcon :tier="row.partner.tier" />
+                  </span>
+                  <span class="mt-0.5 block truncate text-sm text-ink-gray-6">
+                    {{ cityOf(row.partner) }}
+                  </span>
+                </div>
+              </ListCell>
+              <ListCell class="justify-end">
+                <span class="text-base tabular-nums text-ink-gray-6">{{ row.price }}</span>
+              </ListCell>
+              <ListCell class="justify-end">
+                <span class="text-base tabular-nums text-ink-gray-6">{{ row.weeks }} weeks</span>
+              </ListCell>
+              <ListCell class="justify-end gap-1.5">
+                <Badge v-if="row.state === 'not-interested'" label="Not interested" />
+                <Button
+                  v-else
+                  variant="subtle"
+                  label="Interested"
+                  @click="store.setBidState(project.id, row.partnerId, 'shortlisted')"
+                />
+                <Dropdown :options="moreFor(row)" align="end">
+                  <Button variant="ghost" :aria-label="`More for ${row.partner.name}`">
+                    <template #icon><IconMore class="size-4" /></template>
+                  </Button>
+                </Dropdown>
+              </ListCell>
+            </ListRow>
+          </List>
+        </ScrollArea>
       </div>
     </template>
   </section>

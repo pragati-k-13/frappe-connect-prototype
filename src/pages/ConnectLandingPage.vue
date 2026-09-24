@@ -297,7 +297,7 @@ const restartQuiz = () => {
               <tr class="bg-surface-gray-1">
                 <th
                   scope="col"
-                  class="w-32 px-4 py-3 text-left text-p-sm font-medium uppercase tracking-wide text-ink-gray-5"
+                  class="w-32 px-4 py-3 text-left text-p-sm font-medium text-ink-gray-5"
                 >
                   <span class="sr-only">Attribute</span>
                 </th>
@@ -384,7 +384,7 @@ const restartQuiz = () => {
                 role="img"
                 :aria-label="`Cover image for: ${s.title}`"
               />
-              <p class="mt-3 text-p-sm font-medium uppercase tracking-wide text-ink-gray-5">
+              <p class="mt-3 text-p-sm font-medium text-ink-gray-5">
                 {{ s.tag }}
               </p>
               <p class="mt-1 text-p-base leading-snug text-ink-gray-8 group-hover:underline">

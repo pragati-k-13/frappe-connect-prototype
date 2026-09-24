@@ -224,11 +224,9 @@ onBeforeUnmount(() => observer?.disconnect())
         </div>
 
         <div class="flex shrink-0 items-center gap-2">
-          <Tooltip text="Request a slot">
-            <Button variant="subtle" aria-label="Request a slot" @click="booking = true">
-              <template #icon><LucideCalendar class="size-4" /></template>
-            </Button>
-          </Tooltip>
+          <Button variant="subtle" label="Request a slot" @click="booking = true">
+            <template #prefix><LucideCalendar class="size-4" /></template>
+          </Button>
           <!-- Same control, same word, same stateful aria-label as the row's
                bookmark — see `PartnerRow.vue`. -->
           <Tooltip text="Save">

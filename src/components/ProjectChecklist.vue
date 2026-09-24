@@ -134,7 +134,7 @@ defineExpose({ tally })
                  FILL rather than in shape, so a row that is waiting still reads
                  as a row rather than as a gap. -->
             <span
-              class="mt-[3px] grid size-3.5 shrink-0 place-items-center rounded-[3px]"
+              class="mt-[3px] grid size-3.5 shrink-0 place-items-center rounded-1"
               :class="
                 isDone(t)
                   ? 'bg-surface-gray-7 text-ink-white'

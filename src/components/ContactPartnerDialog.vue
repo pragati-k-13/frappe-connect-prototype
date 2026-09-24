@@ -9,7 +9,6 @@ import {
   Progress,
   Select,
   Textarea,
-  Tooltip,
 } from 'frappe-ui'
 // Reached for directly because frappe-ui's `Dialog` renders `message` only as
 // the FALLBACK content of its default slot — so any dialog with a body of its
@@ -535,17 +534,15 @@ const send = () => {
               label="Project"
               :options="projectOptions"
             />
-            <Tooltip text="Manage project">
-              <Button
-                class="shrink-0 self-end"
-                variant="ghost"
-                size="sm"
-                aria-label="Manage project"
-                @click="manage"
-              >
-                <template #icon><LucideArrowUpRight class="size-4" /></template>
-              </Button>
-            </Tooltip>
+            <Button
+              class="shrink-0 self-end"
+              variant="ghost"
+              size="sm"
+              label="Manage"
+              @click="manage"
+            >
+              <template #suffix><LucideArrowUpRight class="size-4" /></template>
+            </Button>
           </div>
 
           <dl :class="picking ? 'mt-4 space-y-2' : 'space-y-2'">
@@ -565,17 +562,15 @@ const send = () => {
               <dt class="w-32 shrink-0 text-ink-gray-5">Project name</dt>
               <dd class="flex min-w-0 items-center gap-1 font-medium text-ink-gray-8">
                 <span class="min-w-0">{{ project?.name }}</span>
-                <Tooltip text="Manage project">
-                  <Button
-                    class="-my-1 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-                    variant="ghost"
-                    size="sm"
-                    aria-label="Manage project"
-                    @click="manage"
-                  >
-                    <template #icon><LucideArrowUpRight class="size-4" /></template>
-                  </Button>
-                </Tooltip>
+                <Button
+                  class="-my-1 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                  variant="ghost"
+                  size="sm"
+                  label="Manage"
+                  @click="manage"
+                >
+                  <template #suffix><LucideArrowUpRight class="size-4" /></template>
+                </Button>
               </dd>
             </div>
 

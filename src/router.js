@@ -180,6 +180,14 @@ const routes = [
     name: 'pack',
     component: () => import('./pages/PackDetailPage.vue'),
   },
+  // Everything the account has bookmarked — where the home screen's "View all"
+  // goes. Under the listing because a saved partner is still a directory entry.
+  // A static segment outranks `:id` in Vue Router, so no partner slug is shadowed.
+  {
+    path: '/connect/partners/saved',
+    name: 'saved-partners',
+    component: () => import('./pages/SavedPartnersPage.vue'),
+  },
   // Nested under the listing so the URL carries the depth the breadcrumb shows.
   // `:id` is the partner slug — the same id that resolves their logo file.
   {

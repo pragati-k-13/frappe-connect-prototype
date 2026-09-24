@@ -1,12 +1,14 @@
 <script setup>
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { Badge, Button, Tooltip } from 'frappe-ui'
+import { Avatar, Badge, Button } from 'frappe-ui'
+import TierIcon from './TierIcon.vue'
 import IconPlus from '~icons/lucide/plus'
 import IconChevron from '~icons/lucide/chevron-right'
 import IconProject from '~icons/lucide/binoculars'
 import IconHeart from '~icons/lucide/heart'
 import IconComment from '~icons/lucide/message-square'
+import { logoFor } from '../data/logos'
 import { EVENTS, FEATURED_GUIDE, GUIDE_CARDS, GUIDE_ROWS } from '../data/home'
 import { serviceOf, stageOf, windowFor } from '../data/project'
 import { useConnectStore } from '../stores/connect'
@@ -64,7 +66,7 @@ const factsFor = (project) => {
   if (project.service === 'custom') {
     const bids = project.bids ?? []
     const facts = [
-      `${bids.filter((b) => b.state === 'shortlisted').length} shortlisted`,
+      `${bids.filter((b) => b.state === 'shortlisted').length} interested`,
       `${bids.length} ${bids.length === 1 ? 'quote' : 'quotes'}`,
     ]
     const chosen = bids.find((b) => b.partnerId === project.partnerId)
@@ -83,6 +85,14 @@ const factsFor = (project) => {
 
 const badgeFor = (project) => stageOf(project.service, project.stage) ?? null
 const serviceFor = (project) => serviceOf(project.service)
+
+// Saved partners: the first few, newest first, and "View all" once there are
+// more than fit. The home screen is a way back to them, not the list itself —
+// the rows here carry only who they are, and the full `PartnerRow`s live on
+// `/connect/partners/saved`.
+const SAVED_SHOWN = 3
+const saved = computed(() => store.savedPartners)
+const savedShown = computed(() => saved.value.slice(0, SAVED_SHOWN))
 
 // ⚠️ `?new=1`, NOT A SEPARATE ROUTE. `/connect` is the landing page for a
 // visitor and this dashboard for a customer, and starting something new is the
@@ -103,11 +113,9 @@ const startSomething = () => router.push({ path: '/connect', query: { new: '1' }
            puts a `+` here rather than a labelled button, which works because it
            is the one thing this screen starts. The tooltip carries the label a
            `+` cannot, and `aria-label` carries it for anyone not hovering. -->
-      <Tooltip text="Start something new">
-        <Button variant="subtle" aria-label="Start something new" @click="startSomething">
-          <IconPlus class="size-4" />
-        </Button>
-      </Tooltip>
+      <Button variant="subtle" label="Start something new" @click="startSomething">
+        <template #prefix><IconPlus class="size-4" /></template>
+      </Button>
     </div>
 
     <!-- ── Projects ──────────────────────────────────────────────────── -->
@@ -160,6 +168,57 @@ const startSomething = () => router.push({ path: '/connect', query: { new: '1' }
       <Button class="mt-4" variant="solid" label="Get a recommendation" @click="startSomething" />
     </div>
 
+    <!-- ── Saved partners ────────────────────────────────────────────── -->
+    <!-- Hidden when empty: the bookmark on each partner is how this fills,
+         and an empty section here would be a hint about a control on another
+         screen. -->
+    <section v-if="saved.length" class="mt-12">
+      <div class="flex items-center justify-between gap-4">
+        <h2 class="text-base font-medium text-ink-gray-8">Saved partners</h2>
+        <Button
+          v-if="saved.length > SAVED_SHOWN"
+          variant="ghost"
+          size="sm"
+          :label="`View all ${saved.length}`"
+          :route="{ name: 'saved-partners' }"
+        />
+      </div>
+      <div class="mt-3 grid gap-3 sm:grid-cols-3">
+        <RouterLink
+          v-for="p in savedShown"
+          :key="p.id"
+          :to="{ name: 'partner', params: { id: p.id } }"
+          class="flex items-center gap-3 rounded-6 border border-outline-gray-2 p-3 transition-colors hover:bg-surface-gray-1"
+        >
+          <!-- The same mark as the directory row: logo if there is one,
+               initials on the brand colour if not. -->
+          <Avatar
+            v-if="logoFor(p.id)"
+            :image="logoFor(p.id)"
+            :label="`${p.name} logo`"
+            size="2xl"
+            shape="square"
+            class="fc-logo-avatar"
+          />
+          <span
+            v-else
+            class="flex size-10 shrink-0 items-center justify-center rounded-4 text-xs font-semibold text-white"
+            :style="{ backgroundColor: p.color }"
+            aria-hidden="true"
+          >
+            {{ p.initials }}
+          </span>
+          <span class="min-w-0">
+            <span class="flex items-center gap-1.5">
+              <span class="truncate text-p-base font-medium text-ink-gray-8">{{ p.name }}</span>
+              <TierIcon :tier="p.tier" />
+            </span>
+            <span class="mt-0.5 block truncate text-p-sm text-ink-gray-6">{{ p.city }}</span>
+          </span>
+        </RouterLink>
+      </div>
+    </section>
+
     <!-- ── Resources ─────────────────────────────────────────────────── -->
     <section class="mt-12">
       <h2 class="text-base font-medium text-ink-gray-8">Resources</h2>
@@ -198,7 +257,7 @@ const startSomething = () => router.push({ path: '/connect', query: { new: '1' }
         <span class="mt-2 flex items-center gap-2 text-p-sm text-ink-gray-5">
           By Frappe
           <span aria-hidden="true">·</span>
-          <span class="uppercase tracking-wide">{{ FEATURED_GUIDE.tag }}</span>
+          <span>{{ FEATURED_GUIDE.tag }}</span>
         </span>
       </a>
 
@@ -219,7 +278,7 @@ const startSomething = () => router.push({ path: '/connect', query: { new: '1' }
               <span class="mt-2 flex items-center gap-2 text-p-sm text-ink-gray-5">
                 By Frappe
                 <span aria-hidden="true">·</span>
-                <span class="uppercase tracking-wide">{{ row.tag }}</span>
+                <span>{{ row.tag }}</span>
               </span>
               <!-- ⚠️ INVENTED FIGURES. They are in the design so they are here,
                    and they assert engagement nobody measured — the partners

@@ -55,7 +55,9 @@ const route = useRoute()
 function switchTo(role) {
   store.setRole(role)
   store.reset()
-  router.push('/')
+  // The partner side has one screen, and the website is the business's front
+  // door, not theirs.
+  router.push(role === 'partner' ? '/connect/messages' : '/')
 }
 
 // Switching account state does NOT reset or navigate, unlike switching role.
@@ -119,11 +121,9 @@ const options = computed(() => [
       },
       {
         label: 'Partner',
-        // Present but inert: the product has two sides, and hiding the second
-        // one would misrepresent its shape. Disabled says "later", not "no".
-        description: 'Not in this prototype',
+        // Messages only, so far: Software@Work's inbox. See `data/partnerView.js`.
+        description: 'Messages, as Software@Work',
         icon: check('partner'),
-        disabled: true,
         onClick: () => switchTo('partner'),
       },
     ],

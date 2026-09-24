@@ -72,7 +72,9 @@ const reco = computed(() => recommendationFor(store.company))
 // Which half is showing. Starts at the verdict and can be overridden; it does
 // NOT follow `reco` afterwards, because someone who has deliberately switched
 // to the other path should not be snapped back by a recomputation.
-const view = ref(reco.value.verdict)
+// `?view=custom` is the project page's way in: a project that is already custom
+// work opens on the requirements form, not on whatever the verdict says.
+const view = ref(route.query.view === 'custom' ? 'custom' : reco.value.verdict)
 
 // ⚠️ IS THIS STILL THE RECOMMENDATION, OR THE OVERRIDE? The screen has to know,
 // because everything above the fold is a CLAIM and a claim about the path the
@@ -211,7 +213,7 @@ const send = () => {
   const id = store.startCustomProject()
   const result = store.broadcastBrief(id)
   toast.success(`Sent to ${result.sent} ${result.sent === 1 ? 'partner' : 'partners'}`, {
-    description: 'Their replies come back as quotes you can shortlist or pass on.',
+    description: 'Their replies come back as quotes. Mark the ones you want to take forward as Interested.',
   })
   // ⚠️ A RECEIPT, not the tracker. Sending used to land on the project page —
   // a screen about work that has not started, reached from a decision screen,
@@ -611,7 +613,7 @@ watch(view, () => {
                 <template #prefix><IconSend class="size-4" /></template>
               </Button>
               <p class="mt-3 text-p-sm leading-relaxed text-ink-gray-5">
-                They see your requirements and budget, not your company name.
+                They see your answers and requirements, not your company name or contact details.
               </p>
             </div>
           </aside>

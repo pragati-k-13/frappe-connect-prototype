@@ -42,6 +42,8 @@ import ConnectMark from './ConnectMark.vue'
 import FeedbackDialog from './FeedbackDialog.vue'
 import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
+import { PARTNERS } from '../data/partners'
+import { PARTNER_SELF } from '../data/partnerView'
 
 const store = useConnectStore()
 const { requireAccount } = useAuthGate()
@@ -77,12 +79,21 @@ const inProjects = computed(() => PROJECT_ROUTES.has(route.name))
 // directory had no row of its own — which was true while /connect WAS a partner
 // list behind two questions. It is the intake and the recommendation now, so
 // the two are separate places and each has its row.
-const DIRECTORY_ROUTES = new Set(['results', 'partner'])
+const DIRECTORY_ROUTES = new Set(['results', 'partner', 'saved-partners'])
 const inDirectory = computed(() => DIRECTORY_ROUTES.has(route.name))
 
 // The front door: the questions, and the answer they produce.
 const HOME_ROUTES = new Set(['connect', 'recommendation'])
 const inHome = computed(() => HOME_ROUTES.has(route.name))
+
+const partnerSelfName = PARTNERS.find((p) => p.id === PARTNER_SELF.partnerId)?.name ?? ''
+
+// The partner side has one screen so far, Messages, so it keeps the rail's
+// first group and none of the business destinations under it.
+const shellSubtitle = computed(() => {
+  if (store.role === 'partner') return `${PARTNER_SELF.person}, ${partnerSelfName}`
+  return store.signedIn ? store.viewer.name : undefined
+})
 
 // The header is already a Dropdown trigger — `SidebarHeader` takes `menuItems`
 // and renders the chevron itself, so clicking the logo opens this rather than
@@ -204,7 +215,7 @@ defineProps({
            visitor what they could already see. -->
       <SidebarHeader
         title="Frappe Connect"
-        :subtitle="store.signedIn ? store.viewer.name : undefined"
+        :subtitle="shellSubtitle"
         :menu-items="logoMenu"
       >
         <!-- `lg` is 28px, exactly SidebarHeader's own logo frame
@@ -374,7 +385,7 @@ defineProps({
              Find partners takes a building, not a magnifying glass: the item is
              the directory of partner companies, and search is a control that
              lives inside it. -->
-        <nav class="mt-4 space-y-0.5">
+        <nav v-if="store.role !== 'partner'" class="mt-4 space-y-0.5">
           <!-- ⚠️ HOME IS LIVE NOW, AND IT IS FOR EVERYONE. It was an inert row
                shown only to signed-in accounts, on the reasoning that a visitor
                who arrived from a marketing page has nothing to come home to.
@@ -551,7 +562,7 @@ defineProps({
                `store.signedIn` rather than `store.account` keeps the enum in
                the store — see `stores/connect.js`. -->
           <Button
-            v-if="!store.signedIn"
+            v-if="!store.signedIn && store.role !== 'partner'"
             variant="ghost"
             class="-mr-2"
             label="Log in or create account"
