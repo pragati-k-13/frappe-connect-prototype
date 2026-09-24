@@ -2,14 +2,20 @@
 import { computed } from 'vue'
 import { Button, Dialog, toast } from 'frappe-ui'
 import IconExternal from '~icons/lucide/arrow-up-right'
-import { APPS_OTHER, operationsLabel, problemLabels } from '../data/company'
+import { appsInUse, operationsLabel, problemLabels } from '../data/company'
 import { useConnectStore } from '../stores/connect'
 
 // What the partner received, shown back to the sender. READ ONLY, deliberately:
 // this is a record of what was already sent, and a form here would let someone
 // edit a message after it landed. Changing the company profile belongs in
 // settings, which is why the footer points there.
-const props = defineProps({ open: { type: Boolean, required: true } })
+const props = defineProps({
+  open: { type: Boolean, required: true },
+  // The thread began with shared requirements, which already carried every
+  // answer but who the company is. What a shortlist adds is the name and the
+  // way to reach them, so that is all this lists.
+  withRequirements: { type: Boolean, default: false },
+})
 const emit = defineEmits(['close'])
 
 const store = useConnectStore()
@@ -32,13 +38,19 @@ const store = useConnectStore()
 // when they picked it and named nothing.
 const rows = computed(() => {
   const c = store.company
-  const apps = (c.apps ?? []).map((a) => (a === APPS_OTHER && c.appsOther ? c.appsOther : a))
+  if (props.withRequirements) {
+    return [
+      { label: 'Company name', value: c.name || store.viewer.company },
+      { label: 'Contact', value: store.viewer.name },
+      { label: 'Email', value: store.viewer.email },
+    ]
+  }
   return [
     { label: 'Company name', value: c.name || store.viewer.company },
     { label: 'Industry', value: c.segments?.join(', ') },
     { label: 'No. of employees', value: c.employees },
     { label: 'Current operations', value: operationsLabel(c.operations) },
-    { label: 'Apps in use', value: apps.join(', ') },
+    { label: 'Apps in use', value: appsInUse(c).join(', ') },
     { label: 'Problems to solve', value: problemLabels(c.problems).join(', ') },
   ]
 })
@@ -77,7 +89,11 @@ const openSettings = () =>
       </dl>
 
       <p class="mt-5 text-p-sm text-ink-gray-5">
-        These details were shared with the partner when the pack was booked.
+        {{
+          withRequirements
+            ? 'Shared when you said you were interested. Everything else went with your requirements.'
+            : 'These details are shared with the partner.'
+        }}
       </p>
     </template>
 

@@ -91,13 +91,9 @@ const create = () => {
     <template #default>
       <div class="space-y-5">
         <div>
-          <label for="np-name" class="text-p-sm font-medium text-ink-gray-7">
-            What are you building?
-          </label>
           <TextInput
-            id="np-name"
             v-model="name"
-            class="mt-1.5"
+            label="What are you building?"
             size="md"
             placeholder="ERP rollout"
             @keyup.enter="create"
@@ -106,7 +102,7 @@ const create = () => {
 
         <div>
           <div class="flex items-baseline justify-between gap-3">
-            <span class="text-p-sm font-medium text-ink-gray-7">What does it cover?</span>
+            <span class="text-sm text-ink-gray-6">What does it cover?</span>
             <!-- ⚠️ "Optional" stated, not implied by the absence of a required
                  mark. This is the one field someone will stall on — it is a
                  question about a system they have not bought yet — and the

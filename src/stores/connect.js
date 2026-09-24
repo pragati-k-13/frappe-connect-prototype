@@ -15,6 +15,7 @@ import {
 } from '../data/messages'
 import { demoProjects, inquiryName, nextStage, projectName, stagesFor } from '../data/project'
 import { modulesFor } from '../data/modules'
+import { sharedAnswers } from '../data/company'
 import { INDUSTRIES } from '../data/quiz'
 import { emptyBrief, matchingPartners } from '../data/custom'
 import { bidFor, repliesToBrief } from '../data/bids'
@@ -489,6 +490,13 @@ export const useConnectStore = defineStore('connect', {
     // partner, and `saved` is a plain array of ids so `includes` is the whole
     // check.
     isSaved: (state) => (id) => state.saved.includes(id),
+    // The saved partners themselves, newest first. `saved` appends, and the
+    // one you bookmarked last is the one you are most likely coming back for.
+    savedPartners: (state) =>
+      [...state.saved]
+        .reverse()
+        .map((id) => PARTNERS.find((p) => p.id === id))
+        .filter(Boolean),
 
     // A stand-in for GeoIP. Real implementations resolve this server-side on
     // first paint; the mock hardcodes the common case so the interaction (a
@@ -634,6 +642,10 @@ export const useConnectStore = defineStore('connect', {
       // service at all, and one whose partner has not been picked yet. Three
       // of the four would leave a state with no way to see it.
       this.projects = account === 'client' ? demoProjects() : []
+      // More than the home screen shows, so both signed-in personas
+      // reach "View all" without having to bookmark anything first.
+      this.saved =
+        account === 'visitor' ? [] : ['korecent', 'navari', 'alyf', 'hybrowlabs', 'wahni']
       // ⚠️ SEEDED for the signed-in personas, because they are meant to read as
       // accounts that finished onboarding — `viewer.company` has said Northwind
       // all along, and `company` saying nothing made the store disagree with
@@ -706,13 +718,7 @@ export const useConnectStore = defineStore('connect', {
           project: project.name,
           scope:
             this.brief.scope ||
-            'Barcode scanning on goods receipt, wired into our WMS. Today it is a numbered folder per delivery and a spreadsheet nobody trusts, so stock on hand is a guess by Friday.',
-          customers:
-            this.brief.customers ||
-            'Rail and defence subcontractors. We are audited against IRIS and ISO 9001 every year.',
-          mustSatisfy:
-            this.brief.mustSatisfy ||
-            'Tally for the opening balances, e-invoicing, and a part-by-part audit trail we can show an auditor.',
+            'Barcode scanning on goods receipt, wired into our WMS. Today it is a numbered folder per delivery and a spreadsheet nobody trusts, so stock on hand is a guess by Friday. We supply rail and defence subcontractors and are audited against IRIS and ISO 9001 every year, so it needs e-invoicing, opening balances from Tally, and a part-by-part audit trail we can show an auditor.',
           modules: project.modules ?? {},
           budget: this.brief.budget || 'inr-2',
           cities: [...(this.brief.cities ?? [])],
@@ -722,6 +728,7 @@ export const useConnectStore = defineStore('connect', {
           country: this.company.country,
           employees: this.company.employees,
           segments: this.company.segments,
+          ...sharedAnswers(this.company),
         }
         for (const partner of partners) {
           if (!this.threads.some((t) => t.partnerId === partner.id)) {
@@ -923,6 +930,10 @@ export const useConnectStore = defineStore('connect', {
       const first = bids[0] && this.threads.find((t) => t.partnerId === bids[0].partnerId)
       if (first) {
         const partner = PARTNERS.find((p) => p.id === bids[0].partnerId)
+        // `setBidState` stamps the share with the real now, which put it AFTER
+        // the reply below. Seeded history has to read in order.
+        const shared = first.messages.findLast((m) => m.kind === 'company')
+        if (shared) shared.at = Date.now() - 3 * 3600 * 1000
         first.messages.push({
           id: `m-sl-${bids[0].partnerId}`,
           from: 'them',
@@ -1083,6 +1094,13 @@ export const useConnectStore = defineStore('connect', {
 
     // Appends to the thread and returns nothing: the screen reads the store
     // back rather than being told what it just sent.
+    // Archived threads sit under Inactive whatever their age. A flag rather
+    // than a delete: the thread is a record of what was said to a partner.
+    setArchived(threadId, archived) {
+      const thread = this.threads.find((t) => t.id === threadId)
+      if (thread) thread.archived = archived
+    },
+
     sendMessage(threadId, body) {
       const text = body.trim()
       if (!text) return
@@ -1406,11 +1424,6 @@ export const useConnectStore = defineStore('connect', {
         projectId: id,
         project: project.name,
         scope: this.brief.scope.trim(),
-        // The two named prompts beside the scope — see `emptyBrief`. Trimmed
-        // and carried even when empty, so a card built from an older brief and
-        // one built today have the same shape.
-        customers: (this.brief.customers ?? '').trim(),
-        mustSatisfy: (this.brief.mustSatisfy ?? '').trim(),
         // ⚠️ THE MODULES GO TOO, and leaving them out was the broadcast quietly
         // sending less than the customer wrote. A project's scope is written in
         // two passes — the modules ticked when it was created, the paragraph
@@ -1438,6 +1451,8 @@ export const useConnectStore = defineStore('connect', {
         country: this.company.country,
         employees: this.company.employees,
         segments: this.company.segments,
+        // Everything the intake asked except who they are — see `sharedAnswers`.
+        ...sharedAnswers(this.company),
       }
 
       const threads = []

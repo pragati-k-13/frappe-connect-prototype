@@ -51,7 +51,7 @@ const coverFor = (i) => covers[i % covers.length]
         :alt="coverFor(stories.pinned.cover).alt"
         class="aspect-[4/1] w-full rounded-5 bg-surface-gray-2 object-cover"
       />
-      <p class="mt-3 text-p-xs uppercase tracking-wide text-ink-gray-5">
+      <p class="mt-3 text-p-xs text-ink-gray-5">
         {{ stories.pinned.segment }}
       </p>
       <p class="mt-1 text-base text-ink-gray-7">{{ stories.pinned.title }}</p>
@@ -79,7 +79,7 @@ const coverFor = (i) => covers[i % covers.length]
           :alt="coverFor(s.cover).alt"
           class="aspect-[2/1] w-full rounded-4 bg-surface-gray-2 object-cover"
         />
-        <p class="mt-3 text-p-xs uppercase tracking-wide text-ink-gray-5">{{ s.segment }}</p>
+        <p class="mt-3 text-p-xs text-ink-gray-5">{{ s.segment }}</p>
         <!-- `ink-7`, the same as the pinned story's title above. What separates
              the pinned one is its 4:1 cover and its `text-base`; the ink is the
              same across the whole section, so a card title never competes with

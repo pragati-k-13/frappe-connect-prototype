@@ -343,7 +343,7 @@ const confirm = () => {
               <div class="p-2">
                 <div role="grid" aria-label="Calendar dates" class="text-base text-ink-gray-9">
                   <div
-                    class="mb-1 flex items-center gap-0.5 text-xs-medium uppercase text-ink-gray-4"
+                    class="mb-1 flex items-center gap-0.5 text-xs-medium text-ink-gray-4"
                   >
                     <div
                       v-for="(d, di) in WEEKDAYS"

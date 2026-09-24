@@ -194,3 +194,27 @@ export const operationsLabel = (value) => OPERATIONS.find((o) => o.value === val
 
 export const problemLabels = (values) =>
   (values ?? []).map((v) => PROBLEMS.find((p) => p.value === v)?.label).filter(Boolean)
+
+// "Something else" is the option, not the answer: when they named the app,
+// the name is what gets shown.
+export const appsInUse = (company) =>
+  (company?.apps ?? []).map((a) => (a === APPS_OTHER && company.appsOther ? company.appsOther : a))
+
+// The answers that go out with a broadcast, anonymously, beside the scope.
+// ⚠️ EVERYTHING BUT WHO THEY ARE. Operations, apps and problems describe
+// thousands of businesses and are what a partner prices against; the name and
+// the contact are what a dozen firms could use to call, and those wait for a
+// shortlist.
+export const sharedAnswers = (company) => ({
+  operations: company?.operations ?? '',
+  apps: appsInUse(company),
+  problems: [...(company?.problems ?? [])],
+})
+
+// The same answers as label/value rows, for any surface that prints a brief.
+export const answerRows = (brief) =>
+  [
+    { label: 'Current operations', value: operationsLabel(brief?.operations) },
+    { label: 'Apps in use', value: (brief?.apps ?? []).join(', ') },
+    { label: 'Problems to solve', value: problemLabels(brief?.problems).join(', ') },
+  ].filter((r) => r.value)

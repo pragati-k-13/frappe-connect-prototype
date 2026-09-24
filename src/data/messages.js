@@ -348,7 +348,7 @@ export const threadStatus = (thread, bidState = null) => {
 export const STATUS_LABELS = {
   declined: { label: 'Declined', theme: 'gray' },
   quoted: { label: 'Quoted', theme: 'blue' },
-  shortlisted: { label: 'Shortlisted', theme: 'green' },
+  shortlisted: { label: 'Interested', theme: 'green' },
   'not-interested': { label: 'Not interested', theme: 'gray' },
   awaiting: { label: 'Awaiting reply', theme: 'gray' },
 }

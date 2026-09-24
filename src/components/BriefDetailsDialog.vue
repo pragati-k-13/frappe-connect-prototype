@@ -3,11 +3,12 @@ import { computed } from 'vue'
 import { Dialog } from 'frappe-ui'
 import { budgetLabel, criteriaLines } from '../data/custom'
 import { scopeSentence } from '../data/modules'
+import { answerRows } from '../data/company'
 
 // Everything on a brief that is not the first thing you need from it.
 //
 // ⚠️ THE CARD WAS PRINTING ALL OF IT, and a requirement now carries the scope,
-// two optional answers, the modules, a budget, an industry, a headcount and
+// the modules, a budget, an industry, a headcount and
 // five criteria. A partner scanning an inbox reads a card to decide whether to
 // read the brief; a card that is already the brief has nothing left to open and
 // buries the three facts that decision is made on.
@@ -44,7 +45,7 @@ const rows = computed(() => {
     { label: 'Budget', value: budgetLabel(b.budget) },
     { label: 'Industry', value: b.segments?.[0] ?? '' },
     { label: 'Size', value: b.employees ? `${b.employees} people` : '' },
-  ].filter((r) => r.value)
+  ].filter((r) => r.value).concat(answerRows(b))
 })
 </script>
 
@@ -66,25 +67,9 @@ const rows = computed(() => {
           </p>
         </div>
 
-        <!-- The two named prompts, each under its own question. Absent when
-             unanswered, because a heading over nothing is worse than no
-             heading. -->
-        <div v-if="brief.customers">
-          <p class="text-p-sm text-ink-gray-5">Who they sell to</p>
-          <p class="mt-1 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-8">
-            {{ brief.customers }}
-          </p>
-        </div>
-        <div v-if="brief.mustSatisfy">
-          <p class="text-p-sm text-ink-gray-5">Must connect to, or prove</p>
-          <p class="mt-1 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-8">
-            {{ brief.mustSatisfy }}
-          </p>
-        </div>
-
         <dl v-if="rows.length" class="space-y-1.5 border-t border-outline-gray-2 pt-4">
           <div v-for="row in rows" :key="row.label" class="flex gap-6 text-p-base">
-            <dt class="w-28 shrink-0 text-ink-gray-5">{{ row.label }}</dt>
+            <dt class="w-36 shrink-0 text-ink-gray-5">{{ row.label }}</dt>
             <dd class="text-ink-gray-8">{{ row.value }}</dd>
           </div>
         </dl>
