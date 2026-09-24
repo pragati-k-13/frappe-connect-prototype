@@ -1095,14 +1095,6 @@ export const useConnectStore = defineStore('connect', {
       return true
     },
 
-    // Setup is the whole spine now, so finishing its last step leaves the
-    // project under way with the partner — not on a step, since nothing in
-    // that stretch is something this product can track.
-    finishSetup(id) {
-      const project = this.projects.find((p) => p.id === id)
-      if (project && !project.setupDoneAt) project.setupDoneAt = Date.now()
-    },
-
     completeProject(id) {
       const project = this.projects.find((p) => p.id === id)
       if (project && !project.completedAt) project.completedAt = Date.now()

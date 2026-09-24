@@ -152,15 +152,6 @@ const created = computed(() => {
             label="Completed"
             class="shrink-0"
           />
-          <!-- Setup done, the partner working: no step to name. -->
-          <Badge
-            v-else-if="project.setupDoneAt"
-            variant="subtle"
-            theme="orange"
-            size="sm"
-            label="In progress"
-            class="shrink-0"
-          />
           <Badge
             v-else-if="stage"
             variant="subtle"

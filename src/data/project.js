@@ -181,8 +181,8 @@ const hostingTasks = (prefix = '') => [
 
 // ⚠️ TWO STEPS, AND BOTH ARE SETUP. Data preparation, configuration and
 // go-live happen between the business and the partner, where this product has
-// no visibility — so there is no step for them. Once setup is done the project
-// is simply under way (`setupDoneAt`) until the business marks it complete.
+// no visibility — so there is no step for them. The last step's button marks
+// the project complete.
 const PACK_STAGES = [
   {
     key: 'confirmed',

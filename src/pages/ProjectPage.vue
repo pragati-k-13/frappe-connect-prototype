@@ -243,11 +243,6 @@ const advance = () => {
   if (moved) toast.success(`Moved to ${moved.label}`)
 }
 
-const finishSetup = () => {
-  store.finishSetup(project.value.id)
-  toast.success('Setup done')
-}
-
 // The project ends when the business says the work is done, and that is the
 // moment the public review is asked for.
 const complete = () => {
@@ -332,18 +327,16 @@ const complete = () => {
                   @click="advance"
                 />
               </div>
-              <!-- The last step's Continue finishes setup: the project is then
-                   under way until the business says the work is done. -->
-              <div v-else-if="!next && !project.setupDoneAt" class="mt-4">
+              <!-- The last step ends the project: nothing after setup is
+                   something this product can track, so there is no screen for
+                   it — the business says when the work is done. -->
+              <div v-else-if="!next && !project.completedAt" class="mt-4">
                 <Button
                   variant="solid"
-                  label="Continue"
+                  label="Mark as complete"
                   :disabled="!yoursDone"
-                  @click="finishSetup"
+                  @click="complete"
                 />
-              </div>
-              <div v-else-if="!project.completedAt" class="mt-4">
-                <Button variant="solid" label="Mark as complete" @click="complete" />
               </div>
             </template>
             <!-- ⚠️ A DRAFT IS ITS RECOMMENDATION: the recommendation screen,

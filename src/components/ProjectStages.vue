@@ -44,14 +44,9 @@ const props = defineProps({
 
 const emit = defineEmits(['act', 'terms'])
 
-// ⚠️ PAST THE LAST STEP. Once setup is done the work is between the business
-// and the partner, where nothing is trackable — so the bar reads as a state,
-// not a step, and there are no tasks under it. See `finishSetup`.
-const state = computed(() => {
-  if (props.project.completedAt) return 'Completed'
-  if (props.project.setupDoneAt) return 'In progress'
-  return null
-})
+// ⚠️ NO SCREEN PAST THE LAST STEP. After setup the work is between the
+// business and the partner, where nothing is trackable, so the page stays on
+// the last step, whose button marks the project complete.
 
 const stages = computed(() => stagesFor(props.project.service))
 const progress = computed(() => stageProgress(props.project.service, props.project.stage))
@@ -77,7 +72,7 @@ const percent = computed(() =>
          progress bar is the caption every generic page puts above every block. -->
     <Progress
       :value="percent"
-:label="state ?? current.label"
+:label="current.label"
       :intervals="true"
       :interval-count="stages.length"
       size="md"
@@ -85,14 +80,14 @@ const percent = computed(() =>
       <!-- The count, in the slot the component keeps for it. It is not a
            repetition of the bar: the segments say how far, this says how far
            out of how many, and the second is the one you can say out loud. -->
-      <template v-if="!state" #hint>
+      <template #hint>
         <span class="text-base tabular-nums text-ink-gray-5">
           Step {{ currentIndex + 1 }} of {{ stages.length }}
         </span>
       </template>
     </Progress>
 
-    <div v-if="!state && current.yours?.length" class="mt-4">
+    <div v-if="current.yours?.length" class="mt-4">
       <ProjectTasks
         :tasks="current.yours"
         :project="project"
