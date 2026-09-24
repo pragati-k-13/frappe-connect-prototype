@@ -67,11 +67,3 @@ export const methodBy = (value) => PAYMENT_METHODS.find((m) => m.value === value
 // can't be designed against. Same reasoning, and roughly the same duration, as
 // `AUTH_MS` on the auth screens.
 export const PAYMENT_MS = 1800
-
-// The line under the pay button. It is a claim about the ARCHITECTURE rather
-// than a reassurance: the provider hosts the sheet, so the details are entered
-// on their page and this application never receives them. Keep it true of
-// whatever ships — if a build ever collects a card number itself, this line
-// comes out first.
-export const PAYMENT_ASSURANCE =
-  "Authorised on your bank's page. We never see your card or UPI details."

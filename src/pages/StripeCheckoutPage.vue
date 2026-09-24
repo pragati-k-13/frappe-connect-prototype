@@ -22,12 +22,12 @@
 // on `PaymentMethodPicker`.
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Button, Spinner, toast } from 'frappe-ui'
+import { Button, Spinner, TabButtons, toast } from 'frappe-ui'
 import IconLock from '~icons/lucide/lock'
 import IconArrowLeft from '~icons/lucide/arrow-left'
 import { PARTNERS } from '../data/partners'
 import { checkoutFor, marketFor, DEFAULT_REGION } from '../data/packs'
-import { PAYMENT_MS, PROVIDER, methodBy } from '../data/payment'
+import { PAYMENT_METHODS, PAYMENT_MS, PROVIDER, methodBy } from '../data/payment'
 import { useConnectStore } from '../stores/connect'
 
 const store = useConnectStore()
@@ -37,7 +37,11 @@ const route = useRoute()
 const packs = computed(() => store.packRecords())
 const region = computed(() => marketFor(store.company.country) ?? DEFAULT_REGION)
 const bill = computed(() => checkoutFor(packs.value, region.value))
-const method = computed(() => methodBy(route.query.method) ?? methodBy('card'))
+// Chosen here, as on Stripe's own page — there is no checkout screen in front
+// of this one to choose it on.
+const methodValue = ref(methodBy(route.query.method)?.value ?? 'card')
+const method = computed(() => methodBy(methodValue.value))
+const methodTabs = PAYMENT_METHODS.map((m) => ({ label: m.label, value: m.value }))
 
 const paying = ref(false)
 
@@ -146,10 +150,8 @@ const pay = () => {
           </p>
         </div>
 
-        <h1 class="mt-8 text-p-lg font-semibold text-ink-gray-9">
-          Pay with {{ method.label }}
-        </h1>
-        <p class="mt-1 text-p-base text-ink-gray-6">{{ PROVIDER.label }} · {{ PROVIDER.blurb }}</p>
+        <h1 class="mt-8 text-p-lg font-semibold text-ink-gray-9">Payment method</h1>
+        <TabButtons v-model="methodValue" class="mt-3" :options="methodTabs" />
 
         <!-- ⚠️ `readonly`, and every value visibly fake. See the top of the
              file. These are here so the page has the shape of a checkout, not

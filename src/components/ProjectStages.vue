@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Progress } from 'frappe-ui'
-import ProjectChecklist from './ProjectChecklist.vue'
+import ProjectTasks from './ProjectTasks.vue'
 import { stageProgress, stagesFor } from '../data/project'
 
 // Where the project has got to, and what the stage it is at wants.
@@ -33,15 +33,20 @@ import { stageProgress, stagesFor } from '../data/project'
 // pack never has — writing requirements and choosing a firm — because a pack
 // arrives with a partner already assigned. Neither is forced into the other's
 // shape.
+//
+// Under the bar, the stage's tasks — see `ProjectTasks`. A stage with none
+// (choosing a partner) shows nothing here; the page puts the quotes there.
 const props = defineProps({
   project: { type: Object, required: true },
-  // Whose second column is. See `ProjectChecklist`.
-  otherParty: { type: String, default: 'Frappe' },
   // Facts the page knows that the data layer cannot reach — see `isTaskDone`.
   context: { type: Object, default: () => ({}) },
 })
 
-const emit = defineEmits(['act'])
+const emit = defineEmits(['act', 'terms'])
+
+// ⚠️ NO SCREEN PAST THE LAST STEP. After setup the work is between the
+// business and the partner, where nothing is trackable, so the page stays on
+// the last step, whose button marks the project complete.
 
 const stages = computed(() => stagesFor(props.project.service))
 const progress = computed(() => stageProgress(props.project.service, props.project.stage))
@@ -67,7 +72,7 @@ const percent = computed(() =>
          progress bar is the caption every generic page puts above every block. -->
     <Progress
       :value="percent"
-      :label="current.label"
+:label="current.label"
       :intervals="true"
       :interval-count="stages.length"
       size="md"
@@ -76,32 +81,19 @@ const percent = computed(() =>
            repetition of the bar: the segments say how far, this says how far
            out of how many, and the second is the one you can say out loud. -->
       <template #hint>
-        <span class="text-p-sm tabular-nums text-ink-gray-5">
+        <span class="text-base tabular-nums text-ink-gray-5">
           Step {{ currentIndex + 1 }} of {{ stages.length }}
         </span>
       </template>
     </Progress>
 
-    <!-- ── The stage you are at ────────────────────────────────────────────
-         ⚠️ NO BLURB. Every stage carried a sentence describing itself —
-         "Replies come back as quotes. Approve the ones worth talking to, pass
-         on the rest." — above a checklist whose first two rows are "Go through
-         the replies" and "Approve at least one". The list is the description,
-         and it is the version people actually read. -->
-    <!-- ⚠️ ONLY WHEN THERE IS SOMETHING IN IT. "Choosing a partner" has no
-         visible task until a partner is hired — the Replies list below is the
-         stage — and an empty checklist block left 20px of nothing under the
-         bar, which reads as a section that failed to load. -->
-    <div
-      v-if="current.yours?.length || current.expects || current.theirs?.length"
-      class="mt-5"
-    >
-      <ProjectChecklist
-        :stage="current"
+    <div v-if="current.yours?.length" class="mt-4">
+      <ProjectTasks
+        :tasks="current.yours"
         :project="project"
         :context="context"
-        :other-party="otherParty"
         @act="emit('act', $event)"
+        @terms="emit('terms')"
       />
     </div>
   </section>

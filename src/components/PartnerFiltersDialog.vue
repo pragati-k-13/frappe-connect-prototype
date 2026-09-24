@@ -14,18 +14,25 @@ import { useConnectStore } from '../stores/connect'
 // made a screen with one thing to do look like a screen with fifteen, and
 // offered to refine a search before the thing being searched for was written.
 //
-// ⚠️ IT WRITES STRAIGHT TO THE STORE, with no draft and no Apply. There is
+// ⚠️ IT WRITES STRAIGHT TO THE STORE — or, given a draft project's `brief`,
+// reports each change as `patch` for the draft to keep — with no Apply. There is
 // nothing to commit: every toggle is reversible, the count at the top moves
 // with it, and the screen behind shows the same number. An Apply button would
 // only introduce a state where the dialog and the page disagree.
-defineProps({
+const props = defineProps({
   open: { type: Boolean, default: false },
+  // Someone else's requirements and answers — a draft project's. Changes are
+  // then reported as `patch` instead of written to the account's.
+  brief: { type: Object, default: null },
+  answers: { type: Object, default: null },
 })
-const emit = defineEmits(['update:open'])
+const emit = defineEmits(['update:open', 'patch'])
 
 const store = useConnectStore()
-const brief = computed(() => store.brief)
-const matches = computed(() => matchingPartners(store.company, brief.value))
+const brief = computed(() => props.brief ?? store.brief)
+const company = computed(() => props.answers ?? store.company)
+const save = (patch) => (props.brief ? emit('patch', patch) : save(patch))
+const matches = computed(() => matchingPartners(company.value, brief.value))
 
 // ⚠️ THE COUNT PER OPTION, BEFORE IT IS PRESSED. Without it every chip is a
 // guess: somebody narrows to Kochi, watches the total fall to one, and has to
@@ -38,20 +45,20 @@ const matches = computed(() => matchingPartners(store.company, brief.value))
 // picked". Cities union, so that number grows as you select and the chip you
 // are looking at reports a figure that includes cities you chose earlier.
 const countFor = (key, value) =>
-  matchingPartners(store.company, { ...brief.value, [key]: [value] }).length
+  matchingPartners(company.value, { ...brief.value, [key]: [value] }).length
 
 const countForStyle = (value) =>
-  matchingPartners(store.company, { ...brief.value, workStyle: value }).length
+  matchingPartners(company.value, { ...brief.value, workStyle: value }).length
 
 const toggleIn = (key, value) => {
   const list = brief.value[key]
-  store.saveBrief({
+  save({
     [key]: list.includes(value) ? list.filter((v) => v !== value) : [...list, value],
   })
 }
 
 const clear = () =>
-  store.saveBrief({ cities: [], tiers: [], workStyle: '', timeline: '' })
+  save({ cities: [], tiers: [], workStyle: '', timeline: '' })
 
 const count = computed(
   () =>
@@ -73,7 +80,7 @@ const count = computed(
         <!-- ⚠️ INDIA ONLY, and the absence is explained rather than silent —
              see `asksCity`. Outside India the directory's biggest city holds one
              firm, so every option would return one result or none. -->
-        <div v-if="asksCity(store.company.country)">
+        <div v-if="asksCity(company.country)">
           <p class="text-sm text-ink-gray-7">City</p>
           <div class="mt-1.5 flex flex-wrap gap-2">
             <FilterChip
@@ -116,7 +123,7 @@ const count = computed(
               :key="t.value"
               :label="t.label"
               :selected="brief.timeline === t.value"
-              @toggle="store.saveBrief({ timeline: brief.timeline === t.value ? '' : t.value })"
+              @toggle="save({ timeline: brief.timeline === t.value ? '' : t.value })"
             />
           </div>
           <p class="mt-1.5 text-p-sm text-ink-gray-5">
@@ -136,7 +143,7 @@ const count = computed(
               :label="w.label"
               :count="countForStyle(w.value)"
               :selected="brief.workStyle === w.value"
-              @toggle="store.saveBrief({ workStyle: brief.workStyle === w.value ? '' : w.value })"
+              @toggle="save({ workStyle: brief.workStyle === w.value ? '' : w.value })"
             />
           </div>
         </div>

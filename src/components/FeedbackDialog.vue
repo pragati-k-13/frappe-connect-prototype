@@ -26,9 +26,18 @@ import { useConnectStore } from '../stores/connect'
 // until you know it was said on the checkout.
 const props = defineProps({
   open: { type: Boolean, default: false },
+  // Set for the project's private-feedback task, which asks about one partner
+  // rather than about anything at all.
+  title: { type: String, default: 'Tell Frappe something' },
+  intro: {
+    type: String,
+    default:
+      'Anything about Connect, the packs, or a partner you are working with. It goes to Frappe, not to your partner.',
+  },
+  placeholder: { type: String, default: 'What is on your mind?' },
 })
 
-const emit = defineEmits(['update:open'])
+const emit = defineEmits(['update:open', 'sent'])
 
 const store = useConnectStore()
 const route = useRoute()
@@ -57,6 +66,7 @@ const send = () => {
   // ⚠️ THE DIALOG CLOSES ITSELF. A "thanks" state somebody has to dismiss makes
   // them press twice to finish a thing they did as a favour. The toast carries
   // the receipt, on the screen they were already looking at.
+  emit('sent')
   emit('update:open', false)
   toast.success('Thanks — that went to Frappe', {
     description: 'We read all of it, and we will not reply unless you asked us to.',
@@ -67,16 +77,13 @@ const send = () => {
 <template>
   <Dialog
     :model-value="open"
-    title="Tell Frappe something"
+    :title="title"
     @update:model-value="emit('update:open', $event)"
   >
     <!-- Default slot, not `#body-content` — the older name fails silently; see
          the note in `NewProjectDialog`. -->
     <template #default>
-      <p class="text-p-base leading-relaxed text-ink-gray-6">
-        Anything about Connect, the packs, or a partner you are working with. It goes to Frappe,
-        not to your partner.
-      </p>
+      <p class="text-p-base leading-relaxed text-ink-gray-6">{{ intro }}</p>
 
       <div class="mt-4">
         <!-- ⚠️ NO LABEL ON THE FIELD. The heading is the question and the
@@ -85,7 +92,7 @@ const send = () => {
         <Textarea
           v-model="text"
           :rows="5"
-          placeholder="What is on your mind?"
+          :placeholder="placeholder"
           aria-label="Your feedback"
         />
       </div>

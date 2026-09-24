@@ -1,46 +1,43 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Badge, Button, Dialog, ScrollArea, toast } from 'frappe-ui'
+import { Badge, Button, Dialog, Dropdown, ScrollArea, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
-import HirePartnerDialog from '../components/HirePartnerDialog.vue'
-import PackPanel from '../components/PackPanel.vue'
-import PartnerCodeDialog from '../components/PartnerCodeDialog.vue'
-import ProjectBids from '../components/ProjectBids.vue'
-import ProjectDetailsPanel from '../components/ProjectDetailsPanel.vue'
-import ProjectPartnerPanel from '../components/ProjectPartnerPanel.vue'
-import ProjectResources from '../components/ProjectResources.vue'
 import FeedbackDialog from '../components/FeedbackDialog.vue'
+import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
+import HirePartnerDialog from '../components/HirePartnerDialog.vue'
+import NewProjectDialog from '../components/NewProjectDialog.vue'
+import PackScopeDialog from '../components/PackScopeDialog.vue'
+import PackTermsDialog from '../components/PackTermsDialog.vue'
+import ProjectAbout from '../components/ProjectAbout.vue'
+import ProjectBids from '../components/ProjectBids.vue'
+import RecommendationView from '../components/RecommendationView.vue'
 import ProjectStages from '../components/ProjectStages.vue'
 import RatePartnerDialog from '../components/RatePartnerDialog.vue'
-import IconArrowRight from '~icons/lucide/arrow-right'
-import { logoFor } from '../data/logos'
+import IconCalendar from '~icons/lucide/calendar'
+import IconMore from '~icons/lucide/ellipsis'
 import { PARTNERS } from '../data/partners'
 import { DEFAULT_REGION, STARTER_PACKS, marketFor } from '../data/packs'
-import { SERVICES, isStageDone, nextStage, serviceOf, stageOf, windowFor } from '../data/project'
+import {
+  FRAPPE_CLOUD_PARTNER_URL,
+  FRAPPE_CLOUD_URL,
+  isDraft,
+  isStageDone,
+  nextStage,
+  partnerCodeFor,
+  stageOf,
+  windowFor,
+} from '../data/project'
+import { sharedAnswers } from '../data/company'
 import { useConnectStore } from '../stores/connect'
 import { useContactPartner } from '../utils/contact'
 
-// SCREEN — one project. Where it stands, who is doing it, and what it wants
-// from you next.
+// SCREEN — one project. Where it stands, and what it wants from you next.
 //
-// ⚠️ THE ORDER OF THIS PAGE IS THE DESIGN. Who → where → what next:
-//
-//   1  the partner, because "who is doing this" is the question a tracker is
-//      opened with most often, and it is one short card
-//   2  the progress bar and the stages, which is where you stand
-//   3  inside the current stage, the checklist — what is needed from you
-//
-// The checklist is what the page is FOR, and it is third. That is deliberate:
-// it lives inside the stage it belongs to rather than floating above the spine
-// as a "next action" panel, because a task with no stage attached to it is a
-// demand without a reason. The stage is open by default, so nothing is hidden —
-// it is one scroll, not one click.
-//
-// ⚠️ A project with NO SERVICE has none of this. No partner, no spine, no
-// window — so the page shows what it is, what it covers, and one decision. A
-// progress bar over an undecided project would be inventing steps nobody has
-// agreed to.
+// ⚠️ THE WORK ON THE LEFT, THE REFERENCE ON THE RIGHT. The column is the
+// title, the step you are at, its tasks and the button that moves on. Who the
+// partner is, what was bought and where to get help are facts you check, not
+// things you do, so they are the rail — `ProjectAbout`.
 const store = useConnectStore()
 const route = useRoute()
 const router = useRouter()
@@ -50,245 +47,214 @@ const router = useRouter()
 const { messagePartner } = useContactPartner()
 
 const project = computed(() => store.projectBy(route.params.id))
-const service = computed(() => serviceOf(project.value?.service))
 const partner = computed(() => PARTNERS.find((p) => p.id === project.value?.partnerId) ?? null)
-// ⚠️ A LIST. A project holds several packs now — they are disjoint modules and
-// the recommendation ticks more than one — so every surface that used to say
-// "the pack" either takes the list or takes the first of it and says why.
+// ⚠️ A LIST. A project holds several packs — they are disjoint modules and
+// the recommendation ticks more than one.
 const packs = computed(() =>
   (project.value?.packs ?? []).map((v) => STARTER_PACKS.find((p) => p.value === v)).filter(Boolean),
 )
 const stage = computed(() => stageOf(project.value?.service, project.value?.stage))
-const timeWindow = computed(() => windowFor(project.value))
-
 const region = computed(() => marketFor(store.company.country) ?? DEFAULT_REGION)
-
-// Whose second checklist column is. The partner's FIRST NAME once there is one
-// — "Tridots is doing", not "Tridots Tech Pvt Ltd is doing", because this is a
-// sentence about people you are working with — and Frappe before that, which
-// during the custom spine's matching stages is literally true.
-const otherParty = computed(() => partner.value?.name.split(' ')[0] ?? 'Frappe')
 
 const fmtDate = (ms) => new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
-// ⚠️ TWO FACTS, AS A FRAGMENT, not four joined by middle dots. This line used
-// to read "Starter pack · Started Aug 28 · 60-day validity · 42 days left":
-// four facts of four different kinds at one weight, two of which (the service
-// and the validity term) were already stated in the panel three inches to the
-// right. The one that mattered — the countdown — came last and looked like the
-// rest of them.
+// The one time-sensitive fact, under the title. A pack counts down its
+// validity; custom work shows the accepted quote's timeline, and nothing
+// before one is accepted.
 //
-// The dot is gone with them. A two-item list joined by a comma is a sentence
-// fragment; three or more joined by dots is a data dump wearing a line of type.
-const summary = computed(() => {
-  if (!project.value) return null
-  const started = `started ${fmtDate(project.value.at)}`
-  return service.value
-    ? `${service.value.label}, ${started}`
-    : started[0].toUpperCase() + started.slice(1)
-})
-
-// The countdown, lifted out of that line and given its own.
-//
-// ⚠️ It also SAYS WHAT THE DEADLINE IS FOR, which the bare term never did.
-// "60-day validity" is the contract's name for the window; "42 days left to use
-// the pack's 70 hours" is what the window means to the person reading it, and
-// it costs the same line. The hours are real on both paths — a pack's `hours`
-// and the onboarding program's three.
-//
-// Null for custom work and for an undecided project: no window has been agreed,
-// and there is nothing honest to count down.
-const countdown = computed(() => {
-  const w = timeWindow.value
-  if (!w) return null
-  // ⚠️ The BASKET's hours, summed. Two packs bought together are one
-  // engagement against one window, so "the pack's 5 hours" would be counting
-  // down against a third of what was paid for.
-  const total = packs.value.reduce((sum, p) => sum + p.hours, 0)
-  const hours = `your ${total} hours`
-  // ⚠️ THREE STATES, not one line with a word swapped. A window running out and
-  // a window that has run out are different facts and want different sentences:
-  // the first is a countdown you can still act on, the second is a thing that
-  // has happened to you, and the tail changes with it — "to use" becomes "were
-  // not used", because they weren't.
-  //
-  // ⚠️ The colour is never the only signal. The words differ in all three
-  // states, so nothing here depends on telling amber from grey.
-  if (w.expired) {
+// ⚠️ The colour is never the only signal. The words differ between running,
+// urgent and expired, so nothing depends on telling amber from grey.
+const when = computed(() => {
+  if (project.value?.completedAt)
+    return { text: `Completed ${fmtDate(project.value.completedAt)}`, tone: 'text-ink-gray-7' }
+  const w = windowFor(project.value)
+  if (w) {
+    if (w.expired)
+      return { text: `Validity expired on ${fmtDate(w.endsAt)}`, tone: 'text-ink-red-7' }
     return {
-      lead: 'Validity expired',
-      tail: `on ${fmtDate(w.endsAt)} — ${hours} were not used`,
-      tone: 'text-ink-red-7',
+      text: w.daysLeft === 1 ? '1 day left' : `${w.daysLeft} days left`,
+      tone: w.urgent ? 'text-ink-amber-7' : 'text-ink-gray-7',
     }
   }
-  return {
-    lead: w.daysLeft === 1 ? '1 day left' : `${w.daysLeft} days left`,
-    tail: `to use ${hours}`,
-    tone: w.urgent ? 'text-ink-amber-7' : 'text-ink-gray-8',
-  }
+  const hired = (project.value?.bids ?? []).find((b) => b.partnerId === project.value?.partnerId)
+  return hired ? { text: `${hired.weeks} weeks`, tone: 'text-ink-gray-7' } : null
 })
 
-// ── No partner yet ──────────────────────────────────────────────────────────
+const reviewed = computed(() => store.feedback.some((f) => f.projectId === project.value?.id))
+
+// The requirements as they went out — the copy carried in the partners'
+// threads, so the business reads exactly what the partners read.
+// Before they have been sent, the project's own saved requirements, in the
+// same shape.
+const brief = computed(() => {
+  const sent = store.threads
+    .flatMap((t) => t.messages ?? [])
+    .find((m) => m.brief?.projectId === project.value?.id)?.brief
+  if (sent) return sent
+  const own = project.value?.brief
+  if (!own?.scope) return null
+  const company = project.value.answers ?? store.company
+  return {
+    ...own,
+    modules: project.value.modules ?? {},
+    country: company.country,
+    employees: company.employees,
+    segments: company.segments,
+    ...sharedAnswers(company),
+  }
+})
+const briefOpen = ref(false)
+
+// ── A draft ─────────────────────────────────────────────────────────────────
+// Editable and deletable until it starts — see `isDraft`.
+const draft = computed(() => isDraft(project.value))
+const editing = ref(false)
+const deleting = ref(false)
+
+const saveDraft = (details) => {
+  store.updateDraft(project.value.id, details)
+  editing.value = false
+  toast.success('Draft saved')
+}
+
+// Starting it. Booking goes through the checkout, which turns this draft into
+// the pack project (`bookingFor`); sharing makes it custom work in place.
+const bookDraft = () => {
+  store.bookPacksFor(project.value.id, project.value.packs)
+  router.push({ name: 'checkout' })
+}
+
+const shareDraft = () => {
+  const result = store.broadcastBrief(project.value.id)
+  if (!result) return
+  toast.success(`Sent to ${result.sent} ${result.sent === 1 ? 'partner' : 'partners'}`, {
+    description: 'Their quotes arrive in Messages and on this page.',
+  })
+}
+
+const deleteDraft = () => {
+  const name = project.value.name
+  if (!store.deleteDraft(project.value.id)) return
+  deleting.value = false
+  router.push('/connect/projects')
+  toast.success(`${name} deleted`)
+}
+
+const menu = computed(() => [
+  ...(draft.value
+    ? [
+        { label: 'Edit draft', icon: 'lucide-pencil', onClick: () => (editing.value = true) },
+        { label: 'Delete draft', icon: 'lucide-trash-2', onClick: () => (deleting.value = true) },
+      ]
+    : []),
+])
+
 // ── Acting on a task ────────────────────────────────────────────────────────
-const hosting = ref(false)
 const rating = ref(false)
 const feedback = ref(false)
+const termsOpen = ref(false)
+const scopeOpen = ref(false)
+const openScope = () => (scopeOpen.value = true)
 
-// ⚠️ The task's `action` names a KIND, not a handler — the data layer knows a
-// task needs a slot booked, and this is the screen that knows what booking a
-// slot looks like here. Adding a kind to `data/project.js` without a case
-// below leaves the button inert, so the default says so rather than swallowing
-// the press.
+// ⚠️ ONE-WAY, AND RECORDED BY THE ACT. Completion is written by the thing that
+// completed it — a box ticked in consent, a link followed, a code copied, a
+// dialog confirmed — never by a hand on a status mark.
+const tick = (key) => store.completeTask(project.value.id, key)
+const tickByAction = (action) => {
+  const task = (stage.value?.yours ?? []).find((t) => t.action === action)
+  if (task) tick(task.key)
+}
+
+const copyCode = async (task) => {
+  // ⚠️ Needs a partner: the code is what bills the site to THEM.
+  if (!partner.value) return toast.info('Hire a partner first')
+  const code = partnerCodeFor(project.value, partner.value)
+  try {
+    await navigator.clipboard.writeText(code)
+    toast.success('Referral code copied', { description: code })
+  } catch {
+    toast.info(`Your referral code is ${code}`, {
+      description: 'Your browser blocked the clipboard. Copy it from here.',
+    })
+  }
+  tick(task.key)
+}
+
+// ⚠️ The task's `action` names a KIND, not a handler. Adding a kind to
+// `data/project.js` without a case below leaves the button inert, so the
+// default says so rather than swallowing the press.
 const act = (task) => {
   if (!project.value) return
-  if (task.action === 'hosting') {
-    // ⚠️ Needs a partner: the code is what bills the site to THEM, so there is
-    // nothing to show before one exists. The custom spine reaches this stage
-    // only after a partner is chosen, and the guard is what holds that.
-    if (!partner.value) return toast.info('Hire a partner first')
-    // ⚠️ RECORDED ON OPEN, because the task is "take your partner code" and
-    // this is the taking. What happens on Frappe Cloud afterwards is on a
-    // different product that this one cannot see — which is exactly why the row
-    // no longer claims to be about entering it. See the note on the task.
-    tickByAction('hosting')
-    return (hosting.value = true)
-  }
-  if (task.action === 'feedback') {
-    if (!partner.value) return toast.info('No partner on this project yet')
-    return (rating.value = true)
-  }
-  // The requirements form lives on the recommendation screen, and there is only
-  // one. `view=custom` opens its custom half whatever the answers on file
-  // recommend — the project is already custom work, so the packs half would be
-  // answering a question nobody asked. Sending there reuses this project: see
-  // `startCustomProject`, which returns the open custom project if one exists.
-  if (task.action === 'brief')
-    return router.push({ name: 'recommendation', query: { view: 'custom' } })
-  if (task.action === 'message') {
-    if (!partner.value) return toast.info('No partner on this project yet')
-    return messagePartner(partner.value)
-  }
-  if (task.action === 'partners') return router.push('/connect/partners')
-  if (task.action === 'packs') return router.push('/connect/packs')
-  if (task.action === 'scope') {
-    // For a pack, the scope is the panel already standing beside this page, so
-    // the honest answer is to say where it is rather than open a second copy
-    // of it in a dialog.
-    if (packs.value.length) {
-      return toast.info('The full scope is in the panel', {
-        description: `Everything your ${packs.value.length > 1 ? 'packs cover' : 'pack covers'}, beside this page.`,
-      })
-    }
-    return toast.info('Editing scope is not built yet', {
-      description: 'This is where you would change what the project covers.',
-    })
+  switch (task.action) {
+    case 'terms':
+      return tick(task.key)
+    case 'fc-login':
+      window.open(FRAPPE_CLOUD_URL, '_blank', 'noopener')
+      return tick(task.key)
+    case 'copy-code':
+      return copyCode(task)
+    case 'fc-link':
+      window.open(FRAPPE_CLOUD_PARTNER_URL, '_blank', 'noopener')
+      return tick(task.key)
   }
   toast.info('Not built yet')
 }
 
-// ⚠️ THE "waiting" NOTICE IS GONE, and nothing was lost. It existed because
-// "Choosing a partner" showed four checkboxes nobody could tick until a quote
-// arrived, so the stage had to say so. Three of those boxes have since gone —
-// the Replies list does their job — and the fourth only appears once a partner
-// is hired. The stage is now empty while it waits, and the one thing standing
-// in it is `ProjectBids`, whose own empty state says who was written to and how
-// long they take. One sentence, in the section it is about.
+const termsAgreed = computed(() => (project.value?.done ?? []).includes('agree-terms'))
 
-// ⚠️ WHAT THE PAGE KNOWS AND THE DATA LAYER CANNOT. `data/project.js` describes
-// stages; it has no access to the message threads. "Say hello to your partner"
-// is finished when there is a message from you in that partner's thread — a
-// fact the store already holds, so the task reads it rather than keeping a
-// second copy that could say hello was said when it was not.
-const taskContext = computed(() => ({
-  messagedPartner: Boolean(
-    partner.value &&
-      store.threads
-        .find((t) => t.partnerId === partner.value.id)
-        ?.messages?.some((m) => m.from === 'you' && m.kind !== 'company'),
-  ),
-}))
-
-// Finishing a dialog ticks the task that opened it. ⚠️ Found by ACTION rather
-// than by key, so the two spines can name the same gesture differently — the
-// custom spine's hosting tasks are `custom-fc-code` and the pack's are
-// `fc-code`, and neither this page nor the dialogs should know that.
-// ⚠️ ONE-WAY, AND THE ONLY WRITER. Completion is recorded by the thing that
-// completed it — a dialog confirming, a code being taken — never by a hand on a
-// checkbox. `completeTask` is idempotent for the same reason: a second
-// confirmation of the same dialog must not un-finish the task.
-const tickByAction = (action) => {
-  const task = (stage.value?.yours ?? []).find((t) => t.action === action)
-  if (task) store.completeTask(project.value.id, task.key)
-}
-
-// ⚠️ CHOOSING IS THE END OF THE STAGE, and it asks one question on the way out.
-// One tap, four options, and it is the second of the two feedback moments in a
-// project's life — the other is the rating at go-live. What it buys is the only
-// signal that says which of price, speed, profile and responsiveness actually
-// decides these, which is what the comparison table should be sorted by and
-// currently isn't.
-// ⚠️ TWO REFS, NOT ONE, and the second is not decoration. `:model-value` used
-// to be `Boolean(chosen)` with `chosen` nulled on confirm, so for the length of
-// the fade-out the heading read "Why ?" — the partner's name gone from a dialog
-// still on screen asking about them. The record stays until another Hire
-// replaces it; nothing reads it while the dialog is shut.
+// ── Hiring, on custom work ──────────────────────────────────────────────────
+// ⚠️ TWO REFS, NOT ONE. The record stays until another Hire replaces it, so the
+// dialog's title does not empty out while it fades.
 const chosen = ref(null)
 const hiring = ref(false)
+const chosenBid = computed(
+  () => (project.value?.bids ?? []).find((b) => b.partnerId === chosen.value?.id) ?? null,
+)
 
 const choose = (partnerRecord) => {
   chosen.value = partnerRecord
   hiring.value = true
 }
 
-// ⚠️ THE TERMS AND THE HIRE ARE ONE ACT. They used to be two: `choosePartner`
-// here, and a separate `agree-terms` task sitting in the stage AFTERWARDS, so
-// the product asked you to agree the terms of an engagement you had already
-// entered. `HirePartnerDialog` collects the agreement before the commitment,
-// which is the order every other version of this has in real life, and
-// `termsAt` is what records that it happened.
+// ⚠️ THE TERMS AND THE HIRE ARE ONE ACT. `HirePartnerDialog` collects the
+// agreement before the commitment, and `termsAt` records that it happened.
 const hire = () => {
   if (!chosen.value) return
   store.choosePartner(project.value.id, chosen.value.id)
+  // ⚠️ HIRING ENDS THE STAGE, so it moves on by itself. The stage has no tasks
+  // of its own — the hire was all of it — and leaving somebody on an empty step
+  // with a "Confirm and continue" button asks them to confirm what they just did.
+  store.advanceStage(project.value.id)
   toast.success(`${chosen.value.name} is your partner`)
 }
 
 const recordWhy = (why) => store.setChooseReason(project.value.id, why)
 
-// ⚠️ NOT "every task is done" ANY MORE — see `isStageDone`. A stage with no
-// tasks satisfies that vacuously, which is correct for the weeks your data is
-// prepared and wrong for the stage whose whole job is hiring somebody.
-const yoursDone = computed(() => isStageDone(stage.value, project.value, taskContext.value))
-
-// Where "Everything on my side is done" goes next, so the button can name it.
-// Null on the last stage, where the button is not offered at all — it used to
-// appear there and toast "That was the last stage", which is a control
-// admitting it had nothing to do.
+// ── Moving on ───────────────────────────────────────────────────────────────
+// Optional tasks do not hold the step up — see `isStageDone`.
+const yoursDone = computed(() => isStageDone(stage.value, project.value))
 const next = computed(() => nextStage(project.value?.service, project.value?.stage))
 
-// ⚠️ The label NAMES THE DESTINATION and the toast repeats it back in the past
-// tense: "Move to Implementation" → "Moved to Implementation". It used to read
-// "Everything on my side is done", which is a description of a state rather
-// than an action, and it produced a toast that shared not one word with it — so
-// nothing confirmed that the thing you pressed was the thing that happened. The
-// caption underneath ("Moves the project to the next stage") was repair work
-// for a label that should have said so itself, and it is gone.
+// ⚠️ ALWAYS SHOWN WHILE THERE IS A NEXT STEP, disabled until the required
+// tasks are done. A button that appears only once it works hides what the step
+// is waiting for.
 const advance = () => {
   const moved = store.advanceStage(project.value.id)
   if (moved) toast.success(`Moved to ${moved.label}`)
 }
 
-const chooseService = (value) => {
-  store.chooseService(project.value.id, value)
-  // A pack is the one service that needs a second choice — WHICH packs — and
-  // the catalogue is where that is made. Custom work has nothing left to pick.
-  if (value === 'pack') router.push('/connect/packs')
+// The project ends when the business says the work is done, and that is the
+// moment the public review is asked for.
+const complete = () => {
+  store.completeProject(project.value.id)
+  toast.success('Project completed')
+  if (partner.value) rating.value = true
 }
 </script>
 
 <template>
-  <!-- `flush`, because the pack panel is part of the CHROME rather than a card
-       in the page: it runs the full height beside the content with its own
-       scroll. Same frame the Confirmed and Messages screens use. -->
+  <!-- `flush`, because the rail is part of the CHROME rather than a card in the
+       page: it runs the full height beside the content with its own scroll. -->
   <ConnectShell
     flush
     root-label="Projects"
@@ -298,284 +264,176 @@ const chooseService = (value) => {
     <div class="flex min-h-0 min-w-0 flex-1">
       <ScrollArea class="min-h-0 min-w-0 flex-1">
         <div class="w-full px-5 py-8 lg:px-8">
-          <!-- An id that names nothing. Same shape as the Confirmed screen's,
-               and the same reasoning: a forwarded or stale link should land
+          <!-- An id that names nothing: a forwarded or stale link should land
                somewhere it can be recovered from. -->
           <div v-if="!project" class="py-20 text-center">
-            <p class="text-p-lg font-medium text-ink-gray-8">No such project</p>
-            <p class="mx-auto mt-1.5 max-w-sm text-p-base text-ink-gray-6">
-              This link doesn't name anything you're tracking.
+            <p class="text-lg font-medium text-ink-gray-8">No such project</p>
+            <p class="mx-auto mt-1 max-w-sm text-p-base text-ink-gray-6">
+              This link doesn't match any of your projects.
             </p>
-            <Button
-              class="mt-4"
-              variant="solid"
-              label="See what's under way"
-              route="/connect/projects"
-            />
+            <Button class="mt-4" variant="solid" label="Go to projects" route="/connect/projects" />
           </div>
 
-          <!-- ⚠️ Capped at 700px and centred, rather than filling the column.
-               The pane can carry a fixed 352px panel at the right, so on a wide
-               window the rest runs past 900px and every line of body copy
-               stretches across it. `mx-auto` keeps the block off the panel's
-               edge instead of leaving all the slack on one side. -->
-          <div v-else class="mx-auto w-full max-w-[700px]">
-            <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <h1 class="text-lg font-semibold text-ink-gray-8">{{ project.name }}</h1>
-              <Badge
-                v-if="stage"
-                variant="subtle"
-                :theme="stage.theme"
-                size="sm"
-                :label="stage.label"
-              />
+          <!-- ⚠️ Capped at 700px and centred, so body copy does not stretch
+               across a wide pane beside the rail. A draft has no rail — the
+               recommendation carries its own — so it takes the recommendation
+               screen's 1080px. -->
+          <div v-else class="mx-auto w-full" :class="draft ? 'max-w-[1080px]' : 'max-w-[700px]'">
+            <!-- ⚠️ THE TITLE IS THE RAIL'S HEADING on a started project — the
+                 name heads the facts about it, and the column opens on the
+                 work. A draft has no rail, and below `lg` the rail stacks at
+                 the foot of the page, so both keep the title here. -->
+            <div class="flex items-start justify-between gap-4" :class="draft ? '' : 'lg:hidden'">
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <h1 class="text-lg font-semibold text-ink-gray-8">{{ project.name }}</h1>
+                  <Badge v-if="draft" variant="subtle" theme="gray" size="md" label="Draft" />
+                </div>
+                <p v-if="when" class="mt-2 flex items-center gap-1.5 text-base" :class="when.tone">
+                  <IconCalendar class="size-4 shrink-0 text-ink-gray-6" aria-hidden="true" />
+                  {{ when.text }}
+                </p>
+              </div>
+              <Dropdown v-if="menu.length" :options="menu" align="end">
+                <Button variant="subtle" aria-label="Project actions">
+                  <template #icon><IconMore class="size-4" /></template>
+                </Button>
+              </Dropdown>
             </div>
-            <p class="mt-1 text-p-base text-ink-gray-6">{{ summary }}</p>
 
-            <!-- The only time-sensitive thing on the page, so it gets a line
-                 rather than fourth place in a list of four. The number carries
-                 the weight; what it is for stays quiet beside it. -->
-            <!-- ⚠️ `gap-x-1` on a flex, not a space between the two spans.
-                 Vue's compiler condenses the whitespace between elements on
-                 their own lines to nothing, so the two ran together as
-                 "42 days leftto use the pack's 70 hours". Same trap the
-                 Confirmed screen's activity feed hit and solved the same way. -->
-            <p v-if="countdown" class="mt-3 flex flex-wrap items-baseline gap-x-1 text-p-base">
-              <span class="font-medium" :class="countdown.tone">{{ countdown.lead }}</span>
-              <span class="text-ink-gray-6">{{ countdown.tail }}</span>
-            </p>
-
-            <!-- ── No service yet ──────────────────────────────────────────
-                 The whole screen for an undecided project: one decision, with
-                 the three ways of making it. No progress bar, no stages, no
-                 partner — none of them exist yet, and drawing any of them
-                 would be the page inventing a commitment.
-
-                 ⚠️ Three rows rather than three cards. They are a list of
-                 options to read down, not things to compare feature by
-                 feature — the packs page already does the comparison, and
-                 these rows link into it. -->
-            <section v-if="!project.service" class="mt-8">
-              <h2 class="text-base font-medium text-ink-gray-8">Choose how to implement</h2>
-              <p class="mt-1 text-p-base text-ink-gray-6">
-                Nothing starts, and no timeline runs, until this is decided.
-              </p>
-
-              <ul
-                class="mt-4 divide-y divide-outline-gray-1 rounded-6 border border-outline-gray-1"
-              >
-                <li
-                  v-for="s in SERVICES"
-                  :key="s.value"
-                  class="flex items-center gap-4 px-4 py-3.5"
-                >
-                  <div class="min-w-0 flex-1">
-                    <p class="text-p-base font-medium text-ink-gray-8">{{ s.label }}</p>
-                    <p class="mt-0.5 text-p-sm text-ink-gray-6">{{ s.summary }}</p>
-                  </div>
-                  <Button
-                    class="shrink-0"
-                    variant="subtle"
-                    size="sm"
-                    label="Choose"
-                    @click="chooseService(s.value)"
-                  >
-                    <template #suffix><IconArrowRight class="size-3.5" /></template>
-                  </Button>
-                </li>
-              </ul>
-            </section>
-
-            <template v-else>
-              <!-- ⚠️ The partner USED TO OPEN THIS COLUMN, as a bordered card
-                   with a logo, a tier badge, four facts and two buttons. It was
-                   the heaviest thing on the page and the least actionable, and
-                   it pushed the checklist — the reason anyone opens a project —
-                   below it as unbordered grey text.
-
-                   It lives in the rail now, beside the pack, because both are
-                   the same kind of thing: reference you check, not work you do.
-                   Below `lg` there is no rail, so this copy stands in — placed
-                   HERE, above the stages, and not with the pack panel at the
-                   foot of the page, because "who is doing this" is a question
-                   you ask before you read the stages and not after. -->
-              <div
-                class="-mx-5 mt-6 divide-y divide-outline-gray-1 border-y border-outline-gray-1 lg:hidden"
-              >
-                <ProjectDetailsPanel :project="project" :packs="packs" :region="region" />
-                <ProjectPartnerPanel
-                  v-if="partner"
-                  :partner="partner"
-                  @message="messagePartner(partner)"
-                />
+            <template v-if="stage">
+              <div class="mt-10" :class="draft ? '' : 'lg:mt-0'">
+                <ProjectStages :project="project" @act="act" @terms="termsOpen = true" />
               </div>
 
-              <!-- ── Where, and what next ─────────────────────────────────
-                   ⚠️ `mt-8` now, not `mt-10`. The 40px was separating the spine
-                   from a partner card that is no longer above it — with the
-                   card gone the column runs title → summary → countdown →
-                   spine, and those are closer to one subject than the old
-                   arrangement was. -->
-              <div class="mt-8">
-                <ProjectStages
-                  :project="project"
-                  :context="taskContext"
-                  :other-party="otherParty"
-                  @act="act"
-                />
-              </div>
-
-              <!-- ── The replies ─────────────────────────────────────────
-                   ⚠️ WHILE THE STAGE IS "Choosing a partner" AND NOBODY IS
-                   HIRED YET. Two guards, and the second was missing: the first
-                   pass tied this to the stage alone, on the reasoning that the
-                   window between hiring somebody and pressing "Move to Hosting"
-                   was the stage confirming what you had just done. It is not.
-                   A comparison table with a Shortlisted tab and an Others tab
-                   is a surface for MAKING the decision, and the decision is
-                   made — the row that says "Hired" is the only part still true,
-                   and it is saying it inside a control for choosing between
-                   firms.
-                   Before that, the guard was `service === 'custom' &&
-                   broadcast`, and a broadcast is true forever, so the table
-                   followed the project into Hosting, Build and Live.
-                   The stage key carries the service: only the custom spine has
-                   a `choosing`, so testing the service as well would be a
-                   second condition saying the same thing.
-                   ⚠️ Still above the advance button. That button ends the
-                   stage, and a control for leaving a room should not stand in
-                   front of the room.
-                   ⚠️ NOT AN ARCHIVE. What survives afterwards is the outcome —
-                   the partner in the rail and the quote as the project's Cost —
-                   and the quotes themselves are still in each firm's thread in
-                   Messages, which is where they arrived. See `ProjectBids`. -->
+              <!-- ⚠️ THE QUOTES, WHILE CHOOSING AND NOBODY IS HIRED YET. Once
+                   somebody is, the decision is made and the partner is in the
+                   rail; a comparison table would be a control for a choice
+                   already taken. -->
               <div
                 v-if="project.stage === 'choosing' && project.broadcast && !project.partnerId"
-                class="mt-10"
+                class="mt-6"
               >
                 <ProjectBids :project="project" @choose="choose" />
               </div>
 
-              <!-- ⚠️ Appears only when YOUR side of the current stage is
-                   complete AND there is a stage to move to. An always-present
-                   "Next stage" button would be an invitation to skip work; an
-                   automatic jump the moment the last box is ticked moves the
-                   page out from under the hand that ticked it.
-
-                   The label names the destination and the toast repeats it —
-                   "Move to Implementation" → "Moved to Implementation". No
-                   caption: the label says what it does. -->
-              <div v-if="yoursDone && next" class="mt-6">
-                <Button variant="solid" :label="`Move to ${next.label}`" @click="advance" />
+              <!-- ⚠️ NOT ON A STEP WITHOUT TASKS. Choosing a partner is the one,
+                   and hiring moves it on by itself — see `hire`. -->
+              <div v-if="next && stage.yours?.length" class="mt-4">
+                <Button
+                  variant="solid"
+                  label="Continue"
+                  :disabled="!yoursDone"
+                  @click="advance"
+                />
               </div>
-
-              <!-- Below `lg` the panel stacks under the page instead of beside
-                   it: a 352px column next to a 352px column is not a layout.
-                   `-mx-5` cancels the page padding so its rules run edge to
-                   edge. -->
-              <!-- ⚠️ ONE PANEL PER PACK. The packs are disjoint slices of the
-                   catalogue, so there is no combined scope document to render
-                   and a merged panel would need a heading for a product nobody
-                   sells. -->
-              <div
-                v-if="packs.length"
-                class="-mx-5 mt-10 divide-y divide-outline-gray-1 border-t border-outline-gray-1 lg:hidden"
-              >
-                <PackPanel v-for="p in packs" :key="p.value" :pack="p" :region="region" />
+              <!-- The last step ends the project: nothing after setup is
+                   something this product can track, so there is no screen for
+                   it — the business says when the work is done. -->
+              <div v-else-if="!next && !project.completedAt" class="mt-4">
+                <Button
+                  variant="solid"
+                  label="Mark as complete"
+                  :disabled="!yoursDone"
+                  @click="complete"
+                />
               </div>
             </template>
+            <!-- ⚠️ A DRAFT IS ITS RECOMMENDATION: the recommendation screen,
+                 driven by this project's answers, basket and requirements.
+                 Booking or sharing is what starts it. -->
+            <RecommendationView
+              v-else
+              class="mt-8"
+              :answers="project.answers ?? store.company"
+              :brief="project.brief ?? {}"
+              :packs="project.packs ?? []"
+              :show-feedback="false"
+              @toggle-pack="store.toggleDraftPack(project.id, $event)"
+              @update-brief="store.updateDraftBrief(project.id, $event)"
+              @checkout="bookDraft"
+              @share="shareDraft"
+              @edit-answers="editing = true"
+            >
+              <template #header="{ headline }">
+                <h2 class="text-xl font-semibold text-ink-gray-9">{{ headline }}</h2>
+              </template>
+            </RecommendationView>
 
-            <!-- ⚠️ THE SCOPE SECTION WAS HERE and is now a row in the rail's
-                 Project panel. It was guarded on `!pack` — a name never
-                 defined in this component, so the guard was always true and
-                 Vue only ever warned about it at render. Second one of those
-                 found on this branch; see the note on `checkout` in
-                 `RecommendPage`. -->
+            <!-- Below `lg` there is no rail, so the reference stacks under the
+                 work. `-mx-5` cancels the page padding so its rules run edge to
+                 edge. -->
+            <div v-if="!draft" class="-mx-5 mt-10 border-t border-outline-gray-1 lg:hidden">
+              <ProjectAbout
+                :project="project"
+                :packs="packs"
+                :partner="partner"
+                :region="region"
+                @scope="openScope"
+                :has-brief="Boolean(brief)"
+                @requirements="briefOpen = true"
+                :can-review="Boolean(project?.completedAt && !reviewed)"
+                :when="project?.completedAt ? when : null"
+                @message="messagePartner(partner)"
+                @review="rating = true"
+                @feedback="feedback = true"
+              />
+            </div>
           </div>
         </div>
       </ScrollArea>
 
-      <!-- The pack, in full, beside the page. Only for a pack project — there
-           is no equivalent document for custom work, and the onboarding
-           program's own page is a click away on the landing screen. -->
-      <!-- ⚠️ The rail now stands for ANY project with a service, not only a
-           pack. It used to be `v-if="pack"`, which was right while the pack was
-           the only reference material on the screen; the partner moved in
-           beside it, and an onboarding or a custom project has a partner
-           without having a pack.
-
-           Two panels, no divider between them: each carries its own sticky
-           header strip, and those headers are what say where one ends and the
-           next begins. A rule as well would be a second answer to a question
-           already answered — see "No dividers between a page's own sections"
-           in DESIGN-NOTES.
-
-           Partner first. It is the shorter panel and the more often asked
-           question, and the pack below it is long enough to scroll. -->
       <aside
-        v-if="project?.service"
+        v-if="project && !draft"
         class="hidden w-[352px] shrink-0 flex-col border-l border-outline-gray-1 lg:flex"
       >
         <ScrollArea class="min-h-0 flex-1">
-          <!-- ⚠️ THE PROJECT FIRST, and it was not here at all. The rail held
-               the partner, the pack and the help links — everything about a
-               project except the project — while what it is, what it covers and
-               what it cost sat in the main column or nowhere. The scope was the
-               worst of them: last thing on the page, under the advance button,
-               on a screen whose last thing should be the next action. -->
-          <ProjectDetailsPanel :project="project" :packs="packs" :region="region" />
-          <!-- ⚠️ ONLY ONCE THERE IS A PARTNER. This used to render a "Not
-               assigned yet" placeholder through the whole of the custom spine's
-               first two stages — a panel whose content was the absence of
-               content, standing where the answer will go. The stage name says
-               where the project is, and on a custom project the replies list
-               is the thing that ends it. -->
-          <ProjectPartnerPanel
-            v-if="partner"
+          <ProjectAbout
+            :project="project"
+            :packs="packs"
             :partner="partner"
+            :region="region"
+            @scope="openScope"
+            :has-brief="Boolean(brief)"
+            @requirements="briefOpen = true"
+            :can-review="Boolean(project?.completedAt && !reviewed)"
+            :when="project?.completedAt ? when : null"
             @message="messagePartner(partner)"
+            @review="rating = true"
+            @feedback="feedback = true"
           />
-          <div class="divide-y divide-outline-gray-1">
-            <PackPanel v-for="p in packs" :key="p.value" :pack="p" :region="region" />
-          </div>
-          <!-- ⚠️ THE RAIL IS REFERENCE, and help is reference. It sits under
-               the pack rather than in the page because a business opens a
-               project to see what it owes, not to read a handbook — and a
-               resources block above the checklist would be answering a question
-               nobody had yet. -->
-          <div class="border-t border-outline-gray-1 px-4 py-5">
-            <ProjectResources
-              :partner="partner"
-              @message="messagePartner(partner)"
-              @feedback="feedback = true"
-            />
-          </div>
         </ScrollArea>
       </aside>
     </div>
 
-    <!-- ⚠️ CLOSING THIS DOES NOT TICK THE TASK, unlike the two dialogs below
-         it. Reading a code is not entering it — the work happens in another
-         product, and the third step in the dialog says to come back and tick it.
-         A checkbox that ticks itself when you close a dialog is a tracker
-         recording something it did not witness. -->
-    <PartnerCodeDialog v-model:open="hosting" :project="project" :partner="partner" />
-    <RatePartnerDialog
-      v-model:open="rating"
-      :project="project"
-      :partner="partner"
-      @done="tickByAction('feedback')"
+    <PackTermsDialog
+      v-model:open="termsOpen"
+      :region="region"
+      :agreed="termsAgreed"
+      @agree="tick('agree-terms')"
     />
-
-
-    <!-- ⚠️ CHOOSING ASKS ONE QUESTION ON THE WAY OUT, and it is four buttons
-         rather than a form: the answer is worth having and not worth a screen.
-         Dismissing without answering still chooses the partner — the choice is
-         the point and the question is the favour. -->
+    <PackScopeDialog v-model:open="scopeOpen" :packs="packs" />
+    <RatePartnerDialog v-model:open="rating" :project="project" :partner="partner" />
     <FeedbackDialog v-model:open="feedback" />
+    <NewProjectDialog
+      :open="editing"
+      :draft="draft ? project : null"
+      @close="editing = false"
+      @create="saveDraft"
+    />
+    <!-- ⚠️ CONFIRMED, because it cannot be undone. -->
+    <Dialog
+      v-model="deleting"
+      title="Delete draft?"
+      :message="`${project?.name ?? 'This draft'} and its requirements will be deleted.`"
+      size="sm"
+      :actions="[{ label: 'Delete', variant: 'solid', theme: 'red', onClick: deleteDraft }]"
+    />
+    <BriefDetailsDialog v-model:open="briefOpen" :brief="brief" own />
     <HirePartnerDialog
       v-model:open="hiring"
       :partner="chosen"
+      :bid="chosenBid"
       @hire="hire"
       @why="recordWhy"
     />

@@ -254,6 +254,10 @@ export const useConnectStore = defineStore('connect', {
     // unticking on the recommendation screen writes straight here, so the
     // basket survives sign-up, verification and the checkout.
     packs: [],
+    // The saved project a basket is being bought FOR, when the checkout was
+    // started from one. `startBooking` turns that project into the booking
+    // instead of creating a second one beside it.
+    bookingFor: null,
     // What a custom implementation is asking for. One per account rather than
     // one per project, for the same reason the intake is: this prototype has
     // one business in it. `data/custom.js` owns the shape and the rules.
@@ -753,13 +757,23 @@ export const useConnectStore = defineStore('connect', {
       // The booking IS the project: one gesture starts both, so nothing else
       // has to remember to create the second one.
       //
-      // ⚠️ Always a NEW project, even when an undecided one is sitting in the
-      // list. Adopting one would mean guessing WHICH — and a business that
-      // wrote down "ERP rollout" and then bought a Manufacturing pack may well
-      // have meant them as two separate things. The list shows both; merging
-      // them is a gesture nobody has designed.
+      // ⚠️ A NEW project, unless the checkout was started FROM a saved one
+      // (`bookingFor`) — then that project's requirements led to these packs,
+      // and it becomes the booking rather than getting a twin. Never guessed:
+      // an undecided project the checkout did not start from is left alone.
       const list = [packs].flat()
-      this.projects = [
+      const saved = this.projects.find((p) => p.id === this.bookingFor && !p.service)
+      this.bookingFor = null
+      if (saved) {
+        Object.assign(saved, {
+          service: 'pack',
+          packs: list.map((p) => p.value),
+          partnerId: partner.id,
+          stage: 'confirmed',
+          done: [],
+          serviceAt: Date.now(),
+        })
+      } else this.projects = [
         ...this.projects,
         {
           id: `pr-${Date.now()}`,
@@ -796,7 +810,13 @@ export const useConnectStore = defineStore('connect', {
     // with the service and the partner already settled.
     //
     // Returns the id so the caller can navigate straight to it.
-    createProject({ name, apps, modules }) {
+    // ⚠️ WITH ITS REQUIREMENTS. A saved project carries what the business
+    // needs — the modules, a budget and what it wants built — so its page can
+    // recommend packs or custom work, and send the same requirements to
+    // partners without asking for them twice.
+    // `answers` are the landing's questions as asked for THIS project, kept
+    // apart from the account's so a second project can differ from the first.
+    createProject({ name, apps, modules, brief, answers }) {
       const id = `pr-${Date.now()}`
       this.projects = [
         ...this.projects,
@@ -807,40 +827,14 @@ export const useConnectStore = defineStore('connect', {
           // ⚠️ on `projects` for why one cannot be derived from the other.
           apps: apps ?? [],
           modules: modules ?? {},
+          brief: { ...emptyBrief(), ...brief },
+          answers: answers ?? null,
           // The three that are not decided yet, spelled out rather than left
           // off: a project's shape should not depend on how it was made.
           service: null,
-          // ⚠️ A LIST, because the packs are disjoint modules now and the whole
-    // shape of the recommendation is "these two". It replaces a single `pack`,
-    // and the rename was not cosmetic: every reader had to decide what it meant
-    // to hold one of something that is bought in twos.
-    //
-    // Seeded from the recommendation and then owned by the person — ticking and
-    // unticking on the recommendation screen writes straight here, so the
-    // basket survives sign-up, verification and the checkout.
-    packs: [],
-    // What a custom implementation is asking for. One per account rather than
-    // one per project, for the same reason the intake is: this prototype has
-    // one business in it. `data/custom.js` owns the shape and the rules.
-    brief: emptyBrief(),
-    // ⚠️ THE MOST VALUABLE FEEDBACK IN THE APP and the cheapest to collect:
-    // whether the recommendation was right, asked on the screen that made it,
-    // before anyone has spent anything. It is the only signal that says the
-    // engine is wrong rather than that a partner was. `null` until answered,
-    // then `{ ok, note }`.
-    recoFeedback: null,
-    // Ratings the account has left, `{ projectId, partnerId, rating, text, at }`.
-    // Kept here and not on the project because a rating is about the PARTNER —
-    // it is published on their profile — and the project is only where it was
-    // collected.
-    feedback: [],
-    // ⚠️ UNPROMPTED, AND THE ONLY ONE OF THE THREE THAT IS. `recoFeedback` and
-    // `feedback` are both answers to a question Frappe chose to ask at a moment
-    // Frappe chose — which is what makes them answerable, and what makes them
-    // blind to anything nobody predicted. This is whatever somebody types into
-    // the rail's Give feedback dialog, from any screen, at any time:
-    // `{ text, route, at }`. See `FeedbackDialog`.
-    productFeedback: [],
+          // ⚠️ A DRAFT'S OWN BASKET, seeded with what its answers recommend —
+          // the same seeding `seedRecommendedPacks` does for the account.
+          packs: recommendedPackValues(answers ?? this.company),
           partnerId: null,
           stage: null,
           done: [],
@@ -849,6 +843,13 @@ export const useConnectStore = defineStore('connect', {
         },
       ]
       return id
+    },
+
+    // Buying the packs a saved project was recommended: the basket is those
+    // packs, and the checkout's booking lands on this project.
+    bookPacksFor(id, packValues) {
+      this.setPacks(packValues)
+      this.bookingFor = id
     },
 
     // Deciding HOW the work gets done. Sets the spine and drops the project on
@@ -1053,6 +1054,52 @@ export const useConnectStore = defineStore('connect', {
     // The other way a stage moves: forward by one, because the work of this one
     // is finished. Returns the stage it moved TO — null at the end of the spine
     // — so the caller can name where it went without re-reading the store.
+    // ⚠️ THE ONLY WAY A PROJECT FINISHES. The last step is working with the
+    // partner, and this product cannot see the work end, so the business says
+    // so. The public review is asked for here and not before: until the work
+    // is done there is nothing to review.
+    // A draft's answers and requirements, changed before anything is sent.
+    // Refused once the project has started — see `isDraft`.
+    updateDraft(id, { name, brief, answers }) {
+      const project = this.projects.find((p) => p.id === id)
+      if (!project || project.service) return
+      project.name = name.trim()
+      project.brief = { ...project.brief, ...brief }
+      project.answers = answers
+      // New answers, new recommendation: the basket follows them, as it does
+      // when the account's answers are edited.
+      project.packs = recommendedPackValues(answers)
+    },
+
+    // A draft's basket and requirements, changed on its own page. Drafts only.
+    toggleDraftPack(id, value) {
+      const project = this.projects.find((p) => p.id === id)
+      if (!project || project.service) return
+      project.packs = project.packs.includes(value)
+        ? project.packs.filter((v) => v !== value)
+        : [...project.packs, value]
+    },
+
+    updateDraftBrief(id, patch) {
+      const project = this.projects.find((p) => p.id === id)
+      if (!project || project.service) return
+      project.brief = { ...project.brief, ...patch }
+    },
+
+    // Throwing a draft away. Drafts only: a started project has a partner, a
+    // payment or a dozen partners' threads hanging off it.
+    deleteDraft(id) {
+      const project = this.projects.find((p) => p.id === id)
+      if (!project || project.service) return false
+      this.projects = this.projects.filter((p) => p.id !== id)
+      return true
+    },
+
+    completeProject(id) {
+      const project = this.projects.find((p) => p.id === id)
+      if (project && !project.completedAt) project.completedAt = Date.now()
+    },
+
     advanceStage(id) {
       const project = this.projects.find((p) => p.id === id)
       if (!project) return null
@@ -1393,7 +1440,7 @@ export const useConnectStore = defineStore('connect', {
           service: 'custom',
           packs: [],
           partnerId: null,
-          stage: 'requirements',
+          stage: 'choosing',
           done: [],
           at: Date.now(),
           serviceAt: Date.now(),
@@ -1419,11 +1466,17 @@ export const useConnectStore = defineStore('connect', {
     broadcastBrief(id) {
       const project = this.projects.find((p) => p.id === id)
       if (!project) return null
-      const partners = matchingPartners(this.company, this.brief)
+      // ⚠️ THE PROJECT'S OWN REQUIREMENTS when it has them — a project saved
+      // from New project — and the account's draft from the recommendation
+      // screen otherwise.
+      const own = project.brief?.scope ? project.brief : this.brief
+      // Likewise the answers: the project's, when it was asked them.
+      const company = project.answers ?? this.company
+      const partners = matchingPartners(company, own)
       const brief = {
         projectId: id,
         project: project.name,
-        scope: this.brief.scope.trim(),
+        scope: own.scope.trim(),
         // ⚠️ THE MODULES GO TOO, and leaving them out was the broadcast quietly
         // sending less than the customer wrote. A project's scope is written in
         // two passes — the modules ticked when it was created, the paragraph
@@ -1435,7 +1488,7 @@ export const useConnectStore = defineStore('connect', {
         // Snapshotted, like the rest of this object: the project's scope keeps
         // moving and what a partner quoted against has to stay as it was sent.
         modules: project.modules ?? {},
-        budget: this.brief.budget,
+        budget: own.budget,
         // ⚠️ THE CRITERIA TRAVEL WITH IT, and they did not. `BriefDetailsDialog`
         // builds the partner's copy of "who they asked for" from this object
         // with `criteriaLines`, the same function the recommendation screen
@@ -1444,15 +1497,15 @@ export const useConnectStore = defineStore('connect', {
         // its requirement read as "based anywhere in Asia, remote or on
         // premises". A default is the most expensive kind of missing field,
         // because nothing about it looks missing.
-        cities: [...(this.brief.cities ?? [])],
-        tiers: [...(this.brief.tiers ?? [])],
-        workStyle: this.brief.workStyle ?? '',
-        timeline: this.brief.timeline ?? '',
-        country: this.company.country,
-        employees: this.company.employees,
-        segments: this.company.segments,
+        cities: [...(own.cities ?? [])],
+        tiers: [...(own.tiers ?? [])],
+        workStyle: own.workStyle ?? '',
+        timeline: own.timeline ?? '',
+        country: company.country,
+        employees: company.employees,
+        segments: company.segments,
         // Everything the intake asked except who they are — see `sharedAnswers`.
-        ...sharedAnswers(this.company),
+        ...sharedAnswers(company),
       }
 
       const threads = []
@@ -1478,14 +1531,12 @@ export const useConnectStore = defineStore('connect', {
       // `simulateReplies`, which the demo switch calls.
       project.broadcast = { at: Date.now(), partnerIds: partners.map((p) => p.id) }
       project.bids = []
-      // ⚠️ THE STAGE MOVES ON ITS OWN HERE, which nothing else in the tracker
-      // does — every other advance is the customer pressing a button. Sending
-      // the brief IS all three of the Requirements tasks: it cannot happen
-      // without a scope and a budget, and it is itself the third. Leaving the
-      // project on "0 of 3 done" immediately after doing them would be the page
-      // failing to notice what the person just did.
-      project.done = [...new Set([...project.done, 'describe', 'set-budget', 'send-brief'])]
-      project.stage = 'choosing'
+      // Sending is what makes a saved project custom work.
+      if (!project.service) {
+        project.service = 'custom'
+        project.stage = 'choosing'
+        project.serviceAt = Date.now()
+      }
       return { sent: partners.length, partnerIds: project.broadcast.partnerIds }
     },
 

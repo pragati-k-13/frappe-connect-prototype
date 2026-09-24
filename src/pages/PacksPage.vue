@@ -1,21 +1,19 @@
 <script setup>
-import { computed } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
-import { Button, Checkbox, Tooltip } from 'frappe-ui'
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { Button, Tooltip } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
+import PackBasket from '../components/PackBasket.vue'
+import PackPickList from '../components/PackPickList.vue'
+import PackScopeDialog from '../components/PackScopeDialog.vue'
 import IconPricing from '~icons/lucide/circle-dollar-sign'
 import IconSpeed from '~icons/lucide/clock'
 import IconOversight from '~icons/lucide/circle-check'
-import { FACT_ICONS } from '../packFactIcons'
 import { useConnectStore } from '../stores/connect'
 import {
-  STARTER_PACKS,
-  packFacts,
   INCLUDED_IN_ALL,
   STRICTLY_EXCLUDED,
   asExclusion,
-  checkoutFor,
-  priceFor,
   pricingFor,
   marketFor,
   DEFAULT_REGION,
@@ -79,22 +77,14 @@ const POINTS = [
   { icon: IconOversight, title: 'Frappe oversee', body: 'Quality at every step' },
 ]
 
-const packs = computed(() =>
-  STARTER_PACKS.map((pack) => ({
-    ...pack,
-    price: priceFor(pack, region.value),
-    // ⚠️ Worded by `packFacts`, not here — four screens of one purchase were
-    // describing the same pack four ways. The price is dropped from the list
-    // because the row prints it large two lines above; effort and validity are
-    // what the name and the price don't say.
-    //
-    // ⚠️ NO MODULE LINE either. Each pack is named by its modules, and the row
-    // printed that name three lines above this list — "Accounts, Sales,
-    // Purchase, Stock" as the heading, then "Accounts, Sales, Purchase and
-    // Stock modules" as a fact about it.
-    details: packFacts(pack, region.value).filter((f) => f.key !== 'price'),
-  })),
-)
+// "What's included", in a dialog over the list — as on the recommendation
+// screen, so reading a scope does not cost the basket its place.
+const scopeOf = ref(null)
+const scopeOpen = ref(false)
+const showScope = (pack) => {
+  scopeOf.value = pack
+  scopeOpen.value = true
+}
 
 // ── Picking more than one ───────────────────────────────────────────────────
 // ⚠️ THE ROWS ARE MULTI-SELECT, and the catalogue was the last screen where
@@ -119,7 +109,6 @@ const packs = computed(() =>
 // now has — read this pack, buy this pack — have a target each.
 const router = useRouter()
 
-const bill = computed(() => checkoutFor(store.packRecords(), region.value))
 
 // ⚠️ THE GATE IS THE CHECKOUT, not this page. Reading and picking need no
 // account; paying does. Same `?next=` as the recommendation screen, so the two
@@ -203,95 +192,14 @@ const checkout = () => {
              the content; the inner box carries the rule at the content
              column's own width. The CSS hides the rules touching a hovered
              row, which is why there is no `divide-y` here. -->
-        <ul>
-          <li
-            v-for="pack in packs"
-            :key="pack.value"
-            class="fc-partner-row group relative -mx-3 rounded-4 px-3 transition-colors hover:bg-surface-gray-1"
-          >
-            <!-- ⚠️ THE PLACEHOLDER TILE IS GONE. Each row led with a 160px grey
-                 square standing in for an illustration nobody has drawn — four
-                 of them down the page that sells the product, and every row's
-                 words indented past it. A placeholder taking a quarter of the
-                 row costs more than the art would earn. Bring it back as a
-                 leading column when there is something to put in it. -->
-            <!-- ⚠️ THE PRICE IS A COLUMN, not a line in the middle of the row.
-                 Four fixed-price products in a list are read by comparing them,
-                 and a figure stacked under each name can't be: the eye has to
-                 hunt down four different vertical positions. Right-aligned and
-                 top-aligned with the name, the four prices form a column you
-                 read straight down — which is the one thing this screen is for.
-
-                 It is also what gives the row two ends again. With the tile
-                 gone and the buttons gone, everything had collected in a
-                 narrow ribbon at the left with 60% of the row empty beside
-                 it. -->
-            <div
-              class="fc-partner-row-body flex items-start gap-4 border-b border-outline-gray-1 py-6 sm:gap-6"
-            >
-              <!-- ⚠️ NO `label` ON THE CHECKBOX. The row prints the pack's name
-                   itself, in a heading, and letting the control print it too
-                   put every name on the screen twice. `aria-label` keeps the
-                   control named for anyone who cannot see the row. Same
-                   decision, same wording, as the recommendation screen's rows.
-                   `mt-1` lands the 14px box on the cap-height of an 18px
-                   heading rather than on its baseline. -->
-              <Checkbox
-                class="mt-1"
-                size="md"
-                :model-value="store.packs.includes(pack.value)"
-                :aria-label="pack.name"
-                @update:model-value="store.togglePack(pack.value)"
-              />
-              <div class="min-w-0 flex-1">
-                <!-- ⚠️ The anchor wraps the NAME only and stretches over the row
-                     with `after:absolute after:inset-0`, the same device the
-                     partner list uses. A link around the whole row would read
-                     its price and every detail line as part of its accessible
-                     name; this way the name is the name, and the hit area is
-                     still the row. Nothing else in here is interactive, so
-                     nothing has to climb back above the stretched layer. -->
-                <!-- ⚠️ THE STRETCHED ANCHOR IS GONE (`after:absolute
-                     after:inset-0`). It made the whole row one link, which is
-                     right for a list whose only gesture is "open this" and
-                     impossible beside a checkbox — the stretched layer sits
-                     over the row and swallows every click that is not the
-                     name, including the tick. The link is the name now, and the
-                     row's hover fill stays as the affordance that it is a row. -->
-                <h3 class="text-lg font-medium text-ink-gray-8">
-                  <RouterLink
-                    :to="{ name: 'pack', params: { id: pack.value } }"
-                    class="hover:underline"
-                  >
-                    {{ pack.name }}
-                  </RouterLink>
-                </h3>
-                <p class="mt-1 text-p-base text-ink-gray-6">{{ pack.tagline }}</p>
-
-                <ul class="mt-4 space-y-1">
-                  <li
-                    v-for="detail in pack.details"
-                    :key="detail.key"
-                    class="flex items-start gap-2 text-p-base text-ink-gray-6"
-                  >
-                    <component
-                      :is="FACT_ICONS[detail.key]"
-                      class="mt-0.5 size-4 shrink-0 text-ink-gray-6"
-                    />
-                    {{ detail.line }}
-                  </li>
-                </ul>
-              </div>
-
-              <!-- `text-ink-gray-8`, a step darker than it was at `-7`: it is
-                   now the only thing in its column and the row's second
-                   anchor, rather than one line among four. -->
-              <p class="shrink-0 text-lg font-semibold tabular-nums text-ink-gray-8">
-                {{ pack.price }}
-              </p>
-            </div>
-          </li>
-        </ul>
+        <!-- The same list as the recommendation screen and a draft — see
+             `PackPickList`. No reasons here, so each row reads its tagline. -->
+        <PackPickList
+          :packs="store.packs"
+          :region="region"
+          @toggle="store.togglePack"
+          @scope="showScope"
+        />
 
       </section>
 
@@ -373,35 +281,17 @@ const checkout = () => {
              printing of the same four figures.
              ⚠️ The tax is named, and dropped where a market has no decided rate
              rather than invented — see `checkoutFor`. -->
-        <aside
-          v-if="store.packs.length"
-          class="w-full shrink-0 lg:sticky lg:top-6 lg:w-[300px]"
-        >
-          <div class="rounded-6 border border-outline-gray-2 p-4">
-            <p class="text-p-sm text-ink-gray-5">
-              {{ store.packs.length }} {{ store.packs.length === 1 ? 'pack' : 'packs' }}
-            </p>
-            <p class="mt-0.5 text-2xl font-semibold tabular-nums text-ink-gray-9">
-              {{ bill.total }}
-            </p>
-            <p class="mt-1 text-p-sm leading-relaxed text-ink-gray-5">
-              <template v-if="bill.exact">{{ bill.subtotal }} plus {{ bill.taxLabel }}</template>
-              <template v-else>{{ bill.subtotal }} before {{ bill.taxLabel }}</template>
-              · {{ bill.hours }} hours
-            </p>
-            <Button
-              class="mt-4 w-full"
-              variant="solid"
-              size="md"
-              label="Check out"
-              @click="checkout"
-            />
-            <p class="mt-3 text-p-sm leading-relaxed text-ink-gray-5">
-              Paid to Frappe, in full and up front.
-            </p>
-          </div>
+        <!-- Always shown, like the recommendation screen's — see `PackBasket`. -->
+        <aside class="w-full shrink-0 lg:sticky lg:top-6 lg:w-[300px]">
+          <PackBasket
+            :packs="store.packs"
+            :region="region"
+            :signed-in="store.signedIn"
+            @checkout="checkout"
+          />
         </aside>
       </div>
     </div>
+    <PackScopeDialog v-model:open="scopeOpen" :pack="scopeOf" />
   </ConnectShell>
 </template>

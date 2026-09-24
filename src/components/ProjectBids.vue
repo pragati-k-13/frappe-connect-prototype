@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Badge, Button, Dropdown, ScrollArea, TabButtons } from 'frappe-ui'
+import { Badge, Button, Dropdown, ScrollArea, TabButtons, toast } from 'frappe-ui'
 import TierIcon from './TierIcon.vue'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow } from 'frappe-ui/list'
 import IconMessage from '~icons/lucide/message-square'
@@ -63,12 +63,11 @@ const rows = computed(() =>
 )
 
 const shortlisted = computed(() => rows.value.filter((r) => r.state === 'shortlisted'))
-// ⚠️ "Others" IS PENDING AND NOT-INTERESTED TOGETHER, not pending alone. A firm
-// you turned down is not a fourth state of the world, it is one of the others with a
-// decision already recorded against it — and putting it in a tab of its own
-// would give the rows nobody wants equal billing with the rows they do. Inside
-// the tab it keeps its numbers, loses its two buttons, and offers Undo.
-const others = computed(() => rows.value.filter((r) => r.state !== 'shortlisted'))
+// ⚠️ NOT-INTERESTED LEAVES THE LIST. A firm you turned down is a decision
+// made, and a row that stays to say so is one more line to read past while
+// comparing the rest. The way back is the Undo on the toast; the quote itself
+// is still in that firm's thread in Messages.
+const others = computed(() => rows.value.filter((r) => r.state === 'pending'))
 
 const tab = ref('shortlisted')
 
@@ -101,20 +100,20 @@ const sent = computed(() => props.project.broadcast?.partnerIds?.length ?? 0)
 // moment somebody was still gathering information.
 const emit = defineEmits(['choose'])
 
-// What sits under More on an Others row. Not interested is reversible, so a
-// row already marked offers the way back instead.
+const notInterested = (row) => {
+  store.setBidState(props.project.id, row.partnerId, 'not-interested')
+  toast(`${row.partner.name} removed`, {
+    id: `not-interested-${row.partnerId}`,
+    action: {
+      label: 'Undo',
+      onClick: () => store.setBidState(props.project.id, row.partnerId, 'pending'),
+    },
+  })
+}
+
+// What sits under More on an Others row.
 const moreFor = (row) => [
-  row.state === 'not-interested'
-    ? {
-        label: 'Undo not interested',
-        icon: 'lucide-undo-2',
-        onClick: () => store.setBidState(props.project.id, row.partnerId, 'pending'),
-      }
-    : {
-        label: 'Not interested',
-        icon: 'lucide-ban',
-        onClick: () => store.setBidState(props.project.id, row.partnerId, 'not-interested'),
-      },
+  { label: 'Not interested', icon: 'lucide-ban', onClick: () => notInterested(row) },
   {
     label: 'Read the thread',
     icon: 'lucide-message-square',
@@ -125,12 +124,6 @@ const moreFor = (row) => [
 
 <template>
   <section>
-    <div class="flex items-baseline justify-between gap-4">
-      <h2 class="text-base font-medium text-ink-gray-8">Replies</h2>
-      <p class="text-p-sm tabular-nums text-ink-gray-5">
-        {{ rows.length }} of {{ sent }} partners replied
-      </p>
-    </div>
 
     <!-- Nothing back yet. A real state, not an error: a broadcast sent an hour
          ago has no replies and the page should say so rather than draw an
@@ -139,17 +132,18 @@ const moreFor = (row) => [
          checklist, and that checklist is gone. -->
     <div
       v-if="!rows.length"
-      class="mt-3 rounded-6 border border-outline-gray-2 px-4 py-8 text-center"
+      class="rounded-6 border border-outline-gray-2 px-4 py-8 text-center"
     >
-      <p class="text-p-base text-ink-gray-7">No replies yet</p>
+      <p class="text-base font-medium text-ink-gray-8">No quotes yet</p>
       <p class="mx-auto mt-1 max-w-sm text-p-base text-ink-gray-6">
-        Your requirements went to {{ sent }} partners. Quotes usually come back within a few
-        working days, not everyone answers, and they arrive in Messages.
+        Sent to {{ sent }} partners. Quotes arrive in Messages, usually within a few working days.
       </p>
     </div>
 
     <template v-else>
-      <TabButtons v-model="tab" class="mt-3" :options="tabs" />
+      <!-- ⚠️ NO SECTION HEADING AND NO COUNT. The bar above names the stage,
+           and the tabs already carry how many quotes each holds. -->
+      <TabButtons v-model="tab" :options="tabs" />
 
       <!-- ── Shortlisted ──────────────────────────────────────────────── -->
       <!-- ⚠️ A TABLE, and the one place in this app that earns one: five
@@ -161,7 +155,7 @@ const moreFor = (row) => [
           v-if="!shortlisted.length"
           class="rounded-6 border border-outline-gray-2 px-4 py-8 text-center"
         >
-          <p class="text-p-base text-ink-gray-7">No one marked interested yet</p>
+          <p class="text-base font-medium text-ink-gray-8">No one marked interested yet</p>
           <p class="mx-auto mt-1 max-w-sm text-p-base text-ink-gray-6">
             Mark a reply Interested in Others and it lands here, next to the rest, for comparing.
           </p>
@@ -194,7 +188,7 @@ const moreFor = (row) => [
                     </RouterLink>
                     <TierIcon :tier="row.partner.tier" />
                   </span>
-                  <span class="mt-0.5 block truncate text-sm text-ink-gray-6">
+                  <span class="mt-1 block truncate text-base text-ink-gray-6">
                     {{ cityOf(row.partner) }}
                   </span>
                 </div>
@@ -232,7 +226,7 @@ const moreFor = (row) => [
           v-if="!others.length"
           class="rounded-6 border border-outline-gray-2 px-4 py-8 text-center"
         >
-          <p class="text-p-base text-ink-gray-7">You're interested in everyone who replied</p>
+          <p class="text-base font-medium text-ink-gray-8">No other quotes</p>
         </div>
 
         <!-- The same columns as Interested, so the two tabs read as one table.
@@ -261,7 +255,7 @@ const moreFor = (row) => [
                     </RouterLink>
                     <TierIcon :tier="row.partner.tier" />
                   </span>
-                  <span class="mt-0.5 block truncate text-sm text-ink-gray-6">
+                  <span class="mt-1 block truncate text-base text-ink-gray-6">
                     {{ cityOf(row.partner) }}
                   </span>
                 </div>
@@ -273,9 +267,7 @@ const moreFor = (row) => [
                 <span class="text-base tabular-nums text-ink-gray-6">{{ row.weeks }} weeks</span>
               </ListCell>
               <ListCell class="justify-end gap-1.5">
-                <Badge v-if="row.state === 'not-interested'" label="Not interested" />
                 <Button
-                  v-else
                   variant="subtle"
                   label="Interested"
                   @click="store.setBidState(project.id, row.partnerId, 'shortlisted')"
