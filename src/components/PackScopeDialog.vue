@@ -1,5 +1,6 @@
 <script setup>
-import { Button, Dialog } from 'frappe-ui'
+import { computed, ref, watch } from 'vue'
+import { Button, Dialog, TabButtons } from 'frappe-ui'
 import PackScope from './PackScope.vue'
 
 // What THIS pack covers, module by module.
@@ -23,30 +24,47 @@ import PackScope from './PackScope.vue'
 // shorter "key points" version was the obvious thing to build and it is the
 // wrong one: a scope document paraphrased is a scope document that can disagree
 // with the contract.
-defineProps({
+const props = defineProps({
   open: { type: Boolean, default: false },
   pack: { type: Object, default: null },
+  // A basket: the dialog shows one pack at a time, with tabs to switch.
+  // Takes precedence over `pack`.
+  packs: { type: Array, default: () => [] },
 })
 const emit = defineEmits(['update:open'])
+
+const list = computed(() => (props.packs.length ? props.packs : [props.pack].filter(Boolean)))
+const current = ref(null)
+// Reset on open, not on close, so the content does not swap while fading out.
+watch(
+  () => props.open,
+  (isOpen) => {
+    if (isOpen) current.value = list.value[0]?.value ?? null
+  },
+  { immediate: true },
+)
+const shown = computed(() => list.value.find((p) => p.value === current.value) ?? list.value[0])
+const tabs = computed(() => list.value.map((p) => ({ label: p.name, value: p.value })))
 </script>
 
 <template>
   <Dialog
     :model-value="open"
-    :title="pack?.name ?? 'What this covers'"
+    :title="list.length > 1 ? 'Scope of work' : (shown?.name ?? 'What this covers')"
     size="3xl"
     @update:model-value="emit('update:open', $event)"
   >
     <!-- Default slot, not `#body-content` — the older name fails silently; see
          the note in `NewProjectDialog`. -->
     <template #default>
-      <div v-if="pack">
+      <div v-if="shown">
+        <TabButtons v-if="list.length > 1" v-model="current" class="mb-4" :options="tabs" />
         <p class="text-p-base text-ink-gray-6">
-          {{ pack.hours }} hours · {{ pack.validity }} to deliver
+          {{ shown.hours }} hours · {{ shown.validity }} to deliver
         </p>
 
         <div class="mt-5">
-          <PackScope :pack="pack" />
+          <PackScope :key="shown.value" :pack="shown" />
         </div>
 
         <!-- ⚠️ "Open the full pack page" WAS HERE AND ITS REASON HAS GONE. It

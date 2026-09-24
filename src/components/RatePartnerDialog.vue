@@ -41,14 +41,14 @@ const submit = () => {
   })
   emit('done')
   emit('update:open', false)
-  toast.success('Thanks — this goes on their profile')
+  toast.success('Review published')
 }
 </script>
 
 <template>
   <Dialog
     :model-value="open"
-    :title="`How did it go with ${partner?.name ?? 'your partner'}?`"
+    :title="`Review ${partner?.name ?? 'your partner'}`"
     @update:model-value="emit('update:open', $event)"
   >
     <!-- ⚠️ The DEFAULT slot, not `#body-content`: this version of frappe-ui's
@@ -57,7 +57,7 @@ const submit = () => {
          documented in `NewProjectDialog`. -->
     <template #default>
       <p class="text-p-base leading-relaxed text-ink-gray-6">
-        This is published on {{ partner?.name ?? 'their' }} profile, with your company name — it is
+        This is published on {{ partner ? `${partner.name}’s` : 'their' }} profile, with your company name — it is
         how the next business decides who to work with.
       </p>
 
@@ -80,14 +80,14 @@ const submit = () => {
       />
 
       <div class="mt-5 flex items-center gap-2">
-        <Button variant="solid" label="Publish" @click="submit" />
+        <Button variant="solid" label="Publish review" @click="submit" />
         <!-- ⚠️ A real way out. A review request with no dismissal is how a
              product teaches people that its dialogs are traps. -->
         <Button variant="ghost" label="Not now" @click="emit('update:open', false)" />
       </div>
 
-      <p v-if="existing" class="mt-3 text-p-sm text-ink-gray-5">
-        You rated them {{ existing.rating }} out of 5 already. Publishing again replaces it.
+      <p v-if="existing" class="mt-3 text-p-base text-ink-gray-6">
+        You reviewed them already. Publishing again replaces it.
       </p>
     </template>
   </Dialog>

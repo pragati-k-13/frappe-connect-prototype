@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Button, Checkbox, Dialog } from 'frappe-ui'
 
 // Hiring a partner: the terms, then the commitment, then one question.
@@ -37,6 +37,8 @@ const props = defineProps({
   // Kept by the page after the dialog closes so the title does not empty out
   // mid-fade. See the note on `chosen` in `ProjectPage`.
   partner: { type: Object, default: null },
+  // The quote being accepted, `{ price, weeks }`, when there is one.
+  bid: { type: Object, default: null },
 })
 
 const emit = defineEmits(['update:open', 'hire', 'why'])
@@ -47,6 +49,29 @@ const emit = defineEmits(['update:open', 'hire', 'why'])
 // responsiveness actually decides these. That is what the comparison table
 // should be sorted by and currently is not.
 const WHY = ['Price', 'Timeline', 'Their profile', 'How they replied']
+
+const name = computed(() => props.partner?.name ?? 'this partner')
+
+// ⚠️ FRAPPE IS NOT A PARTY is first, because it is the one a business would
+// otherwise assume the opposite of.
+const terms = computed(() => [
+  {
+    title: `Pay ${name.value} directly`,
+    text: 'Frappe takes no fee and is not a party to the agreement.',
+  },
+  {
+    title: 'Scope, price and timeline are as quoted',
+    text: `Changes are agreed between you and ${name.value}.`,
+  },
+  {
+    title: 'Hosting is billed through your partner',
+    text: `Frappe Cloud bills ${name.value}, who bills you.`,
+  },
+  {
+    title: 'Your site stays private',
+    text: 'Frappe can see that this project exists, not what is in your site.',
+  },
+])
 
 const agreed = ref(false)
 const step = ref('terms')
@@ -78,60 +103,53 @@ const answer = (why) => {
 <template>
   <Dialog
     :model-value="open"
-    :title="step === 'terms' ? `Hire ${partner?.name ?? 'this partner'}` : `Why ${partner?.name ?? 'them'}?`"
+    :title="step === 'terms' ? `Hire ${name}` : `Why ${name}?`"
     @update:model-value="emit('update:open', $event)"
   >
     <!-- ⚠️ The DEFAULT slot, not `#body-content`: this version of frappe-ui's
          Dialog exposes only `default`, `title` and `actions`, and the older
-         `#body-content` name fails silently — the dialog opens empty. Same trap
-         documented in `NewProjectDialog`. -->
+         `#body-content` name fails silently — the dialog opens empty. -->
     <template #default>
       <template v-if="step === 'terms'">
-        <p class="text-p-base leading-relaxed text-ink-gray-6">
-          The scope, the price and the timeline are the ones in
-          {{ partner?.name ?? 'your partner' }}'s quote. Anything beyond them is a change the two
-          of you agree separately.
-        </p>
+        <!-- The quote being accepted, so the terms are read against it. -->
+        <dl v-if="bid" class="grid grid-cols-[96px_minmax(0,1fr)] gap-y-2 text-base">
+          <dt class="text-ink-gray-5">Quote</dt>
+          <dd class="tabular-nums text-ink-gray-8">{{ bid.price }}</dd>
+          <dt class="text-ink-gray-5">Timeline</dt>
+          <dd class="text-ink-gray-8">{{ bid.weeks }} weeks</dd>
+        </dl>
 
-        <ul class="mt-4 space-y-2 text-p-base text-ink-gray-7">
-          <li>
-            You pay {{ partner?.name ?? 'your partner' }} directly. Frappe takes no fee and is not
-            a party to the agreement.
+        <!-- ⚠️ TITLE AND DESCRIPTION PAIRS, the project's task shape. It was
+             a paragraph and three sentences at one weight, so the one that
+             matters — Frappe is not a party — read like the others. -->
+        <ul class="space-y-4" :class="bid ? 'mt-6' : ''">
+          <li v-for="term in terms" :key="term.title">
+            <p class="text-base font-medium text-ink-gray-8">{{ term.title }}</p>
+            <p class="mt-1 text-p-base text-ink-gray-6">{{ term.text }}</p>
           </li>
-          <li>
-            Frappe Cloud hosting is billed to your partner through your partner code, and billed
-            on to you.
-          </li>
-          <li>Frappe can see that this project exists, not what is in your site.</li>
         </ul>
 
-        <div class="mt-5">
-          <Checkbox v-model="agreed" size="md" label="I agree to these terms of engagement" />
-        </div>
+        <Checkbox
+          v-model="agreed"
+          class="mt-6"
+          size="md"
+          label="I agree to these terms of engagement"
+        />
+      </template>
 
-        <!-- ⚠️ THE BUTTON NAMES BOTH HALVES, because it does both: it is the
-             agreement and it is the hire, and a label saying only one of them
-             would hide the other behind it. -->
-        <div class="mt-5 flex items-center gap-2">
-          <Button
-            variant="solid"
-            :label="`Agree and hire ${partner?.name ?? ''}`.trim()"
-            @click="hire"
-          />
+      <div v-else class="flex flex-wrap gap-2">
+        <Button v-for="w in WHY" :key="w" :label="w" @click="answer(w)" />
+      </div>
+    </template>
+
+    <template #actions>
+      <div class="flex justify-end gap-2">
+        <template v-if="step === 'terms'">
           <Button variant="ghost" label="Cancel" @click="emit('update:open', false)" />
-        </div>
-      </template>
-
-      <template v-else>
-        <p class="text-p-base leading-relaxed text-ink-gray-6">
-          One tap, and it stays between you and Frappe — it tells us what actually decides these,
-          which is how the replies get sorted better next time.
-        </p>
-        <div class="mt-4 flex flex-wrap gap-2">
-          <Button v-for="w in WHY" :key="w" :label="w" @click="answer(w)" />
-        </div>
-        <Button class="mt-4" variant="ghost" label="Skip" @click="answer(null)" />
-      </template>
+          <Button variant="solid" :label="`Hire ${name}`" :disabled="!agreed" @click="hire" />
+        </template>
+        <Button v-else variant="ghost" label="Skip" @click="answer(null)" />
+      </div>
     </template>
   </Dialog>
 </template>

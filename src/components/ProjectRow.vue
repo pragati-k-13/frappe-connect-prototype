@@ -1,10 +1,10 @@
 <script setup>
 import { computed } from 'vue'
 import { Avatar, Badge } from 'frappe-ui'
-import IconFolder from '~icons/lucide/folder'
+import IconProject from '~icons/lucide/briefcase-business'
 import { logoFor } from '../data/logos'
 import { PARTNERS } from '../data/partners'
-import { serviceOf, stageOf, stageWork, windowFor } from '../data/project'
+import { serviceOf, stageOf, stageWork } from '../data/project'
 
 // One project in the Projects list.
 //
@@ -29,7 +29,6 @@ const logo = computed(() => (partner.value ? logoFor(partner.value.id) : null))
 const service = computed(() => serviceOf(props.project.service))
 const stage = computed(() => stageOf(props.project.service, props.project.stage))
 const work = computed(() => stageWork(props.project))
-const window = computed(() => windowFor(props.project))
 
 // The second line: what kind of work, and who is doing it. Both facts or one —
 // a project with no service has neither, and the line simply isn't there.
@@ -37,10 +36,6 @@ const window = computed(() => windowFor(props.project))
 // ⚠️ "No partner yet" rather than nothing, and only once a SERVICE is chosen.
 // Before that, there is no reason to expect a partner and naming their absence
 // reads as a warning about a step that has not come up yet.
-const subtitle = computed(() => {
-  if (!service.value) return null
-  return [service.value.label, partner.value?.name ?? 'No partner yet'].join(' · ')
-})
 
 // The partner's first name, or Frappe while nobody is assigned — the same rule
 // the project page uses for the sentence naming the other side.
@@ -59,7 +54,7 @@ const otherParty = computed(() => partner.value?.name.split(' ')[0] ?? 'Frappe')
 // happening.
 const attention = computed(() => {
   const w = work.value
-  if (!w) return null
+  if (!w || props.project.completedAt) return null
   if (w.outstanding) {
     const plural = w.outstanding === 1
     return {
@@ -71,19 +66,38 @@ const attention = computed(() => {
   return null
 })
 
-// The countdown alone. The window's own name ("60-day validity") belongs on the
-// project's page, where there is room to say what the window is FOR; in a row it
-// only made the number harder to read.
-// ⚠️ The same three states the project page uses, and the same `urgent` flag
-// behind them — a window is not "running out" on one screen and fine on the
-// other. It reads quieter here than there: in a row this is the half of the
-// line that is NOT the reason to open it, right up until it goes amber.
-const countdown = computed(() => {
-  const w = window.value
-  if (!w) return null
-  if (w.expired) return { text: 'Validity expired', tone: 'text-ink-red-7' }
-  const days = w.daysLeft === 1 ? '1 day left' : `${w.daysLeft} days left`
-  return { text: days, tone: w.urgent ? 'text-ink-amber-7' : 'text-ink-gray-5' }
+const facts = computed(() => {
+  if (!service.value) return [{ text: 'Scoped, but not yet booked with anyone.' }]
+  return [
+    { text: service.value.label },
+    { text: partner.value?.name ?? 'No partner yet' },
+    attention.value?.mine ? { text: attention.value.text, tone: 'text-ink-gray-8' } : null,
+  ].filter(Boolean)
+})
+
+// When the project was created, relative — the list is ordered by it, so this
+// is the figure that explains the order. `Intl` rather than a hand-rolled
+// ladder: it says "yesterday" and "last week" the way a person would.
+const DAY = 24 * 60 * 60 * 1000
+const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
+const created = computed(() => {
+  const days = Math.round((props.project.at - Date.now()) / DAY)
+  const text =
+    Math.abs(days) < 7
+      ? rtf.format(days, 'day')
+      : Math.abs(days) < 30
+        ? rtf.format(Math.round(days / 7), 'week')
+        : Math.abs(days) < 365
+          ? rtf.format(Math.round(days / 30), 'month')
+          : rtf.format(Math.round(days / 365), 'year')
+  return {
+    text: text[0].toUpperCase() + text.slice(1),
+    full: new Date(props.project.at).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }),
+  }
 })
 </script>
 
@@ -108,7 +122,7 @@ const countdown = computed(() => {
         class="grid size-10 shrink-0 place-items-center rounded-4 bg-surface-gray-2 text-ink-gray-5"
         aria-hidden="true"
       >
-        <IconFolder class="size-4" />
+        <IconProject class="size-4" />
       </span>
 
       <div class="min-w-0 flex-1">
@@ -128,9 +142,27 @@ const countdown = computed(() => {
           <!-- ⚠️ The badge says the stage, and a project with no service has
                none to say — so it is absent rather than reading "Not started",
                which would be a stage name for a spine that does not exist. The
-               grey "No service yet" beside it is the honest version. -->
+               grey "Draft" beside it is the honest version: nothing has started.
+               See `isDraft`. -->
           <Badge
-            v-if="stage"
+            v-if="project.completedAt"
+            variant="subtle"
+            theme="green"
+            size="sm"
+            label="Completed"
+            class="shrink-0"
+          />
+          <!-- Setup done, the partner working: no step to name. -->
+          <Badge
+            v-else-if="project.setupDoneAt"
+            variant="subtle"
+            theme="orange"
+            size="sm"
+            label="In progress"
+            class="shrink-0"
+          />
+          <Badge
+            v-else-if="stage"
             variant="subtle"
             :theme="stage.theme"
             size="sm"
@@ -142,29 +174,34 @@ const countdown = computed(() => {
             variant="subtle"
             theme="gray"
             size="sm"
-            label="No service yet"
+            label="Draft"
             class="shrink-0"
           />
         </div>
 
-        <p v-if="subtitle" class="mt-0.5 text-p-sm text-ink-gray-6">{{ subtitle }}</p>
-        <p v-else class="mt-0.5 text-p-sm text-ink-gray-6">
-          Scoped, but not yet booked with anyone.
-        </p>
-
-        <!-- ⚠️ The two halves are NOT the same weight, which is the point of
-             the line. What the project wants from you is the reason to open the
-             row; the countdown is background. Rendering both in `ink-gray-5` —
-             which is what the old `Step 3 of 5 · 42 days left` did — makes the
-             reader parse two equal facts to find the one that is actionable. -->
-        <p v-if="attention || countdown" class="mt-2 flex flex-wrap items-center gap-x-2 text-p-sm">
-          <span v-if="attention" :class="attention.mine ? 'text-ink-gray-8' : 'text-ink-gray-6'">
-            {{ attention.text }}
-          </span>
-          <span v-if="attention && countdown" class="text-ink-gray-4" aria-hidden="true">·</span>
-          <span v-if="countdown" :class="countdown.tone">{{ countdown.text }}</span>
+        <!-- ⚠️ ONE LINE UNDER THE TITLE, not two. Service, partner, anything
+             that needs you read as one run of facts — no timeline, which is on
+             the project itself; the
+             "Waiting on Tridots" that had a line of its own repeated the
+             partner's name and described the normal state, so it is gone.
+             What needs YOU stays, in the darker ink — it is the one part worth
+             stopping for. -->
+        <p class="mt-1 flex flex-wrap items-center gap-x-1.5 text-p-base text-ink-gray-6">
+          <template v-for="(fact, i) in facts" :key="fact.text">
+            <span v-if="i" class="text-ink-gray-4" aria-hidden="true">·</span>
+            <span :class="fact.tone">{{ fact.text }}</span>
+          </template>
         </p>
       </div>
+      <!-- On the title's line, quiet: it explains the order, it is not a
+           reason to open the row. -->
+      <time
+        class="mt-1 shrink-0 text-sm text-ink-gray-5"
+        :datetime="new Date(project.at).toISOString()"
+        :title="`Created ${created.full}`"
+      >
+        {{ created.text }}
+      </time>
     </div>
   </article>
 </template>

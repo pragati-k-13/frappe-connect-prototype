@@ -18,13 +18,7 @@
 // and a tracker that lies is worse than no tracker. Every stage advances on
 // what the CUSTOMER has done. `theirs` is prose, not state.
 //
-// The TASKS are a different case, and worth reading before replacing them.
-// Several are real lines lifted from `data/packs.js` —
-// `CUSTOMER_RESPONSIBILITIES` — and imported rather than retyped, so a change
-// to the contract reaches the tracker. What is invented is WHICH STAGE each one
-// lands in, and the connective lines that had no source. Those carry their own
-// note.
-import { CUSTOMER_RESPONSIBILITIES, STARTER_PACKS } from './packs'
+import { STARTER_PACKS } from './packs'
 // Only `demoProjects` needs this, to resolve a firm's name to its id — by NAME
 // rather than by id for the same reason `data/messages.js` does it: an id
 // hard-coded here would rot silently the day a partner is renamed.
@@ -60,6 +54,13 @@ export const SERVICES = [
 
 export const serviceOf = (value) => SERVICES.find((s) => s.value === value) ?? null
 
+// ⚠️ A DRAFT IS A PROJECT WITH NO SERVICE. Saved from New project with its
+// requirements, and nothing else has happened: no partner, no payment, nothing
+// sent. Booking packs or sharing the requirements is what starts it. Until
+// then it is the one kind of project that can be edited or thrown away,
+// because nobody but its owner has seen it.
+export const isDraft = (project) => Boolean(project) && !project.service
+
 // ── Tasks ───────────────────────────────────────────────────────────────────
 // A task is `{ key, label, hint?, action? }`.
 //
@@ -71,15 +72,10 @@ export const serviceOf = (value) => SERVICES.find((s) => s.value === value) ?? n
 // carrying a handler: the data layer knows a task needs a slot booked, the page
 // knows what booking a slot looks like. Kinds in use:
 //
-//   message     opens (or starts) the thread with this partner
-//   scope       opens the pack's scope panel, or the module scope for custom
-//   hosting     reveals the Frappe Cloud partner code, with a link out
-//   bids        scrolls to the replies this project has had
-//   brief       opens the requirements the broadcast went out with
-//   terms       the one task that is a contract rather than an errand
-//   feedback    opens the rating dialog
-//   partners    goes to the directory
-//   packs       goes to the pack catalogue
+//   fc-login    opens Frappe Cloud
+//   copy-code   copies the partner's referral code
+//   fc-link     opens the Frappe Cloud screen that takes the code
+//   terms       a checkbox and the terms dialog — a contract, not an errand
 //
 // ⚠️ A TASK IS SOMETHING THE PRODUCT CAN SEE YOU DO. That is the rule now, and
 // it used to be "anything the customer owes", which is why this list had
@@ -95,15 +91,16 @@ export const serviceOf = (value) => SERVICES.find((s) => s.value === value) ?? n
 //
 // Everything else — nominate a champion, have your data clean, keep to the
 // scope, sign off with your partner — happens where this product has no
-// visibility at all. Those are NOT tasks. They are the stage's `expects`, one
-// line of prose, and losing the checkbox loses nothing: nobody was ever
-// prevented from ticking "Have your data ready" with no data.
+// visibility at all. Those are NOT tasks; they are in the terms the business
+// agrees to in the first step.
+//
+// `optional: true` marks a task that does not hold the step up. The button
+// that moves on waits only for the rest.
 //
 // ⚠️ THERE IS NO CONDITIONAL TASK ANY MORE, and there was a mechanism for one.
 // `when(project)` hid a row until the project was ready for it, added for
-// `agree-terms` — the terms could not be offered before a partner existed,
-// since pressing them would only have said "hire a partner first". That task is
-// now part of the hire itself, so the last user went with it, and the filter
+// the custom spine's `agree-terms` — the terms could not be offered before a
+// partner existed. That agreement is now part of the hire itself, and the filter
 // went too: every count on this screen had to remember to route through it, and
 // a no-op that four call sites must not forget is a trap that buys nothing.
 // Bring it back if a second case turns up; do not keep it waiting for one.
@@ -122,12 +119,8 @@ export const isTaskDone = (t, project, ctx = {}) =>
 // Is YOUR side of this stage finished?
 //
 // ⚠️ A STAGE CAN BE INCOMPLETE WITH NO TASKS IN IT, which "every task is done"
-// gets exactly backwards — an empty list satisfies `every` vacuously. Two
-// stages are now entirely `expects`, and that is right for them: nothing this
-// product can see happens while your data is prepared or the partner builds, so
-// saying your side is done is your call.
-//
-// "Choosing a partner" is the one where it is not. It has no tasks either, and
+// gets exactly backwards — an empty list satisfies `every` vacuously.
+// "Choosing a partner" is the case. It has no tasks either, and
 // for a week it showed a "Move to Hosting" button over a list of firms nobody
 // had hired — the stage's entire purpose, skippable, because the thing that
 // completes it is a partner rather than a checkbox. `complete` is how a stage
@@ -135,7 +128,7 @@ export const isTaskDone = (t, project, ctx = {}) =>
 export const isStageDone = (stage, project, ctx = {}) =>
   stage?.complete
     ? Boolean(stage.complete(project))
-    : (stage?.yours ?? []).every((t) => isTaskDone(t, project, ctx))
+    : (stage?.yours ?? []).every((t) => t.optional || isTaskDone(t, project, ctx))
 
 
 // ⚠️ `theirs` IS A LIST OF SENTENCE FRAGMENTS, lower-case, each one completing
@@ -153,150 +146,83 @@ export const isStageDone = (stage, project, ctx = {}) =>
 // So: 'installing ERPNext on Frappe Cloud', never 'Installation' or 'Day 1
 // support'. A noun phrase here produces "Tridots is day 1 support."
 
-// One real responsibility, by its text, so the tracker cites the contract
-// rather than paraphrasing it. Throws loudly at module load if the wording in
-// `packs.js` changes — which is the point: a silent fallback here would let the
-// two drift apart and nobody would notice until a customer read both.
-const responsibility = (fragment) => {
-  const found = CUSTOMER_RESPONSIBILITIES.find((r) => r.toLowerCase().includes(fragment))
-  if (!found) throw new Error(`No customer responsibility matching "${fragment}"`)
-  return found
-}
-
 // ── The three spines ────────────────────────────────────────────────────────
-// A stage is `{ key, label, theme, yours, expects, theirs }`.
+// A stage is `{ key, label, theme, yours, theirs }`.
 //
-// `yours` are TASKS — things this product can see you do. `expects` is one line
-// of prose for what the stage wants from you that it cannot see; `theirs` is the
-// same for the partner. See the note on `task`.
+// `yours` are TASKS — things this product can see you do. `theirs` is prose for
+// what the partner is doing, read by the listing. See the note on `task`.
 //
 // `theme` feeds frappe-ui's Badge. Blue for the stages before work starts,
 // orange while it is under way, green once it is done — so the badge carries
 // the same information as the position in the bar, for anyone reading the badge
 // alone in the listing.
 
+// ⚠️ THE HOSTING TASKS ARE SHARED BY BOTH SPINES, keyed per spine. A project
+// carries one flat `done` list, so the custom spine's copies take a prefix.
+// All three are OPTIONAL: a business already on Frappe Cloud, or one hosting
+// elsewhere, has nothing to do here, and the step must not hold them up.
+const hostingTasks = (prefix = '') => [
+  task(`${prefix}fc-login`, 'Log in to Frappe Cloud', {
+    hint: 'Your site is hosted on Frappe Cloud. Create an account if you do not have one.',
+    action: 'fc-login',
+    optional: true,
+  }),
+  task(`${prefix}fc-code`, 'Copy your partner’s referral code', {
+    hint: 'You enter it on Frappe Cloud in the next task.',
+    action: 'copy-code',
+    optional: true,
+  }),
+  task(`${prefix}fc-link`, 'Link your Frappe Cloud account to your partner', {
+    hint: 'Your partner then manages your hosting and bills you for it.',
+    action: 'fc-link',
+    optional: true,
+  }),
+]
+
+// ⚠️ TWO STEPS, AND BOTH ARE SETUP. Data preparation, configuration and
+// go-live happen between the business and the partner, where this product has
+// no visibility — so there is no step for them. Once setup is done the project
+// is simply under way (`setupDoneAt`) until the business marks it complete.
 const PACK_STAGES = [
   {
     key: 'confirmed',
-    label: 'Confirmed',
+    label: 'Finalize collaboration',
     theme: 'blue',
     yours: [
-      // ⚠️ DERIVED, not recorded. The thread either has a message from you in
-      // it or it does not, and that is the same fact this task states — storing
-      // a second copy of it would be a tick that can survive a conversation
-      // that never happened.
-      task('say-hello', 'Say hello to your partner', {
-        action: 'message',
-        complete: (project, ctx) => ctx.messagedPartner,
+      // Always done: a pack project only exists once checkout has taken the
+      // payment. Shown so the step reads as the whole agreement.
+      task('paid', 'Pay upfront', {
+        hint: 'Paid in full to Frappe at checkout.',
+        complete: () => true,
+      }),
+      // ⚠️ CONSENT, not status — the act itself, performed here. The one task
+      // drawn as a checkbox, because ticking it IS the agreement.
+      task('agree-terms', 'Agree to the terms and conditions', {
+        hint: 'Payment, scope, validity and what your team provides.',
+        action: 'terms',
       }),
     ],
-    expects: responsibility('champion'),
     theirs: ['reading the brief that went out with your payment'],
   },
   {
-    // ⚠️ ITS OWN STAGE, AND EARLY, which is a product decision rather than a
-    // sequencing one. Hosting is how Frappe is paid — the packs are bought from
-    // Frappe but the money that matters is the Frappe Cloud subscription
-    // underneath them — so the step that gets a site running is not a detail
-    // buried in kickoff. It is also genuinely blocking: nothing can be
-    // configured until there is somewhere to configure it.
+    // ⚠️ ITS OWN STEP, AND EARLY. Hosting is how Frappe is paid, and nothing
+    // can be configured until there is a site to configure.
     key: 'hosting',
-    label: 'Hosting',
+    label: 'Set up hosting',
     theme: 'blue',
-    yours: [
-      // ⚠️ "TAKE", NOT "ENTER". It read "Enter your partner code on Frappe
-      // Cloud", which is a thing that happens on a different product — this one
-      // cannot see it and had no business claiming to. What it CAN see is you
-      // taking the code, which is the whole of Connect's side of this step.
-      task('fc-code', 'Take your Frappe Cloud partner code', {
-        hint: 'It tells Frappe Cloud to bill your partner for the site instead of you.',
-        action: 'hosting',
-      }),
-    ],
-    expects: 'A Frappe Cloud account, the code entered on it, and the site up.',
+    yours: hostingTasks(),
     theirs: ['installing ERPNext on your site', 'setting up standard user roles'],
-  },
-  {
-    key: 'data',
-    label: 'Your data',
-    theme: 'orange',
-    // ⚠️ NO TASKS AT ALL, and the stage is not broken. Everything this stage
-    // wants happens in a spreadsheet on somebody's laptop. Three checkboxes
-    // that only the customer could tick told this screen nothing it could act
-    // on, and told the customer nothing they did not already know.
-    yours: [],
-    // Real, and the reason this stage exists: cleaning and migrating data is
-    // STRICTLY EXCLUDED from every pack.
-    expects: 'Clean Excel or CSV, your naming series decided, and your opening balances gathered. Data cleaning and migration are not in the pack.',
-    theirs: ['running your data import session'],
-  },
-  {
-    // ⚠️ THE THIN STAGE, and it is thin on purpose. This is the fortnight the
-    // partner is actually configuring, and Frappe Connect does not track what
-    // they do inside it: there is no task list a partner updates, no percentage,
-    // no per-module state. Partners are bad at maintaining that and a progress
-    // bar nobody moves is worse than no progress bar, because it reads as
-    // nothing having happened.
-    //
-    // What the page shows instead is the three things the CUSTOMER owes, and a
-    // plain line saying where progress actually lives — the calls the two of
-    // them are already having. See `ProjectChecklist`.
-    key: 'implementation',
-    label: 'Implementation',
-    theme: 'orange',
-    yours: [],
-    expects: 'Decisions approved on your side, your users available, and the work kept strictly to the scope — anything outside it is a change request, and more hours.',
-    theirs: ['configuring the modules in your packs', 'training your users'],
-  },
-  {
-    key: 'live',
-    label: 'Live',
-    theme: 'green',
-    yours: [
-      // ⚠️ THE ONE TASK THAT ASKS FOR SOMETHING RATHER THAN OF SOMETHING. It is
-      // here and not mid-project because this is the first moment the answer is
-      // worth anything: halfway through a configuration the honest answer is
-      // "nothing has happened yet", and asking then trains people to ignore the
-      // question by the time it matters.
-      task('rate-partner', 'Rate your partner', {
-        hint: 'Published on their profile, and it is how the next business picks.',
-        action: 'feedback',
-      }),
-    ],
-    expects: 'Go-live signed off between you and your partner.',
-    theirs: ['standing by for Day 1 go-live'],
   },
 ]
 
-// ⚠️ Custom is the only spine with stages BEFORE a partner exists, and that is
+// ⚠️ Custom is the only spine with a stage BEFORE a partner exists, and that is
 // the reason it has its own. A pack arrives with someone assigned; custom work
-// starts as a description of a problem and has to find the firm that will take
-// it on.
+// has to find the firm that will take it on.
+//
+// ⚠️ NO REQUIREMENTS STAGE. Writing and sending the requirements happens before
+// the project page exists — the send creates the project — so a step for it
+// was always already done, and every custom project opened on "Step 2".
 const CUSTOM_STAGES = [
-  {
-    key: 'requirements',
-    label: 'Requirements',
-    theme: 'blue',
-    // ⚠️ ONE BUTTON, NOT THREE. All three carried `action: 'brief'`, so the
-    // stage rendered three identical "Open requirements" controls in a column
-    // — the same fault the choosing stage had with "See the replies". They open
-    // one dialog that collects all three, so the first task owns it and the two
-    // under it are the record of what that dialog did.
-    //
-    // ⚠️ THEY ALWAYS COMPLETE TOGETHER, here and on the landing-page route,
-    // because `broadcastBrief` writes all three at once. Three rows that can
-    // never disagree are arguably one row; they are kept as three because they
-    // say what the brief CONTAINS, which is worth reading before it goes out to
-    // a dozen firms.
-    yours: [
-      task('describe', 'Describe what you need built', { action: 'brief' }),
-      task('set-budget', 'Say what you can spend', {
-        hint: 'A range. Partners price against it, and a brief with no number gets no number back.',
-      }),
-      task('send-brief', 'Send it to the partners who match'),
-    ],
-    theirs: [],
-  },
   {
     key: 'choosing',
     label: 'Choosing a partner',
@@ -324,12 +250,6 @@ const CUSTOM_STAGES = [
     // stage had no tasks, "every task is done" was vacuously true, and the
     // button to leave stood over a list of firms nobody had chosen.
     complete: (project) => Boolean(project?.partnerId),
-    // ⚠️ NO `expects` LINE, and the other task-free stages have one. Theirs
-    // describe work happening somewhere this product cannot see. This stage's
-    // work happens six inches below, in the replies list, and a sentence saying
-    // "a partner hired from the replies" over a table of replies with a Hire
-    // button on every row is narration. It also went stale the moment somebody
-    // hired one, still describing as pending a thing the table shows done.
     // ⚠️ NO `theirs` SENTENCE, and this is the one stage that has to go
     // without. The line is rendered as "<other party> is <fragment>", and the
     // other party here is a dozen firms rather than one — with no partner
@@ -341,40 +261,10 @@ const CUSTOM_STAGES = [
   },
   {
     key: 'custom-hosting',
-    label: 'Hosting',
+    label: 'Set up hosting',
     theme: 'blue',
-    yours: [
-      task('custom-fc-code', 'Take your Frappe Cloud partner code', {
-        hint: 'It tells Frappe Cloud to bill your partner for the site instead of you.',
-        action: 'hosting',
-      }),
-    ],
-    expects: 'A Frappe Cloud account, the code entered on it, and the site up.',
+    yours: hostingTasks('custom-'),
     theirs: ['setting up your site', 'importing your data'],
-  },
-  {
-    // Thin, for the same reason the pack spine's Implementation stage is — see
-    // the note there. Custom work is longer and has more phases, which makes an
-    // invented milestone list more tempting and no more true.
-    key: 'build',
-    label: 'Build',
-    theme: 'orange',
-    yours: [],
-    expects: 'A nominated project champion, decisions approved on your side, and your users available.',
-    theirs: ['building and configuring', 'training your users'],
-  },
-  {
-    key: 'custom-live',
-    label: 'Live',
-    theme: 'green',
-    yours: [
-      task('custom-rate-partner', 'Rate your partner', {
-        hint: 'Published on their profile, and it is how the next business picks.',
-        action: 'feedback',
-      }),
-    ],
-    expects: 'Go-live signed off between you and your partner.',
-    theirs: ['standing by for go-live'],
   },
 ]
 
@@ -433,8 +323,9 @@ export const nextStage = (service, key) => {
 export const stageWork = (project) => {
   const stage = stageOf(project?.service, project?.stage)
   if (!stage) return null
-  const done = project.done ?? []
-  const outstanding = (stage.yours ?? []).filter((t) => !done.includes(t.key)).length
+  const outstanding = (stage.yours ?? []).filter(
+    (t) => !t.optional && !isTaskDone(t, project),
+  ).length
   return { outstanding, waitingOn: outstanding === 0 && (stage.theirs ?? []).length > 0 }
 }
 
@@ -587,16 +478,15 @@ export const inquiryName = (apps, company) => {
 // ⚠️ SEEDED, and invented on the same footing as everything else attached to a
 // real partner in this repo — no firm named here is running any of this work.
 //
-// Three, because three is what it takes to see every state the tracker has:
+// Two, because two is what it takes to see every state the tracker has:
 //
 // ⚠️ `apps` is EMPTY on the first, and that is the shape of a pack rather than
 // a gap in the seed. A pack is bought as a fixed scope — the pack names the
-// work — so it was never asked which apps it wants. Only the last two can back
+// work — so it was never asked which apps it wants. Only the second can back
 // an inquiry; see `inquiryProjects` in the store.
 //
 //   1  packs mid-flight, with a partner and a validity window running down
 //   2  custom work with NO PARTNER YET — the state the bid table is drawn in
-//   3  a project with no service at all — no spine, no window, one decision
 //
 // Dated relative to now, the same way the seeded threads are, so the windows
 // never go stale and the demo reads the same next year.
@@ -616,13 +506,9 @@ export const demoProjects = () => {
       packs: ['accounts-sales-purchase-stock', 'manufacturing'],
       partnerId: idOf('Tridots Tech'),
       stage: 'hosting',
-      // ⚠️ EMPTY, and it used to name three tasks that no longer exist —
-      // `nominate-champion`, `fc-account` and a hand-ticked `say-hello`. Two of
-      // them stopped being tasks when tasks became things the product can see,
-      // and the third is derived from the thread now. Hosting's one task is
-      // left undone so the demo opens on the control that finishes it, which is
-      // the interesting half of the state.
-      done: [],
+      // The terms are agreed — that is what got it past the first step — and
+      // hosting is left untouched so the demo opens on its three tasks.
+      done: ['agree-terms'],
       // 18 days into a 60-day window, so it reads as comfortably in hand.
       // A window close to expiry is a state worth seeing too — drag the stage
       // switcher's project here and change this number to see it.
@@ -642,24 +528,8 @@ export const demoProjects = () => {
       packs: [],
       partnerId: null,
       stage: 'choosing',
-      done: ['describe', 'set-budget', 'send-brief'],
-      at: daysAgo(5),
-      slot: null,
-    },
-    {
-      // No service. The state the whole "decide later" path exists for.
-      id: 'pr-demo-undecided',
-      name: 'ERP rollout',
-      apps: ['erpnext'],
-      modules: {
-        erpnext: ['finance', 'sales', 'purchase', 'inventory', 'manufacturing', 'hr'],
-      },
-      service: null,
-      packs: [],
-      partnerId: null,
-      stage: null,
       done: [],
-      at: daysAgo(1),
+      at: daysAgo(5),
       slot: null,
     },
   ]
@@ -705,4 +575,6 @@ export const partnerCodeFor = (project, partner) => {
 //
 // Replace with the real path before this is shown outside the team. Same rule
 // as the invented partner rates and the generated quotes.
+export const FRAPPE_CLOUD_URL = 'https://frappecloud.com/dashboard'
+
 export const FRAPPE_CLOUD_PARTNER_URL = 'https://frappecloud.com/dashboard/settings/partner'

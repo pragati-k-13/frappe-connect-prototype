@@ -718,20 +718,48 @@ export const CUSTOMER_RESPONSIBILITIES = [
 // Sections 6 and 7, with the region-dependent figures left as functions so a
 // non-India reader isn't quoted rupees. The Frappe Cloud warranty threshold
 // stays in rupees because that's the plan price Frappe publishes.
-export const commercialTermsFor = (region = DEFAULT_REGION) => {
+// ⚠️ GROUPED, because thirteen terms in one list is a wall nobody reads. The
+// terms dialog renders these as sections; `commercialTermsFor` flattens the
+// commercial ones back into the list the recommendation screen discloses, so
+// there is still one source for every line.
+export const termsSectionsFor = (region = DEFAULT_REGION) => {
   const p = pricingFor(region)
   return [
-    // ⚠️ "to Frappe" is the whole point of the line. A pack is bought from
-    // Frappe and delivered by the partner Frappe assigns, so the money never
-    // goes to the partner — and every other surface a buyer sees this on names
-    // a partner somewhere on the same screen.
-    'Payment to Frappe in full, in advance',
-    `${p.tax} charged on top`,
-    `Extra hours beyond the pack: ${additionalHourRateFor(region)} per hour, plus ${p.tax}`,
-    'For businesses running fewer than 50 users',
-    'Your Frappe Cloud subscription is billed separately',
-    'Product warranty applies on Frappe Cloud plans above ₹4,100 + GST a month',
-    'Scope is limited to what this document lists. Anything else is a change request, and more hours',
-    'Validity runs from the project start date',
+    {
+      key: 'payment',
+      label: 'Payment',
+      lines: [
+        // ⚠️ "to Frappe" is the whole point of the line. A pack is bought from
+        // Frappe and delivered by the partner Frappe assigns, so the money
+        // never goes to the partner — and every other surface a buyer sees
+        // this on names a partner somewhere on the same screen.
+        'Payment to Frappe in full, in advance',
+        `${p.tax} charged on top`,
+        `Extra hours beyond the pack: ${additionalHourRateFor(region)} per hour, plus ${p.tax}`,
+      ],
+    },
+    {
+      key: 'scope',
+      label: 'Scope and validity',
+      lines: [
+        'Scope is limited to what the pack lists. Anything else is a change request, and more hours',
+        'Validity runs from the project start date',
+        'For businesses running fewer than 50 users',
+      ],
+    },
+    {
+      key: 'hosting',
+      label: 'Hosting',
+      lines: [
+        'Your Frappe Cloud subscription is billed separately',
+        'Product warranty applies on Frappe Cloud plans above ₹4,100 + GST a month',
+      ],
+    },
+    { key: 'responsibilities', label: 'What we need from you', lines: CUSTOMER_RESPONSIBILITIES },
   ]
 }
+
+export const commercialTermsFor = (region = DEFAULT_REGION) =>
+  termsSectionsFor(region)
+    .filter((s) => s.key !== 'responsibilities')
+    .flatMap((s) => s.lines)

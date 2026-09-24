@@ -432,9 +432,17 @@ defineProps({
                rows are projects, the count line says "3 projects", the empty
                state's button says New project, the route is /connect/projects
                and the home screen says "You have 2 active projects". -->
-          <Tooltip text="Projects" side="right" :offset="8" :disabled="!collapsed">
+          <!-- Accounts only: a visitor has no projects, and the route sends
+               them to log in. -->
+          <Tooltip
+            v-if="store.signedIn"
+            text="Projects"
+            side="right"
+            :offset="8"
+            :disabled="!collapsed"
+          >
             <SidebarItem label="Projects" to="/connect/projects" :active="inProjects">
-              <template #prefix><LucideListChecks class="size-4 text-ink-gray-6" /></template>
+              <template #prefix><LucideBriefcaseBusiness class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>
         </nav>

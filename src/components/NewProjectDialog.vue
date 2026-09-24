@@ -1,141 +1,153 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
-import { Button, Checkbox, Dialog, TextInput } from 'frappe-ui'
-import { MODULES, moduleHours } from '../data/modules'
+import { computed, reactive, ref, watch } from 'vue'
+import { Button, Dialog, Progress, TextInput } from 'frappe-ui'
+import CompanyQuestions from './CompanyQuestions.vue'
+import { COMPANY_STEPS, companyPayload, emptyCompanyForm, stepErrors } from '../data/company'
+import { useConnectStore } from '../stores/connect'
 
-// Starting a project before deciding how to have it built.
+// Starting a project: its name, and the landing's three questions.
 //
-// ⚠️ This is the ONLY door that produces a project with no service. Every other
-// way in — booking a pack — arrives with the service and the partner already
-// settled, which means without this dialog the "no service yet" state would be
-// unreachable and the tracker would never have to handle it. It does handle it,
-// because businesses write down what they want long before they work out who
-// is building it.
+// ⚠️ THE SAME QUESTIONS AS THE HERO, THROUGH THE SAME COMPONENT. The project
+// page recommends Starter Packs or custom work from these answers, with the
+// engine the landing uses, so they have to be the same questions — and
+// `CompanyQuestions` is what every other surface asking them renders. The
+// answers are pre-filled from the account's own, because most of them (where,
+// how big, what industry) are about the company rather than the project; what
+// is under way and what needs fixing can differ project to project, so they are
+// here to change.
 //
-// Two questions and no more. A name, and what it covers. Everything else the
-// project will eventually carry — service, partner, stages, a price — is
-// decided later BY the tracker, and asking for any of it here would be asking
-// someone to choose before they have seen the options.
+// ⚠️ A DIALOG, NOT A PAGE. Three other dialogs already walk these questions
+// with this stepper (contact a partner, company sign-up, edit answers), and each
+// step is one to three fields. A page is what the landing is: the first visit,
+// with nothing behind it. This is adding a project from the list of projects,
+// and should come back to that list if abandoned.
+//
+// ⚠️ NO BUDGET OR DESCRIPTION HERE. They are only needed if the answer is
+// custom work, and the draft asks for them there — on the recommendation's
+// custom half, beside the partners they will be sent to. Asking them before
+// the recommendation would make a Starter Pack buyer write a brief nobody reads.
+//
+// ⚠️ NO MODULES. The answers decide which packs fit — industry and problems are
+// what the recommendation reads — and the description tells a partner what to
+// build. A module checklist was a second, weaker answer to the same question.
 const props = defineProps({
   open: { type: Boolean, default: false },
+  // A draft to edit. The same questions, pre-filled with its own answers.
+  draft: { type: Object, default: null },
 })
-
 const emit = defineEmits(['close', 'create'])
 
+const store = useConnectStore()
+
+// ⚠️ THREE STEPS, the landing's three. The project's name opens the first,
+// because it is what the dialog is making; the rest are the questions.
+const STEPS = COMPANY_STEPS
+
+const answers = reactive(emptyCompanyForm())
 const name = ref('')
-const picked = ref([])
+const step = ref(1)
+// Errors show only once the step has been tried — a step that opens red is
+// telling somebody off for not having started.
+const tried = ref(false)
 
-// ⚠️ ERPNext only, and that isn't a shortcut — it is the catalogue's own shape.
-// `data/modules.js` carries no CRM list (starter packs are ERP work) and does
-// not break the Frappe HR app into modules either, so `modulesFor` returns an
-// empty list for both. Offering an app with nothing under it reads as a bug.
-const APP = 'erpnext'
-const modules = MODULES[APP] ?? []
-
-// Cleared on open rather than on close: a dialog that empties itself while it
-// is animating out shows the reader their answers being wiped.
+// Reset on open, not on close: a dialog that empties while it fades out shows
+// the reader their answers being wiped.
 watch(
   () => props.open,
   (isOpen) => {
     if (!isOpen) return
-    name.value = ''
-    picked.value = []
+    const d = props.draft
+    Object.assign(
+      answers,
+      emptyCompanyForm(),
+      JSON.parse(JSON.stringify(d?.answers ?? store.company)),
+    )
+    name.value = d?.name ?? ''
+    step.value = 1
+    tried.value = false
   },
 )
 
-const toggle = (key) =>
-  (picked.value = picked.value.includes(key)
-    ? picked.value.filter((k) => k !== key)
-    : [...picked.value, key])
+const nameError = computed(() => (name.value.trim() ? {} : { name: 'Name the project' }))
 
-// The estimate the picker adds up to, in hours. Real: it is the same
-// `moduleHours` the quote modal prices, so a project made here and estimated
-// later reports the same number.
-//
-// ⚠️ Hours, not money. A price needs a partner's rate and there is no partner
-// yet — quoting one here would be the screen inventing a figure at the exact
-// moment it has least to go on.
-const hours = computed(() =>
-  modules.filter((m) => picked.value.includes(m.key)).reduce((n, m) => n + moduleHours(m), 0),
-)
+const errorsFor = (n) => ({ ...(n === 1 ? nameError.value : {}), ...stepErrors(answers, n) })
+const shown = computed(() => (tried.value ? errorsFor(step.value) : {}))
 
-// The scope is OPTIONAL and the name is not. A project you cannot name is a
-// project you cannot find in the list tomorrow; a project whose modules are
-// undecided is most of them on day one.
-const valid = computed(() => name.value.trim().length > 0)
+const next = () => {
+  tried.value = true
+  if (Object.keys(errorsFor(step.value)).length) return
+  tried.value = false
+  step.value += 1
+}
+
+const back = () => {
+  tried.value = false
+  step.value -= 1
+}
 
 const create = () => {
-  if (!valid.value) return
+  tried.value = true
+  if (Object.keys(errorsFor(STEPS)).length) return
   emit('create', {
     name: name.value,
-    // ⚠️ The app, recorded alongside the modules rather than left to be
-    // inferred from their keys. A project's `apps` is the answer nothing else
-    // holds — an app with no module catalogue behind it — so a project that
-    // never said which app it was in reads as one with no app at all wherever
-    // that field is shown, which is now the inquiry dialog's own summary.
-    // Empty when nothing was picked: this dialog never asks the question
-    // directly, so ERPNext is only true here if an ERPNext module is.
-    apps: picked.value.length ? [APP] : [],
-    // Keyed by app, matching every other module scope in the app — see
-    // `store.defaultScope` and `EstimateQuoteDialog`.
-    modules: picked.value.length ? { [APP]: [...picked.value] } : {},
+    apps: ['erpnext'],
+    modules: {},
+    answers: companyPayload(answers),
   })
 }
 </script>
 
 <template>
-  <Dialog :model-value="open" title="New project" @update:model-value="!$event && emit('close')">
-    <!-- Default slot, not `#body-content`: this version of frappe-ui's Dialog
-         exposes only `default`, `title` and `actions`. `#body-content` is the
-         older API and fails silently. -->
+  <!-- `md`, like the other dialogs that ask these questions: a column of
+       single-line fields and short options. -->
+  <Dialog
+    :model-value="open"
+    :title="draft ? 'Edit draft' : 'New project'"
+    size="md"
+    @update:model-value="!$event && emit('close')"
+  >
     <template #default>
-      <div class="space-y-5">
-        <div>
-          <TextInput
-            v-model="name"
-            label="What are you building?"
-            size="md"
-            placeholder="ERP rollout"
-            @keyup.enter="create"
+      <!-- Same stepper as the contact wizard and company sign-up, rounded the
+           same way — `Progress` has no prop for segment shape. -->
+      <Progress
+        class="mb-6 [&_[role=progressbar]>div]:rounded-full"
+        size="md"
+        intervals
+        :interval-count="STEPS"
+        :value="(step / STEPS) * 100"
+      />
+
+      <!-- The submit handler follows the step: Return moves a step on, and
+           only saves on the last one. -->
+      <form novalidate @submit.prevent="step === STEPS ? create() : next()">
+        <!-- Same 16px rhythm as the questions under it. -->
+        <TextInput
+          v-if="step === 1"
+          v-model="name"
+          class="mb-4"
+          label="Project name"
+          size="md"
+          placeholder="ERP rollout"
+          required
+          :error="shown.name"
+        />
+        <CompanyQuestions :step="step" :form="answers" :errors="shown" />
+
+        <div v-if="step === 1" class="mt-8">
+          <Button class="w-full" variant="solid" size="sm" label="Continue" type="submit" />
+        </div>
+        <div v-else class="mt-8 flex items-center justify-end gap-2">
+          <Button variant="subtle" size="sm" label="Back" @click="back">
+            <template #prefix><LucideChevronLeft class="size-4" /></template>
+          </Button>
+          <Button
+            variant="solid"
+            size="sm"
+            :label="step === STEPS ? 'Save draft' : 'Continue'"
+            type="submit"
           />
         </div>
-
-        <div>
-          <div class="flex items-baseline justify-between gap-3">
-            <span class="text-sm text-ink-gray-6">What does it cover?</span>
-            <!-- ⚠️ "Optional" stated, not implied by the absence of a required
-                 mark. This is the one field someone will stall on — it is a
-                 question about a system they have not bought yet — and the
-                 cheapest way past it is to say out loud that it can be left. -->
-            <span class="shrink-0 text-p-sm text-ink-gray-5">Optional</span>
-          </div>
-
-          <ul class="mt-2 grid grid-cols-2 gap-x-4 gap-y-2.5">
-            <li v-for="m in modules" :key="m.key">
-              <Checkbox
-                :model-value="picked.includes(m.key)"
-                :label="m.label"
-                size="sm"
-                @update:model-value="toggle(m.key)"
-              />
-            </li>
-          </ul>
-
-          <!-- The running total, and only once something is picked: a standing
-               "0 hrs" is a number that has never meant anything. -->
-          <p v-if="hours" class="mt-3 text-p-sm text-ink-gray-6">
-            About {{ hours }} hrs of work, on the standard scope.
-            <span class="text-ink-gray-5">A partner's own estimate may differ.</span>
-          </p>
-        </div>
-      </div>
-    </template>
-
-    <template #actions>
-      <div class="flex justify-end gap-2">
-        <Button variant="subtle" label="Cancel" @click="emit('close')" />
-        <Button variant="solid" label="Create project" :disabled="!valid" @click="create" />
-      </div>
+      </form>
     </template>
   </Dialog>
 </template>

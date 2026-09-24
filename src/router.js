@@ -7,6 +7,11 @@ import { useConnectStore } from './stores/connect'
 // app. Every link it has into `/connect` opens in a NEW TAB, matching the
 // design: Frappe Connect is a separate destination, not a section of the
 // marketing site.
+// Screens that only exist for an account. Log in rather than sign up: these
+// are reached by someone coming back, not someone arriving.
+const requireAccount = (to) =>
+  useConnectStore().signedIn ? true : { name: 'login', query: { next: to.fullPath } }
+
 const routes = [
   { path: '/', name: 'website', component: () => import('./pages/FrappeSitePage.vue') },
   // frappe.io/contact — the OTHER discovery surface, and the reason it is
@@ -55,38 +60,32 @@ const routes = [
     name: 'recommendation',
     component: () => import('./pages/RecommendPage.vue'),
   },
-  // Where the money moves: the basket, a payment method, and the handoff to
-  // Stripe. The basket is in the store rather than the URL — it is a list now,
-  // and a query string carrying three pack ids is a URL nobody can read and
-  // everybody can edit.
-  {
-    path: '/connect/checkout',
-    name: 'checkout',
-    component: () => import('./pages/CheckoutPage.vue'),
-    // ⚠️ Guarded, like the confirmation after it. Paying creates a project and
-    // a conversation with an assigned partner, and both are facts about an
-    // ACCOUNT — a signed-out visitor on this URL has nowhere to keep what they
-    // are about to buy. Sign-up carrying `?next=`, so the flow the gate
-    // interrupted resumes here rather than at the top of the catalogue.
-    beforeEnter: (to) => {
-      const store = useConnectStore()
-      return store.signedIn ? true : { name: 'signup', query: { next: to.fullPath } }
-    },
-  },
+  // Where the money moves: straight to the processor's page. There is no
+  // checkout screen of ours in front of it — the basket and its total were on
+  // the screen that sent you here, and Stripe's page shows them again beside
+  // the payment method, which is the only thing left to choose.
+  //
   // The processor's own page, as a full screen rather than a modal over ours.
   // ⚠️ THE FICTION IS THAT YOU HAVE LEFT. Stripe hosts its checkout, which is
   // the entire reason a card number never reaches this application — so drawing
   // it as a dialog floating over our own chrome would be drawing a lie. It
   // takes no app shell, no sidebar and no back button of ours.
   {
-    path: '/connect/checkout/pay',
-    name: 'pay',
+    path: '/connect/checkout',
+    name: 'checkout',
     component: () => import('./pages/StripeCheckoutPage.vue'),
+    // ⚠️ Guarded. Paying creates a project and a conversation with an assigned
+    // partner, and both are facts about an ACCOUNT. Sign-up carries `?next=`,
+    // so the flow the gate interrupted resumes here. An empty basket has
+    // nothing to pay for, so it goes to the catalogue instead.
     beforeEnter: (to) => {
       const store = useConnectStore()
-      return store.signedIn ? true : { name: 'signup', query: { next: to.fullPath } }
+      if (!store.signedIn) return { name: 'signup', query: { next: to.fullPath } }
+      return store.packs.length ? true : { name: 'packs' }
     },
   },
+  // The old address of the processor's page, kept so a link to it still lands.
+  { path: '/connect/checkout/pay', redirect: { name: 'checkout' } },
   // The custom path's own receipt, and the counterpart of `/connect/confirmed`.
   // `?project=` names what was sent — this is a page somebody might leave open
   // or come back to, and the brief on the store keeps being edited while the
@@ -145,21 +144,24 @@ const routes = [
   // A LIST and a detail, not one screen. A business routinely has more than one
   // thing on — a pack running while a custom piece is being scoped — and the
   // rail's "Projects" row, inert until now, is this index.
+  //
+  // ⚠️ GUARDED. Projects belong to an account, so a signed-out visitor has
+  // none to see — they go to log in, carrying `?next=` so a shared project link
+  // lands where it pointed once they are in.
   {
     path: '/connect/projects',
     name: 'projects',
     component: () => import('./pages/ProjectsPage.vue'),
+    beforeEnter: requireAccount,
   },
   // ⚠️ `:id` is the project's own id, not a slug: projects are named by the
-  // people who own them and two can share a name. It is also not guarded, on
-  // the same reasoning as every other in-app screen — an unknown id renders an
-  // empty state that can be recovered from, which is better than a redirect
-  // that throws the link away. Nothing here is a fact about anyone until the
-  // store has a project under that id.
+  // people who own them and two can share a name. An unknown id renders an
+  // empty state that can be recovered from.
   {
     path: '/connect/projects/:id',
     name: 'project',
     component: () => import('./pages/ProjectPage.vue'),
+    beforeEnter: requireAccount,
   },
   {
     path: '/connect/partners',

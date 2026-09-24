@@ -23,6 +23,9 @@ import { answerRows } from '../data/company'
 const props = defineProps({
   open: { type: Boolean, default: false },
   brief: { type: Object, default: null },
+  // The business reading its own requirements, rather than a partner reading
+  // them. Only the wording changes: "you", not "they".
+  own: { type: Boolean, default: false },
 })
 
 defineEmits(['update:open'])
@@ -52,7 +55,7 @@ const rows = computed(() => {
 <template>
   <Dialog
     :model-value="open"
-    title="Requirement details"
+:title="own ? 'Your requirements' : 'Requirement details'"
     size="lg"
     @update:model-value="$emit('update:open', $event)"
   >
@@ -61,7 +64,7 @@ const rows = computed(() => {
     <template #default>
       <div v-if="brief" class="space-y-5">
         <div>
-          <p class="text-p-sm text-ink-gray-5">What they need built</p>
+          <p class="text-p-sm text-ink-gray-5">{{ own ? 'What you need built' : 'What they need built' }}</p>
           <p class="mt-1 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-8">
             {{ brief.scope }}
           </p>
@@ -75,7 +78,7 @@ const rows = computed(() => {
         </dl>
 
         <div class="border-t border-outline-gray-2 pt-4">
-          <p class="text-p-sm text-ink-gray-5">Who they asked for</p>
+          <p class="text-p-sm text-ink-gray-5">{{ own ? 'Who you asked for' : 'Who they asked for' }}</p>
           <ul class="mt-2 space-y-1.5">
             <li v-for="line in criteria" :key="line.text" class="text-p-base text-ink-gray-7">
               {{ line.text }}

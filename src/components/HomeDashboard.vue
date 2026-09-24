@@ -1,16 +1,15 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Avatar, Badge, Button } from 'frappe-ui'
+import { Avatar, Button } from 'frappe-ui'
+import NewProjectDialog from './NewProjectDialog.vue'
+import ProjectRow from './ProjectRow.vue'
 import TierIcon from './TierIcon.vue'
 import IconPlus from '~icons/lucide/plus'
-import IconChevron from '~icons/lucide/chevron-right'
-import IconProject from '~icons/lucide/binoculars'
 import IconHeart from '~icons/lucide/heart'
 import IconComment from '~icons/lucide/message-square'
 import { logoFor } from '../data/logos'
 import { EVENTS, FEATURED_GUIDE, GUIDE_CARDS, GUIDE_ROWS } from '../data/home'
-import { serviceOf, stageOf, windowFor } from '../data/project'
 import { useConnectStore } from '../stores/connect'
 
 // The signed-in home, built to the attached design.
@@ -41,50 +40,17 @@ const greeting = computed(() => {
 
 const projects = computed(() => [...store.projects].sort((a, b) => b.at - a.at))
 
-// ⚠️ ACTIVE, NOT ALL. A project that has gone live is not something you "have"
-// in the sense this line means, so the count is what still wants you — and it
-// can differ from the number of rows below, which is correct: the rows are
-// everything, the sentence is what is outstanding.
-const active = computed(() =>
-  projects.value.filter((p) => p.stage !== 'live' && p.stage !== 'custom-live'),
-)
+// ⚠️ ACTIVE, NOT ALL. A completed project is not something you "have" in the
+// sense this line means. The rows below are everything; the sentence is what
+// is still under way.
+// Drafts are not under way either — nothing has started.
+const active = computed(() => projects.value.filter((p) => p.service && !p.completedAt))
 
 const countLine = computed(() => {
   const n = active.value.length
   if (!n) return 'Nothing under way yet'
   return `You have ${n} active ${n === 1 ? 'project' : 'projects'}`
 })
-
-// The three facts on a project card.
-//
-// ⚠️ DERIVED PER SERVICE, and the design shows one case — "0 shortlisted, 0
-// quotes, 8-12 weeks", which is a custom project out for quotes. A starter pack
-// has no shortlist and no quotes, so printing those labels with zeroes against
-// one would be three facts about a flow it is not in. Each card prints what its
-// own project has, and a project with no service yet prints none.
-const factsFor = (project) => {
-  if (project.service === 'custom') {
-    const bids = project.bids ?? []
-    const facts = [
-      `${bids.filter((b) => b.state === 'shortlisted').length} interested`,
-      `${bids.length} ${bids.length === 1 ? 'quote' : 'quotes'}`,
-    ]
-    const chosen = bids.find((b) => b.partnerId === project.partnerId)
-    if (chosen) facts.push(`${chosen.weeks} weeks`)
-    return facts
-  }
-  if (project.service === 'pack') {
-    const w = windowFor(project)
-    return [
-      ...(w ? [`${w.daysLeft} days left`] : []),
-      project.partnerId ? 'Partner assigned' : 'Awaiting a partner',
-    ]
-  }
-  return []
-}
-
-const badgeFor = (project) => stageOf(project.service, project.stage) ?? null
-const serviceFor = (project) => serviceOf(project.service)
 
 // Saved partners: the first few, newest first, and "View all" once there are
 // more than fit. The home screen is a way back to them, not the list itself —
@@ -94,11 +60,15 @@ const SAVED_SHOWN = 3
 const saved = computed(() => store.savedPartners)
 const savedShown = computed(() => saved.value.slice(0, SAVED_SHOWN))
 
-// ⚠️ `?new=1`, NOT A SEPARATE ROUTE. `/connect` is the landing page for a
-// visitor and this dashboard for a customer, and starting something new is the
-// third face: the questions again, without the pitch underneath them. See
-// `ConnectLandingPage`, which reads the flag.
-const startSomething = () => router.push({ path: '/connect', query: { new: '1' } })
+// ⚠️ THE NEW PROJECT DIALOG, the same one the projects list opens. It asks the
+// landing's questions and saves a draft, so there is one way to start a project
+// whichever screen it is started from.
+const creating = ref(false)
+const startSomething = () => (creating.value = true)
+const create = (details) => {
+  creating.value = false
+  router.push(`/connect/projects/${store.createProject(details)}`)
+}
 </script>
 
 <template>
@@ -113,59 +83,26 @@ const startSomething = () => router.push({ path: '/connect', query: { new: '1' }
            puts a `+` here rather than a labelled button, which works because it
            is the one thing this screen starts. The tooltip carries the label a
            `+` cannot, and `aria-label` carries it for anyone not hovering. -->
-      <Button variant="subtle" label="Start something new" @click="startSomething">
+      <Button variant="subtle" label="New project" @click="startSomething">
         <template #prefix><IconPlus class="size-4" /></template>
       </Button>
     </div>
 
     <!-- ── Projects ──────────────────────────────────────────────────── -->
-    <ul v-if="projects.length" class="mt-5 space-y-3">
-      <li v-for="p in projects" :key="p.id">
-        <RouterLink
-          :to="{ name: 'project', params: { id: p.id } }"
-          class="flex items-center gap-3 rounded-6 border border-outline-gray-2 p-4 transition-colors hover:bg-surface-gray-1"
-        >
-          <span
-            class="grid size-10 shrink-0 place-items-center rounded-5 bg-surface-gray-2 text-ink-gray-6"
-            aria-hidden="true"
-          >
-            <IconProject class="size-5" />
-          </span>
-
-          <span class="min-w-0 flex-1">
-            <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span class="truncate text-p-base font-medium text-ink-gray-8">{{ p.name }}</span>
-              <Badge
-                v-if="badgeFor(p)"
-                variant="subtle"
-                size="sm"
-                :theme="badgeFor(p).theme"
-                :label="badgeFor(p).label"
-              />
-            </span>
-            <span class="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
-              <span v-for="fact in factsFor(p)" :key="fact" class="text-p-sm text-ink-gray-6">
-                {{ fact }}
-              </span>
-              <span v-if="!factsFor(p).length" class="text-p-sm text-ink-gray-5">
-                {{ serviceFor(p)?.label ?? 'No service yet' }}
-              </span>
-            </span>
-          </span>
-
-          <IconChevron class="size-4 shrink-0 text-ink-gray-5" />
-        </RouterLink>
-      </li>
-    </ul>
+    <!-- ⚠️ THE PROJECTS LIST'S OWN ROWS, not cards: the same `ProjectRow`, so
+         a project reads the same on the home screen as on its list. -->
+    <div v-if="projects.length" class="mt-4">
+      <ProjectRow v-for="p in projects" :key="p.id" :project="p" />
+    </div>
 
     <!-- The account that signed up and has not started anything. The only
          place on this screen where the three questions are the answer. -->
     <div v-else class="mt-5 rounded-6 border border-outline-gray-2 px-4 py-8 text-center">
       <p class="text-p-base text-ink-gray-7">Nothing under way</p>
       <p class="mx-auto mt-1 max-w-sm text-p-base text-ink-gray-6">
-        Answer three questions and we will say which of the two services fits, and what it costs.
+        Answer a few questions and we will recommend Starter Packs or a custom implementation.
       </p>
-      <Button class="mt-4" variant="solid" label="Get a recommendation" @click="startSomething" />
+      <Button class="mt-4" variant="solid" label="New project" @click="startSomething" />
     </div>
 
     <!-- ── Saved partners ────────────────────────────────────────────── -->
@@ -328,5 +265,7 @@ const startSomething = () => router.push({ path: '/connect', query: { new: '1' }
         </a>
       </div>
     </section>
+
+    <NewProjectDialog :open="creating" @close="creating = false" @create="create" />
   </div>
 </template>
