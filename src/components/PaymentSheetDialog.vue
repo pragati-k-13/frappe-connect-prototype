@@ -5,7 +5,7 @@ import { Button, Dialog } from 'frappe-ui'
 // the FALLBACK content of its default slot — so any dialog with a body of its
 // own loses the description, and the underlying primitive then warns that
 // `aria-describedby` is missing. reka-ui is frappe-ui's own dialog dependency,
-// not a new one. Same reasoning as `BookSlotDialog` and `EstimateQuoteDialog`.
+// not a new one. Same reasoning as `EstimateQuoteDialog`.
 import { DialogDescription } from 'reka-ui'
 import IconLock from '~icons/lucide/lock'
 import { PAYMENT_MS } from '../data/payment'

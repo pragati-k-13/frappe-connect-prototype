@@ -99,9 +99,10 @@ const create = (details) => {
     </div>
 
     <!-- ── Projects ──────────────────────────────────────────────────── -->
-    <!-- Cards, stacked: `ProjectRow` in its card form, so the facts a
-         project shows are the same here as on the Projects list. -->
-    <div v-if="projects.length" class="mt-5 flex flex-col gap-3">
+    <!-- Cards, side by side: `ProjectRow` in its card form, so the facts a
+         project shows are the same here as on the Projects list. Two across,
+         the same grid as Resources below; one column on a phone. -->
+    <div v-if="projects.length" class="mt-5 grid gap-3 sm:grid-cols-2">
       <ProjectRow v-for="p in projects" :key="p.id" :project="p" card />
     </div>
 

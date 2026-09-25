@@ -10,8 +10,7 @@ import { useAuthGate } from './auth'
 // ⚠️ TWO GATES NOW, not one. It used to open the thread and navigate, full
 // stop. What sits in front of that is the inquiry — see
 // `ContactPartnerDialog`: a partner cannot be contacted without requirements
-// to quote against, so Contact collects them (or picks the project that
-// already holds them) and sends them with the message.
+// to quote against, so Contact sends a project's brief with the message.
 //
 // ⚠️ Gated on the account first. A thread belongs to an account — a signed-out
 // visitor has nowhere to put it and nowhere to come back to. `requireAccount`

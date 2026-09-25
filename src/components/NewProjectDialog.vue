@@ -1,9 +1,10 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
-import { Button, Dialog, FormControl, Progress, TextInput } from 'frappe-ui'
+import { Button, Dialog, FormControl, Progress, Textarea, TextInput } from 'frappe-ui'
 import CompanyQuestions from './CompanyQuestions.vue'
 import { companyPayload, emptyCompanyForm, stepErrors } from '../data/company'
-import { TIMELINES } from '../data/custom'
+import { TIMELINES, briefErrors, budgetBandsFor, scopeHint } from '../data/custom'
+import { projectName } from '../data/project'
 import { useConnectStore } from '../stores/connect'
 
 // Starting a project: its name, when it needs to be live, and the two landing
@@ -40,6 +41,15 @@ const props = defineProps({
   open: { type: Boolean, default: false },
   // A draft to edit. The same questions, pre-filled with its own answers.
   draft: { type: Object, default: null },
+  // Contact, for an account with no project yet. The same questions, then one
+  // more step — what you want built and what you will spend, no note — and the last
+  // button sends it to this partner instead of saving a draft.
+  //
+  // ⚠️ ONE DIALOG, NOT TWO. This used to hand over to `ContactPartnerDialog`
+  // after the project was made, which opened a second dialog that read back the
+  // name just typed and only then asked the question the partner needs. The
+  // brief is a step of the same flow.
+  partner: { type: Object, default: null },
 })
 const emit = defineEmits(['close', 'create'])
 
@@ -48,6 +58,7 @@ const store = useConnectStore()
 const answers = reactive(emptyCompanyForm())
 const name = ref('')
 const timeline = ref('')
+const brief = reactive({ budget: '', scope: '' })
 const step = ref(0)
 // Errors show only once the step has been tried — a step that opens red is
 // telling somebody off for not having started.
@@ -56,7 +67,16 @@ const tried = ref(false)
 // Each step is `CompanyQuestions`' own step number, or 'project' for the name
 // and timeline. The company step leads only when Settings has nothing yet.
 const askCompany = ref(false)
-const steps = computed(() => [...(askCompany.value ? [1] : []), 'project', 2, 3])
+// ⚠️ CONTACT HAS NO PROJECT STEP, and always opens on the company. Someone
+// pressing Contact came to reach a firm, not to name a project, so the name is
+// assigned and the timeline is not asked. The company step is shown
+// even when Settings has answers, pre-filled: it is what the partner will read
+// as "who is asking", so it is confirmed where it is sent.
+const steps = computed(() =>
+  props.partner
+    ? [1, 2, 3, 'brief']
+    : [...(askCompany.value ? [1] : []), 'project', 2, 3],
+)
 const current = computed(() => steps.value[step.value])
 const last = computed(() => step.value === steps.value.length - 1)
 
@@ -78,6 +98,7 @@ watch(
     if (!d) answers.problems = []
     name.value = d?.name ?? ''
     timeline.value = d?.brief?.timeline ?? ''
+    Object.assign(brief, { budget: '', scope: '' })
     step.value = 0
     tried.value = false
   },
@@ -98,8 +119,19 @@ const companyFacts = () => ({
 })
 
 const errorsFor = (s) =>
-  s === 'project' ? (name.value.trim() ? {} : { name: 'Name the project' }) : stepErrors(answers, s)
+  s === 'project'
+    ? name.value.trim()
+      ? {}
+      : { name: 'Name the project' }
+    : s === 'brief'
+      ? briefErrors(brief)
+      : stepErrors(answers, s)
 const shown = computed(() => (tried.value ? errorsFor(current.value) : {}))
+
+// The brief step's budget ladder follows the country answered above it, and its
+// live hint is the recommendation screen's — the same field, read the same way.
+const bands = computed(() => budgetBandsFor(answers.country || store.company.country))
+const hint = computed(() => scopeHint(brief.scope))
 
 const next = () => {
   tried.value = true
@@ -117,15 +149,23 @@ const create = () => {
   tried.value = true
   if (Object.keys(errorsFor(current.value)).length) return
   const payload = companyPayload(answers)
-  if (askCompany.value) {
+  // Contact always saves the company step (it is always shown there), but
+  // without narrowing the partner listing behind the dialog — see
+  // `saveCompany`.
+  if (askCompany.value || props.partner) {
     const { country, employees, segments } = payload
-    store.saveCompany({ ...store.company, country, employees, segments })
+    store.saveCompany(
+      { ...store.company, country, employees, segments },
+      { narrow: !props.partner },
+    )
   }
   emit('create', {
-    name: name.value,
+    name: props.partner ? projectName([], store.company.name || store.viewer.company) : name.value,
     apps: ['erpnext'],
     modules: {},
-    brief: { timeline: timeline.value },
+    brief: props.partner
+      ? { timeline: timeline.value, budget: brief.budget, scope: brief.scope.trim() }
+      : { timeline: timeline.value },
     answers: payload,
   })
 }
@@ -136,7 +176,7 @@ const create = () => {
        single-line fields and short options. -->
   <Dialog
     :model-value="open"
-    :title="draft ? 'Edit draft' : 'New project'"
+    :title="partner ? `Contact ${partner.name}` : draft ? 'Edit draft' : 'New project'"
     size="md"
     @update:model-value="!$event && emit('close')"
   >
@@ -171,6 +211,40 @@ const create = () => {
             :options="TIMELINES"
           />
         </div>
+        <!-- The brief, when this is Contact. The same fields, labels and hint
+             as the recommendation's custom half, so a brief written here and
+             one written there are the same brief. -->
+        <div v-else-if="current === 'brief'" class="space-y-4">
+          <FormControl
+            v-model="brief.budget"
+            type="select"
+            label="Your budget"
+            placeholder="Select a range"
+            required
+            :options="bands"
+            :error="shown.budget"
+          />
+          <div>
+            <Textarea
+              v-model="brief.scope"
+              label="What do you want built?"
+              placeholder="What do you make or sell, who are your customers, how does it run today, what keeps going wrong, and what must it connect to or prove?"
+              :rows="5"
+              required
+              :error="shown.scope"
+            />
+            <p
+              class="mt-1.5 text-p-sm leading-relaxed"
+              :class="{
+                'text-ink-gray-5': hint.tone === 'neutral',
+                'text-ink-amber-7': hint.tone === 'warn',
+                'text-ink-green-7': hint.tone === 'good',
+              }"
+            >
+              {{ hint.text }}
+            </p>
+          </div>
+        </div>
         <CompanyQuestions v-else :step="current" :form="answers" :errors="shown" />
 
         <div v-if="step === 0" class="mt-8">
@@ -183,9 +257,11 @@ const create = () => {
           <Button
             variant="solid"
             size="sm"
-            :label="last ? 'Save draft' : 'Continue'"
+            :label="last ? (partner ? 'Send requirements' : 'Save draft') : 'Continue'"
             type="submit"
-          />
+          >
+            <template v-if="last && partner" #prefix><LucideSend class="size-4" /></template>
+          </Button>
         </div>
       </form>
     </template>

@@ -33,7 +33,7 @@ const valid = computed(
 
 const save = () => {
   const { name, country, employees, segments } = form
-  store.saveCompany({ ...store.company, country, employees, segments })
+  store.saveCompany({ ...store.company, country, employees, segments }, { narrow: false })
   store.saveAccount({ name: store.viewer.name, company: name })
   toast.success('Company saved')
 }

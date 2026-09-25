@@ -25,7 +25,6 @@ import { useConnectStore } from '../stores/connect'
 import { useAuthGate } from '../utils/auth'
 import PartnerMarketplaceSection from '../components/PartnerMarketplaceSection.vue'
 import PartnerFoundingSection from '../components/PartnerFoundingSection.vue'
-import BookSlotDialog from '../components/BookSlotDialog.vue'
 import { PARTNERS } from '../data/partners'
 import { logoFor } from '../data/logos'
 import { clientsFor, mediaFor } from '../data/media'
@@ -74,8 +73,6 @@ const toggleSave = () => {
   if (!p) return
   requireAccount(() => savedToast(p, store.toggleSaved(p.id), () => store.toggleSaved(p.id)))
 }
-
-const booking = ref(false)
 
 // ── Does the page's own Contact still show? ──────────────────────────────────
 // The chrome's Contact is a STAND-IN for the one in the page header, not a
@@ -188,10 +185,13 @@ onBeforeUnmount(() => observer?.disconnect())
       <!-- ── Header ──────────────────────────────────────────────────────
            Identity left, actions right. The actions are ordered by weight, not
            by frequency: Contact is the page's one solid button because it is
-           the outcome the whole directory exists to produce, and the other two
-           are subtle and icon-only so they don't compete with it. -->
-      <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
-        <div class="flex min-w-0 items-start gap-3">
+           the outcome the whole directory exists to produce, and Save is
+           subtle and icon-only so it doesn't compete with it.
+           ⚠️ NO `flex-wrap`. With it, a long tagline made the identity block as
+           wide as the row and pushed the actions onto a line of their own; the
+           tagline wraps instead and the actions stay beside the name. -->
+      <div class="flex items-start justify-between gap-6">
+        <div class="flex min-w-0 flex-1 items-start gap-3">
           <!-- `Avatar` at `2xl`, same as the listing row: 40px, `rounded-[8px]`.
                `.fc-logo-avatar` flips its `object-cover` to `contain` — see
                `index.css`. -->
@@ -224,9 +224,6 @@ onBeforeUnmount(() => observer?.disconnect())
         </div>
 
         <div class="flex shrink-0 items-center gap-2">
-          <Button variant="subtle" label="Request a slot" @click="booking = true">
-            <template #prefix><LucideCalendar class="size-4" /></template>
-          </Button>
           <!-- Same control, same word, same stateful aria-label as the row's
                bookmark — see `PartnerRow.vue`. -->
           <Tooltip text="Save">
@@ -346,6 +343,5 @@ onBeforeUnmount(() => observer?.disconnect())
       <PartnerFoundingSection :partner="partner" />
     </div>
 
-    <BookSlotDialog v-if="partner" :open="booking" :partner="partner" @close="booking = false" />
   </ConnectShell>
 </template>

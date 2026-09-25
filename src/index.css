@@ -198,6 +198,59 @@
   margin-bottom: 16px;
 }
 
+/* ⚠️ DIALOGS FIT THE WINDOW, and scroll inside. frappe-ui's Dialog scrolls the
+   whole panel with the page when it is taller than the window, so on a short
+   window the title slid off the top and the reader lost what they had opened.
+   Here the panel is capped at the window's height, its body scrolls, the title
+   stays pinned, and the actions row stays at the foot.
+
+   Hooks, all frappe-ui's own markup (1.0.0-beta.63):
+     > div.pb-6.pt-5       the body wrapper — header and default slot
+     > div.pb-7            the actions row, a sibling of the body
+     .w-full > .mb-6       the header, when there is one
+   `bare` dialogs render neither wrapper, so none of this reaches them.
+
+   96px off the height: the container's `py-4` and the panel's `my-8`, twice.
+
+   ⚠️ The body wrapper's top padding moves onto the header, because a sticky
+   element sticks inside its scroller's padding — left where it was, content
+   would scroll through a 20px strip above the pinned title. Dialogs without a
+   header keep their padding.
+
+   ⚠️ The estimate dialog is left out: it sizes and pads its own panel above,
+   and pins its own footer. */
+.dialog-content:has(> div.pb-6.pt-5):not(:has(.fc-estimate)) {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 96px);
+}
+
+.dialog-content:not(:has(.fc-estimate)) > div.pb-6.pt-5 {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.dialog-content:not(:has(.fc-estimate)) > div.pb-6.pt-5:has(> .flex > .w-full > .mb-6) {
+  padding-top: 0;
+}
+
+.dialog-content:not(:has(.fc-estimate)) > div.pb-6.pt-5 > .flex > .w-full > .mb-6 {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-top: 20px;
+  /* The header's `mb-6` as padding, so the pinned background covers the gap
+     and scrolled text disappears under it rather than running up to the
+     title. */
+  margin-bottom: 0;
+  padding-bottom: 24px;
+  background-color: var(--surface-elevation-1, #fff);
+}
+
+.dialog-content:not(:has(.fc-estimate)) > div.pb-7 {
+  flex-shrink: 0;
+}
+
 /* The in-app content column, as a container-query root.
    A screen can open a side panel (see `ConnectShell`'s `panel` slot), and when
    it does the column narrows WITHOUT the window changing size. Viewport

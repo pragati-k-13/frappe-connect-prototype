@@ -182,7 +182,12 @@ const asText = (html) => {
 }
 
 const preview = (thread) => {
-  const m = thread.messages.at(-1)
+  // A company message outside a broadcast draws nothing in the thread — the
+  // company is inside the requirements card there — so the preview skips it
+  // too rather than naming an event the thread does not show.
+  const m = thread.broadcast
+    ? thread.messages.at(-1)
+    : thread.messages.findLast((x) => x.kind !== 'company')
   // A thread can still have nothing in it: Message, from a project whose
   // partner is already assigned, opens one with no inquiry in front of it.
   // Contact no longer produces this state — it sends requirements — but the
@@ -210,16 +215,13 @@ const preview = (thread) => {
           : m.kind === 'bid'
             ? // The figure alone, for the same reason: the badge says "Quoted".
               m.bid.price
-            : m.kind === 'brief'
-              ? m.brief.project
-              : // The project's name, not the word "Inquiry": the preview line
-                // is read down a column of firms, and which project it was
+            : m.kind === 'brief' || m.kind === 'packs'
+              ? // The project's name, not the word "Requirements": the preview
+                // line is read down a column of firms, and which project it was
                 // about is the part that tells them apart.
-                m.kind === 'inquiry'
-                ? m.inquiry.project
-                : asText(m.body)
-  if (m.kind === 'company')
-    return thread.broadcast ? 'Contact details shared' : 'Company details shared'
+                m.brief.project
+              : asText(m.body)
+  if (m.kind === 'company') return `${companyName.value} · shared`
   return m.from === 'you' ? `You: ${body}` : body
 }
 
@@ -248,6 +250,17 @@ const details = ref(false)
 // requirements, and a dialog opened by a flag would show whichever one the
 // template found first.
 const briefDetails = ref(null)
+
+const companyName = computed(() => store.company.name || store.viewer.company)
+
+// The company, inside the requirements card's details, wherever it went out
+// WITH the requirements — a pack booking or a direct contact. On a broadcast
+// it went later, on its own line, so the card leaves it out.
+const briefCompany = computed(() =>
+  open.value && !open.value.broadcast && open.value.messages.some((m) => m.kind === 'company')
+    ? companyName.value
+    : '',
+)
 
 // ── Bids in the thread ──────────────────────────────────────────────────────
 // ⚠️ THE STATE LIVES ON THE PROJECT, not on the message. A message is a record
@@ -638,16 +651,23 @@ watch(open, toBottom)
                  repeated three facts the company already knows about itself;
                  what it needs from the thread is WHEN they went out and to
                  whom. The details are one press away. -->
-            <p v-if="m.kind === 'company'" class="mt-6 text-center text-p-sm text-ink-gray-5">
-              <button
-                type="button"
-                class="text-ink-gray-7 underline underline-offset-2"
-                @click="details = true"
-              >
-                {{ open.broadcast ? 'Contact details' : 'Company details' }}</button
-              >
-              shared with {{ open.partner.name }} · {{ time(m.at) }}
-            </p>
+            <!-- ⚠️ ONLY ON A BROADCAST, the one thread where the company goes
+                 out later than the brief — when a reply is marked Interested
+                 — so that moment needs a mark. Everywhere else the company went
+                 with the requirements and is listed inside their card, with no
+                 separate "sharing happened" line to read like an alert. -->
+            <template v-if="m.kind === 'company'">
+              <p v-if="open.broadcast" class="mt-6 text-center text-p-sm text-ink-gray-5">
+                <button
+                  type="button"
+                  class="text-ink-gray-7 underline underline-offset-2"
+                  @click="details = true"
+                >
+                  {{ companyName }}</button
+                >
+                · shared {{ time(m.at) }}
+              </p>
+            </template>
             <div v-else class="group/msg mt-5 flex items-start gap-3">
               <Avatar
                 v-if="m.from === 'you'"
@@ -719,42 +739,11 @@ watch(open, toBottom)
                   v-html="m.body"
                 />
 
-                <!-- The requirements an inquiry sent — what Contact now puts in
-                   the thread instead of starting it empty. A SNAPSHOT: the
-                   project's scope keeps moving and this doesn't, because what
-                   the partner quoted against has to stay on the screen. See
-                   `contactThread`.
-                   ⚠️ The project's NAME leads, in the same type as the call
-                   card's own line, because it is the one field the partner
-                   cannot infer from the other two — and because a business
-                   sending the same requirements to three firms is reading the
-                   thread later to work out which project this was. -->
-                <div
-                  v-else-if="m.kind === 'inquiry'"
-                  class="mt-1.5 w-fit rounded-5 border border-outline-gray-2 p-3.5"
-                >
-                  <p class="text-base font-medium text-ink-gray-8">{{ m.inquiry.project }}</p>
-                  <dl class="mt-2 space-y-1.5">
-                    <div class="flex gap-6 text-p-base">
-                      <dt class="w-32 shrink-0 text-ink-gray-5">Frappe apps</dt>
-                      <dd class="font-medium text-ink-gray-8">
-                        {{ m.inquiry.apps.join(', ') || 'Not specified' }}
-                      </dd>
-                    </div>
-                    <div class="flex gap-6 text-p-base">
-                      <dt class="w-32 shrink-0 text-ink-gray-5">Modules</dt>
-                      <dd class="font-medium text-ink-gray-8">
-                        {{ m.inquiry.modules.join(', ') || 'Not specified' }}
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-
                 <!-- The booked call. The external mark is the whole point of the
                    control: the invite is in a calendar this app doesn't own. -->
                 <div
                   v-else-if="m.kind === 'call'"
-                  class="mt-1.5 flex w-fit items-start gap-3 rounded-5 border border-outline-gray-2 p-3.5"
+                  class="mt-1.5 flex w-fit items-start gap-3 rounded-5 p-3.5 shadow-sm"
                 >
                   <Avatar size="2xl" shape="square" aria-hidden="true">
                     <IconCalendar class="size-full" />
@@ -791,9 +780,9 @@ watch(open, toBottom)
                      partners" a checkable claim rather than a promise. -->
                 <div
                   v-else-if="m.kind === 'brief'"
-                  class="mt-1.5 w-full max-w-[480px] rounded-5 border border-outline-gray-2 p-3.5"
+                  class="mt-1.5 w-full max-w-[480px] rounded-5 p-3.5 shadow-sm"
                 >
-                  <p class="text-p-base font-medium text-ink-gray-8">{{ m.brief.project }}</p>
+                  <p class="text-p-base font-medium text-ink-gray-7">{{ m.brief.project }}</p>
                   <!-- ⚠️ THREE FACTS AND A DOOR, where this printed nine. The
                        brief grew a module list, a budget and five
                        criteria, and the card grew with it until it WAS the
@@ -810,20 +799,22 @@ watch(open, toBottom)
                        whatever somebody typed, and cutting it in JavaScript
                        picks a length for a box whose width nobody knows. -->
                   <p
-                    class="mt-1.5 line-clamp-2 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7"
+                    class="mt-1.5 line-clamp-2 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-6"
                   >
                     {{ m.brief.scope }}
                   </p>
-                  <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
-                    <p class="text-p-base text-ink-gray-8">
-                      <span class="text-ink-gray-5">Budget</span>
+                  <!-- Icon facts, one per line, the listing's idiom: the icon
+                       names the field, so no label word is spent on it. -->
+                  <ul class="mt-3 space-y-1.5 text-p-base text-ink-gray-6">
+                    <li class="flex items-center gap-2">
+                      <LucideWallet class="size-4 shrink-0 text-ink-gray-6" aria-label="Budget" />
                       {{ budgetLabel(m.brief.budget) }}
-                    </p>
-                    <p v-if="m.brief.segments?.[0]" class="text-p-base text-ink-gray-8">
-                      <span class="text-ink-gray-5">Industry</span>
+                    </li>
+                    <li v-if="m.brief.segments?.[0]" class="flex items-center gap-2">
+                      <LucideFactory class="size-4 shrink-0 text-ink-gray-6" aria-label="Industry" />
                       {{ m.brief.segments[0] }}
-                    </p>
-                  </div>
+                    </li>
+                  </ul>
                   <Button
                     class="mt-3"
                     variant="subtle"
@@ -831,10 +822,43 @@ watch(open, toBottom)
                     label="View details"
                     @click="briefDetails = m.brief"
                   />
-                  <p class="mt-3 text-p-sm text-ink-gray-5">
-                    Your company name and contact details are shared only when you're interested
-                    in a partner.
-                  </p>
+                </div>
+
+                <!-- ── A pack booking's requirements ────────────────────
+                     The brief card's shape for a buyer who never wrote a
+                     brief: what they bought in place of what they need built,
+                     and the answers one press away. See `bookingThread`. -->
+                <div
+                  v-else-if="m.kind === 'packs'"
+                  class="mt-1.5 w-full max-w-[480px] rounded-5 p-3.5 shadow-sm"
+                >
+                  <p class="text-p-base font-medium text-ink-gray-7">{{ m.brief.project }}</p>
+                  <!-- Icon facts, the brief card's idiom: the packs on one row,
+                       then the industry. Joined with a middle dot, not a comma —
+                       a pack's own name holds commas ("Accounts, Sales,
+                       Purchase, Stock"), and a comma list blurs where one ends.
+                       `items-start` so the icon stays on the first line when a
+                       basket wraps. -->
+                  <ul class="mt-3 space-y-1.5 text-p-base text-ink-gray-6">
+                    <li class="flex items-start gap-2">
+                      <LucidePackage
+                        class="mt-0.5 size-4 shrink-0 text-ink-gray-6"
+                        aria-label="Starter Packs"
+                      />
+                      {{ m.brief.packs.join(' · ') }}
+                    </li>
+                    <li v-if="m.brief.segments?.[0]" class="flex items-center gap-2">
+                      <LucideFactory class="size-4 shrink-0 text-ink-gray-6" aria-label="Industry" />
+                      {{ m.brief.segments[0] }}
+                    </li>
+                  </ul>
+                  <Button
+                    class="mt-3"
+                    variant="subtle"
+                    size="sm"
+                    label="View details"
+                    @click="briefDetails = m.brief"
+                  />
                 </div>
 
                 <!-- ── A partner saying no ────────────────────────────────
@@ -844,6 +868,10 @@ watch(open, toBottom)
                      unmistakable — and the reason is the only useful thing in
                      it: "at capacity until the new year" is worth knowing, "we
                      have declined" is not.
+                     ⚠️ WHITE, like every other card here. It had a grey fill to
+                     read as closed; the title and the Declined badge already
+                     say that, and a filled card among white ones read as a
+                     different kind of object rather than a different state.
                      ⚠️ NO CONTROLS. There is nothing to approve, nothing to
                      pass on, and offering to message back would invite somebody
                      to argue with a firm that has already said no.
@@ -857,7 +885,7 @@ watch(open, toBottom)
                      the same reason. -->
                 <div
                   v-else-if="m.kind === 'decline' && open.broadcast"
-                  class="mt-1.5 w-fit max-w-[480px] rounded-5 border border-outline-gray-2 bg-surface-gray-1 p-3.5"
+                  class="mt-1.5 w-fit max-w-[480px] rounded-5 p-3.5 shadow-sm"
                 >
                   <p class="text-p-base font-medium text-ink-gray-8">
                     {{ open.partner.name }} passed on this
@@ -883,7 +911,7 @@ watch(open, toBottom)
                      act as approving there. -->
                 <div
                   v-else-if="m.kind === 'bid'"
-                  class="mt-1.5 w-fit max-w-[480px] rounded-5 border border-outline-gray-2 p-3.5"
+                  class="mt-1.5 w-fit max-w-[480px] rounded-5 p-3.5 shadow-sm"
                 >
                   <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
                     <p class="text-p-lg font-semibold tabular-nums text-ink-gray-9">
@@ -891,7 +919,7 @@ watch(open, toBottom)
                     </p>
                     <p class="text-p-base text-ink-gray-6">about {{ m.bid.weeks }} weeks</p>
                   </div>
-                  <p class="mt-2 text-p-base leading-relaxed text-ink-gray-7">{{ m.bid.note }}</p>
+                  <p class="mt-2 text-p-base leading-relaxed text-ink-gray-6">{{ m.bid.note }}</p>
                 </div>
               </div>
 
@@ -1064,6 +1092,7 @@ watch(open, toBottom)
     <BriefDetailsDialog
       :open="Boolean(briefDetails)"
       :brief="briefDetails"
+      :company-name="briefCompany"
       @update:open="!$event && (briefDetails = null)"
     />
   </ConnectShell>

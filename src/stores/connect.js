@@ -13,7 +13,7 @@ import {
   discoveryThreads,
   repFor,
 } from '../data/messages'
-import { demoProjects, inquiryName, nextStage, projectName, stagesFor } from '../data/project'
+import { demoProjects, nextStage, projectName, stagesFor } from '../data/project'
 import { modulesFor } from '../data/modules'
 import { sharedAnswers } from '../data/company'
 import { INDUSTRIES } from '../data/quiz'
@@ -90,6 +90,64 @@ let lastCleared = null
 const TIER_RANK = { gold: 0, silver: 1, bronze: 2 }
 const tierRank = (p) => TIER_RANK[p.tier] ?? 3
 const byTier = (a, b) => tierRank(a) - tierRank(b)
+
+// A brief's own fields and nothing else — `emptyBrief`'s keys, filled from
+// whatever carries them. A sent snapshot also holds the company's answers and
+// the project's name, and none of that belongs back on a project.
+const pickBrief = (source) => {
+  const base = emptyBrief()
+  return Object.fromEntries(
+    Object.entries(base).map(([k, v]) => {
+      const got = source?.[k] ?? v
+      return [k, Array.isArray(got) ? [...got] : got]
+    }),
+  )
+}
+
+// What a partner receives: the card in their thread, whether it came by
+// broadcast or by Contact. One builder, so the two cannot drift apart.
+//
+// ⚠️ THE MODULES GO TOO. A project's scope can be written in two passes — the
+// modules ticked when it was created, the paragraph typed when the
+// requirements went out — and leaving the modules out was the broadcast
+// quietly sending less than the customer wrote.
+//
+// ⚠️ THE CRITERIA TRAVEL WITH IT. `BriefDetailsDialog` builds the partner's
+// copy of "who they asked for" from this object with `criteriaLines`, so a
+// snapshot missing them does not fail, it FALLS BACK: a business that
+// narrowed to Pune and asked for somebody on site would read as "based
+// anywhere in Asia, remote or on premises". A default is the most expensive
+// kind of missing field, because nothing about it looks missing.
+//
+// Everything the intake asked except who they are — see `sharedAnswers`.
+//
+// The pack booking's counterpart, for the requirements card in
+// `bookingThread`: the packs bought, by name, in place of a scope and a budget.
+const packBrief = (project, packs, company) => ({
+  projectId: project?.id ?? null,
+  project: project?.name ?? '',
+  packs: packs.map((p) => p.name),
+  country: company.country,
+  employees: company.employees,
+  segments: company.segments,
+  ...sharedAnswers(company),
+})
+
+const snapshotBrief = (project, own, company) => ({
+  projectId: project.id,
+  project: project.name,
+  scope: own.scope.trim(),
+  modules: project.modules ?? {},
+  budget: own.budget,
+  cities: [...(own.cities ?? [])],
+  tiers: [...(own.tiers ?? [])],
+  workStyle: own.workStyle ?? '',
+  timeline: own.timeline ?? '',
+  country: company.country,
+  employees: company.employees,
+  segments: company.segments,
+  ...sharedAnswers(company),
+})
 
 // The whole filter set as one object. Built rather than read straight off state
 // so the search term is normalised in exactly one place, and so `results` and
@@ -314,7 +372,7 @@ export const useConnectStore = defineStore('connect', {
     //
     // A project is:
     //
-    //   { id, name, apps, modules, service, pack, partnerId, stage, done, at, slot }
+    //   { id, name, apps, modules, service, pack, partnerId, stage, done, at }
     //
     // and it acquires those fields IN THAT ORDER, which is the whole model.
     // `name`, `apps` and `modules` are what you want built — a project can
@@ -474,7 +532,7 @@ export const useConnectStore = defineStore('connect', {
     //
     // Two things count as having sent them:
     //
-    //   inquiry   the requirements card `sendInquiry` writes
+    //   brief     the requirements card, from a broadcast or from Contact
     //   company   the company profile a BOOKING sends, alongside the pack ask
     //             and the call — a pack IS a fixed scope, so that conversation
     //             has requirements in it even though nobody filled this dialog
@@ -485,8 +543,30 @@ export const useConnectStore = defineStore('connect', {
       Boolean(
         state.threads
           .find((t) => t.partnerId === partnerId)
-          ?.messages.some((m) => m.kind === 'inquiry' || m.kind === 'company'),
+          ?.messages.some((m) => m.kind === 'brief' || m.kind === 'company'),
       ),
+
+    // The requirements a project would send, in `emptyBrief`'s shape.
+    //
+    // ⚠️ THE COPY ALREADY SENT WINS. Once a brief has gone to anybody, that
+    // snapshot is what the project's requirements ARE to a partner — a second
+    // firm contacted later should read what the first ones read, not a draft
+    // edited since. Before anything is sent: the project's own, then the
+    // account's draft for a custom project started from the recommendation
+    // screen, which is where `broadcastBrief` reads it from too.
+    briefOf: (state) => (projectId) => {
+      const project = state.projects.find((p) => p.id === projectId)
+      if (!project) return emptyBrief()
+      const sent = state.threads
+        .flatMap((t) => t.messages ?? [])
+        .find((m) => m.kind === 'brief' && m.brief?.projectId === projectId)?.brief
+      const own = project.brief?.scope
+        ? project.brief
+        : project.service === 'custom' && state.brief.scope
+          ? state.brief
+          : project.brief
+      return pickBrief(sent ?? own)
+    },
 
     // The newest project's, because that is the one you were last thinking
     // about — falling back to `defaultScope` when there are no projects, since
@@ -795,7 +875,6 @@ export const useConnectStore = defineStore('connect', {
           stage: 'confirmed',
           done: [],
           at: Date.now(),
-          slot: null,
         },
       ]
       // ⚠️ The message goes out whether or not the customer ever opens the
@@ -803,7 +882,9 @@ export const useConnectStore = defineStore('connect', {
       // is not an assignment.
       const existing = this.threads.find((t) => t.partnerId === partner.id)
       if (existing) return existing.id
-      this.threads = [...this.threads, bookingThread({ partner, packs: list })]
+      const project = saved ?? this.projects.at(-1)
+      const brief = packBrief(project, list, project.answers ?? this.company)
+      this.threads = [...this.threads, bookingThread({ partner, packs: list, brief })]
       return partner.id
     },
 
@@ -843,7 +924,6 @@ export const useConnectStore = defineStore('connect', {
           stage: null,
           done: [],
           at: Date.now(),
-          slot: null,
         },
       ]
       return id
@@ -981,6 +1061,19 @@ export const useConnectStore = defineStore('connect', {
             at: at(18),
             kind: 'text',
             body: 'Hi — we have just bought the Accounts, Sales, Purchase, Stock and Manufacturing Starter Packs and Frappe has assigned you to us. Here is where we are today.',
+          },
+          {
+            id: 'm-pack-req',
+            from: 'you',
+            at: at(18),
+            kind: 'packs',
+            brief: packBrief(
+              this.projects.find((p) => p.service === 'pack'),
+              STARTER_PACKS.filter((sp) =>
+                this.projects.find((p) => p.service === 'pack')?.packs.includes(sp.value),
+              ),
+              this.company,
+            ),
           },
           { id: 'm-pack-2', from: 'you', at: at(18), kind: 'company' },
           {
@@ -1129,21 +1222,6 @@ export const useConnectStore = defineStore('connect', {
       return next
     },
 
-    // A requested slot, from `BookSlotDialog`. Recorded on the project so the
-    // stage can say what it is waiting for — "Tuesday 14:30, awaiting
-    // confirmation" — rather than the request vanishing into a toast, which is
-    // what happened before this existed.
-    //
-    // ⚠️ Does not advance on its own. Requesting is not attending, and the two
-    // pack stages either side of it (`confirmed`, `intro-call`) are separated
-    // by exactly that difference. The page ticks the task; the customer moves
-    // on when the call has happened.
-    recordSlot(id, slot) {
-      const project = this.projects.find((p) => p.id === id)
-      if (!project) return
-      project.slot = slot
-    },
-
     // The other way a conversation starts: Contact, from anywhere a partner is
     // shown. Chat is NOT downstream of booking — a visitor can have a question
     // long before they are ready to buy a pack, and gating the only way to ask
@@ -1245,8 +1323,9 @@ export const useConnectStore = defineStore('connect', {
     // real stack of two modals. `VerifyPage` runs whatever the gate was holding
     // and then opens this — so a visitor who pressed Contact, signed up and came
     // back got the inquiry dialog with the company questions trapped behind it.
-    // The inquiry dialog asks them itself now, as steps 1 and 2 of its wizard
-    // (`ContactPartnerDialog`), so this one has nothing left to add there.
+    // Contact asks them itself now — with no project, it opens
+    // `NewProjectDialog`, which leads with the company questions when Settings
+    // has none — so this one has nothing left to add there.
     //
     // The guard lives here rather than in `VerifyPage` because the rule is about
     // the two dialogs, not about the screen that happened to open them both.
@@ -1278,83 +1357,56 @@ export const useConnectStore = defineStore('connect', {
       this.inquiryPrefill = null
     },
 
-    // Requirements with nobody to send them to: "Save without sending" on the
-    // inquiry dialog. The same project `sendInquiry` would have made, minus the
-    // conversation — so a business that has worked out what it wants but not who
-    // should build it has somewhere to put that.
+    // Contacting one partner: the project's brief, into that partner's thread.
     //
-    // Returns the project, which is what the toast names.
-    saveRequirements({ apps = [], modules = {} }) {
-      const id = this.createProject({
-        name: inquiryName(apps, this.company.name || this.viewer.company),
-        apps,
-        modules,
-      })
-      return this.projects.find((p) => p.id === id) ?? null
-    },
-
-    // Sending it. Three things happen, in this order, and the order is the
-    // model: a project exists, a conversation exists, the requirements are in
-    // it.
+    // ⚠️ THE SAME CARD `broadcastBrief` SENDS, built by the same function, so a
+    // firm reached directly reads exactly what a firm reached by broadcast reads
+    // — plus the company, because the business chose this firm. See
+    // `contactThread`.
     //
-    // `projectId` names an existing project, or is null — in which case the
-    // requirements passed in become a NEW project. That is the whole point of
-    // the flow: defining requirements is not a detour to the projects page, it
-    // is the thing you were already doing.
+    // `brief` is whatever the dialog asked for because the project did not have
+    // it yet. It is saved to the project, so the next partner is not asked again.
     //
-    // Returns `{ thread, project, created }` — the thread id the toast's action
-    // needs, the project the requirements belong to, and whether this call is
-    // what brought it into existence. `created` is the only way the caller can
-    // know: the project path and the create path are the same gesture from the
-    // outside, and only one of them has something new to announce.
-    sendInquiry({ partnerId, projectId = null, apps = [], modules = {}, message = '' }) {
+    // Returns the thread id, which the toast's View needs.
+    sendBrief({ partnerId, projectId, brief = null, message = '' }) {
       const partner = PARTNERS.find((p) => p.id === partnerId)
-      if (!partner) return null
+      const project = this.projects.find((p) => p.id === projectId)
+      if (!partner || !project) return null
 
-      // ⚠️ Named, not asked for, on the create path. `inquiryName` derives the
-      // title from the apps; a name field would be a third question in a dialog
-      // whose whole argument is that this costs no detour. Renameable later.
-      const created = !projectId
-      const id =
-        projectId ??
-        this.createProject({
-          name: inquiryName(apps, this.company.name || this.viewer.company),
-          apps,
-          modules,
-        })
-      const project = this.projects.find((p) => p.id === id)
-      if (!project) return null
-
-      // The snapshot the thread carries. Labels rather than keys, because the
-      // message is read by a person and outlives the catalogue the keys index
-      // into — see the ⚠️ on `contactThread`.
-      const inquiry = {
-        project: project.name,
-        apps: (project.apps ?? []).map((v) => APPS.find((a) => a.value === v)?.label ?? v),
-        modules: Object.entries(project.modules ?? {}).flatMap(([app, keys]) =>
-          modulesFor(app, keys).map((m) => m.label),
-        ),
-      }
+      if (brief) project.brief = pickBrief({ ...this.briefOf(projectId), ...brief })
+      const snapshot = snapshotBrief(
+        project,
+        this.briefOf(projectId),
+        project.answers ?? this.company,
+      )
 
       // ⚠️ Appends to an existing thread rather than starting a second one, the
       // same keying every other writer here uses (`thread.id` IS `partner.id`).
-      // Reached when a partner was messaged before the inquiry flow existed, or
-      // from a demo persona seeded with conversations.
+      // Reached from a discovery conversation that never had requirements in it.
       const existing = this.threads.find((t) => t.partnerId === partner.id)
       if (existing) {
         existing.messages.push({
-          id: `inq-${Date.now()}`,
+          id: `brief-${Date.now()}`,
           from: 'you',
           at: Date.now(),
-          kind: 'inquiry',
-          inquiry,
+          kind: 'brief',
+          brief: snapshot,
         })
+        // Once per thread: the company is shared, not re-sent with every brief.
+        if (!existing.messages.some((m) => m.kind === 'company')) {
+          existing.messages.push({
+            id: `co-${Date.now()}`,
+            from: 'you',
+            at: Date.now(),
+            kind: 'company',
+          })
+        }
         if (message.trim()) this.sendMessage(existing.id, message.trim())
-        return { thread: existing.id, project, created }
+        return existing.id
       }
 
-      this.threads = [...this.threads, contactThread(partner, inquiry, message.trim())]
-      return { thread: partner.id, project, created }
+      this.threads = [...this.threads, contactThread(partner, snapshot, message.trim())]
+      return partner.id
     },
 
     // ── The basket ───────────────────────────────────────────────────────
@@ -1405,7 +1457,16 @@ export const useConnectStore = defineStore('connect', {
     // ⚠️ KEEPS THE EXISTING NAME. Someone can go back and change an answer
     // after signing up, and a spread that dropped `name` would quietly empty
     // the sidebar.
-    saveCompany({ country, employees, segments, apps, appsOther, operations, problems }) {
+    //
+    // ⚠️ `narrow: false` SKIPS THE LISTING. Writing the answers into the
+    // partner filters is right for the intake — the questions are how the list
+    // gets narrowed — and wrong for editing them later from Settings or on the
+    // way to contacting one firm, where it shrank the list behind the screen
+    // for nothing anyone asked.
+    saveCompany(
+      { country, employees, segments, apps, appsOther, operations, problems },
+      { narrow = true } = {},
+    ) {
       this.company = {
         ...this.company,
         country: country ?? '',
@@ -1417,6 +1478,7 @@ export const useConnectStore = defineStore('connect', {
         operations: operations ?? null,
         problems: problems ?? [],
       }
+      if (!narrow) return
       const group = INDUSTRIES.find((i) => i.segments.includes(segments?.[0]))
       if (group) this.answer('industry', group.value)
       this.answers.segments = segments ?? []
@@ -1465,7 +1527,6 @@ export const useConnectStore = defineStore('connect', {
           done: [],
           at: Date.now(),
           serviceAt: Date.now(),
-          slot: null,
           // Filled by `broadcastBrief`. Null means the requirements have not
           // gone anywhere yet, which is a different state from "nobody replied".
           broadcast: null,
@@ -1494,40 +1555,7 @@ export const useConnectStore = defineStore('connect', {
       // Likewise the answers: the project's, when it was asked them.
       const company = project.answers ?? this.company
       const partners = matchingPartners(company, own)
-      const brief = {
-        projectId: id,
-        project: project.name,
-        scope: own.scope.trim(),
-        // ⚠️ THE MODULES GO TOO, and leaving them out was the broadcast quietly
-        // sending less than the customer wrote. A project's scope is written in
-        // two passes — the modules ticked when it was created, the paragraph
-        // typed when the requirements went out — and only the paragraph was
-        // reaching the partner. `ContactPartnerDialog` had this right all
-        // along: its inquiry card carries the modules, so approaching ONE firm
-        // told them more about the work than briefing TWELVE did.
-        //
-        // Snapshotted, like the rest of this object: the project's scope keeps
-        // moving and what a partner quoted against has to stay as it was sent.
-        modules: project.modules ?? {},
-        budget: own.budget,
-        // ⚠️ THE CRITERIA TRAVEL WITH IT, and they did not. `BriefDetailsDialog`
-        // builds the partner's copy of "who they asked for" from this object
-        // with `criteriaLines`, the same function the recommendation screen
-        // draws it with — so a snapshot missing them did not fail, it FELL BACK:
-        // a business that narrowed to Pune and asked for somebody on site had
-        // its requirement read as "based anywhere in Asia, remote or on
-        // premises". A default is the most expensive kind of missing field,
-        // because nothing about it looks missing.
-        cities: [...(own.cities ?? [])],
-        tiers: [...(own.tiers ?? [])],
-        workStyle: own.workStyle ?? '',
-        timeline: own.timeline ?? '',
-        country: company.country,
-        employees: company.employees,
-        segments: company.segments,
-        // Everything the intake asked except who they are — see `sharedAnswers`.
-        ...sharedAnswers(company),
-      }
+      const brief = snapshotBrief(project, own, company)
 
       const threads = []
       for (const partner of partners) {
