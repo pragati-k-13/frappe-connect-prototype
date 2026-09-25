@@ -13,8 +13,8 @@ import ProjectAbout from '../components/ProjectAbout.vue'
 import ProjectBids from '../components/ProjectBids.vue'
 import RecommendationView from '../components/RecommendationView.vue'
 import ProjectStages from '../components/ProjectStages.vue'
+import PackSetupTasks from '../components/PackSetupTasks.vue'
 import RatePartnerDialog from '../components/RatePartnerDialog.vue'
-import IconCalendar from '~icons/lucide/calendar'
 import IconMore from '~icons/lucide/ellipsis'
 import { PARTNERS } from '../data/partners'
 import { DEFAULT_REGION, STARTER_PACKS, marketFor } from '../data/packs'
@@ -140,6 +140,12 @@ const deleteDraft = () => {
   toast.success(`${name} deleted`)
 }
 
+// The name is edited in place in the sidebar — see `ProjectAbout`.
+const rename = (name) => {
+  store.renameProject(project.value.id, name)
+  toast.success('Project renamed')
+}
+
 const menu = computed(() => [
   ...(draft.value
     ? [
@@ -187,6 +193,13 @@ const act = (task) => {
   if (!project.value) return
   switch (task.action) {
     case 'terms':
+      // On a pack the terms are read before they are agreed: the dialog
+      // records the agreement. The custom spine ticks in place.
+      if (project.value.service === 'pack') return (termsOpen.value = true)
+      return tick(task.key)
+    case 'fc-billing':
+    case 'fc-plan':
+      window.open(FRAPPE_CLOUD_URL, '_blank', 'noopener')
       return tick(task.key)
     case 'fc-login':
       window.open(FRAPPE_CLOUD_URL, '_blank', 'noopener')
@@ -245,6 +258,11 @@ const advance = () => {
 
 // The project ends when the business says the work is done, and that is the
 // moment the public review is asked for.
+const shareSiteUrl = (url) => {
+  store.shareSiteUrl(project.value.id, url)
+  toast.success('Site URL shared with your partner')
+}
+
 const complete = () => {
   store.completeProject(project.value.id)
   toast.success('Project completed')
@@ -276,23 +294,19 @@ const complete = () => {
 
           <!-- ⚠️ Capped at 700px and centred, so body copy does not stretch
                across a wide pane beside the rail. A draft has no rail — the
-               recommendation carries its own — so it takes the recommendation
-               screen's 1080px. -->
-          <div v-else class="mx-auto w-full" :class="draft ? 'max-w-[1080px]' : 'max-w-[700px]'">
+               recommendation carries its own, at the page's right edge, and
+               centres its own column — so it is not capped here at all. -->
+          <div v-else class="mx-auto w-full" :class="draft ? '' : 'max-w-[700px]'">
             <!-- ⚠️ THE TITLE IS THE RAIL'S HEADING on a started project — the
                  name heads the facts about it, and the column opens on the
                  work. A draft has no rail, and below `lg` the rail stacks at
                  the foot of the page, so both keep the title here. -->
-            <div class="flex items-start justify-between gap-4" :class="draft ? '' : 'lg:hidden'">
+            <div v-if="!draft" class="flex items-start justify-between gap-4 lg:hidden">
               <div class="min-w-0">
                 <div class="flex items-center gap-2">
                   <h1 class="text-lg font-semibold text-ink-gray-8">{{ project.name }}</h1>
                   <Badge v-if="draft" variant="subtle" theme="gray" size="md" label="Draft" />
                 </div>
-                <p v-if="when" class="mt-2 flex items-center gap-1.5 text-base" :class="when.tone">
-                  <IconCalendar class="size-4 shrink-0 text-ink-gray-6" aria-hidden="true" />
-                  {{ when.text }}
-                </p>
               </div>
               <Dropdown v-if="menu.length" :options="menu" align="end">
                 <Button variant="subtle" aria-label="Project actions">
@@ -301,7 +315,31 @@ const complete = () => {
               </Dropdown>
             </div>
 
-            <template v-if="stage">
+            <!-- ⚠️ A STARTER PACK IS ONE LIST, not stages behind a progress bar
+                 — see `PACK_STAGES`. Custom work keeps its stages. -->
+            <template v-if="stage && project.service === 'pack'">
+              <div class="mt-10 lg:mt-0">
+                <h2 class="text-2xl font-semibold text-ink-gray-8">
+                  Set up your Starter Pack
+                </h2>
+                <div class="mt-4">
+                  <PackSetupTasks
+                    :tasks="stage.yours"
+                    :project="project"
+                    @act="act"
+                    @share-url="shareSiteUrl"
+                  />
+                </div>
+              </div>
+              <!-- Hidden until every task is done: before then it is a button
+                   nobody can use. The partner can close the project from
+                   their side too; this is the customer's way to. -->
+              <div v-if="yoursDone && !project.completedAt" class="mt-6">
+                <Button variant="solid" label="Mark as complete" @click="complete" />
+              </div>
+            </template>
+
+            <template v-else-if="stage">
               <div class="mt-10" :class="draft ? '' : 'lg:mt-0'">
                 <ProjectStages :project="project" @act="act" @terms="termsOpen = true" />
               </div>
@@ -344,7 +382,6 @@ const complete = () => {
                  Booking or sharing is what starts it. -->
             <RecommendationView
               v-else
-              class="mt-8"
               :answers="project.answers ?? store.company"
               :brief="project.brief ?? {}"
               :packs="project.packs ?? []"
@@ -355,8 +392,21 @@ const complete = () => {
               @share="shareDraft"
               @edit-answers="editing = true"
             >
+              <!-- A draft's title goes in the recommendation's column, so it
+                   lines up with the list and the rail meets it at the top. -->
               <template #header="{ headline }">
-                <h2 class="text-xl font-semibold text-ink-gray-9">{{ headline }}</h2>
+                <div class="flex items-start justify-between gap-4">
+                  <div class="flex min-w-0 items-center gap-2">
+                    <h1 class="text-2xl font-semibold text-ink-gray-8">{{ project.name }}</h1>
+                    <Badge variant="subtle" theme="gray" size="md" label="Draft" />
+                  </div>
+                  <Dropdown v-if="menu.length" :options="menu" align="end">
+                    <Button variant="subtle" aria-label="Project actions">
+                      <template #icon><IconMore class="size-4" /></template>
+                    </Button>
+                  </Dropdown>
+                </div>
+                <h2 class="mt-8 text-lg font-semibold text-ink-gray-8">{{ headline }}</h2>
               </template>
             </RecommendationView>
 
@@ -377,6 +427,7 @@ const complete = () => {
                 @message="messagePartner(partner)"
                 @review="rating = true"
                 @feedback="feedback = true"
+                @rename="rename"
               />
             </div>
           </div>
@@ -401,6 +452,7 @@ const complete = () => {
             @message="messagePartner(partner)"
             @review="rating = true"
             @feedback="feedback = true"
+                @rename="rename"
           />
         </ScrollArea>
       </aside>

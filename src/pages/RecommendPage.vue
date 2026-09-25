@@ -67,18 +67,10 @@ const share = () => {
 
 <template>
   <ConnectShell>
-    <!-- ⚠️ THE MEASURE CHANGES WITH THE HALF, which no other screen in the app
-         does and is worth the exception. The custom half is a form and some
-         prose, so it takes the app's usual 800px. The packs half carries a
-         summary rail beside the list, and at 800px that rail leaves the rows
-         488px — not enough for a pack name and a price at opposite edges. 1080
-         gives the list about 720 and the rail 300.
-         The reading measure itself does not move: prose is capped at 62ch in
-         both, so what widens is the part that is a table, not the part that is
-         a paragraph. -->
-    <div
-      class="mx-auto w-full max-w-[1080px] px-5 py-10 lg:px-10"
-    >
+    <!-- ⚠️ NO MEASURE HERE. The screen carries a rail that belongs at the
+         page's right edge and centres its own column in what is left — see
+         `RecommendationView`. A cap on this box would pull both in. -->
+    <div class="w-full px-5 py-10 lg:px-8">
       <RecommendationView
         ref="reco"
         :answers="store.company"

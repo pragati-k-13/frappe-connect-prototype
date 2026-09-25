@@ -92,8 +92,6 @@ const CUSTOM_TRIGGERS = [
 // and stock is what a business runs on, and manufacturing and payroll are
 // things some businesses also do. The one case that turns the default off is a
 // business whose only complaint is about people — see the note on its rule.
-const anyManufacturing = (segments) =>
-  (segments ?? []).some((s) => GROUP_OF_SEGMENT[s] === 'manufacturing')
 
 // ⚠️ WHAT THE PACK DOES ABOUT EACH PROBLEM, in the product's words. These used
 // to quote the answer straight back — `Covers "Systems that do not talk to each
@@ -127,12 +125,19 @@ const PACK_RULES = {
     return named ? CORE_REMEDY[named] : 'The base the rest of ERPNext is built on'
   },
   manufacturing: (f) => {
-    if (!anyManufacturing(f.segments)) return null
-    return 'Work orders and BOMs, planned against the stock you hold'
+    const made = (f.segments ?? []).find((s) => GROUP_OF_SEGMENT[s] === 'manufacturing')
+    if (!made) return null
+    return `You're in ${made.toLowerCase()}, so work orders and BOMs get planned against the stock you hold`
   },
   hrms: (f) => {
     if (!f.problems.includes('people')) return null
-    return 'Attendance, leave and salaries off one employee record'
+    return 'Leave and attendance are kept by hand today; this puts them on one employee record'
+  },
+  // Offered with HR, never without it: payroll runs off the employee records
+  // and attendance that HR keeps.
+  payroll: (f) => {
+    if (!f.problems.includes('people')) return null
+    return 'Salaries are worked out by hand today; this runs them off the attendance HR records'
   },
 }
 

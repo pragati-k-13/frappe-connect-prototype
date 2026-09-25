@@ -36,12 +36,12 @@ const bill = computed(() =>
   <div class="rounded-6 border border-outline-gray-2 p-4">
     <template v-if="!packs.length">
       <p class="text-p-base text-ink-gray-7">Nothing picked</p>
-      <p class="mt-1 text-p-base text-ink-gray-6">Tick a pack to see what it comes to.</p>
+      <p class="mt-1 text-p-sm text-ink-gray-6">Tick a pack to see what it comes to.</p>
     </template>
     <template v-else>
       <p class="text-p-base text-ink-gray-6">Total</p>
-      <p class="mt-0.5 text-2xl font-semibold tabular-nums text-ink-gray-9">{{ bill.total }}</p>
-      <p class="mt-1 text-p-base text-ink-gray-6">
+      <p class="mt-1 text-3xl font-semibold tabular-nums text-ink-gray-8">{{ bill.total }}</p>
+      <p class="mt-1 text-p-sm text-ink-gray-6">
         <template v-if="bill.exact">{{ bill.subtotal }} plus {{ bill.taxLabel }}</template>
         <template v-else>{{ bill.subtotal }} before {{ bill.taxLabel }}</template>
         · {{ bill.hours }} hours
@@ -53,7 +53,7 @@ const bill = computed(() =>
         label="Check out"
         @click="emit('checkout')"
       />
-      <p class="mt-3 text-p-base text-ink-gray-6">
+      <p class="mt-3 text-p-sm text-ink-gray-6">
         Paid to Frappe, in full and up front.
         <template v-if="!signedIn">You'll make an account on the way.</template>
       </p>

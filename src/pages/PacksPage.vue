@@ -1,19 +1,22 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button, Tooltip } from 'frappe-ui'
+import { Button } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import PackBasket from '../components/PackBasket.vue'
 import PackPickList from '../components/PackPickList.vue'
 import PackScopeDialog from '../components/PackScopeDialog.vue'
+import PackCoverage from '../components/PackCoverage.vue'
+import PackFitTests from '../components/PackFitTests.vue'
+import PackSteps from '../components/PackSteps.vue'
+import PackTerms from '../components/PackTerms.vue'
+import frappeMark from '../assets/frappe.svg'
 import IconPricing from '~icons/lucide/circle-dollar-sign'
 import IconSpeed from '~icons/lucide/clock'
 import IconOversight from '~icons/lucide/circle-check'
 import { useConnectStore } from '../stores/connect'
 import {
-  INCLUDED_IN_ALL,
-  STRICTLY_EXCLUDED,
-  asExclusion,
+  PACK_STEPS,
   pricingFor,
   marketFor,
   DEFAULT_REGION,
@@ -124,23 +127,18 @@ const checkout = () => {
 
 <template>
   <ConnectShell root-label="Starter Packs" root-to="/connect/packs">
-    <!-- ⚠️ 1080 NOW, AND IT WAS 800. The basket moved out of the page and
-         into a rail beside it, which is 300px plus a `gap-8`; at 800 that would
-         have taken the list down to 468 and turned a row with a price at its
-         right edge into two lines. Same width as the recommendation screen,
-         which is the other page in the app that carries one. -->
-    <div class="mx-auto w-full max-w-[1080px] px-5 py-8 lg:px-10">
-      <!-- ⚠️ THE COLUMN HOLDS THE WHOLE PAGE, not just the list. On the
-           recommendation screen the rail sits beside one section and stops
-           being sticky where that section ends; here the reader is picking
-           packs the whole way down — the exclusions and the scope link below
+    <!-- ⚠️ NO MEASURE HERE: the rail sits at the page's right edge and the
+         column centres itself in what is left, as on the recommendation
+         screen. -->
+    <div class="w-full px-5 py-8 lg:px-8">
+      <!-- ⚠️ THE COLUMN HOLDS THE WHOLE PAGE, not just the list. The
+           reader is picking packs the whole way down — the exclusions and the scope link below
            are part of that decision — so the rail runs the length of it and
            the total stays in view for all of it.
-           ⚠️ NO RAIL UNTIL THERE IS A BASKET. An empty column of a "0 packs"
-           card is a price tag for nothing, and the flex row simply gives the
-           width back to the list. -->
-      <div class="flex flex-col gap-8 lg:flex-row lg:items-start">
-      <div class="min-w-0 flex-1">
+           The column is capped and centred between the sidebar and the rail,
+           so it sits midway whatever the window's width. -->
+      <div class="grid gap-x-16 gap-y-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:pl-8">
+      <div class="w-full lg:mx-auto lg:max-w-[720px]">
       <h1 class="text-2xl font-semibold text-ink-gray-8">
         Hit the ground running with Starter Packs for ERPNext
       </h1>
@@ -166,15 +164,15 @@ const checkout = () => {
         </div>
       </dl>
 
-      <section class="mt-24">
+      <section class="mt-16">
         <div class="flex items-baseline justify-between gap-4">
-          <h2 class="text-base font-semibold text-ink-gray-7">Starter Packs for your region</h2>
+          <h2 class="text-lg font-semibold text-ink-gray-8">Starter Packs for your region</h2>
           <!-- ⚠️ ONE LINE SAYING THE LIST IS MULTI-SELECT, and it earns its
                place because checkboxes alone do not say it: four of them read
                as four independent yes/no purchases, not as one basket. It is
                here rather than as a standfirst under the h1 — the fact is about
                this list, and it is read on the way into it. -->
-          <p class="shrink-0 text-p-sm text-ink-gray-5">Take as many as you need</p>
+          <p class="shrink-0 text-p-sm text-ink-gray-6">Take as many as you need</p>
         </div>
 
         <!-- `divide-y` puts a rule BETWEEN rows and none after the last, which
@@ -203,69 +201,39 @@ const checkout = () => {
 
       </section>
 
-      <!-- ── What every pack does and doesn't cover ─────────────────────
-           Two columns either side of one rule, at equal weight. A pack is
-           defined as much by its carve-outs as by its contents — that's why
-           it's quick and cheap — so the right-hand column isn't a footnote.
-           The rule sits on the grid's midline with the same 32px of air on
-           each side, so it reads as between the two rather than attached to
-           either. -->
-      <section class="mt-24">
-        <h2 class="text-base font-semibold text-ink-gray-8">
-          True of every pack
-        </h2>
+      <!-- ── Below the list: the recommendation screen's sections ─────
+           ⚠️ THE SAME COMPONENTS, IN THE SAME ORDER, as `RecommendationView`
+           under its list — how it works, what every pack covers, when custom
+           work is the better fit, the terms, and a way to talk to someone.
+           Both pages sell the same packs; drawing them twice was how the
+           exclusions came to disagree. -->
+      <PackSteps class="mt-16" title="How this works" :steps="PACK_STEPS" />
+      <PackCoverage class="mt-16 block" />
+      <PackFitTests class="mt-16 block" side="packs">
+        <Button
+          class="mt-5"
+          variant="subtle"
+          label="Get quotes from partners instead"
+          :route="{ name: 'recommendation', query: { view: 'custom' } }"
+        />
+      </PackFitTests>
+      <PackTerms class="mt-16 block" :region="region" />
+      <!-- ⚠️ Inert. It opens the Starter Pack scope document, the contract the
+           terms above summarise. The arrow leaves the app, same as the
+           marketplace links. -->
+      <div class="mt-4">
+        <Button label="Read full scope">
+          <template #suffix><LucideArrowUpRight class="size-4" /></template>
+        </Button>
+      </div>
 
-        <div class="fc-col-2 mt-5">
-          <ul class="space-y-2.5">
-            <li
-              v-for="item in INCLUDED_IN_ALL"
-              :key="item"
-              class="flex items-start gap-2 text-p-base text-ink-gray-7"
-            >
-              <LucideCheck class="mt-0.5 size-4 shrink-0 text-ink-gray-6" />
-              {{ item }}
-            </li>
-          </ul>
-
-          <ul class="space-y-2.5">
-            <li
-              v-for="item in STRICTLY_EXCLUDED.map(asExclusion)"
-              :key="item.label"
-              class="flex items-start gap-2 text-p-base text-ink-gray-7"
-            >
-              <LucideX class="mt-0.5 size-4 shrink-0 text-ink-gray-6" />
-              <span>
-                {{ item.label }}
-                <!-- The caveat rides in a tooltip rather than in the line: as
-                     parenthetical text it was the longest item here by half
-                     again, which made the one line with a condition on it the
-                     loudest thing in the column. -->
-                <!-- ⚠️ The trigger is the SPAN, not the icon. Lucide icons are
-                     `fill="none"`, so the middle of a circle-i is a hole —
-                     `elementFromPoint` at its centre returns nothing hoverable
-                     and only the 1.5px strokes trigger. The wrapper gives it a
-                     whole box to catch the pointer. -->
-                <Tooltip v-if="item.hint" :text="item.hint">
-                  <span class="ml-0.5 inline-flex -translate-y-px align-middle text-ink-gray-5">
-                    <LucideInfo class="size-4 shrink-0" />
-                  </span>
-                </Tooltip>
-              </span>
-            </li>
-          </ul>
-        </div>
-
-        <!-- ⚠️ Inert. It opens the Starter Pack scope document, which is where
-             the commercial terms now live — payment in advance, GST, the extra
-             hours rate, the under-50-users condition, the Frappe Cloud
-             dependency. None of that appears on this page any more.
-             The arrow leaves the app, same as the marketplace links. -->
-        <div class="mt-6">
-          <Button label="Read full scope">
-            <template #suffix><LucideArrowUpRight class="size-4" /></template>
-          </Button>
-        </div>
-      </section>
+      <div class="mt-16">
+        <h2 class="text-lg font-semibold text-ink-gray-8">Still unsure?</h2>
+        <Button class="mt-3" variant="subtle" label="Contact Frappe" :route="{ path: '/contact' }">
+          <template #prefix><img :src="frappeMark" alt="" class="size-4" /></template>
+          <template #suffix><LucideArrowRight class="size-4" /></template>
+        </Button>
+      </div>
       </div>
 
         <!-- ── What it comes to ─────────────────────────────────────────
@@ -282,7 +250,7 @@ const checkout = () => {
              ⚠️ The tax is named, and dropped where a market has no decided rate
              rather than invented — see `checkoutFor`. -->
         <!-- Always shown, like the recommendation screen's — see `PackBasket`. -->
-        <aside class="w-full shrink-0 lg:sticky lg:top-6 lg:w-[300px]">
+        <aside class="lg:sticky lg:top-6 lg:self-start">
           <PackBasket
             :packs="store.packs"
             :region="region"

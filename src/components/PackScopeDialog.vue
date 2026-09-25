@@ -56,16 +56,26 @@ const tabs = computed(() => list.value.map((p) => ({ label: p.name, value: p.val
   >
     <!-- Default slot, not `#body-content` — the older name fails silently; see
          the note in `NewProjectDialog`. -->
+    <!-- The facts line sits UNDER THE TITLE, in the header, for one pack: it
+         is about the pack the title names, and below the header's 24px it read
+         as the first line of the scope. With tabs it follows the tab it
+         describes instead. -->
+    <template v-if="list.length === 1 && shown" #title>
+      <h3 class="text-2xl-semibold leading-6 text-ink-gray-8">{{ shown.name }}</h3>
+      <p class="mt-1.5 text-p-base text-ink-gray-6">
+        {{ shown.hours }} hours · {{ shown.validity }} to deliver
+      </p>
+    </template>
     <template #default>
       <div v-if="shown">
-        <TabButtons v-if="list.length > 1" v-model="current" class="mb-4" :options="tabs" />
-        <p class="text-p-base text-ink-gray-6">
-          {{ shown.hours }} hours · {{ shown.validity }} to deliver
-        </p>
+        <template v-if="list.length > 1">
+          <TabButtons v-model="current" class="mb-4" :options="tabs" />
+          <p class="mb-5 text-p-base text-ink-gray-6">
+            {{ shown.hours }} hours · {{ shown.validity }} to deliver
+          </p>
+        </template>
 
-        <div class="mt-5">
-          <PackScope :key="shown.value" :pack="shown" />
-        </div>
+        <PackScope :key="shown.value" :pack="shown" />
 
         <!-- ⚠️ "Open the full pack page" WAS HERE AND ITS REASON HAS GONE. It
              existed for the reader who wanted the terms as well, which lived on

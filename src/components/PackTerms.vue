@@ -30,9 +30,9 @@ const terms = computed(() => [
 
 <template>
   <section>
-    <h2 class="text-base font-semibold text-ink-gray-8">Terms and conditions</h2>
+    <h2 class="text-lg font-semibold text-ink-gray-8">Terms and conditions</h2>
 
-    <div class="mt-3 divide-y divide-outline-gray-1 border-y border-outline-gray-1">
+    <div class="mt-1 divide-y divide-outline-gray-1 border-b border-outline-gray-1">
       <!-- ⚠️ `<details>`, not a hand-rolled toggle: this version of frappe-ui
            ships no accordion, and the native element brings the open state, the
            keyboard behaviour and the semantics for free. Same device as

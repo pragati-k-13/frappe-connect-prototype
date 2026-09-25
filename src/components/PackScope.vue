@@ -83,7 +83,7 @@ const areas = computed(() =>
     >
       <h3
         v-if="!single"
-        class="flex items-center gap-2 text-base font-medium text-ink-gray-8"
+        class="flex items-center gap-2 text-lg font-semibold text-ink-gray-8"
       >
         <component :is="area.icon" class="size-4 shrink-0 text-ink-gray-6" aria-hidden="true" />
         {{ area.label }}
@@ -108,15 +108,15 @@ const areas = computed(() =>
                so `gap-y` applies to nothing, and without this margin a run and
                the next label ran straight into each other on a phone. -->
           <div class="mt-4 first:mt-0 sm:contents">
-            <!-- ⚠️ The carve-out label keeps the column's WEIGHT and loses only
-                 its colour. Dropping both made "Not included" read as a caption
-                 on the row above rather than as another row of the
-                 specification, which is exactly what it is — the document
-                 carries the exclusions inside each module for that reason. -->
-            <dt
-              class="text-p-base font-medium"
-              :class="row.excluded ? 'text-ink-gray-5' : 'text-ink-gray-7'"
-            >
+            <!-- ⚠️ LABELS QUIET, CONTENTS DARK. The doctype names are what is
+                 read; the label only says which kind they are. It was the
+                 other way round, medium labels over gray-6 runs, which put the
+                 weight on "Masters" and left the scope itself the faintest
+                 text in the dialog.
+                 The carve-out label matches every other label, so "Not
+                 included" reads as another row of the specification rather
+                 than a caption on the one above; its RUN is what goes light. -->
+            <dt class="text-p-base text-ink-gray-6">
               {{ row.label }}
             </dt>
             <!-- A comma run, not a list: these are six and seven doctype names
@@ -126,7 +126,7 @@ const areas = computed(() =>
                  structure, because they are part of the same specification. -->
             <dd
               class="mt-0.5 text-p-base sm:mt-0"
-              :class="row.excluded ? 'text-ink-gray-5' : 'text-ink-gray-6'"
+              :class="row.excluded ? 'text-ink-gray-5' : 'text-ink-gray-8'"
             >
               {{ row.items.join(', ') }}
             </dd>
