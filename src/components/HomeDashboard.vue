@@ -1,15 +1,15 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Avatar, Button } from 'frappe-ui'
+import { Button } from 'frappe-ui'
+import { List, ListCell, ListRow } from 'frappe-ui/list'
 import NewProjectDialog from './NewProjectDialog.vue'
 import ProjectRow from './ProjectRow.vue'
-import TierIcon from './TierIcon.vue'
+import PartnerRow from './PartnerRow.vue'
 import IconPlus from '~icons/lucide/plus'
 import IconHeart from '~icons/lucide/heart'
 import IconComment from '~icons/lucide/message-square'
-import { logoFor } from '../data/logos'
-import { EVENTS, FEATURED_GUIDE, GUIDE_CARDS, GUIDE_ROWS } from '../data/home'
+import { EVENTS, POSTS, RESOURCES } from '../data/home'
 import { useConnectStore } from '../stores/connect'
 
 // The signed-in home, built to the attached design.
@@ -20,10 +20,9 @@ import { useConnectStore } from '../stores/connect'
 // buy. A customer with a project under way opened this screen to see the
 // project, and was shown the sales pitch they had already accepted.
 //
-// ⚠️ IMAGES ARE GREY BLOCKS, as the design asks. Everything that would carry a
-// photograph — the two guide cards, the featured guide, the two rows' thumbnails
-// and the event cards — renders an empty tinted box at a fixed aspect ratio, so
-// dropping real art in later reflows nothing.
+// ⚠️ IMAGES ARE GREY BLOCKS, as the design asks. The guide cards, the
+// featured post and the post rows' thumbnails render an empty tinted box at a
+// fixed aspect ratio, so dropping real art in later reflows nothing.
 const store = useConnectStore()
 const router = useRouter()
 
@@ -53,9 +52,7 @@ const countLine = computed(() => {
 })
 
 // Saved partners: the first few, newest first, and "View all" once there are
-// more than fit. The home screen is a way back to them, not the list itself —
-// the rows here carry only who they are, and the full `PartnerRow`s live on
-// `/connect/partners/saved`.
+// more than fit. The rest are on `/connect/partners/saved`.
 const SAVED_SHOWN = 3
 const saved = computed(() => store.savedPartners)
 const savedShown = computed(() => saved.value.slice(0, SAVED_SHOWN))
@@ -65,6 +62,21 @@ const savedShown = computed(() => saved.value.slice(0, SAVED_SHOWN))
 // whichever screen it is started from.
 const creating = ref(false)
 const startSomething = () => (creating.value = true)
+// Events lead with the date, split so the day can be the large figure.
+const eventDate = (iso) => {
+  const d = new Date(`${iso}T00:00:00`)
+  return {
+    day: d.getDate(),
+    month: d.toLocaleDateString('en-US', { month: 'short' }),
+  }
+}
+
+// `ListRow` links only through `to`, a router location, so rows that go off
+// site open from the click.
+const openLink = (href) => window.open(href, '_blank', 'noreferrer')
+
+const [featured, ...posts] = POSTS
+
 const create = (details) => {
   creating.value = false
   router.push(`/connect/projects/${store.createProject(details)}`)
@@ -72,198 +84,180 @@ const create = (details) => {
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-[760px] px-5 py-8 lg:px-10">
+  <div class="mx-auto w-full max-w-[800px] px-5 py-8 lg:px-10">
     <!-- ── Greeting ──────────────────────────────────────────────────── -->
     <div class="flex items-start justify-between gap-4">
       <div class="min-w-0">
-        <h1 class="text-lg font-semibold text-ink-gray-9">{{ greeting }}</h1>
+        <h1 class="text-2xl font-semibold text-ink-gray-8">{{ greeting }}</h1>
         <p class="mt-0.5 text-p-base text-ink-gray-6">{{ countLine }}</p>
       </div>
-      <!-- ⚠️ AN ICON BUTTON, AND THE ONLY CONTROL IN THE HEADER. The design
-           puts a `+` here rather than a labelled button, which works because it
-           is the one thing this screen starts. The tooltip carries the label a
-           `+` cannot, and `aria-label` carries it for anyone not hovering. -->
-      <Button variant="subtle" label="New project" @click="startSomething">
+      <!-- Only once there is a list to add to: with no projects, the empty
+           state's button below is the one thing this screen asks for. -->
+      <Button v-if="projects.length" variant="subtle" label="New project" @click="startSomething">
         <template #prefix><IconPlus class="size-4" /></template>
       </Button>
     </div>
 
     <!-- ── Projects ──────────────────────────────────────────────────── -->
-    <!-- ⚠️ THE PROJECTS LIST'S OWN ROWS, not cards: the same `ProjectRow`, so
-         a project reads the same on the home screen as on its list. -->
-    <div v-if="projects.length" class="mt-4">
-      <ProjectRow v-for="p in projects" :key="p.id" :project="p" />
+    <!-- Cards, stacked: `ProjectRow` in its card form, so the facts a
+         project shows are the same here as on the Projects list. -->
+    <div v-if="projects.length" class="mt-5 flex flex-col gap-3">
+      <ProjectRow v-for="p in projects" :key="p.id" :project="p" card />
     </div>
 
-    <!-- The account that signed up and has not started anything. The only
-         place on this screen where the three questions are the answer. -->
-    <div v-else class="mt-5 rounded-6 border border-outline-gray-2 px-4 py-8 text-center">
-      <p class="text-p-base text-ink-gray-7">Nothing under way</p>
-      <p class="mx-auto mt-1 max-w-sm text-p-base text-ink-gray-6">
+    <!-- The account that signed up and has not started anything. The line
+         under the greeting already says nothing is under way, so this only
+         says what to do about it. -->
+    <div v-else class="mt-5 flex flex-col items-start gap-4">
+      <p class="max-w-md text-p-base text-ink-gray-7">
         Answer a few questions and we will recommend Starter Packs or a custom implementation.
       </p>
-      <Button class="mt-4" variant="solid" label="New project" @click="startSomething" />
+      <Button variant="solid" label="New project" @click="startSomething" />
     </div>
 
     <!-- ── Saved partners ────────────────────────────────────────────── -->
     <!-- Hidden when empty: the bookmark on each partner is how this fills,
          and an empty section here would be a hint about a control on another
          screen. -->
-    <section v-if="saved.length" class="mt-12">
+    <section v-if="saved.length" class="mt-20">
       <div class="flex items-center justify-between gap-4">
         <h2 class="text-base font-medium text-ink-gray-8">Saved partners</h2>
         <Button
           v-if="saved.length > SAVED_SHOWN"
-          variant="ghost"
+          variant="subtle"
           size="sm"
-          :label="`View all ${saved.length}`"
+          label="View all"
           :route="{ name: 'saved-partners' }"
         />
       </div>
-      <div class="mt-3 grid gap-3 sm:grid-cols-3">
-        <RouterLink
-          v-for="p in savedShown"
-          :key="p.id"
-          :to="{ name: 'partner', params: { id: p.id } }"
-          class="flex items-center gap-3 rounded-6 border border-outline-gray-2 p-3 transition-colors hover:bg-surface-gray-1"
-        >
-          <!-- The same mark as the directory row: logo if there is one,
-               initials on the brand colour if not. -->
-          <Avatar
-            v-if="logoFor(p.id)"
-            :image="logoFor(p.id)"
-            :label="`${p.name} logo`"
-            size="2xl"
-            shape="square"
-            class="fc-logo-avatar"
-          />
-          <span
-            v-else
-            class="flex size-10 shrink-0 items-center justify-center rounded-4 text-xs font-semibold text-white"
-            :style="{ backgroundColor: p.color }"
-            aria-hidden="true"
-          >
-            {{ p.initials }}
-          </span>
-          <span class="min-w-0">
-            <span class="flex items-center gap-1.5">
-              <span class="truncate text-p-base font-medium text-ink-gray-8">{{ p.name }}</span>
-              <TierIcon :tier="p.tier" />
-            </span>
-            <span class="mt-0.5 block truncate text-p-sm text-ink-gray-6">{{ p.city }}</span>
-          </span>
-        </RouterLink>
+      <!-- The directory's own rows, compact: Save still works; Contact and
+           the comparison line stay on the full list. -->
+      <div class="mt-1">
+        <PartnerRow v-for="p in savedShown" :key="p.id" :partner="p" compact />
       </div>
     </section>
 
     <!-- ── Resources ─────────────────────────────────────────────────── -->
-    <section class="mt-12">
+    <!-- Two cards: image, date, title. -->
+    <section class="mt-16">
       <h2 class="text-base font-medium text-ink-gray-8">Resources</h2>
-
-      <!-- Two cards: image, date, title. -->
       <div class="mt-3 grid gap-4 sm:grid-cols-2">
         <a
-          v-for="card in GUIDE_CARDS"
+          v-for="card in RESOURCES"
           :key="card.title"
           :href="card.href"
           target="_blank"
           rel="noreferrer"
-          class="group overflow-hidden rounded-6 border border-outline-gray-2"
+          class="overflow-hidden rounded-6 border border-outline-gray-1 transition-colors hover:border-outline-gray-2"
         >
-          <!-- ⚠️ A GREY BLOCK, as asked. The aspect ratio holds the card's
-               height steady whatever eventually goes in it. -->
-          <span class="block aspect-[16/9] bg-surface-gray-2" aria-hidden="true" />
-          <span class="block p-4">
+          <span class="block aspect-[5/2] bg-surface-gray-2" aria-hidden="true" />
+          <span class="block px-2.5 py-2">
             <span class="block text-p-sm text-ink-gray-5">{{ card.at }}</span>
-            <span class="mt-1 block text-p-base text-ink-gray-8 group-hover:underline">
+            <span class="mt-1 block text-p-base font-medium text-ink-gray-7">
               {{ card.title }}
             </span>
           </span>
         </a>
       </div>
+    </section>
 
-      <!-- The featured one: wide image, title, standfirst, byline. -->
-      <a :href="FEATURED_GUIDE.href" target="_blank" rel="noreferrer" class="group mt-8 block">
-        <span class="block aspect-[3/1] rounded-6 bg-surface-gray-2" aria-hidden="true" />
-        <span class="mt-4 block text-lg font-semibold text-ink-gray-9 group-hover:underline">
-          {{ FEATURED_GUIDE.title }}
-        </span>
-        <span class="mt-1 block max-w-[62ch] text-p-base leading-relaxed text-ink-gray-6">
-          {{ FEATURED_GUIDE.body }}
-        </span>
-        <span class="mt-2 flex items-center gap-2 text-p-sm text-ink-gray-5">
-          By Frappe
-          <span aria-hidden="true">·</span>
-          <span>{{ FEATURED_GUIDE.tag }}</span>
-        </span>
-      </a>
+    <!-- ── Blog ──────────────────────────────────────────────────────── -->
+    <section class="mt-16">
+      <h2 class="text-base font-medium text-ink-gray-8">Blog</h2>
 
-      <!-- And the rows, thumbnail on the right. -->
-      <ul class="mt-6 divide-y divide-outline-gray-1">
-        <li v-for="row in GUIDE_ROWS" :key="row.title">
-          <a
-            :href="row.href"
-            target="_blank"
-            rel="noreferrer"
-            class="group flex items-start gap-4 py-5"
-          >
-            <span class="min-w-0 flex-1">
-              <span class="block text-p-base font-medium text-ink-gray-8 group-hover:underline">
-                {{ row.title }}
+      <!-- One frappe-ui `List`, opened from the click like the events below,
+           so every post shares one hover. The featured post is its first row,
+           one cell across both columns: wide image, title, standfirst, byline.
+           The rest follow with the thumbnail on the right. -->
+      <List
+        divider="full"
+        :columns="['minmax(0,1fr)', '160px']"
+        class="-mx-3 mt-3 [--list-gap:1rem]"
+      >
+        <ListRow class="pb-5 pt-3" @click="openLink(featured.href)">
+          <ListCell class="col-span-full">
+            <span class="w-full min-w-0 text-left">
+              <span class="block aspect-[5/1] rounded-6 bg-surface-gray-2" aria-hidden="true" />
+              <span class="mt-4 block text-p-lg font-semibold text-ink-gray-7">
+                {{ featured.title }}
               </span>
-              <span class="mt-0.5 block text-p-base text-ink-gray-6">{{ row.body }}</span>
+              <span class="mt-1 block max-w-[62ch] text-p-base leading-relaxed text-ink-gray-6">
+                {{ featured.body }}
+              </span>
               <span class="mt-2 flex items-center gap-2 text-p-sm text-ink-gray-5">
                 By Frappe
-                <span aria-hidden="true">·</span>
-                <span>{{ row.tag }}</span>
+                <span class="text-ink-gray-4" aria-hidden="true">·</span>
+                <span>{{ featured.tag }}</span>
               </span>
-              <!-- ⚠️ INVENTED FIGURES. They are in the design so they are here,
-                   and they assert engagement nobody measured — the partners
-                   page dropped the same counts off its success stories for that
-                   reason. See the note in `data/home.js`. -->
+            </span>
+          </ListCell>
+        </ListRow>
+        <ListRow v-for="post in posts" :key="post.title" class="py-5" @click="openLink(post.href)">
+          <ListCell class="self-start">
+            <span class="min-w-0 text-left">
+              <span class="block text-p-lg font-medium text-ink-gray-7">{{ post.title }}</span>
+              <span class="mt-0.5 block text-p-base text-ink-gray-6">{{ post.body }}</span>
+              <span class="mt-2 flex items-center gap-2 text-p-sm text-ink-gray-5">
+                By Frappe
+                <span class="text-ink-gray-4" aria-hidden="true">·</span>
+                <span>{{ post.tag }}</span>
+              </span>
+              <!-- ⚠️ INVENTED FIGURES. See the note on `POSTS` in `data/home.js`. -->
               <span class="mt-2 flex items-center gap-4 text-p-sm text-ink-gray-5">
                 <span class="flex items-center gap-1">
                   <IconHeart class="size-3.5" />
-                  {{ row.likes }}
+                  {{ post.likes }}
                 </span>
                 <span class="flex items-center gap-1">
                   <IconComment class="size-3.5" />
-                  {{ row.comments }}
+                  {{ post.comments }}
                 </span>
               </span>
             </span>
+          </ListCell>
+          <ListCell class="self-start">
             <span
-              class="block aspect-[16/9] w-[160px] shrink-0 rounded-5 bg-surface-gray-2"
+              class="block aspect-[16/9] w-full rounded-5 bg-surface-gray-2"
               aria-hidden="true"
             />
-          </a>
-        </li>
-      </ul>
+          </ListCell>
+        </ListRow>
+      </List>
     </section>
 
     <!-- ── Events ────────────────────────────────────────────────────── -->
-    <section class="mt-12">
+    <!-- Date-led rows: the date is what tells an event from a post, so it
+         takes the leading column at a fixed width. -->
+    <section class="mt-16">
       <h2 class="text-base font-medium text-ink-gray-8">
         Upcoming events you might be interested in
       </h2>
-      <div class="mt-3 grid gap-4 sm:grid-cols-2">
-        <a
-          v-for="e in EVENTS"
-          :key="e.title"
-          :href="e.href"
-          target="_blank"
-          rel="noreferrer"
-          class="group overflow-hidden rounded-6 border border-outline-gray-2"
-        >
-          <span class="block aspect-[16/9] bg-surface-gray-2" aria-hidden="true" />
-          <span class="block p-4">
-            <span class="block text-p-sm text-ink-gray-5">{{ e.at }} · {{ e.where }}</span>
-            <span class="mt-1 block text-p-base text-ink-gray-8 group-hover:underline">
-              {{ e.title }}
+      <!-- frappe-ui's `List`, opened from the click (see `openLink`). `-mx-3`
+           pulls the text back onto the heading's edge past the 12px a
+           clickable row pads for its hover fill. -->
+      <List divider="full" :columns="['40px', 'minmax(0,1fr)', 'auto']" class="-mx-3 mt-1">
+        <ListRow v-for="e in EVENTS" :key="e.title" class="py-4" @click="openLink(e.href)">
+          <ListCell>
+            <span class="flex w-full flex-col items-center">
+              <span class="text-xs font-medium uppercase text-ink-gray-6">
+                {{ eventDate(e.date).month }}
+              </span>
+              <span class="text-xl font-semibold leading-none text-ink-gray-8">
+                {{ eventDate(e.date).day }}
+              </span>
             </span>
-          </span>
-        </a>
-      </div>
+          </ListCell>
+          <ListCell>
+            <span class="min-w-0 text-left">
+              <span class="block text-lg font-medium text-ink-gray-7">{{ e.title }}</span>
+              <span class="mt-0.5 block text-p-base text-ink-gray-6">{{ e.where }}</span>
+            </span>
+          </ListCell>
+          <ListCell class="justify-end">
+            <span class="text-p-sm text-ink-gray-5">{{ e.time }}</span>
+          </ListCell>
+        </ListRow>
+      </List>
     </section>
 
     <NewProjectDialog :open="creating" @close="creating = false" @create="create" />

@@ -10,6 +10,10 @@ import { useContactPartner } from '../utils/contact'
 
 const props = defineProps({
   partner: { type: Object, required: true },
+  // One line of facts beside the avatar, city first, no industry line and no
+  // Contact — for places that list a few partners to get back to rather than
+  // to compare or reach out from (the home screen's saved partners).
+  compact: { type: Boolean, default: false },
 })
 
 const store = useConnectStore()
@@ -93,7 +97,10 @@ const industryLine = computed(() => {
   <article
     class="fc-partner-row group relative -mx-3 rounded-4 px-3 transition-colors hover:bg-surface-gray-1"
   >
-    <div class="fc-partner-row-body flex items-start gap-3 border-b border-outline-gray-1 py-7">
+    <div
+      class="fc-partner-row-body flex gap-3 border-b border-outline-gray-1"
+      :class="compact ? 'items-center py-5' : 'items-start py-7'"
+    >
       <!-- ⚠️ THE AVATAR SITS INSIDE THIS COLUMN, not beside it, and that is the
            whole of the row's second layout.
 
@@ -158,7 +165,7 @@ const industryLine = computed(() => {
                nesting buttons inside an anchor is invalid and swallows their
                clicks. Those two get `relative` below so they stay above the
                stretched layer. -->
-              <h3 class="text-lg font-medium text-ink-gray-8">
+              <h3 class="text-lg font-medium text-ink-gray-7">
                 <RouterLink
                   :to="`/connect/partners/${partner.id}`"
                   class="after:absolute after:inset-0 after:content-['']"
@@ -191,55 +198,82 @@ const industryLine = computed(() => {
             <!-- No icon here. The city sits directly under the name as a plain
            subtitle — the icons below label a row of unlike facts (rate, rating,
            response time) that need telling apart at a glance; this line doesn't. -->
-            <p class="mt-0.5 text-p-sm text-ink-gray-6">{{ partner.city }}</p>
+            <p v-if="!compact" class="mt-0.5 text-p-sm text-ink-gray-6">{{ partner.city }}</p>
+            <!-- Compact: the city joins the facts, with an icon like theirs,
+                 since it is no longer a subtitle on a line of its own. -->
+            <div
+              v-else
+              class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-p-sm text-ink-gray-6"
+            >
+              <span class="flex items-center gap-1">
+                <LucideMapPin class="size-3.5 shrink-0 text-ink-gray-6" />
+                {{ partner.city }}
+              </span>
+              <span class="flex items-center gap-1">
+                <LucideCircleDollarSign class="size-3.5 shrink-0 text-ink-gray-6" />
+                <template v-if="partner.rate">From ${{ partner.rate }}/hr</template>
+                <span v-else class="text-ink-gray-5">Undisclosed</span>
+              </span>
+              <span class="flex items-center gap-1">
+                <LucideStar class="size-3.5 shrink-0 text-ink-gray-6" />
+                {{ partner.rating }}
+                <span class="text-ink-gray-5">({{ partner.reviews }})</span>
+              </span>
+              <span class="flex items-center gap-1">
+                <LucideClock class="size-3.5 shrink-0 text-ink-gray-6" />
+                Typically {{ partner.responds }}
+              </span>
+            </div>
           </div>
         </div>
 
-        <!-- ⚠️ `mt-3` still measures the 12px break described above, but from the
+        <template v-if="!compact">
+          <!-- ⚠️ `mt-3` still measures the 12px break described above, but from the
              bottom of the CLUSTER rather than from the city line alone. The
              avatar is 40px and the name-and-city stack is taller than that, so
              the cluster's height is still the text's — the gap reads exactly as
              it did. It would not if the avatar ever grew past the two lines. -->
-        <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-p-sm text-ink-gray-7">
-          <!-- A partner who doesn't publish a rate still gets the slot and the
+          <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-p-sm text-ink-gray-6">
+            <!-- A partner who doesn't publish a rate still gets the slot and the
                icon, and says so. Dropping the fact entirely would close the gap
                and leave the row LOOKING complete — three facts on one partner
                and two on the next, with nothing to say which fact went missing.
-               "Rate undisclosed" is also the honest answer to the question the
+               "Undisclosed" is also the honest answer to the question the
                column is asking, and it's set in `ink-gray-5` so a row of them
                doesn't read as loudly as a row of figures. -->
-          <span class="flex items-center gap-1">
-            <LucideCircleDollarSign class="size-3.5 shrink-0 text-ink-gray-6" />
-            <template v-if="partner.rate">From ${{ partner.rate }}/hr</template>
-            <span v-else class="text-ink-gray-5">Rate undisclosed</span>
-          </span>
-          <span class="flex items-center gap-1">
-            <!-- Plain outline star, `ink-gray-6`, matching the dollar sign and
+            <span class="flex items-center gap-1">
+              <LucideCircleDollarSign class="size-3.5 shrink-0 text-ink-gray-6" />
+              <template v-if="partner.rate">From ${{ partner.rate }}/hr</template>
+              <span v-else class="text-ink-gray-5">Undisclosed</span>
+            </span>
+            <span class="flex items-center gap-1">
+              <!-- Plain outline star, `ink-gray-6`, matching the dollar sign and
                  the clock either side of it. This row is three unlike facts in
                  a line and the icons are labels for them, not marks in their
                  own right — a filled amber star here is the loudest thing in a
                  list of thirteen rows, thirteen times over. Amber and filled is
                  for the places where the star IS the rating: the profile's
                  review scores and the marketplace five-star rows. -->
-            <LucideStar class="size-3.5 shrink-0 text-ink-gray-6" />
-            {{ partner.rating }}
-            <span class="text-ink-gray-5">({{ partner.reviews }})</span>
-          </span>
-          <span class="flex items-center gap-1">
-            <!-- A clock, not a bubble — the bubble now belongs to Contact, and
+              <LucideStar class="size-3.5 shrink-0 text-ink-gray-6" />
+              {{ partner.rating }}
+              <span class="text-ink-gray-5">({{ partner.reviews }})</span>
+            </span>
+            <span class="flex items-center gap-1">
+              <!-- A clock, not a bubble — the bubble now belongs to Contact, and
                this line is about speed rather than the channel. -->
-            <LucideClock class="size-3.5 shrink-0 text-ink-gray-6" />
-            Typically {{ partner.responds }}
-          </span>
-        </div>
+              <LucideClock class="size-3.5 shrink-0 text-ink-gray-6" />
+              Typically {{ partner.responds }}
+            </span>
+          </div>
 
-        <!-- One line, always. `min-w-0` on the growing span is what lets
+          <!-- One line, always. `min-w-0` on the growing span is what lets
            `truncate` actually clip inside a flex row — a flex item defaults to
            min-width:auto and refuses to shrink below its text. -->
-        <p class="mt-1 flex gap-1 text-p-sm text-ink-gray-6">
-          <span class="min-w-0 truncate">{{ industryLine.lead }}</span>
-          <span v-if="industryLine.rest" class="shrink-0">and {{ industryLine.rest }} more</span>
-        </p>
+          <p class="mt-1 flex gap-1 text-p-sm text-ink-gray-6">
+            <span class="min-w-0 truncate">{{ industryLine.lead }}</span>
+            <span v-if="industryLine.rest" class="shrink-0">and {{ industryLine.rest }} more</span>
+          </p>
+        </template>
       </div>
 
       <!-- `relative` lifts these above the name's stretched hit area — without
@@ -264,7 +298,7 @@ const industryLine = computed(() => {
         <!-- Opens the conversation with this partner and goes to it. Gated,
              unlike before: there IS something behind it now, and a thread needs
              an account to belong to — see `useContactPartner`. -->
-        <Button variant="subtle" label="Contact" @click="contactPartner(partner)">
+        <Button v-if="!compact" variant="subtle" label="Contact" @click="contactPartner(partner)">
           <!-- A message bubble, not an envelope: contact runs through in-app
              messages, and an envelope would promise email. -->
           <template #prefix><LucideMessageSquare class="size-4" /></template>

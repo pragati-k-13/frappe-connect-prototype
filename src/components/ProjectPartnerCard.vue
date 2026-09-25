@@ -42,7 +42,7 @@ const logo = computed(() => logoFor(props.partner.id))
 const facts = computed(() => {
   const p = props.partner
   return [
-    { icon: IconRate, text: p.rate ? `From $${p.rate}/hr` : 'Rate undisclosed', muted: !p.rate },
+    { icon: IconRate, text: p.rate ? `From $${p.rate}/hr` : 'Undisclosed', muted: !p.rate },
     { icon: IconStar, text: `${p.rating}`, sub: `(${p.reviews})` },
     { icon: IconClock, text: `Typically ${p.responds}` },
   ]
