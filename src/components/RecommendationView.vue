@@ -1,13 +1,10 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Button, FormControl, Textarea, TextInput, Tooltip } from 'frappe-ui'
+import { Button, FormControl, Textarea, TextInput } from 'frappe-ui'
 import IconCheck from '~icons/lucide/check'
-import IconX from '~icons/lucide/x'
 import IconEdit from '~icons/lucide/square-pen'
 import IconSend from '~icons/lucide/send'
 import IconArrowRight from '~icons/lucide/arrow-right'
-import IconInfo from '~icons/lucide/circle-alert'
-import IconHelp from '~icons/lucide/circle-help'
 import IconMapPin from '~icons/lucide/map-pin'
 import IconBriefcase from '~icons/lucide/briefcase'
 import IconCalendar from '~icons/lucide/calendar'
@@ -15,17 +12,18 @@ import IconAward from '~icons/lucide/award'
 import IconUsers from '~icons/lucide/users'
 import frappeMark from '../assets/frappe.svg'
 import PackBasket from './PackBasket.vue'
+import PackCoverage from './PackCoverage.vue'
+import PackFitTests from './PackFitTests.vue'
 import PackPickList from './PackPickList.vue'
 import PackScopeDialog from './PackScopeDialog.vue'
+import PackSteps from './PackSteps.vue'
 import PackTerms from './PackTerms.vue'
 import PartnerFiltersDialog from './PartnerFiltersDialog.vue'
 import { useConnectStore } from '../stores/connect'
 import { recommendationFor } from '../data/recommendation'
 import {
-  INCLUDED_IN_ALL,
-  PACK_ADD_ONS,
-  PACK_FIT_TESTS,
   PACK_STEPS,
+  STARTER_PACKS,
   marketFor,
   DEFAULT_REGION,
 } from '../data/packs'
@@ -60,7 +58,7 @@ const props = defineProps({
   packs: { type: Array, required: true },
   // 'packs' or 'custom' to open on, overriding the verdict.
   initialView: { type: String, default: null },
-  // The account's "Does this look right?" row.
+  // The account's recommendation-feedback row.
   showFeedback: { type: Boolean, default: true },
 })
 
@@ -80,7 +78,9 @@ const headline = computed(() =>
   view.value === 'packs'
     ? overridden.value
       ? 'Starter Packs'
-      : 'We recommend a Starter Pack'
+      : reco.value.packs.length > 1
+        ? 'We recommend these Starter Packs'
+        : 'We recommend a Starter Pack'
     : overridden.value
       ? 'Custom implementation'
       : 'We recommend a custom implementation',
@@ -89,6 +89,12 @@ const headline = computed(() =>
 // Why each pack is on the list, from the engine — see `PackPickList`.
 const reasons = computed(() =>
   Object.fromEntries(reco.value.packs.map((r) => [r.pack.value, r.reason])),
+)
+// ⚠️ NO BADGES WHEN EVERY PACK HAS ONE. "Recommended" marks a pack out from
+// the others; on all of them it marks nothing, and three identical chips are
+// noise on the rows.
+const badges = computed(() =>
+  reco.value.packs.length < STARTER_PACKS.length ? reasons.value : null,
 )
 const nothingPicked = computed(() => props.packs.length === 0)
 
@@ -162,6 +168,17 @@ defineExpose({ send })
 
 <template>
   <div>
+  <!-- ⚠️ ONE GRID FOR THE WHOLE SCREEN, so the rail runs its full height and
+       stays in view to the last section. It used to sit beside the list only,
+       and scrolled away with it. The column is capped and centred in what the
+       rail leaves, so it sits midway between the sidebar and the rail however
+       wide the window is; the rail itself goes to the page's right edge.
+       `lg:pl-8` tops the page's 32px up to the 64px gap, so the two sides of
+       the column measure the same.
+       Below `lg` it is one column and the rail falls between the work and the
+       reference, where the button still follows the list. -->
+  <div class="grid gap-x-16 lg:grid-cols-[minmax(0,1fr)_300px] lg:pl-8">
+  <div class="w-full lg:mx-auto lg:max-w-[720px]">
   <!-- ── The verdict ─────────────────────────────────────────────── -->
   <!-- ⚠️ NO EYEBROW. There was a tracked-out "BASED ON YOUR ANSWERS" above
        this headline, and it was redundant twice over: the two lines beneath
@@ -171,7 +188,7 @@ defineExpose({ send })
   <!-- The page's own heading can replace this one — a draft project puts its
        name there — and still read the verdict from `headline`. -->
   <slot name="header" :headline="headline">
-    <h1 class="text-2xl font-semibold text-ink-gray-9">{{ headline }}</h1>
+    <h1 class="text-2xl font-semibold text-ink-gray-8">{{ headline }}</h1>
   </slot>
 
   <!-- ── Packs ───────────────────────────────────────────────────── -->
@@ -179,25 +196,13 @@ defineExpose({ send })
        and no box around it — the same open rows as the Starter Packs page, via
        `PackPickList`, and the same basket beside them via `PackBasket`. -->
   <section v-if="view === 'packs'" class="mt-4">
-    <div class="flex flex-col gap-8 lg:flex-row lg:items-start">
-      <div class="min-w-0 flex-1">
-        <PackPickList
-          :packs="packs"
-          :region="region"
-          :reasons="reasons"
-          @toggle="emit('toggle-pack', $event)"
-          @scope="showScope"
-        />
-      </div>
-      <aside class="w-full shrink-0 lg:sticky lg:top-6 lg:w-[300px]">
-        <PackBasket
-          :packs="packs"
-          :region="region"
-          :signed-in="store.signedIn"
-          @checkout="checkout"
-        />
-      </aside>
-    </div>
+    <PackPickList
+      :packs="packs"
+      :region="region"
+      :reasons="badges"
+      @toggle="emit('toggle-pack', $event)"
+      @scope="showScope"
+    />
   </section>
 
   <!-- ── Custom ──────────────────────────────────────────────────── -->
@@ -207,191 +212,192 @@ defineExpose({ send })
          the number and the button that acts on it. Both halves of this
          screen end in one commitment made against one figure, and they were
          laying that out two different ways. -->
-    <div class="flex flex-col gap-8 lg:flex-row lg:items-start">
-      <div class="min-w-0 flex-1">
-        <div class="rounded-6 border border-outline-gray-2 p-5">
-          <!-- ⚠️ THE CRITERIA ARE ON THE PAGE, not behind a counted link
-               reading "3 filters on". A number is not a criterion: somebody
-               who narrowed to Pune and came back an hour later could not
-               tell what the brief was about to do without opening a dialog.
-               Five lines say it, and the button beside them is for changing
-               them rather than for finding out what they are. -->
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div class="min-w-0">
-              <h2 class="text-p-lg font-semibold text-ink-gray-9">
-                Share requirements with every partner that matches
-              </h2>
-              <p class="mt-1 text-p-base text-ink-gray-6">
-                Sent as a message, never posted publicly.
-              </p>
-            </div>
-            <Button variant="subtle" label="Edit criteria" @click="showFilters = true">
-              <template #prefix><IconEdit class="size-4" /></template>
-            </Button>
-          </div>
-
-          <ul class="mt-4 space-y-2">
-            <li
-              v-for="line in criteria"
-              :key="line.text"
-              class="flex items-center gap-2.5 text-p-base text-ink-gray-7"
-            >
-              <component :is="CRITERIA_ICONS[line.icon]" class="size-4 text-ink-gray-5" />
-              {{ line.text }}
-            </li>
-          </ul>
-
-          <!-- ── What you tell them ──────────────────────────────────── -->
-          <div class="mt-6">
-            <h3 class="text-p-base font-semibold text-ink-gray-8">
-              Tell us about your project
-            </h3>
-            <p class="mt-1 text-p-base text-ink-gray-6">
-              The more you write, the more partners can quote a figure instead of a meeting.
-            </p>
-          </div>
-
-          <div class="mt-4 space-y-4">
-            <!-- ⚠️ A BAND, NOT A FIGURE. See the note in `data/custom.js` —
-                 a free number invites a placeholder, and partners price
-                 against placeholders. -->
-            <FormControl
-              type="select"
-              :model-value="brief.budget"
-              label="Your budget"
-              placeholder="Select a range"
-              required
-              :options="bands"
-              :error="briefProblems.budget"
-              @update:model-value="emit('update-brief', { budget: $event })"
-            />
-            <div>
-              <!-- ⚠️ ONE BOX, AND THE PLACEHOLDER DOES THE WORK. The three
-                   named prompts this replaces are still the right
-                   questions; asking them as three fields on a card that
-                   also carries the criteria and the budget made it read as
-                   a form. They prompt from inside the placeholder instead,
-                   where they occupy nothing. -->
-              <Textarea
-                :model-value="brief.scope"
-                label="What do you want built?"
-                placeholder="What do you make or sell, who are your customers, how does it run today, what keeps going wrong, and what must it connect to or prove?"
-                :rows="6"
-                required
-                :error="briefProblems.scope"
-                @update:model-value="emit('update-brief', { scope: $event })"
-              />
-              <!-- ⚠️ LIVE, AND IT REPLACES A FIXED `description`. A static
-                   line of advice is read once, before there is anything to
-                   advise about, and is invisible by the time it applies.
-                   This answers what is in the box: nothing yet, not
-                   language, too short, or specific about some of it and
-                   silent on the rest. See `scopeHint`.
-                   ⚠️ NOT THE `error` SLOT, and not a blocker. A brief that
-                   trips every heuristic here still sends, because the
-                   heuristic is a word list and the person writing knows
-                   their business. Amber says "this will cost you a
-                   workshop", red would say "you may not".
-                   ⚠️ SHADE 7 OF BOTH, measured rather than picked. The ink
-                   scales run light to dark and the low shades are pale
-                   enough to fail against white at this size: amber 5 is
-                   oklch lightness .72, amber 7 is .61. -->
-              <p
-                class="mt-1.5 text-p-sm leading-relaxed"
-                :class="{
-                  'text-ink-gray-5': hint.tone === 'neutral',
-                  'text-ink-amber-7': hint.tone === 'warn',
-                  'text-ink-green-7': hint.tone === 'good',
-                }"
-              >
-                {{ hint.text }}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- ⚠️ THE OTHER WAY THROUGH, in the column rather than the rail.
-             The rail holds one commitment and its number; a second button
-             up there would make them a pair of options and halve the first.
-             Down here it reads as what it is, the route for somebody who
-             would rather choose the firms themselves. -->
-        <div class="mt-4">
-          <Button
-            variant="subtle"
-            label="View all partners"
-            :route="{ name: 'results' }"
-          >
-            <template #suffix><IconArrowRight class="size-4" /></template>
-          </Button>
-        </div>
-      </div>
-
-      <!-- ── Who it reaches ──────────────────────────────────────────
-           ⚠️ A RAIL, AND STICKY, for the reason the packs half has one: the
-           button was at the foot of a card, so it left the screen while
-           somebody read four sections about what they were about to do. The
-           figure and the commitment stay in view instead, and neither is
-           ever printed twice. -->
-      <aside class="w-full shrink-0 lg:sticky lg:top-6 lg:w-[300px]">
-        <div class="rounded-6 border border-outline-gray-2 p-4">
-          <template v-if="matches.length">
-            <p class="text-2xl font-semibold tabular-nums text-ink-gray-9">
-              {{ matches.length }}
-            </p>
-            <p class="mt-0.5 text-p-base text-ink-gray-7">
-              {{ matches.length === 1 ? 'partner matches' : 'partners match' }} your criteria
-            </p>
-          </template>
-          <template v-else>
-            <p class="text-p-base text-ink-gray-7">No partner matches</p>
-            <p class="mt-1 text-p-sm leading-relaxed text-ink-gray-5">
-              Loosen a criterion and the number comes back.
-            </p>
-          </template>
-
-          <!-- ⚠️ NO COUNT IN THE LABEL, and it used to read "Send
-               requirements to 13 partners". The count was on the button
-               because the button is the commitment, but a label that grows
-               with the data is a control whose width nobody designed. The
-               figure above it is the same number from the same function. -->
-          <Button
-            class="mt-4 w-full"
-            variant="solid"
-            size="md"
-            :disabled="matches.length === 0"
-            label="Share requirements"
-            @click="send"
-          >
-            <template #prefix><IconSend class="size-4" /></template>
-          </Button>
-          <p class="mt-3 text-p-sm leading-relaxed text-ink-gray-5">
-            They see your answers and requirements, not your company name or contact details.
+    <div class="rounded-6 border border-outline-gray-2 p-5">
+      <!-- ⚠️ THE CRITERIA ARE ON THE PAGE, not behind a counted link
+           reading "3 filters on". A number is not a criterion: somebody
+           who narrowed to Pune and came back an hour later could not
+           tell what the brief was about to do without opening a dialog.
+           Five lines say it, and the button beside them is for changing
+           them rather than for finding out what they are. -->
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h2 class="text-lg font-semibold text-ink-gray-8">
+            Share requirements with every partner that matches
+          </h2>
+          <p class="mt-1 text-p-base text-ink-gray-6">
+            Sent as a message, never posted publicly.
           </p>
         </div>
-      </aside>
+        <Button variant="subtle" label="Edit criteria" @click="showFilters = true">
+          <template #prefix><IconEdit class="size-4" /></template>
+        </Button>
+      </div>
+
+      <ul class="mt-4 space-y-2">
+        <li
+          v-for="line in criteria"
+          :key="line.text"
+          class="flex items-center gap-2.5 text-p-base text-ink-gray-7"
+        >
+          <component :is="CRITERIA_ICONS[line.icon]" class="size-4 text-ink-gray-5" />
+          {{ line.text }}
+        </li>
+      </ul>
+
+      <!-- ── What you tell them ──────────────────────────────────── -->
+      <div class="mt-6">
+        <h3 class="text-p-base font-semibold text-ink-gray-8">
+          Tell us about your project
+        </h3>
+        <p class="mt-1 text-p-base text-ink-gray-6">
+          The more you write, the more partners can quote a figure instead of a meeting.
+        </p>
+      </div>
+
+      <div class="mt-4 space-y-4">
+        <!-- ⚠️ A BAND, NOT A FIGURE. See the note in `data/custom.js` —
+             a free number invites a placeholder, and partners price
+             against placeholders. -->
+        <FormControl
+          type="select"
+          :model-value="brief.budget"
+          label="Your budget"
+          placeholder="Select a range"
+          required
+          :options="bands"
+          :error="briefProblems.budget"
+          @update:model-value="emit('update-brief', { budget: $event })"
+        />
+        <div>
+          <!-- ⚠️ ONE BOX, AND THE PLACEHOLDER DOES THE WORK. The three
+               named prompts this replaces are still the right
+               questions; asking them as three fields on a card that
+               also carries the criteria and the budget made it read as
+               a form. They prompt from inside the placeholder instead,
+               where they occupy nothing. -->
+          <Textarea
+            :model-value="brief.scope"
+            label="What do you want built?"
+            placeholder="What do you make or sell, who are your customers, how does it run today, what keeps going wrong, and what must it connect to or prove?"
+            :rows="6"
+            required
+            :error="briefProblems.scope"
+            @update:model-value="emit('update-brief', { scope: $event })"
+          />
+          <!-- ⚠️ LIVE, AND IT REPLACES A FIXED `description`. A static
+               line of advice is read once, before there is anything to
+               advise about, and is invisible by the time it applies.
+               This answers what is in the box: nothing yet, not
+               language, too short, or specific about some of it and
+               silent on the rest. See `scopeHint`.
+               ⚠️ NOT THE `error` SLOT, and not a blocker. A brief that
+               trips every heuristic here still sends, because the
+               heuristic is a word list and the person writing knows
+               their business. Amber says "this will cost you a
+               workshop", red would say "you may not".
+               ⚠️ SHADE 7 OF BOTH, measured rather than picked. The ink
+               scales run light to dark and the low shades are pale
+               enough to fail against white at this size: amber 5 is
+               oklch lightness .72, amber 7 is .61. -->
+          <p
+            class="mt-1.5 text-p-sm leading-relaxed"
+            :class="{
+              'text-ink-gray-5': hint.tone === 'neutral',
+              'text-ink-amber-7': hint.tone === 'warn',
+              'text-ink-green-7': hint.tone === 'good',
+            }"
+          >
+            {{ hint.text }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ⚠️ THE OTHER WAY THROUGH, in the column rather than the rail.
+         The rail holds one commitment and its number; a second button
+         up there would make them a pair of options and halve the first.
+         Down here it reads as what it is, the route for somebody who
+         would rather choose the firms themselves. -->
+    <div class="mt-4">
+      <Button
+        variant="subtle"
+        label="View all partners"
+        :route="{ name: 'results' }"
+      >
+        <template #suffix><IconArrowRight class="size-4" /></template>
+      </Button>
     </div>
   </section>
 
+  </div>
+
+  <aside
+    class="mt-8 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0 lg:self-start"
+  >
+    <PackBasket
+      v-if="view === 'packs'"
+      :packs="packs"
+      :region="region"
+      :signed-in="store.signedIn"
+      @checkout="checkout"
+    />
+    <!-- ── Who it reaches ──────────────────────────────────────────
+         ⚠️ A RAIL, AND STICKY, for the reason the packs half has one: the
+         button was at the foot of a card, so it left the screen while
+         somebody read four sections about what they were about to do. The
+         figure and the commitment stay in view instead, and neither is
+         ever printed twice. -->
+    <div v-else class="rounded-6 border border-outline-gray-2 p-4">
+      <template v-if="matches.length">
+        <p class="text-3xl font-semibold tabular-nums text-ink-gray-8">
+          {{ matches.length }}
+        </p>
+        <p class="mt-0.5 text-p-base text-ink-gray-7">
+          {{ matches.length === 1 ? 'partner matches' : 'partners match' }} your criteria
+        </p>
+      </template>
+      <template v-else>
+        <p class="text-p-base text-ink-gray-7">No partner matches</p>
+        <p class="mt-1 text-p-sm text-ink-gray-6">
+          Loosen a criterion and the number comes back.
+        </p>
+      </template>
+
+      <!-- ⚠️ NO COUNT IN THE LABEL, and it used to read "Send
+           requirements to 13 partners". The count was on the button
+           because the button is the commitment, but a label that grows
+           with the data is a control whose width nobody designed. The
+           figure above it is the same number from the same function. -->
+      <Button
+        class="mt-4 w-full"
+        variant="solid"
+        size="md"
+        :disabled="matches.length === 0"
+        label="Share requirements"
+        @click="send"
+      >
+        <template #prefix><IconSend class="size-4" /></template>
+      </Button>
+      <p class="mt-3 text-p-sm text-ink-gray-6">
+        They see your answers and requirements, not your company name or contact details.
+      </p>
+    </div>
+  </aside>
+
   <!-- ── Everything below belongs to the LIST, not to the page ───
-       ⚠️ CONSTRAINED TO THE LEFT COLUMN'S MEASURE. The reasoning, "How
-       this works", what a pack won't cover and the feedback row all ran
-       the full 1000px, sliding out from under the rows and passing
-       beneath the rail — and the rule above the feedback row made it
-       plain, a full-width stroke drawn under a card it has nothing to do
-       with. A right-hand rail is a sidebar; text that runs underneath one
-       reads as text the sidebar is a part of.
-       332px is the 300px rail plus the flex `gap-8`, left as the
-       expression rather than the 668 it works out to, so the two numbers
-       that produce it are the two numbers on the block above.
-       Only on the packs half: the custom half has no rail and takes the
-       app's usual 800px, where full width already is the measure. -->
+       ⚠️ IN THE COLUMN, NOT UNDER THE RAIL. The reasoning, "How this
+       works", what a pack won't cover and the feedback row all ran the full
+       width once, passing beneath the rail — and the rule above the feedback
+       row made it plain, a full-width stroke drawn under a card it has
+       nothing to do with. A right-hand rail is a sidebar; text that runs
+       underneath one reads as text the sidebar is a part of. -->
   <!-- ⚠️ `mt-4` HERE PLUS `mt-16` ON EACH SECTION. The sections below are
        reference and reasoning, and they were separated from each other and
        from the thing above them by the same 32 to 40px the parts INSIDE a
        section use. At that spacing a page of eight headings reads as one
        long column of text with bold lines in it; the eye needs a gap it can
        tell from a paragraph break to know a subject has changed. -->
-  <div class="mt-4 lg:max-w-[calc(100%-332px)]">
+  <div class="mt-4 w-full lg:mx-auto lg:max-w-[720px]">
     <!-- ── How this works ─────────────────────────────────────
          ⚠️ ADDED BACK ON THIS SCREEN, and it belongs here more than
          anywhere. The recommendation is where somebody decides to pay,
@@ -410,36 +416,11 @@ defineExpose({ send })
          the custom path — there you choose the partner and pay them. It sat
          inside the packs branch until the justification moved below the
          button and pushed it out; the guard is what that move cost. -->
-    <section class="mt-16">
-      <h2 class="text-p-lg font-semibold text-ink-gray-9">
-        {{ view === 'packs' ? 'How this works' : 'How custom implementations work' }}
-      </h2>
-      <!-- ⚠️ THE CUSTOM HALF HAD NO VERSION OF THIS, and its absence was
-           the gap the design names. The pack's three beats describe paying
-           Frappe and being assigned somebody, which is not what happens
-           here, so the guard that hid this block was right and the fix is a
-           second set rather than dropping the guard. -->
-      <ol class="mt-3 grid gap-4 sm:grid-cols-3">
-        <li
-          v-for="(step, i) in view === 'packs' ? PACK_STEPS : CUSTOM_STEPS"
-          :key="step.title"
-          class="flex gap-2.5"
-        >
-          <span
-            class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-surface-gray-2 text-p-xs font-medium tabular-nums text-ink-gray-6"
-            aria-hidden="true"
-          >
-            {{ i + 1 }}
-          </span>
-          <span class="min-w-0">
-            <span class="block text-p-base font-medium text-ink-gray-8">
-              {{ step.title }}
-            </span>
-            <span class="mt-0.5 block text-p-sm text-ink-gray-5">{{ step.body }}</span>
-          </span>
-        </li>
-      </ol>
-    </section>
+    <PackSteps
+      class="mt-16"
+      :title="view === 'packs' ? 'How this works' : 'How custom implementations work'"
+      :steps="view === 'packs' ? PACK_STEPS : CUSTOM_STEPS"
+    />
 
     <!-- ── Why, after the thing itself and after how it works ─────
          ⚠️ IT NOW SITS BELOW "How this works", and it sat directly under
@@ -468,7 +449,7 @@ defineExpose({ send })
            overridden one it is the case AGAINST — "we'd have said a pack
            covers this" — and printing that under "Why we're recommending
            this" would have the screen arguing against its own heading. -->
-      <h2 class="text-p-lg font-semibold text-ink-gray-9">
+      <h2 class="text-lg font-semibold text-ink-gray-8">
         {{ overridden ? "What we'd have recommended" : 'Why we think this is the best choice for you' }}
       </h2>
 
@@ -488,6 +469,7 @@ defineExpose({ send })
           <span class="text-p-base leading-relaxed text-ink-gray-7">{{ reason }}</span>
         </li>
       </ul>
+
 
       <!-- The override's one line. It says what we would have said and why,
            without repeating the argument — the visitor has read it and
@@ -517,6 +499,26 @@ defineExpose({ send })
       <Button class="mt-3" variant="subtle" label="Change my answers" @click="rethink" />
     </section>
 
+    <!-- ── Why each pack ─────────────────────────────────────────
+         ⚠️ ITS OWN SECTION, and it was a second group inside the one above.
+         Those reasons say why a pack at all, these say why THIS one — two
+         kinds of claim that read as one list with a hole in it when they
+         shared a heading. It used to hide in a tooltip on the Recommended
+         badge before that. Each leads with the pack's name so the line can
+         be matched to its row. Packs only, and not once overridden: then
+         nothing on screen is our recommendation. -->
+    <section v-if="!overridden && view === 'packs' && reco.packs.length" class="mt-16">
+      <h2 class="text-lg font-semibold text-ink-gray-8">
+        {{ reco.packs.length > 1 ? 'Why we recommend these packs' : 'Why we recommend this pack' }}
+      </h2>
+      <ul class="mt-3 max-w-[62ch] space-y-3">
+        <li v-for="r in reco.packs" :key="r.pack.value">
+          <p class="text-p-base font-medium text-ink-gray-8">{{ r.pack.name }}</p>
+          <p class="mt-0.5 text-p-base leading-relaxed text-ink-gray-7">{{ r.reason }}.</p>
+        </li>
+      </ul>
+    </section>
+
     <!-- ── True of every pack ──────────────────────────────────────
          ⚠️ ONCE, FOR ALL THREE PACKS, and it used to be three times. Every
          row's "What's included" opened a dialog that printed the pack's own
@@ -537,62 +539,7 @@ defineExpose({ send })
          hung off the second group, which put the way out of packs inside a
          block about what packs include; it is in the fit tests below, under
          the four lines that are the argument for taking it. -->
-    <section v-if="view === 'packs'" class="mt-16">
-      <h2 class="text-p-lg font-semibold text-ink-gray-9">True of every pack</h2>
-
-      <div class="mt-4 grid gap-x-10 gap-y-6 sm:grid-cols-2">
-        <div>
-          <h3 class="text-p-base font-medium text-ink-gray-8">Included</h3>
-          <ul class="mt-2 space-y-1.5">
-            <li
-              v-for="item in INCLUDED_IN_ALL"
-              :key="item"
-              class="flex gap-2 text-p-base text-ink-gray-6"
-            >
-              <IconCheck class="mt-1 size-3.5 shrink-0 text-ink-gray-5" />
-              {{ item }}
-            </li>
-          </ul>
-        </div>
-
-        <div>
-          <div>
-            <h3 class="text-p-base font-medium text-ink-gray-8">Not included</h3>
-            <ul class="mt-2 space-y-1.5">
-              <li
-                v-for="item in PACK_ADD_ONS"
-                :key="item.label"
-                class="flex gap-2 text-p-base text-ink-gray-6"
-              >
-                <IconX class="mt-1 size-3.5 shrink-0 text-ink-gray-5" />
-                <span class="min-w-0">
-                  {{ item.label }}
-                  <span v-if="item.hint" class="block text-p-sm text-ink-gray-5">
-                    {{ item.hint }}
-                  </span>
-                </span>
-              </li>
-            </ul>
-            <p class="mt-2 text-p-sm text-ink-gray-5">
-              Each can be bought against a pack.
-            </p>
-          </div>
-
-        </div>
-      </div>
-    </section>
-
-    <!-- ── What you are agreeing to ───────────────────────────────
-         ⚠️ THE TERMS ARE ON THE SCREEN THAT SELLS, and until now they were
-         one navigation away on the pack's own page. This is where Check out
-         is pressed: a price, a total and a button, with the hourly rate for
-         an overrun, the 50 user ceiling and "anything outside this is a
-         change request" all on a page somebody had no reason to open.
-         Disclosed rather than printed, for the reason `PackTerms` gives.
-         ⚠️ PACKS ONLY. There is nothing to agree to yet on the custom half:
-         the terms of that engagement are the partner's and do not exist
-         until one has quoted. -->
-    <PackTerms v-if="view === 'packs'" class="mt-16 block" :region="region" />
+    <PackCoverage v-if="view === 'packs'" class="mt-16 block" />
 
     <!-- ── Which service, and when the other one is right ─────────
          ⚠️ ITS OWN SECTION, AND IT WAS THE SECOND HALF OF A COLUMN. It sat
@@ -620,29 +567,7 @@ defineExpose({ send })
          problem, and as a grey sub-line under every second item it turned a
          scannable list into a paragraph. On hover it is there for the
          person whose eye stopped on that row. -->
-    <section class="mt-16">
-      <h2 class="text-p-lg font-semibold text-ink-gray-9">
-        {{ view === 'packs' ? 'Consider a custom implementation if' : 'Consider a Starter Pack if' }}
-      </h2>
-      <ul class="mt-4 max-w-[62ch] space-y-3">
-        <li v-for="item in PACK_FIT_TESTS" :key="item.label" class="flex gap-2.5">
-          <IconInfo class="mt-1 size-4 shrink-0 text-ink-gray-5" />
-          <!-- ⚠️ THE ICON IS THE AFFORDANCE, and without one a tooltip is a
-               fact nobody finds. Only on the rows that have something to
-               say, so it marks the difference rather than decorating every
-               line. -->
-          <Tooltip v-if="item.hint" :text="item.hint">
-            <span class="text-p-base leading-relaxed text-ink-gray-7">
-              {{ view === 'packs' ? item.need : item.fits }}
-              <IconHelp class="ml-1 inline size-3.5 shrink-0 align-[-0.1em] text-ink-gray-4" />
-            </span>
-          </Tooltip>
-          <span v-else class="text-p-base leading-relaxed text-ink-gray-7">
-            {{ view === 'packs' ? item.need : item.fits }}
-          </span>
-        </li>
-      </ul>
-
+    <PackFitTests class="mt-16 block" :side="view">
       <!-- ⚠️ ONE BUTTON FOR FOUR CASES, and it was two buttons in two
            places. Whichever half you are on it does the same thing, swap to
            the other one, and the only thing that changes is whether that is
@@ -661,7 +586,19 @@ defineExpose({ send })
         "
         @click="view = view === 'packs' ? 'custom' : 'packs'"
       />
-    </section>
+        </PackFitTests>
+
+    <!-- ── What you are agreeing to ───────────────────────────────
+         ⚠️ THE TERMS ARE ON THE SCREEN THAT SELLS, and until now they were
+         one navigation away on the pack's own page. This is where Check out
+         is pressed: a price, a total and a button, with the hourly rate for
+         an overrun, the 50 user ceiling and "anything outside this is a
+         change request" all on a page somebody had no reason to open.
+         Disclosed rather than printed, for the reason `PackTerms` gives.
+         ⚠️ PACKS ONLY. There is nothing to agree to yet on the custom half:
+         the terms of that engagement are the partner's and do not exist
+         until one has quoted. -->
+    <PackTerms v-if="view === 'packs'" class="mt-16 block" :region="region" />
 
     <!-- ── Neither of them ─────────────────────────────────────────── -->
     <!-- ⚠️ THE THIRD ANSWER, and the screen was missing it. It offered two
@@ -677,7 +614,7 @@ defineExpose({ send })
          "talk to us" offer at the weight of the buy button is a product that
          does not believe its own recommendation. -->
     <div class="mt-16">
-      <h2 class="text-p-lg font-semibold text-ink-gray-9">Still unsure?</h2>
+      <h2 class="text-lg font-semibold text-ink-gray-8">Still unsure?</h2>
       <!-- ⚠️ THROUGH THE ROUTER, and it used to open a new tab. The
            contact page is mocked inside this prototype, so the tab was not
            leaving for the real site — it was opening a second copy of the
@@ -703,7 +640,7 @@ defineExpose({ send })
            look right?", which is the one thing it is not. It sits under the
            reasons now, where an answer is actually noticed to be wrong. -->
       <div v-if="!answered" class="flex flex-wrap items-center gap-3">
-        <p class="text-p-base text-ink-gray-6">Does this look right?</p>
+        <p class="text-p-base text-ink-gray-6">Help us improve our recommendations. Was this one right for you?</p>
         <Button variant="subtle" label="Yes" @click="store.recordRecoFeedback(true)" />
         <Button variant="subtle" label="Not really" @click="store.recordRecoFeedback(false)" />
       </div>
@@ -723,6 +660,7 @@ defineExpose({ send })
         </div>
       </div>
     </div>
+  </div>
   </div>
 
     <PackScopeDialog v-model:open="scopeOpen" :pack="scopeOf" />

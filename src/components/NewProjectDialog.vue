@@ -1,31 +1,37 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
-import { Button, Dialog, Progress, TextInput } from 'frappe-ui'
+import { Button, Dialog, FormControl, Progress, TextInput } from 'frappe-ui'
 import CompanyQuestions from './CompanyQuestions.vue'
-import { COMPANY_STEPS, companyPayload, emptyCompanyForm, stepErrors } from '../data/company'
+import { companyPayload, emptyCompanyForm, stepErrors } from '../data/company'
+import { TIMELINES } from '../data/custom'
 import { useConnectStore } from '../stores/connect'
 
-// Starting a project: its name, and the landing's three questions.
+// Starting a project: its name, when it needs to be live, and the two landing
+// questions that belong to the project rather than the company.
+//
+// ⚠️ THE COMPANY IS NOT ASKED AGAIN. Where it is based, how big and what
+// industry live in Settings, and a project reads them from there. They are
+// asked here only when the account has never answered them — then once, and
+// saved to Settings rather than to this project.
+//
+// ⚠️ HOW YOU RUN TODAY IS ASKED PER PROJECT, pre-filled from the last answer.
+// It changes as projects land: a second project starts from whatever the first
+// one left behind.
 //
 // ⚠️ THE SAME QUESTIONS AS THE HERO, THROUGH THE SAME COMPONENT. The project
 // page recommends Starter Packs or custom work from these answers, with the
 // engine the landing uses, so they have to be the same questions — and
-// `CompanyQuestions` is what every other surface asking them renders. The
-// answers are pre-filled from the account's own, because most of them (where,
-// how big, what industry) are about the company rather than the project; what
-// is under way and what needs fixing can differ project to project, so they are
-// here to change.
+// `CompanyQuestions` is what every other surface asking them renders.
 //
-// ⚠️ A DIALOG, NOT A PAGE. Three other dialogs already walk these questions
-// with this stepper (contact a partner, company sign-up, edit answers), and each
-// step is one to three fields. A page is what the landing is: the first visit,
-// with nothing behind it. This is adding a project from the list of projects,
-// and should come back to that list if abandoned.
+// ⚠️ A DIALOG, NOT A PAGE. This is adding a project from the list of
+// projects, and should come back to that list if abandoned.
 //
 // ⚠️ NO BUDGET OR DESCRIPTION HERE. They are only needed if the answer is
 // custom work, and the draft asks for them there — on the recommendation's
 // custom half, beside the partners they will be sent to. Asking them before
 // the recommendation would make a Starter Pack buyer write a brief nobody reads.
+// The timeline is the exception: it is one optional select, and a partner
+// needs it whichever way the project goes.
 //
 // ⚠️ NO MODULES. The answers decide which packs fit — industry and problems are
 // what the recommendation reads — and the description tells a partner what to
@@ -39,16 +45,20 @@ const emit = defineEmits(['close', 'create'])
 
 const store = useConnectStore()
 
-// ⚠️ THREE STEPS, the landing's three. The project's name opens the first,
-// because it is what the dialog is making; the rest are the questions.
-const STEPS = COMPANY_STEPS
-
 const answers = reactive(emptyCompanyForm())
 const name = ref('')
-const step = ref(1)
+const timeline = ref('')
+const step = ref(0)
 // Errors show only once the step has been tried — a step that opens red is
 // telling somebody off for not having started.
 const tried = ref(false)
+
+// Each step is `CompanyQuestions`' own step number, or 'project' for the name
+// and timeline. The company step leads only when Settings has nothing yet.
+const askCompany = ref(false)
+const steps = computed(() => [...(askCompany.value ? [1] : []), 'project', 2, 3])
+const current = computed(() => steps.value[step.value])
+const last = computed(() => step.value === steps.value.length - 1)
 
 // Reset on open, not on close: a dialog that empties while it fades out shows
 // the reader their answers being wiped.
@@ -57,25 +67,43 @@ watch(
   (isOpen) => {
     if (!isOpen) return
     const d = props.draft
+    askCompany.value = !store.company.country
     Object.assign(
       answers,
       emptyCompanyForm(),
-      JSON.parse(JSON.stringify(d?.answers ?? store.company)),
+      JSON.parse(JSON.stringify(d?.answers ?? lastAnswers())),
+      companyFacts(),
     )
+    // What to fix is the reason for a new project, so it starts empty.
+    if (!d) answers.problems = []
     name.value = d?.name ?? ''
-    step.value = 1
+    timeline.value = d?.brief?.timeline ?? ''
+    step.value = 0
     tried.value = false
   },
 )
 
-const nameError = computed(() => (name.value.trim() ? {} : { name: 'Name the project' }))
+// How the business runs today, as the newest project last described it — or
+// the account's own answers when there is no project yet.
+const lastAnswers = () =>
+  [...store.projects].sort((a, b) => b.at - a.at).find((p) => p.answers)?.answers ??
+  store.company
 
-const errorsFor = (n) => ({ ...(n === 1 ? nameError.value : {}), ...stepErrors(answers, n) })
-const shown = computed(() => (tried.value ? errorsFor(step.value) : {}))
+// Settings' answers, read fresh each time, so saving a draft picks up a change
+// made there since.
+const companyFacts = () => ({
+  country: store.company.country,
+  employees: store.company.employees,
+  segments: [...(store.company.segments ?? [])],
+})
+
+const errorsFor = (s) =>
+  s === 'project' ? (name.value.trim() ? {} : { name: 'Name the project' }) : stepErrors(answers, s)
+const shown = computed(() => (tried.value ? errorsFor(current.value) : {}))
 
 const next = () => {
   tried.value = true
-  if (Object.keys(errorsFor(step.value)).length) return
+  if (Object.keys(errorsFor(current.value)).length) return
   tried.value = false
   step.value += 1
 }
@@ -87,12 +115,18 @@ const back = () => {
 
 const create = () => {
   tried.value = true
-  if (Object.keys(errorsFor(STEPS)).length) return
+  if (Object.keys(errorsFor(current.value)).length) return
+  const payload = companyPayload(answers)
+  if (askCompany.value) {
+    const { country, employees, segments } = payload
+    store.saveCompany({ ...store.company, country, employees, segments })
+  }
   emit('create', {
     name: name.value,
     apps: ['erpnext'],
     modules: {},
-    answers: companyPayload(answers),
+    brief: { timeline: timeline.value },
+    answers: payload,
   })
 }
 </script>
@@ -113,27 +147,33 @@ const create = () => {
         class="mb-6 [&_[role=progressbar]>div]:rounded-full"
         size="md"
         intervals
-        :interval-count="STEPS"
-        :value="(step / STEPS) * 100"
+        :interval-count="steps.length"
+        :value="((step + 1) / steps.length) * 100"
       />
 
       <!-- The submit handler follows the step: Return moves a step on, and
            only saves on the last one. -->
-      <form novalidate @submit.prevent="step === STEPS ? create() : next()">
-        <!-- Same 16px rhythm as the questions under it. -->
-        <TextInput
-          v-if="step === 1"
-          v-model="name"
-          class="mb-4"
-          label="Project name"
-          size="md"
-          placeholder="ERP rollout"
-          required
-          :error="shown.name"
-        />
-        <CompanyQuestions :step="step" :form="answers" :errors="shown" />
+      <form novalidate @submit.prevent="last ? create() : next()">
+        <div v-if="current === 'project'" class="space-y-4">
+          <TextInput
+            v-model="name"
+            label="Project name"
+            size="md"
+            placeholder="ERP rollout"
+            required
+            :error="shown.name"
+          />
+          <FormControl
+            v-model="timeline"
+            type="select"
+            label="When do you need it live?"
+            placeholder="Select"
+            :options="TIMELINES"
+          />
+        </div>
+        <CompanyQuestions v-else :step="current" :form="answers" :errors="shown" />
 
-        <div v-if="step === 1" class="mt-8">
+        <div v-if="step === 0" class="mt-8">
           <Button class="w-full" variant="solid" size="sm" label="Continue" type="submit" />
         </div>
         <div v-else class="mt-8 flex items-center justify-end gap-2">
@@ -143,7 +183,7 @@ const create = () => {
           <Button
             variant="solid"
             size="sm"
-            :label="step === STEPS ? 'Save draft' : 'Continue'"
+            :label="last ? 'Save draft' : 'Continue'"
             type="submit"
           />
         </div>

@@ -157,8 +157,9 @@ export const isStageDone = (stage, project, ctx = {}) =>
 // the same information as the position in the bar, for anyone reading the badge
 // alone in the listing.
 
-// ⚠️ THE HOSTING TASKS ARE SHARED BY BOTH SPINES, keyed per spine. A project
-// carries one flat `done` list, so the custom spine's copies take a prefix.
+// The custom spine's hosting tasks. The pack spine has its own now — no
+// referral code, no linking; see `PACK_STAGES`. Keyed with a prefix because a
+// project carries one flat `done` list.
 // All three are OPTIONAL: a business already on Frappe Cloud, or one hosting
 // elsewhere, has nothing to do here, and the step must not hold them up.
 const hostingTasks = (prefix = '') => [
@@ -179,38 +180,58 @@ const hostingTasks = (prefix = '') => [
   }),
 ]
 
-// ⚠️ TWO STEPS, AND BOTH ARE SETUP. Data preparation, configuration and
-// go-live happen between the business and the partner, where this product has
-// no visibility — so there is no step for them. The last step's button marks
-// the project complete.
+// ⚠️ ONE STAGE, SIX TASKS IN ORDER, and it was two stages behind a progress
+// bar. A Starter Pack has one job for the customer before the partner can
+// start: agree the terms and get a paid Frappe Cloud site in place. Splitting
+// that into "steps" put a Continue button between the terms and the hosting
+// that did nothing but move a bar. The page draws the tasks as one accordion,
+// with the next unfinished one open — see `PackSetupTasks`.
+//
+// ⚠️ NO REFERRAL CODE AND NO ACCOUNT LINKING on a pack. Frappe is paid up
+// front and the partner is assigned by Frappe, so the customer has nothing to
+// connect; they only need hosting of their own. The custom spine keeps those
+// tasks — see `hostingTasks`.
+//
+// `cta` is the label of the task's one button. `action` names what it does, as
+// everywhere else in this file.
 const PACK_STAGES = [
   {
     key: 'confirmed',
-    label: 'Finalize collaboration',
+    label: 'In progress',
     theme: 'blue',
     yours: [
       // Always done: a pack project only exists once checkout has taken the
-      // payment. Shown so the step reads as the whole agreement.
+      // payment. First, so the list reads as the whole agreement.
       task('paid', 'Pay upfront', {
-        hint: 'Paid in full to Frappe at checkout.',
+        hint: 'Paid in full to Frappe at checkout. The receipt was sent to your email.',
         complete: () => true,
       }),
-      // ⚠️ CONSENT, not status — the act itself, performed here. The one task
-      // drawn as a checkbox, because ticking it IS the agreement.
-      task('agree-terms', 'Agree to the terms and conditions', {
-        hint: 'Payment, scope, validity and what your team provides.',
+      task('agree-terms', 'Agree to Terms and Conditions', {
+        hint: 'The terms set out the scope of each pack, the payment and validity period, and what your team is responsible for during the implementation. Your partner starts once you have agreed to them.',
         action: 'terms',
+        cta: 'Review and agree',
+      }),
+      task('fc-login', 'Log in to Frappe Cloud using your Frappe login credentials', {
+        hint: 'Your ERPNext site will run on Frappe Cloud. Use the same Frappe account you checked out with. If you do not have one yet, you can create it on the login page.',
+        action: 'fc-login',
+        cta: 'Log in to Frappe Cloud',
+      }),
+      task('fc-billing', 'Set up your Billing Profile and add a payment method', {
+        hint: 'Hosting is billed by Frappe Cloud, separately from the Starter Pack. Add your billing address and tax details, then a card or another payment method.',
+        action: 'fc-billing',
+        cta: 'Open billing settings',
+      }),
+      task('fc-plan', 'Set up a minimum $25 site or server plan', {
+        hint: 'Starter Packs require a paid Frappe Cloud plan of at least $25 a month. Create a new site on a qualifying plan, or add it to a server you already run.',
+        action: 'fc-plan',
+        cta: 'Choose a plan',
+      }),
+      task('site-url', 'Share the URL of your hosted site', {
+        hint: 'Your partner installs and configures ERPNext on this site.',
+        action: 'site-url',
+        cta: 'Share URL',
       }),
     ],
-    theirs: ['reading the brief that went out with your payment'],
-  },
-  {
-    // ⚠️ ITS OWN STEP, AND EARLY. Hosting is how Frappe is paid, and nothing
-    // can be configured until there is a site to configure.
-    key: 'hosting',
-    label: 'Set up hosting',
-    theme: 'blue',
-    yours: hostingTasks(),
     theirs: ['installing ERPNext on your site', 'setting up standard user roles'],
   },
 ]
@@ -505,9 +526,9 @@ export const demoProjects = () => {
       // holding one would never show the state the checkout produces.
       packs: ['accounts-sales-purchase-stock', 'manufacturing'],
       partnerId: idOf('Tridots Tech'),
-      stage: 'hosting',
-      // The terms are agreed — that is what got it past the first step — and
-      // hosting is left untouched so the demo opens on its three tasks.
+      stage: 'confirmed',
+      // The terms are agreed and hosting is untouched, so the demo opens with
+      // the Frappe Cloud login as the task in hand.
       done: ['agree-terms'],
       // 18 days into a 60-day window, so it reads as comfortably in hand.
       // A window close to expiry is a state worth seeing too — drag the stage

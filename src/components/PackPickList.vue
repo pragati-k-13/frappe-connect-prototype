@@ -1,10 +1,9 @@
 <script setup>
-import { Badge, Button, Checkbox, Tooltip } from 'frappe-ui'
+import { Badge, Button, Checkbox } from 'frappe-ui'
 import { List, ListCell, ListRow } from 'frappe-ui/list'
 import IconPrice from '~icons/lucide/circle-dollar-sign'
 import IconEffort from '~icons/lucide/hourglass'
 import IconDelivery from '~icons/lucide/calendar'
-import IconInfo from '~icons/lucide/info'
 import { STARTER_PACKS, priceFor } from '../data/packs'
 
 // The Starter Packs, as a list to tick — the one list the catalogue, the
@@ -17,8 +16,8 @@ import { STARTER_PACKS, priceFor } from '../data/packs'
 //
 // ⚠️ ONE LINE OF FACTS, NO DESCRIPTION. Price, effort and delivery sit on the
 // line under the name, so three packs read as three comparable rows. Why a pack
-// is recommended is the question fewer people ask, so it sits behind the
-// Recommended badge's tooltip rather than on every row.
+// is recommended is argued on the page, under "Why we think this is the best
+// choice for you" — not in a tooltip nobody finds on the badge.
 const props = defineProps({
   // Pack values ticked.
   packs: { type: Array, required: true },
@@ -53,21 +52,23 @@ const facts = (pack) => [
       <ListCell>
         <div class="min-w-0">
           <div class="flex flex-wrap items-center gap-2">
-            <h3 class="text-lg font-medium text-ink-gray-8">{{ pack.name }}</h3>
-            <Tooltip v-if="reasons?.[pack.value]" :text="reasons[pack.value]">
-              <Badge variant="subtle" theme="gray" size="md" label="Recommended">
-                <template #suffix><IconInfo class="size-3" /></template>
-              </Badge>
-            </Tooltip>
+            <h3 class="text-base font-medium text-ink-gray-7">{{ pack.name }}</h3>
+            <Badge
+              v-if="reasons?.[pack.value]"
+              variant="subtle"
+              theme="gray"
+              size="sm"
+              label="Recommended"
+            />
           </div>
-          <ul class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <ul class="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
             <li
               v-for="fact in facts(pack)"
               :key="fact.key"
-              class="flex items-center gap-1.5 text-base"
-              :class="fact.strong ? 'font-medium text-ink-gray-8' : 'text-ink-gray-6'"
+              class="flex items-center gap-1.5 text-sm"
+              :class="fact.strong ? 'font-medium text-ink-gray-7' : 'text-ink-gray-6'"
             >
-              <component :is="fact.icon" class="size-4 shrink-0 text-ink-gray-6" />
+              <component :is="fact.icon" class="size-3.5 shrink-0 text-ink-gray-5" />
               <span class="tabular-nums">{{ fact.text }}</span>
             </li>
           </ul>

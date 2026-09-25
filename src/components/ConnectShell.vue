@@ -40,6 +40,7 @@ import {
 } from 'frappe-ui'
 import ConnectMark from './ConnectMark.vue'
 import FeedbackDialog from './FeedbackDialog.vue'
+import AppSettingsDialog from './settings/AppSettingsDialog.vue'
 import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 import { PARTNERS } from '../data/partners'
@@ -121,8 +122,12 @@ const shellSubtitle = computed(() => {
 // here rather than on each page because the dialog has to be reachable from all
 // of them.
 const feedback = ref(false)
+const settings = ref(false)
 
 const logoMenu = computed(() => [
+  ...(store.signedIn
+    ? [{ label: 'Settings', icon: 'lucide-settings', onClick: () => (settings.value = true) }]
+    : []),
   { label: 'Give feedback', icon: 'lucide-message-square-quote', onClick: () => (feedback.value = true) },
   ...(store.signedIn ? [{ label: 'Log out', icon: 'lucide-log-out', onClick: logOut }] : []),
 ])
@@ -451,6 +456,7 @@ defineProps({
     </Sidebar>
 
     <FeedbackDialog v-model:open="feedback" />
+    <AppSettingsDialog v-model:open="settings" />
 
     <div class="relative flex min-w-0 flex-1 flex-col">
       <!-- ── Collapse handle ──────────────────────────────────────────────

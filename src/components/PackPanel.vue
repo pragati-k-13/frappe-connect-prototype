@@ -116,7 +116,7 @@ const terms = computed(() => [
                Sales, Purchase, Stock" clipped to "Accounts, Sal…". A label
                nobody needed, truncating the one thing on this panel the reader
                does. The name wraps now. -->
-          <p class="text-lg font-medium text-ink-gray-8">{{ pack.name }}</p>
+          <p class="text-lg font-medium text-ink-gray-7">{{ pack.name }}</p>
           <!-- ⚠️ `pitch`, not `tagline`. The tagline describes what is in the
                pack, and "Modules covered" lists exactly that a few lines down;
                this line is the only place in the panel that says what the pack

@@ -1,6 +1,6 @@
 <script setup>
-import { computed } from 'vue'
-import { Avatar, Badge, Button, Tooltip } from 'frappe-ui'
+import { computed, nextTick, ref, watch } from 'vue'
+import { Avatar, Badge, Button, TextInput, Tooltip } from 'frappe-ui'
 import IconProfile from '~icons/lucide/user'
 import IconMessage from '~icons/lucide/message-square'
 import IconReview from '~icons/lucide/star'
@@ -33,7 +33,37 @@ const props = defineProps({
   when: { type: Object, default: null },
 })
 
-const emit = defineEmits(['scope', 'requirements', 'feedback', 'message', 'review'])
+const emit = defineEmits(['scope', 'requirements', 'feedback', 'message', 'review', 'rename'])
+
+// ── The name, edited in place ───────────────────────────────────────────────
+// ⚠️ A FIELD, NOT A MENU ITEM. The name is one of the project's facts, so it
+// sits with them and edits like Frappe CRM's side panel: plain text until
+// hovered, saved on Enter or leaving the field. Esc, or an empty field, puts the
+// old name back. It is the only editable row, so it is the only one that
+// responds to hover.
+const name = ref(props.project.name)
+watch(
+  () => props.project.name,
+  (n) => (name.value = n),
+)
+// ⚠️ A FLAG, NOT A RESET. Esc blurs the field, and the input hands its typed
+// value back on blur — after any reset made here — so the revert is decided
+// in the blur handler and applied a tick later.
+let cancelled = false
+const saveName = async () => {
+  const next = name.value.trim()
+  if (cancelled || !next || next === props.project.name) {
+    cancelled = false
+    await nextTick()
+    name.value = props.project.name
+    return
+  }
+  emit('rename', next)
+}
+const revertName = (e) => {
+  cancelled = true
+  e.target.blur()
+}
 
 const HANDBOOK = 'https://frappe.io/handbook'
 
@@ -71,15 +101,6 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
 
 <template>
   <div>
-    <!-- `min-h-12` is `PageHeader`'s height, so the rail and the top bar sit
-         on one rhythm. -->
-    <header
-      class="sticky top-0 z-10 flex min-h-12 items-center border-b border-outline-gray-1 bg-surface-base px-5"
-    >
-      <!-- The project's own name heads its facts. -->
-      <h2 class="truncate text-lg font-medium text-ink-gray-8">{{ project.name }}</h2>
-    </header>
-
     <section v-if="partner" class="border-b border-outline-gray-1 px-5 py-5">
       <h3 class="text-base font-medium text-ink-gray-8">Partner</h3>
 <!-- ⚠️ THE PARTNER'S ACTIONS SIT ON THEIR ROW: message them, or open their
@@ -166,6 +187,20 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
     <section class="border-b border-outline-gray-1 px-5 py-5">
       <h3 class="text-base font-medium text-ink-gray-8">Project</h3>
       <dl class="mt-4 grid grid-cols-[112px_minmax(0,1fr)] gap-y-3.5 text-base">
+        <!-- `-mx-2 -my-1.5` takes back the ghost input's padding and height,
+             so its text starts on the value column and the row keeps the
+             others' rhythm. -->
+        <dt class="self-center text-ink-gray-5">Name</dt>
+        <dd class="-mx-2 -my-1.5 min-w-0">
+          <TextInput
+            v-model="name"
+            variant="ghost"
+            aria-label="Project name"
+            @keydown.enter="$event.target.blur()"
+            @keydown.esc="revertName"
+            @blur="saveName"
+          />
+        </dd>
         <template v-if="project.service">
           <dt class="text-ink-gray-5">Service</dt>
           <dd class="text-ink-gray-8">{{ serviceOf(project.service)?.label }}</dd>

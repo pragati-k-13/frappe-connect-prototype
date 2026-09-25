@@ -32,8 +32,8 @@ import { REGIONS } from './quiz'
 // the catalogue now. The old set was a ladder of tiers — Core ERPNext,
 // Manufacturing (core plus production), All in one (all of it), Frappe HR —
 // where three packs nested and a name like "All in one" told you nothing about
-// what it contained. These three are disjoint slices of PACK_SCOPE that a buyer
-// combines: Accounts/Sales/Purchase/Stock, Manufacturing, HR and Payroll.
+// what it contained. These four are disjoint slices of PACK_SCOPE that a buyer
+// combines: Accounts/Sales/Purchase/Stock, Manufacturing, HR, Payroll.
 // Nothing is a prefix of anything, so `name` and `areas` are two renderings of one
 // list rather than two ways of saying "and the rest".
 //
@@ -84,35 +84,45 @@ export const STARTER_PACKS = [
     pitch: 'Plan production against real stock.',
     areas: ['manufacturing'],
     apps: ['erpnext'],
-    hours: 10,
+    hours: 5,
     validityDays: 60,
     validity: '60 days',
   },
   {
-    // ⚠️ ONE PACK, TWO MODULES — and the only pack that isn't a single module.
-    // HR and Payroll shipped as two 5-hour packs and were combined, because
-    // nobody buys attendance and leave without intending to pay people off the
-    // back of it: the split sold half a job twice. Hours are the two added
-    // (5 + 5), so the price is unchanged for anyone who would have bought both
-    // and higher for the handful who wanted one.
+    // ⚠️ TWO PACKS AGAIN, and they were one. HR and Payroll were combined into
+    // a single 10-hour pack on the argument that nobody buys attendance without
+    // paying people off it; the current pricing sheet sells them apart, 5 hours
+    // each, so a business can start with its people records and add salaries
+    // later. The recommendation still offers both together when payroll is
+    // the problem — see `PACK_RULES`.
     //
-    // `value` stays `hrms` rather than becoming `hr-payroll`: it is the id
-    // partners are tagged with in `data/partners.js`, and keeping it means the
-    // firms that sold HR still sell this. The `payroll` tag went with the pack.
+    // `value` stays `hrms`: it is the id partners are tagged with in
+    // `data/partners.js`, and the firms that sold HR still sell this.
     value: 'hrms',
-    name: 'HR and Payroll',
+    name: 'HR',
     tagline: 'For a headcount that has outgrown a spreadsheet',
-    pitch: 'Keep people in one place, and pay them on time.',
-    areas: ['hrms', 'payroll'],
+    pitch: 'Keep people, leave and attendance in one place.',
+    areas: ['hrms'],
     apps: ['frappe-hr'],
-    hours: 10,
+    hours: 5,
+    validityDays: 30,
+    validity: '30 days',
+  },
+  {
+    value: 'payroll',
+    name: 'Payroll',
+    tagline: 'For paying people off the records HR keeps',
+    pitch: 'Pay people on time, off their attendance.',
+    areas: ['payroll'],
+    apps: ['frappe-hr'],
+    hours: 5,
     validityDays: 30,
     validity: '30 days',
   },
 ]
 
 // Price is `hours × rate`, always — which is how the real India sheet is built:
-// ₹10,000 for 5 hours and ₹20,000 for 10, a flat ₹2,000/hr across all three.
+// ₹10,000 for 5 hours, a flat ₹2,000/hr across every pack.
 // That rate is unchanged from the sheet the old 30–100 hour packs were priced
 // off (₹80,000 for 40 hours was the same ₹2,000), so the repricing is a change
 // of hours and not of rate. Deriving rather than listing three prices per region

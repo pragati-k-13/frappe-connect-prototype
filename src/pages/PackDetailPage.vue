@@ -181,7 +181,7 @@ const addToBasket = () => {
              would land between the name and the pitch on a phone — the act
              before the description. -->
         <div class="sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-8">
-          <h1 class="text-2xl font-semibold text-ink-gray-8 sm:col-start-1 sm:row-start-1">
+          <h1 class="text-2xl font-semibold text-ink-gray-7 sm:col-start-1 sm:row-start-1">
             {{ pack.name }}
           </h1>
           <!-- `pitch`, not `tagline`: this is the one line that says what the

@@ -214,6 +214,26 @@
   container-name: content;
 }
 
+/* The recommendation's three steps: across when the COLUMN has room for the
+   longest title on one line ("Coordinate with partner" plus its number is about
+   200px, so three and two gaps want 640), stacked when it does not. Its own
+   container rather than `content`, because the column beside the rail is
+   narrower than the content region by the rail's width. */
+.fc-steps {
+  container-type: inline-size;
+  container-name: steps;
+}
+.fc-steps > ol {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+@container steps (min-width: 640px) {
+  .fc-steps > ol {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 /* ⚠️ NOTHING USES `.fc-col-3` OR `.fc-col-2` TODAY. Both were the pack detail
    page's, for its steps row and its included / not-included ledger, and both
    sections were removed from it when the recommendation screen became the only
@@ -442,3 +462,25 @@ textarea[data-slot='control'] {
   @apply mt-2;
 }
 
+
+/* The pack setup list's rows open and close at their own height. reka-ui sets
+   the measured height as a custom property on the content. */
+.fc-accordion-content[data-state='open'] {
+  animation: fc-accordion-open 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+.fc-accordion-content[data-state='closed'] {
+  animation: fc-accordion-close 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+@keyframes fc-accordion-open {
+  from { height: 0; }
+  to { height: var(--reka-accordion-content-height); }
+}
+@keyframes fc-accordion-close {
+  from { height: var(--reka-accordion-content-height); }
+  to { height: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fc-accordion-content[data-state] {
+    animation: none;
+  }
+}

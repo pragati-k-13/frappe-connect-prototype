@@ -280,6 +280,10 @@ export const useConnectStore = defineStore('connect', {
     // the rail's Give feedback dialog, from any screen, at any time:
     // `{ text, route, at }`. See `FeedbackDialog`.
     productFeedback: [],
+    // The Settings dialog's own preferences. `theme` is applied to the page
+    // by `AppSettingsDialog`; the notification switches are a mock, since
+    // nothing here sends email.
+    preferences: { theme: 'light', notifyMessages: true, notifyProjects: true },
     // What the onboarding screen collected. `name` is the company's, which is
     // also mirrored onto `viewer.company` — the sidebar and the quote header
     // read the viewer, and two names for one company drift apart.
@@ -1037,6 +1041,15 @@ export const useConnectStore = defineStore('connect', {
       project.done = [...project.done, taskKey]
     },
 
+    // The pack's last setup task: the site the partner installs on. Stored on
+    // the project, and sharing it is what completes the task.
+    shareSiteUrl(id, url) {
+      const project = this.projects.find((p) => p.id === id)
+      if (!project) return
+      project.siteUrl = url.trim()
+      this.completeTask(id, 'site-url')
+    },
+
     // Jump to a named stage. The demo switcher's, and deliberately unguarded by
     // the checklist: a reviewer has to be able to see the last stage without
     // ticking their way through twenty tasks to reach it.
@@ -1088,6 +1101,14 @@ export const useConnectStore = defineStore('connect', {
 
     // Throwing a draft away. Drafts only: a started project has a partner, a
     // payment or a dozen partners' threads hanging off it.
+    // Any project's name, draft or started. The name is the business's own
+    // label and nothing reads it as an identifier.
+    renameProject(id, name) {
+      const project = this.projects.find((p) => p.id === id)
+      if (!project || !name.trim()) return
+      project.name = name.trim()
+    },
+
     deleteDraft(id) {
       const project = this.projects.find((p) => p.id === id)
       if (!project || project.service) return false

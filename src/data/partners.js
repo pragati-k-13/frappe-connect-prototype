@@ -53,13 +53,13 @@ export const APPS = [
 //
 //   core-erpnext → accounts-sales-purchase-stock   (identical modules)
 //   manufacturing → manufacturing
-//   frappe-hr     → hrms                           (HR and Payroll, one pack)
+//   frappe-hr     → hrms + payroll                 (the HR app's two packs)
 //   all-in-one    → all three                      (it was all of them)
 //
 // A partner who sold one tier now sells its constituents, so nobody's offer
 // narrowed in the rewrite. `all-in-one` is gone entirely — there is no bundle
-// left to be "all in one" of, and `payroll` went when HR and Payroll became
-// one pack: `hrms` is now both modules.
+// left to be "all in one" of. HR and Payroll were one pack for a while and are
+// two again; every firm tagged `hrms` sells `payroll` too.
 
 // ⚠️ `workStyle` is INVENTED, like the rates and the ratings. It is one of
 // 'remote' | 'onsite' | 'both', and it exists because the custom flow lets a
@@ -672,7 +672,7 @@ export const PARTNERS = [
       'Chemical Manufacturing',
     ],
     apps: ['erpnext', 'helpdesk', 'crm'],
-    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms', 'payroll'],
   }),
   P('Software@Work', {
     tagline: 'Running payroll, plants and pipelines on one system since 2011',
@@ -690,7 +690,7 @@ export const PARTNERS = [
     stories: 9,
     industries: ['Discrete Manufacturing', 'Professional services', 'Goods Trading', 'Logistics'],
     apps: ['erpnext', 'frappe-hr', 'crm'],
-    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms', 'payroll'],
   }),
   P('New Indictrans', {
     tagline: 'Open source for institutions that keep records for decades',
@@ -709,7 +709,7 @@ export const PARTNERS = [
     stories: 3,
     industries: ['Process Manufacturing', 'Education', 'Government'],
     apps: ['erpnext', 'helpdesk', 'learning'],
-    packs: ['accounts-sales-purchase-stock', 'hrms'],
+    packs: ['accounts-sales-purchase-stock', 'hrms', 'payroll'],
   }),
   P('8848 Digital', {
     tagline: 'Traceability from the shop floor up',
@@ -732,7 +732,7 @@ export const PARTNERS = [
       'Retail',
     ],
     apps: ['erpnext', 'crm', 'frappe-hr', 'insights'],
-    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms', 'payroll'],
   }),
   P('Greycube Technologies', {
     tagline: 'A small studio setting up ERPNext properly for small teams',
@@ -768,7 +768,7 @@ export const PARTNERS = [
     stories: 5,
     industries: ['Food and Beverages', 'Retail', 'Healthcare', 'Education'],
     apps: ['erpnext', 'helpdesk', 'frappe-hr', 'school'],
-    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms', 'payroll'],
   }),
   P('Hybrowlabs', {
     tagline: 'Building less on Frappe, so you maintain less',
@@ -786,7 +786,7 @@ export const PARTNERS = [
     stories: 2,
     industries: ['Software Development', 'E-commerce', 'Professional services'],
     apps: ['erpnext', 'crm', 'drive', 'framework'],
-    packs: ['accounts-sales-purchase-stock', 'hrms'],
+    packs: ['accounts-sales-purchase-stock', 'hrms', 'payroll'],
   }),
   P('Finbyz Tech', {
     tagline: 'Built for the finance team that lives in the ERP',
@@ -847,7 +847,7 @@ export const PARTNERS = [
       'Hotels, Restaurants and Cafes',
     ],
     apps: ['erpnext', 'helpdesk', 'crm'],
-    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms', 'payroll'],
   }),
   P('Kingstech Services', {
     tagline: 'One rollout, several jurisdictions, out of Singapore',
@@ -865,7 +865,7 @@ export const PARTNERS = [
     stories: 0,
     industries: ['Goods Trading', 'E-commerce', 'Logistics', 'Professional services'],
     apps: ['erpnext', 'helpdesk', 'crm'],
-    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms', 'payroll'],
   }),
   P('Navari', {
     tagline: 'Software built for the conditions East Africa actually works in',
@@ -902,7 +902,7 @@ export const PARTNERS = [
     stories: 3,
     industries: ['Medical Device Manufacturing', 'Healthcare', 'Professional services'],
     apps: ['erpnext', 'frappe-hr', 'crm', 'insights'],
-    packs: ['accounts-sales-purchase-stock', 'hrms'],
+    packs: ['accounts-sales-purchase-stock', 'hrms', 'payroll'],
   }),
 ]
 
