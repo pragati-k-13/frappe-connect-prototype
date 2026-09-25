@@ -16,12 +16,11 @@
 const BLOG = 'https://frappe.io/blog'
 
 // ── Resources ───────────────────────────────────────────────────────────────
-// ⚠️ TITLES FROM THE DESIGN. They read like guides Frappe would publish about
-// working with partners, and they are placeholders until somebody points them
-// at real posts.
-
-// The two cards at the top of the section.
-export const GUIDE_CARDS = [
+// Guides about working with partners: the two image cards.
+//
+// ⚠️ PLACEHOLDER TITLES. They read like guides Frappe would publish, and none
+// of them exists yet.
+export const RESOURCES = [
   {
     title: 'Your guide to finding and hiring the perfect Partner for your company',
     at: '23 Aug 2026',
@@ -34,34 +33,35 @@ export const GUIDE_CARDS = [
   },
 ]
 
-// The one below them, with the wide image and a standfirst.
-export const FEATURED_GUIDE = {
-  title: 'How to choose and work with a Frappe Partner effectively',
-  body: 'Implementations are rarely successful because of software alone. Here is our advice on finding and working with Partners.',
-  tag: 'Guides',
-  href: BLOG,
-}
-
-// And the rows under it.
+// ── Blog ────────────────────────────────────────────────────────────────────
+// The first post is the featured one (wide image, standfirst); the rest are
+// the rows under it.
 //
-// ⚠️ `likes` AND `comments` ARE INVENTED, and they are the only invented
-// numbers in this file. They are in the design so they are here — but they
-// assert engagement nobody measured, which is exactly why the partners page
-// dropped the same counts off its success stories. Replace with real figures or
-// cut them before this is shown outside the team.
-export const GUIDE_ROWS = [
+// ⚠️ PLACEHOLDER TITLES, as above. `likes` AND `comments` ARE INVENTED — they
+// assert engagement nobody measured, which is why the partners page dropped the
+// same counts off its success stories. Replace with real figures or cut them
+// before this is shown outside the team.
+export const POSTS = [
   {
-    title: 'How to choose and work with a Frappe Partner effectively',
-    body: 'From cricket, swimming, and coaching camps to accounting',
-    tag: 'Guides',
-    likes: 19,
-    comments: 1,
+    title: 'What a fixed-scope implementation can and cannot do for you',
+    body: 'Where a Starter Pack stops, what a change request costs, and how to tell which one your project needs before you book.',
+    tag: 'Starter Packs',
+    likes: 24,
+    comments: 3,
     href: BLOG,
   },
   {
-    title: 'What a fixed-scope implementation can and cannot do for you',
-    body: 'Where a Starter Pack stops, and what a change request costs',
-    tag: 'Guides',
+    title: 'Off spreadsheets in 90 days: a manufacturer’s first quarter on ERPNext',
+    body: 'Stock, job cards and the month-end close, one at a time',
+    tag: 'Customer stories',
+    likes: 41,
+    comments: 6,
+    href: BLOG,
+  },
+  {
+    title: 'Why we started certifying Frappe Partners',
+    body: 'What the Gold badge means, and what it takes to earn one',
+    tag: 'Partners',
     likes: 19,
     comments: 1,
     href: BLOG,
@@ -81,13 +81,21 @@ export const GUIDE_ROWS = [
 export const EVENTS = [
   {
     title: 'Frappe Partnership',
-    at: '30 Sep 2026',
+    date: '2026-09-30',
+    // The time is as listed. ⚠️ THE ZONE IS ASSUMED: the page gives none, and
+    // Frappe is in India, so IST.
+    time: '3:00 PM IST',
     where: 'Online',
     href: 'https://events.frappe.io',
   },
   {
     title: 'Frappe Karavan',
-    at: '21 Nov 2026',
+    date: '2026-11-21',
+    // ⚠️ INVENTED TIME. events.frappe.io lists no time for any stop (Cairo
+    // 21, Riyadh 24, Doha 26, Dubai 28 Nov); this is a placeholder for the
+    // first one, in Cairo's zone (EET, UTC+2 in November). Replace it once
+    // the schedule is published.
+    time: '10:00 AM EET',
     where: 'Cairo, Riyadh, Doha, Dubai',
     href: 'https://events.frappe.io',
   },

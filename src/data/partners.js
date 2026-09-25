@@ -559,7 +559,7 @@ const P = (
     // is "undisclosed", a partner who quotes on the brief rather than
     // publishing a number, which is a real thing firms of this size do. Three
     // of the thirteen are set that way so the surfaces that render a rate have
-    // the state to show: the listing row prints "Rate undisclosed" instead of a
+    // the state to show: the listing row prints "Undisclosed" instead of a
     // figure, and the profile's Pricing card offers a conversation instead of
     // the estimator, which has nothing to multiply by. Anything new that reads
     // `rate` has to answer for `null` — see `PartnerRow.vue` and
