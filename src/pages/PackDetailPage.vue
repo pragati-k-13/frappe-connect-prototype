@@ -129,7 +129,7 @@ const addToBasket = () => {
     root-to="/connect/packs"
     :crumb="pack ? pack.name : 'Starter Pack'"
   >
-    <div class="mx-auto w-full max-w-[800px] px-5 py-8 lg:px-10">
+    <div class="fc-page-read py-8">
       <!-- No pack in the store: someone reached this by URL rather than by
            choosing. Sending them to the catalogue is the only honest answer —
            there is nothing to confirm. -->

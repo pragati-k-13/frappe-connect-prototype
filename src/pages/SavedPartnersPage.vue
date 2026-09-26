@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { Button } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
+import PartnerList from '../components/PartnerList.vue'
 import PartnerRow from '../components/PartnerRow.vue'
 import { useConnectStore } from '../stores/connect'
 
@@ -17,7 +18,7 @@ const partners = computed(() => store.savedPartners)
 <template>
   <ConnectShell crumb="Saved">
     <!-- 800 and `py-8`, the app's one measure for a listing. -->
-    <div class="mx-auto w-full max-w-[800px] px-5 py-8 lg:px-10">
+    <div class="fc-page-list py-8">
       <div v-if="!partners.length" class="py-20 text-center">
         <p class="text-p-lg font-medium text-ink-gray-8">Nothing saved yet</p>
         <p class="mx-auto mt-1.5 max-w-xs text-p-base text-ink-gray-6">
@@ -33,9 +34,9 @@ const partners = computed(() => store.savedPartners)
           {{ partners.length }} saved {{ partners.length === 1 ? 'partner' : 'partners' }}, newest
           first
         </p>
-        <div class="mt-4">
+        <PartnerList class="mt-4">
           <PartnerRow v-for="p in partners" :key="p.id" :partner="p" />
-        </div>
+        </PartnerList>
       </template>
     </div>
   </ConnectShell>

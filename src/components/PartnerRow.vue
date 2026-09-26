@@ -1,8 +1,10 @@
 <script setup>
 import { computed } from 'vue'
 import { Avatar, Button, Tooltip } from 'frappe-ui'
+import { ListCell, ListRow } from 'frappe-ui/list'
 import TierIcon from './TierIcon.vue'
 import { logoFor } from '../data/logos'
+import { storiesFor } from '../data/stories'
 import { savedToast } from '../feedback'
 import { useConnectStore } from '../stores/connect'
 import { useAuthGate } from '../utils/auth'
@@ -64,43 +66,65 @@ const logo = computed(() => logoFor(props.partner.id))
 // The comma that joins the two halves lives at the end of the LEAD, so it
 // disappears with the names it belongs to when the line truncates.
 const SHOWN = 3
+// ⚠️ STORIES ONLY WHEN THEY ARE IN YOUR INDUSTRY. A bare count ("9 success
+// stories across …") measured how much a firm had written up, not whether it
+// had done work like yours — and it was glued to the partner's full directory
+// tags, so "1 success story across Discrete Manufacturing, Real Estate, Rental
+// Business" claimed one story in three industries.
+//
+// So the line has two forms and each row gets the one that is true for it:
+//
+//   a story matches   "2 success stories in Discrete Manufacturing" — counted
+//                     and named from the stories themselves (`storiesFor`, the
+//                     same labels the profile's Success stories section shows)
+//   none matches      "Works across …" — the partner's own industries
+//
+// "Your industry" is the listing's industry filter when one is set — what this
+// screen is being asked about right now — and the account's own otherwise. With
+// neither there is nothing to match against, so every row says "Works across".
+const wanted = computed(() =>
+  store.answers.segments?.length ? store.answers.segments : (store.company.segments ?? []),
+)
+
+const listOf = (items) =>
+  items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items.at(-1)}` : (items[0] ?? '')
+
 const industryLine = computed(() => {
-  const { stories, industries } = props.partner
+  const { pinned, rest: others } = storiesFor(props.partner)
+  const matching = [pinned, ...others].filter((st) => st && wanted.value.includes(st.segment))
+  if (matching.length) {
+    const n = matching.length
+    const segments = [...new Set(matching.map((st) => st.segment))]
+    return { lead: `${n} success ${n === 1 ? 'story' : 'stories'} in ${listOf(segments)}`, rest: 0 }
+  }
+  const industries = props.partner.industries
   const rest = Math.max(industries.length - SHOWN, 0)
   const shown = industries.slice(0, SHOWN).join(', ') + (rest ? ',' : '')
-  // Some partners have published none, so the line can't always lead with a
-  // count — "0 success stories across Retail" reads as a failure rather than
-  // as "these are the industries they work in", which is the line's actual
-  // job. One story gets the singular for the same reason.
-  const lead = stories
-    ? `${stories} success ${stories === 1 ? 'story' : 'stories'} across ${shown}`
-    : `Works across ${shown}`
-  return { lead, rest }
+  return { lead: `Works across ${shown}`, rest }
 })
 </script>
 
 <template>
-  <!-- Two boxes, because the fill and the divider want different widths.
+  <!-- A frappe-ui `ListRow`, always inside `PartnerList`. STATIC — no `to`,
+       no click — because the row carries two buttons of its own, and a row
+       that is itself a link or button cannot hold them (nested interactive
+       controls are invalid). The whole-row target is the name's stretched link
+       instead, the pattern frappe-ui's List docs give for rows with actions.
 
-       The OUTER box carries the hover fill and bleeds 12px past the content
-       column on each side (`-mx-3 px-3`), so the fill has room around the
-       content instead of stopping at the avatar's edge.
+       What the List owns: the grid, the 12px inset, and the divider — above
+       each row but the first, at the content's width, in `outline-gray-1`.
+       What this row adds back for a static row: the hover fill, its radius,
+       and (in `index.css`) hiding the two dividers touching a hovered row,
+       which List only does for interactive rows.
 
-       The INNER box carries the divider, at the content column's own width —
-       so the rule stays lined up with the heading and the filter bar above the
-       list, and sits inset from the fill. Same relationship as the reference.
-
-       The rule is on the row rather than `divide-y` on the container so it
-       survives the interstitial that splits the listing into two containers.
-       `.fc-partner-row` in `index.css` is what hides the two rules touching a
-       hovered row. -->
-  <article
-    class="fc-partner-row group relative -mx-3 rounded-4 px-3 transition-colors hover:bg-surface-gray-1"
+       ⚠️ One px more padding below than above. The divider is a 0-height
+       overlay where the old one was a 1px border inside the row, so without
+       it every row is a pixel shorter than before. -->
+  <ListRow
+    class="fc-list-partner rounded-4 hover:bg-surface-gray-1"
+    :class="compact ? 'pb-[21px] pt-5' : 'pb-[29px] pt-7'"
   >
-    <div
-      class="fc-partner-row-body flex gap-3 border-b border-outline-gray-1"
-      :class="compact ? 'items-center py-5' : 'items-start py-7'"
-    >
+    <ListCell class="self-stretch">
       <!-- ⚠️ THE AVATAR SITS INSIDE THIS COLUMN, not beside it, and that is the
            whole of the row's second layout.
 
@@ -276,8 +300,11 @@ const industryLine = computed(() => {
         </template>
       </div>
 
-      <!-- `relative` lifts these above the name's stretched hit area — without
+    </ListCell>
+
+    <!-- `relative` lifts these above the name's stretched hit area — without
          it the row link would sit on top of both buttons. -->
+    <ListCell :class="compact ? '' : 'self-start'">
       <div class="relative flex shrink-0 items-center gap-1.5">
         <!-- One word, and the same word in both states: the filled icon
            already says whether this partner is saved. The `aria-label` stays
@@ -304,6 +331,6 @@ const industryLine = computed(() => {
           <template #prefix><LucideMessageSquare class="size-4" /></template>
         </Button>
       </div>
-    </div>
-  </article>
+    </ListCell>
+  </ListRow>
 </template>

@@ -24,7 +24,7 @@ and pads by 4% of the mark's longest side, so the marks are optically the same
 size as each other rather than each sitting in whatever whitespace its export
 happened to carry.
 
-Three are left **uncropped**, because they have no mark to separate out — the
+Four are left **uncropped**, because they have no mark to separate out — the
 logo *is* the lettering, and slicing a single letter out of a wordmark makes a
 monogram the partner doesn't actually use:
 
@@ -32,10 +32,12 @@ monogram the partner doesn't actually use:
   a mark.
 - **`korecent.jpg`** — wordmark. The orange slashed *o* is the only
   non-typographic element, and it sits inside the word.
+- **`sanskar-technolab.svg`** — wordmark, the two lines of lettering. There is
+  no mark to separate out.
 - **`8848-digital.svg`** — the logo is the numerals. Trimming the "DIGITAL" line
   under them only makes the aspect ratio worse.
 
-These three are the rows where the logo reads as small text at 44px. That's the
+These four are the rows where the logo reads as small text at 44px. That's the
 accepted trade-off: the real logo, small, beats an invented one.
 
 Re-cropping? Work from the originals in the live directory, not from these
@@ -56,6 +58,10 @@ files — the marks have already lost their surrounding whitespace.
 | `kingstech-services.png` | Kingstech Services | Singapore |
 | `navari.jpg` | Navari | Kenya |
 | `korecent.jpg` | Korecent | United States |
+| `sanskar-technolab.svg` | Sanskar Technolab | India |
+| `promantia.png` | Promantia | India |
+| `nestorbird.png` | NestorBird | India |
+| `momscode.png` | Momscode | India |
 
 Adding a partner? The id is `name.toLowerCase().replace(/[^a-z0-9]+/g, '-')`.
 Each country page in the directory renders

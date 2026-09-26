@@ -5,6 +5,7 @@ import { Button } from 'frappe-ui'
 import { List, ListCell, ListRow } from 'frappe-ui/list'
 import NewProjectDialog from './NewProjectDialog.vue'
 import ProjectRow from './ProjectRow.vue'
+import PartnerList from './PartnerList.vue'
 import PartnerRow from './PartnerRow.vue'
 import IconPlus from '~icons/lucide/plus'
 import IconHeart from '~icons/lucide/heart'
@@ -84,7 +85,7 @@ const create = (details) => {
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-[800px] px-5 py-8 lg:px-10">
+  <div class="fc-page-read py-8">
     <!-- ── Greeting ──────────────────────────────────────────────────── -->
     <div class="flex items-start justify-between gap-4">
       <div class="min-w-0">
@@ -133,9 +134,9 @@ const create = (details) => {
       </div>
       <!-- The directory's own rows, compact: Save still works; Contact and
            the comparison line stay on the full list. -->
-      <div class="mt-1">
+      <PartnerList class="mt-1">
         <PartnerRow v-for="p in savedShown" :key="p.id" :partner="p" compact />
-      </div>
+      </PartnerList>
     </section>
 
     <!-- ── Resources ─────────────────────────────────────────────────── -->

@@ -181,6 +181,18 @@ const address = computed(() => props.partner.address ?? props.partner.city)
         </h2>
 
         <dl class="divide-y divide-outline-gray-1 px-4">
+          <!-- The rate, now that the profile has no Pricing section: the price
+               of the work, so it leads this column rather than the company's.
+               Same words as the listing row, so the figure reads the same in
+               both places; a partner who publishes none says so, lighter. -->
+          <div class="py-3.5">
+            <dt class="text-p-sm text-ink-gray-7">Rate</dt>
+            <dd class="mt-1.5 text-p-base tabular-nums text-ink-gray-8">
+              <template v-if="partner.rate">From ${{ partner.rate }}/hr</template>
+              <span v-else class="text-ink-gray-5">Undisclosed</span>
+            </dd>
+          </div>
+
           <div class="py-3.5">
             <dt class="text-p-sm text-ink-gray-7">Countries served</dt>
             <dd class="mt-1.5 flex flex-wrap gap-1.5">

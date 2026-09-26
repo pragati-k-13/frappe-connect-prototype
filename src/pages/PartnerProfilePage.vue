@@ -2,7 +2,7 @@
 // SCREEN 6 — the partner profile.
 //
 // Every section is built: header, media gallery, client strip, the About /
-// Services and Expertise card, Partner vision, Pricing, Reviews, Success
+// Services and Expertise card, Partner vision, Reviews, Success
 // stories, Marketplace contributions, and "How they began" last. Two of them
 // can be absent for a given partner — the marketplace row and the founding
 // story — and those own their top margins rather than taking one from a
@@ -18,7 +18,6 @@ import MediaGallery from '../components/MediaGallery.vue'
 import ClientStrip from '../components/ClientStrip.vue'
 import PartnerAboutCard from '../components/PartnerAboutCard.vue'
 import PartnerVisionSection from '../components/PartnerVisionSection.vue'
-import PartnerPricingSection from '../components/PartnerPricingSection.vue'
 import PartnerReviewsSection from '../components/PartnerReviewsSection.vue'
 import PartnerStoriesSection from '../components/PartnerStoriesSection.vue'
 import { useConnectStore } from '../stores/connect'
@@ -161,7 +160,7 @@ onBeforeUnmount(() => observer?.disconnect())
     </template>
 
     <!-- Unknown id: a real 404 rather than a blank page, with the way back. -->
-    <div v-if="!partner" class="mx-auto w-full max-w-[800px] px-5 py-20 text-center lg:px-10">
+    <div v-if="!partner" class="fc-page-read py-20 text-center">
       <p class="text-p-lg font-medium text-ink-gray-8">No such partner</p>
       <p class="mx-auto mt-1.5 max-w-sm text-p-base text-ink-gray-6">
         The link may be out of date, or the partner may have left the programme.
@@ -181,7 +180,7 @@ onBeforeUnmount(() => observer?.disconnect())
          last line — the passage read as cut off rather than finished. 192px is
          twice the 96px that separates the sections, which is the smallest gap
          that reads as "nothing follows" rather than as another section break. -->
-    <div v-else class="mx-auto w-full max-w-[800px] px-5 pb-48 pt-8 lg:px-10">
+    <div v-else class="fc-page-read pb-48 pt-8">
       <!-- ── Header ──────────────────────────────────────────────────────
            Identity left, actions right. The actions are ordered by weight, not
            by frequency: Contact is the page's one solid button because it is
@@ -293,14 +292,6 @@ onBeforeUnmount(() => observer?.disconnect())
            around it. -->
       <div class="mt-24">
         <PartnerVisionSection :partner="partner" />
-      </div>
-
-      <!-- ── Pricing ─────────────────────────────────────────────────────
-           Same 96px break as the section above it, so the page's own sections
-           are spaced consistently rather than by how tall each one happens to
-           be. -->
-      <div class="mt-24">
-        <PartnerPricingSection :partner="partner" />
       </div>
 
       <!-- ── Reviews ─────────────────────────────────────────────────────

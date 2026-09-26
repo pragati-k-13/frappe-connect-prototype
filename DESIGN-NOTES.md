@@ -2275,33 +2275,41 @@ not. That's the inset doing its job, not a misalignment.
 
 ## The listing row's industry line
 
-One line, always. `6 success stories across Textile Manufacturing, Retail, Healthcare, and
-4 more`. Wrapping to two lines made rows uneven heights and pushed the whole list taller
-than it needs to be.
+**Stories only when they are in your industry.** The line has two forms, and
+each row gets the one that is true for it:
 
-**Two spans, not one string**, and that's what makes the single line survivable: the named
-industries carry `min-w-0 truncate` and are the part allowed to give way, while the tail is
-`shrink-0` and stays readable at any width. (`min-w-0` is load-bearing — a flex item
-defaults to `min-width:auto` and refuses to shrink below its own text, so `truncate` has
-nothing to do without it.)
+- **A story matches** — "2 success stories in Discrete Manufacturing", counted
+  and named from the stories themselves (`storiesFor`, the labels the profile's
+  Success stories section uses).
+- **None matches** — "Works across Textile Manufacturing, Retail, Healthcare,
+  and 4 more", the partner's own industries.
 
-**The tail is part of the sentence, not a chip.** It reads "and 4 more", with the joining
-comma parked at the end of the LEAD so it disappears along with the names it belongs to
-when the line truncates. It used to be `+4 more`, which read as a badge stuck on the row —
-and a badge sitting right after an ellipsis invites the reading that it's counting whatever
-just got clipped. It never was: the count is `industries.length - 3`, the span renders only
-when that's non-zero, and it's the same figure whether or not the text happens to fit at
-this width. Saying it in words is what makes that legible.
+"Your industry" is the listing's industry filter when one is set, and the
+account's own otherwise; with neither, every row says "Works across".
 
-**No count when there's nothing more.** Six of the thirteen partners name three industries
-or fewer and their line simply ends.
+It used to be "N success stories across" the partner's full directory tags, for
+every partner with a story. That measured how much a firm had written up rather
+than whether it had done work like yours, and it put two unrelated facts in one
+sentence: "1 success story across Discrete Manufacturing, Real Estate, Rental
+Business" claimed one story in three industries. The profile keeps its count —
+there it sits over the stories it counts.
 
-**The lead is conditional on stories.** Two partners have published none, so it can't
-always open with a count: "0 success stories across Retail" reads as a failure rather than
-as "here's what they work in", which is the line's actual job. Those get "Works across …".
-One story takes the singular.
+**One line, always**, and still two spans: the named industries carry
+`min-w-0 truncate` and give way, while "and 4 more" is `shrink-0` and stays
+readable. The joining comma sits at the end of the lead so it disappears with
+the names it belongs to. No count when there is nothing more.
 
 ## The listing row's hover state
+
+**Built on frappe-ui's `List`** (`PartnerList` holding `PartnerRow`s), in the
+static-row shape its docs give for rows with their own buttons: the row is not a
+link, the name's stretched link is. The geometry below is unchanged by the switch
+and was measured against the hand-built version: same 744px row, same 152px
+pitch, same content offsets. List now draws the divider (above each row but the
+first, at the content's width, instead of below each row but the last), and
+`.fc-list-partner` in `index.css` restores the hover rule List only applies to
+interactive rows. The two-box and `:has(+ …)` description below is how the
+hand-built row did the same; `ProjectRow` still uses it.
 
 **A fill, not an underline.** Hovering a row fills it (`surface-gray-1`, 8px radius); the
 name carries no underline any more.
@@ -2506,8 +2514,17 @@ collapsing only below `sm` — it now stays collapsed at every width until the
 visitor opens it. The quiz and the map are the point of the screen, and an
 expanded rail eats width the map wants.
 
-The results list caps at **800px** — a partner row stretched to the full measure
-puts too much air between the name and the Contact button.
+**Inside the app, page widths are content widths**, with the padding outside them
+(`.fc-page-read`, `.fc-page-list` in `index.css`), the way Gameplan defines its
+reading column. They used to be an 800px box whose padding grew at `lg`, so the
+content was 760px on a mid-size window and 720px on a large one — widening the
+window made every page narrower.
+
+- **720px for pages read top to bottom** — a partner profile, a pack, the home
+  screen. Gameplan's discussion column is the same.
+- **800px for lists scanned across a row** — partners, saved partners, projects.
+  Frappe's list pages run wider still (Gameplan ~900, Helpdesk ~856), but a
+  partner row stretched further puts too much air between the name and Contact.
 
 **The chip counts are plain text, not a `Badge`.** A Badge can't sit inside a
 selected chip: frappe-ui's solid gray `Button` and solid gray `Badge` both

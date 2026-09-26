@@ -9,10 +9,16 @@
 import { computed } from 'vue'
 import { Button, MultiSelect, TextInput, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
+import PartnerList from '../components/PartnerList.vue'
 import PartnerRow from '../components/PartnerRow.vue'
 import FilterChip from '../components/FilterChip.vue'
 import { useConnectStore } from '../stores/connect'
 import { APPS } from '../data/partners'
+
+// The mid-list app question's chips. Not every app: Framework, Education and
+// Drive are left off. `APPS` itself is unchanged, so the filter label and every
+// other reader still know them.
+const APP_CHIPS = APPS.filter((a) => !['framework', 'education', 'drive'].includes(a.value))
 import { INDUSTRIES, REGIONS } from '../data/quiz'
 
 const store = useConnectStore()
@@ -310,7 +316,7 @@ const clearTooltip = computed(() => {
 
 <template>
   <ConnectShell>
-    <div class="mx-auto w-full max-w-[800px] px-5 py-8 lg:px-10">
+    <div class="fc-page-list py-8">
       <h1 class="text-xl font-semibold text-ink-gray-9">
         Work with certified partners with vast expertise
       </h1>
@@ -478,9 +484,9 @@ const clearTooltip = computed(() => {
       </div>
 
       <!-- First page of results -->
-      <div class="mt-1">
+      <PartnerList class="mt-1">
         <PartnerRow v-for="p in results.slice(0, 5)" :key="p.id" :partner="p" />
-      </div>
+      </PartnerList>
 
       <!-- Interstitial refinement. Sits mid-list on purpose: it's the question
            worth asking once someone has seen enough rows to know the list is
@@ -491,7 +497,7 @@ const clearTooltip = computed(() => {
           <!-- Smaller than the quiz's region chips: this is a secondary
                refinement offered mid-list, not a question being asked. -->
           <FilterChip
-            v-for="a in APPS"
+            v-for="a in APP_CHIPS"
             :key="a.value"
             :label="a.label"
             size="xs"
@@ -503,9 +509,9 @@ const clearTooltip = computed(() => {
       </div>
 
       <!-- Remaining results -->
-      <div>
+      <PartnerList>
         <PartnerRow v-for="p in results.slice(5)" :key="p.id" :partner="p" />
-      </div>
+      </PartnerList>
 
       <!-- ── Suggestions ─────────────────────────────────────────────────
            Shown when the filters have narrowed to two partners or fewer, which
@@ -530,9 +536,9 @@ const clearTooltip = computed(() => {
                behave here exactly as they do in the list, and a suggested
                partner is still a partner you might click through to. `mt-1`
                matches the results list's own leading gap. -->
-          <div class="mt-1">
+          <PartnerList class="mt-1">
             <PartnerRow v-for="p in g.partners" :key="p.id" :partner="p" />
-          </div>
+          </PartnerList>
         </div>
       </div>
 
