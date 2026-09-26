@@ -54,9 +54,9 @@ const msg = (from, at, rest) => ({ id: `m${++seq}`, from, at, kind: 'text', ...r
 // ⚠️ No pronouns anywhere, and no roles beyond "someone in sales who replied".
 // These are placeholders in a prototype; the less they assert about a person who
 // does not exist, the better.
-// ⚠️ Now a TEAM per firm, not one name, because `BookSlotDialog` lists who
-// would actually be on the call and a call with one attendee named and the
-// rest implied is a worse fiction than naming them. Between one and three,
+// ⚠️ A TEAM per firm, not one name: a partner's replies come from more than
+// one person, and one name standing in for a firm is a worse fiction than a
+// small team. Between one and three,
 // which is what a discovery call from an implementation partner looks like.
 //
 // Order matters: the FIRST name is the one who replies in Messages, so the
@@ -201,44 +201,41 @@ export const discoveryThreads = () =>
     .filter((t) => t.partnerId)
     .map((t) => ({ id: t.partnerId, ...t }))
 
-// ── The booked thread ──────────────────────────────────────────────────────
-// What "Project details sent via Messaging" on the confirmed screen actually
-// means. Three messages, all from the viewer: the ask, the company profile
-// onboarding collected, and the call they just booked.
-//
-// ⚠️ `company` and `call` are not text. They are the two cards in the design,
-// and the thread renders them as cards rather than as a paragraph someone has
-// to read the fields out of.
+// ── Threads the viewer starts ──────────────────────────────────────────────
 // The other way in: Contact, from a listing row or a partner's profile.
 //
-// ⚠️ THIS USED TO BE EMPTY, on the reasoning that booking a pack has three
-// things to say on the visitor's behalf and Contact had none of them — nothing
-// had been said yet, and opening with a sentence they didn't write would put
-// words in their mouth to a real company. That reasoning is spent: Contact now
-// goes through `ContactPartnerDialog`, so by the time a thread exists the
-// visitor HAS said something — which apps, which modules, and whatever they
-// typed. The card is what they sent, not a greeting written for them.
+// ⚠️ THE SAME BRIEF CARD A BROADCAST SENDS, to one firm, AND THE COMPANY WITH
+// IT. Contacting a partner directly used to send its own "inquiry" card — apps
+// and modules — which stopped matching the product once requirements became a
+// written scope and a budget. What differs from a broadcast is who chose whom:
+// a broadcast hands a requirement to a dozen strangers, so the company waits
+// for a reply worth answering; here the business picked this firm, so the
+// company goes out with the brief and there is no Interested step to wait on.
 //
-// `inquiry` is a SNAPSHOT — the project's name, apps and module labels as they
-// stood when Send inquiry was pressed — and not a reference to the project.
-// This differs from the `company` card beside it, which reads live store state,
-// and the difference is deliberate: a project's scope keeps moving (it is a
-// working document, editable from the project page), and a sent message that
-// silently rewrites itself to match is a record of a conversation that didn't
-// happen. What the partner quoted against is what has to stay on the screen.
+// ⚠️ NO `broadcast` MARK. This thread is one conversation, not one of a set,
+// so it is never folded into a broadcast group and never gets a broadcast
+// status — see `threadStatus`.
+//
+// `brief` is a SNAPSHOT, like the broadcast's: what the partner quoted against
+// has to stay on the screen while the project's own scope keeps moving.
 //
 // `startedAt` carries the only fact there is, and `lastAt` reads it — see the
 // note there.
-export const contactThread = (partner, inquiry = null, body = '') => {
+export const contactThread = (partner, brief = null, body = '') => {
   const at = Date.now()
   return {
     id: partner.id,
     partnerId: partner.id,
     startedAt: at,
     messages: [
-      ...(inquiry ? [{ id: `m${++seq}`, from: 'you', at, kind: 'inquiry', inquiry }] : []),
+      ...(brief
+        ? [
+            { id: `m${++seq}`, from: 'you', at, kind: 'brief', brief },
+            { id: `m${++seq}`, from: 'you', at, kind: 'company' },
+          ]
+        : []),
       // The optional note, as its own message rather than folded into the card.
-      // It is the one part of the inquiry the visitor wrote in their own words,
+      // It is the one part of the contact the visitor wrote in their own words,
       // and a sentence quoted inside a summary card reads as a field of the
       // form rather than as something a person said.
       ...(body ? [msg('you', at, { body })] : []),
@@ -261,7 +258,13 @@ export const contactThread = (partner, inquiry = null, body = '') => {
 // Sales, Purchase, Stock and HR and Payroll Starter Pack" is not a sentence, so
 // the names are joined and the noun is pluralised by the caller's data rather
 // than by a guess.
-export const bookingThread = ({ partner, packs }) => {
+//
+// ⚠️ THE REQUIREMENTS GO TOO, as their own card. A pack buyer never writes a
+// brief, but the greeting promises "here is where we are today" — so the card
+// carries what they bought and the answers they gave (industry, size, how they
+// run today, what they want fixed), snapshotted like a brief. The company line
+// after it is who they are; this is what the work is. See `packBrief`.
+export const bookingThread = ({ partner, packs, brief = null }) => {
   const at = Date.now()
   const names = [packs].flat().map((p) => p.name)
   const list =
@@ -274,6 +277,7 @@ export const bookingThread = ({ partner, packs }) => {
       msg('you', at, {
         body: `Hi — we have just bought the ${list} ${names.length > 1 ? 'Starter Packs' : 'Starter Pack'} and Frappe has assigned you to us. Here is where we are today.`,
       }),
+      ...(brief ? [{ id: `m${++seq}`, from: 'you', at, kind: 'packs', brief }] : []),
       { id: `m${++seq}`, from: 'you', at, kind: 'company' },
     ],
   }

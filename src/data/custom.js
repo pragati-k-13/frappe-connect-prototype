@@ -152,6 +152,29 @@ export const criteriaLines = (company, brief) => {
   ]
 }
 
+// The same criteria as one request, for the brief's details dialog: "A partner
+// based anywhere in Asia who offers services for Manufacturing. Any tier,
+// remote or on site." Read off the same inputs as `criteriaLines`, beside it,
+// so the two cannot disagree. The timeline is left out — the dialog prints it
+// with the budget, where a partner deciding whether to quote looks for it.
+//
+// ⚠️ THE DEFAULTS STAY IN. "Any tier" tells a Silver partner they are welcome;
+// in a sentence it costs two words rather than a line.
+export const criteriaSentence = (company, brief) => {
+  const region = REGIONS.find((r) => r.value === REGION_OF[company?.country])
+  const group = INDUSTRIES.find((i) => i.value === GROUP_OF_SEGMENT[company?.segments?.[0]])
+  const cities = brief?.cities ?? []
+  const tiers = TIERS.filter((t) => (brief?.tiers ?? []).includes(t.value)).map((t) => t.label)
+  const where = cities.length
+    ? `based in ${listOf(cities)}`
+    : `based anywhere in ${region?.label ?? 'your region'}`
+  const what = group ? `offers services for ${group.label}` : 'works in any industry'
+  const tier = tiers.length ? `${listOf(tiers)} tier` : 'Any tier'
+  const style =
+    { onsite: 'on site', remote: 'remote' }[brief?.workStyle] ?? 'remote or on site'
+  return `A partner ${where} who ${what}. ${tier}, ${style}.`
+}
+
 // "Pune", "Pune and Mumbai", "Pune, Mumbai and Kochi".
 const listOf = (items) =>
   items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items.at(-1)}` : (items[0] ?? '')

@@ -22,7 +22,7 @@ import { STARTER_PACKS } from './packs'
 // Only `demoProjects` needs this, to resolve a firm's name to its id — by NAME
 // rather than by id for the same reason `data/messages.js` does it: an id
 // hard-coded here would rot silently the day a partner is renamed.
-import { APPS, PARTNERS } from './partners'
+import { PARTNERS } from './partners'
 
 // ── Services ────────────────────────────────────────────────────────────────
 // ⚠️ TWO, not three. Guided onboarding — three hours of partner-led teaching
@@ -455,46 +455,6 @@ export const projectName = (packs, company) => {
   return company ? `${what} implementation for ${company}` : `${what} implementation`
 }
 
-// The same sentence for a project nobody typed a name for: the one an INQUIRY
-// creates. `ContactPartnerDialog` asks which apps and which modules and
-// nothing else — a name field is a third question in a dialog whose whole
-// argument is that defining requirements shouldn't cost a detour — so the apps
-// name the work here, exactly as the pack does above.
-//
-// ⚠️ Deriving from the APPS and not from the modules, even though the modules
-// are the finer answer. "Finance, Sales and Purchase implementation" names the
-// scope as it stood the minute the inquiry went out; scope moves, and a list of
-// six modules is not a title anyone scans a projects page for. The app is the
-// part of the answer that stays true.
-//
-// Renameable afterwards from the project itself — or it will be: nothing edits
-// a project's name yet, which is the reason the derived one has to be good
-// enough to live with rather than a placeholder.
-// Which apps a project is in, for display and for the inquiry snapshot.
-//
-// ⚠️ The UNION of `apps` and the module list's own keys, not `apps` alone. A
-// project made by `NewProjectDialog` picks ERPNext modules without ever being
-// asked which app they belong to, so its `apps` is empty while its scope is
-// plainly ERPNext work — and reading the field alone would show a project with
-// six ERPNext modules and no app. The field is still the source of truth for
-// the answer nothing else records: an app with no module catalogue behind it.
-export const projectApps = (project) => [
-  ...new Set([...(project.apps ?? []), ...Object.keys(project.modules ?? {})]),
-]
-
-export const inquiryName = (apps, company) => {
-  const labels = apps.map((value) => APPS.find((a) => a.value === value)?.label ?? value)
-  // Same "a, b and c" construction as the checklist's own sentence — see
-  // `ProjectChecklist`. Written out rather than shared because two call sites
-  // is not yet a helper, and `Intl.ListFormat` would pull a locale decision
-  // into a file that has none.
-  const what =
-    labels.length > 1
-      ? `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}`
-      : (labels[0] ?? 'Frappe')
-  return company ? `${what} implementation for ${company}` : `${what} implementation`
-}
-
 // ── The demo's projects ─────────────────────────────────────────────────────
 // ⚠️ SEEDED, and invented on the same footing as everything else attached to a
 // real partner in this repo — no firm named here is running any of this work.
@@ -534,7 +494,6 @@ export const demoProjects = () => {
       // A window close to expiry is a state worth seeing too — drag the stage
       // switcher's project here and change this number to see it.
       at: daysAgo(18),
-      slot: null,
     },
     {
       // ⚠️ The important one. No partner, and the stage where that is being
@@ -551,7 +510,6 @@ export const demoProjects = () => {
       stage: 'choosing',
       done: [],
       at: daysAgo(5),
-      slot: null,
     },
   ]
 

@@ -6,7 +6,7 @@ import { Button, Checkbox, Dialog, ScrollArea } from 'frappe-ui'
 // the FALLBACK content of its default slot — so any dialog with a body of its
 // own loses the description, and the underlying primitive then warns that
 // `aria-describedby` is missing. reka-ui is frappe-ui's own dialog dependency,
-// not a new one. Same reasoning as `BookSlotDialog.vue`.
+// not a new one.
 import { DialogDescription } from 'reka-ui'
 import AppLogo from './AppLogo.vue'
 import { APPS } from '../data/partners'
@@ -201,15 +201,14 @@ watch(
 // ⚠️ It hands the ticked rows across as a PREFILL. The visitor has just spent a
 // minute deciding which modules count, against a rate and a figure; asking the
 // same question again on the next screen is exactly the friction this flow was
-// built to remove. It only lands if they have no project yet — with one, the
-// inquiry sends that project's own scope, which is the thing the estimate was
-// derived from in the first place (`store.scopeModules`).
+// built to remove. It only lands if they have no project yet — the ticks become
+// the new project's modules; with one, Contact sends that project's own brief.
 const contactWithEstimate = () => {
   const prefill = {
     apps: [...new Set(selected.value.map((r) => r.app))],
-    // `app:key`, the shape `ContactPartnerDialog`'s module picker holds — see
-    // the ⚠️ on its values. NOT this panel's own `row.key`, which joins with a
-    // hyphen and is a different string.
+    // `app:key`, the shape `ContactPartnerDialog` reads back into a project's
+    // modules. NOT this panel's own `row.key`, which joins with a hyphen and is
+    // a different string.
     modules: selected.value.map((r) => `${r.app}:${r.module.key}`),
   }
   close()

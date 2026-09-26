@@ -58,7 +58,7 @@ const create = (details) => {
     -->
     <!-- 800 and `py-8`, matching the partner list and the pack catalogue. This
          app has one measure for a listing and this is it. -->
-    <div class="mx-auto w-full max-w-[800px] px-5 py-8 lg:px-10">
+    <div class="fc-page-list py-8">
       <!-- ── Empty ───────────────────────────────────────────────────────
            ⚠️ ONE DOOR. It had two — New project beside a subtle "See the packs"
            — and the second was answering a question this screen isn't asking.

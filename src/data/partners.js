@@ -530,6 +530,9 @@ const ZONE_BY_CITY = {
   'Pune, India': 'Asia/Kolkata',
   'Kochi, India': 'Asia/Kolkata',
   'Ahmedabad, India': 'Asia/Kolkata',
+  'Bangalore, India': 'Asia/Kolkata',
+  'Mohali, India': 'Asia/Kolkata',
+  'Kozhikode, India': 'Asia/Kolkata',
   'Munich, Germany': 'Europe/Berlin',
   'Dubai, United Arab Emirates': 'Asia/Dubai',
   Singapore: 'Asia/Singapore',
@@ -903,6 +906,100 @@ export const PARTNERS = [
     industries: ['Medical Device Manufacturing', 'Healthcare', 'Professional services'],
     apps: ['erpnext', 'frappe-hr', 'crm', 'insights'],
     packs: ['accounts-sales-purchase-stock', 'hrms', 'payroll'],
+  }),
+
+  // ── Partners with no success stories ──────────────────────────────────────
+  // Four more real partners from the directory, so the listing and the profile
+  // have the zero-stories state to show: "Works across …" on the row, "No
+  // success stories published yet" on the profile.
+  //
+  // REAL: name, tier, city and address (each partner's own frappe.io page), the
+  // logo, and — for Promantia and NestorBird — the industries and apps, from
+  // their "Areas of expertise" and "App expertise". Promantia's tagline is the
+  // line on its own logo.
+  //
+  // ⚠️ INVENTED, as for everyone above: rate, rating, reviews, response time,
+  // packs and work style. Sanskar Technolab and Momscode publish no expertise,
+  // so their industries are invented too, and their apps are the two
+  // credentials both list (ERPNext, Framework). No tagline where the partner
+  // publishes none — the profile shows the city instead.
+  P('Sanskar Technolab', {
+    address:
+      'A-706, Privilon, Iskcon Cross Road, SG Highway, Ahmedabad 380015, Gujarat, India',
+    tier: 'silver',
+    workStyle: 'both',
+    city: 'Ahmedabad, India',
+    region: 'asia',
+    initials: 'ST',
+    color: '#21153e',
+    rate: 70,
+    rating: 4.3,
+    reviews: 6,
+    responds: '4h',
+    stories: 0,
+    industries: ['Process Manufacturing', 'Chemical Manufacturing', 'Goods Trading'],
+    apps: ['erpnext', 'framework'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing'],
+  }),
+  P('Promantia', {
+    tagline: 'The Partner for Open Source Solutions',
+    address:
+      '103 Maria Regency Manor, 8 MSO Colony, Banaswadi Road, Golden Enclave, Old Airport Road, Bangalore 560033, Karnataka, India',
+    tier: 'silver',
+    workStyle: 'both',
+    city: 'Bangalore, India',
+    region: 'asia',
+    initials: 'PR',
+    color: '#3b3486',
+    rate: 80,
+    rating: 4.2,
+    reviews: 5,
+    responds: '6h',
+    stories: 0,
+    industries: ['Goods Trading', 'Discrete Manufacturing', 'Retail', 'Professional services', 'Nonprofit'],
+    apps: ['erpnext', 'frappe-hr', 'insights', 'crm', 'helpdesk'],
+    packs: ['accounts-sales-purchase-stock', 'hrms', 'payroll'],
+  }),
+  P('NestorBird', {
+    address: 'F 468, IFB Phase 8, Phase 8B, SAS Nagar, Mohali 160071, Punjab, India',
+    tier: 'silver',
+    workStyle: 'remote',
+    city: 'Mohali, India',
+    region: 'asia',
+    initials: 'NB',
+    color: '#ec4899',
+    rate: 68,
+    rating: 4.1,
+    reviews: 4,
+    responds: '8h',
+    stories: 0,
+    industries: [
+      'Healthcare',
+      'Food and Beverages',
+      'Discrete Manufacturing',
+      'Retail',
+      'Goods Trading',
+      'Nonprofit',
+    ],
+    apps: ['erpnext', 'frappe-hr', 'insights'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing'],
+  }),
+  P('Momscode', {
+    address: '14/443-H, Second Floor, Royal Tower, Malaparamba PO, Kozhikode 673009, Kerala, India',
+    tier: 'bronze',
+    workStyle: 'remote',
+    city: 'Kozhikode, India',
+    region: 'asia',
+    initials: 'MC',
+    color: '#d7263d',
+    rate: 55,
+    rating: 4.0,
+    reviews: 3,
+    responds: '9h',
+    stories: 0,
+    industries: ['Retail', 'E-commerce', 'Professional services'],
+    apps: ['erpnext', 'framework'],
+    packs: ['accounts-sales-purchase-stock'],
   }),
 ]
 

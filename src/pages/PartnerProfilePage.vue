@@ -2,7 +2,7 @@
 // SCREEN 6 — the partner profile.
 //
 // Every section is built: header, media gallery, client strip, the About /
-// Services and Expertise card, Partner vision, Pricing, Reviews, Success
+// Services and Expertise card, Partner vision, Reviews, Success
 // stories, Marketplace contributions, and "How they began" last. Two of them
 // can be absent for a given partner — the marketplace row and the founding
 // story — and those own their top margins rather than taking one from a
@@ -18,14 +18,12 @@ import MediaGallery from '../components/MediaGallery.vue'
 import ClientStrip from '../components/ClientStrip.vue'
 import PartnerAboutCard from '../components/PartnerAboutCard.vue'
 import PartnerVisionSection from '../components/PartnerVisionSection.vue'
-import PartnerPricingSection from '../components/PartnerPricingSection.vue'
 import PartnerReviewsSection from '../components/PartnerReviewsSection.vue'
 import PartnerStoriesSection from '../components/PartnerStoriesSection.vue'
 import { useConnectStore } from '../stores/connect'
 import { useAuthGate } from '../utils/auth'
 import PartnerMarketplaceSection from '../components/PartnerMarketplaceSection.vue'
 import PartnerFoundingSection from '../components/PartnerFoundingSection.vue'
-import BookSlotDialog from '../components/BookSlotDialog.vue'
 import { PARTNERS } from '../data/partners'
 import { logoFor } from '../data/logos'
 import { clientsFor, mediaFor } from '../data/media'
@@ -74,8 +72,6 @@ const toggleSave = () => {
   if (!p) return
   requireAccount(() => savedToast(p, store.toggleSaved(p.id), () => store.toggleSaved(p.id)))
 }
-
-const booking = ref(false)
 
 // ── Does the page's own Contact still show? ──────────────────────────────────
 // The chrome's Contact is a STAND-IN for the one in the page header, not a
@@ -164,7 +160,7 @@ onBeforeUnmount(() => observer?.disconnect())
     </template>
 
     <!-- Unknown id: a real 404 rather than a blank page, with the way back. -->
-    <div v-if="!partner" class="mx-auto w-full max-w-[800px] px-5 py-20 text-center lg:px-10">
+    <div v-if="!partner" class="fc-page-read py-20 text-center">
       <p class="text-p-lg font-medium text-ink-gray-8">No such partner</p>
       <p class="mx-auto mt-1.5 max-w-sm text-p-base text-ink-gray-6">
         The link may be out of date, or the partner may have left the programme.
@@ -184,14 +180,17 @@ onBeforeUnmount(() => observer?.disconnect())
          last line — the passage read as cut off rather than finished. 192px is
          twice the 96px that separates the sections, which is the smallest gap
          that reads as "nothing follows" rather than as another section break. -->
-    <div v-else class="mx-auto w-full max-w-[800px] px-5 pb-48 pt-8 lg:px-10">
+    <div v-else class="fc-page-read pb-48 pt-8">
       <!-- ── Header ──────────────────────────────────────────────────────
            Identity left, actions right. The actions are ordered by weight, not
            by frequency: Contact is the page's one solid button because it is
-           the outcome the whole directory exists to produce, and the other two
-           are subtle and icon-only so they don't compete with it. -->
-      <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
-        <div class="flex min-w-0 items-start gap-3">
+           the outcome the whole directory exists to produce, and Save is
+           subtle and icon-only so it doesn't compete with it.
+           ⚠️ NO `flex-wrap`. With it, a long tagline made the identity block as
+           wide as the row and pushed the actions onto a line of their own; the
+           tagline wraps instead and the actions stay beside the name. -->
+      <div class="flex items-start justify-between gap-6">
+        <div class="flex min-w-0 flex-1 items-start gap-3">
           <!-- `Avatar` at `2xl`, same as the listing row: 40px, `rounded-[8px]`.
                `.fc-logo-avatar` flips its `object-cover` to `contain` — see
                `index.css`. -->
@@ -224,9 +223,6 @@ onBeforeUnmount(() => observer?.disconnect())
         </div>
 
         <div class="flex shrink-0 items-center gap-2">
-          <Button variant="subtle" label="Request a slot" @click="booking = true">
-            <template #prefix><LucideCalendar class="size-4" /></template>
-          </Button>
           <!-- Same control, same word, same stateful aria-label as the row's
                bookmark — see `PartnerRow.vue`. -->
           <Tooltip text="Save">
@@ -298,14 +294,6 @@ onBeforeUnmount(() => observer?.disconnect())
         <PartnerVisionSection :partner="partner" />
       </div>
 
-      <!-- ── Pricing ─────────────────────────────────────────────────────
-           Same 96px break as the section above it, so the page's own sections
-           are spaced consistently rather than by how tall each one happens to
-           be. -->
-      <div class="mt-24">
-        <PartnerPricingSection :partner="partner" />
-      </div>
-
       <!-- ── Reviews ─────────────────────────────────────────────────────
            Last, and after the pricing: what it costs is the partner's claim,
            what it was like is somebody else's. -->
@@ -346,6 +334,5 @@ onBeforeUnmount(() => observer?.disconnect())
       <PartnerFoundingSection :partner="partner" />
     </div>
 
-    <BookSlotDialog v-if="partner" :open="booking" :partner="partner" @close="booking = false" />
   </ConnectShell>
 </template>

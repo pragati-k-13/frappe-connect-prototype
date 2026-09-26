@@ -1700,118 +1700,61 @@ name or a body.
 
 **Contact is gated on requirements, not on an account alone.** Pressing it opens
 `ContactPartnerDialog` rather than a thread. A partner reading "hi, can you help
-us?" has nothing to quote against, so the first reply is always the same three
-questions — which apps, which modules, how big — and the conversation starts a
-day later than it looks like it did.
+us?" has nothing to quote against.
 
-**The dialog never sends anyone to the projects page.** The requirements ARE a
-project, and sending creates one, named from the apps (`inquiryName`). "First go
-and create a project" is the friction this replaces.
+**It sends the same brief a broadcast sends, and the company with it.** What
+you need built, the budget band, the timeline and the industry, as the same card
+in the partner's thread, built by the same function (`snapshotBrief`), followed
+by the company details line. A broadcast withholds the company until a reply is
+marked Interested because it goes to a dozen firms nobody chose; here the
+business chose this firm, so the Interested step does not apply. The brief card
+carries no line about any of this. The dialog used to send its own card of Frappe apps and modules, which
+stopped matching the product once requirements became a written scope and a
+budget.
 
-**Two modals became one wizard.** Pressing Contact while signed out ends at
-sign-up, and the screen that lands you back ran the held Contact action and
-_then_ opened the company dialog — so the company questions sat trapped behind
-the inquiry they were supposed to precede. Both were right to exist and neither
-could go first while they were separate dialogs, so they stopped being separate:
-the company questions are steps 1 and 2 of the contact dialog, the requirements
-are step 3, and `openCompanyPrompt` declines to open the standalone dialog while
-an inquiry is on screen.
+**No project: one dialog.** A brief belongs to a project, so Contact opens
+`NewProjectDialog` with the partner passed in, titled "Contact <partner>": the
+company details first (pre-filled from Settings, because they are what the
+partner reads as who is asking), then the two operations steps, then a last step
+for the budget and "What do you want built?", ending in Send
+requirements. No project name or timeline is asked — someone pressing Contact came to reach
+a firm, so the project is named for them (`projectName`). The company answers
+are saved with `narrow: false`, so the partner listing behind the dialog keeps
+its filters; Settings saves the same way.
 
-The FIELDS are shared, not copied (`CompanyQuestions`), because two forms free
-to disagree about what "company details" means is the failure the merge would
-otherwise have introduced. Every other errand — saving a partner, booking a pack
-— still meets the standalone dialog: neither has a third step to put the
-questions in front of.
+**With a project, a complete brief is read-only; an incomplete one is asked for
+inline.** The
+budget and "What do you want built?" — the same fields, labels and live hint as
+the recommendation's custom half — and saved to the project on send, so the next
+firm is not asked again. A brief that has already gone to anyone is read from
+the sent copy (`briefOf`), so a firm contacted later reads what the first ones
+read. Manage is beside it for changing it.
 
-**The wizard appears only when the account owes us the answers**, which is
-`store.company.name` being empty and nothing else. (Not `viewer.company`: that
-carries a name from boot, so it would say yes for an account that has answered
-nothing.) The demo's signed-in personas are seeded with company details for the
-same reason — they are meant to read as accounts that finished onboarding.
-
-⚠️ **Sealed while the wizard runs**: no ×, no click-away, no Escape, for the
-reason the company dialog has never had one — Frappe assigns the partner off
-those answers. Which does mean steps 1 and 2 have no way out at all. Deliberate,
-and the first thing to revisit if it bites.
-
-**Three segments, from `Progress`** with `intervals` — not a hand-rolled bar. No
-visible label: the prop renders one, the design doesn't carry it, and the
-sentence under the bar already says which step this is.
-
-**Step 3 ends two ways, and neither is a cancel.** Send the requirements, or
-"Save without sending" — which makes the same project with no thread and no
-message, for someone who has worked out what they want but not who should build
-it. It is the honest alternative to a button that throws the work away.
-
-**Two shapes, decided by `inquiryProjects`.** No project: the questions
-("First, define your project requirements"). One or more: the summary ("Contact
-Tridots Tech") with the requirements read-only and a picker defaulting to the
-newest — the one you were last thinking about. The picker appears only when
-there is a choice; with one project its name is a line of text.
-
-**Custom and undecided projects only.** A pack and a guided onboarding are
-bought as a published fixed scope — there is no estimate for a partner to
-calculate, and asking "which modules?" about a pack contradicts the pack. An
-account whose only projects are packs reads as an account with none.
-
-**The modules question is only asked where there is a catalogue.** ERPNext and
-Helpdesk break into modules; the other nine apps don't, so an inquiry about
-Drive alone is one question — the app IS the requirement. A required field with
-nothing in its menu is a dead end dressed as a question. Which apps qualify is
-read off `MODULES`, never listed, because the catalogue has already gained and
-lost apps once.
-
-**Read-only, with the way out beside it.** Scope is priced into estimates and
-tracked against stages, so editing it belongs on the project. A Manage link is
-what stops that being a dead end.
-
-**The project's name is a ROW of that list, not a field above it.** It used to be
-a label-over-value pair with a Manage button beside it, which made the one fact
-that is plain text look like a control someone had disabled — three facts about
-the project, one of them in a different shape for no reason a reader could name.
-Manage became an icon revealed on hovering the name (`group` + `opacity`, never
-`v-if`, so it keeps its space and stays in the tab order). With more than one
-project the picker is a real control, so it sits above the list and keeps its
-Manage visible — a control that hides beside another control reads as part of
-it.
+**Custom and undecided projects only.** A pack is bought as a published fixed
+scope — there is no estimate for a partner to calculate. An account whose only
+projects are packs reads as an account with none.
 
 **Sending stays where it is.** A toast confirms, with `View` into the thread.
-Contact used to mean "open the thread" because there was nothing to send;
-someone comparing three firms sends the same requirements to all three, and
-being thrown into a conversation after each one makes that three trips back to
-the listing.
+Someone comparing three firms sends the same requirements to all three, and
+being thrown into a conversation after each one makes that three trips back.
 
-**Two toasts on the create path, in sequence.** The project first — it is the
-half nobody asked for, and it carries the derived NAME, which is what they will
-look for in Implementation later — then the inquiry. One toast only when an
-existing project was picked: announcing a creation there would be the app taking
-credit for a row that has been sitting there a week.
-
-⚠️ **Sequenced, not simultaneous, and that is the toaster's doing.**
-`ToastProvider` runs `expand: false`, and frappe-ui's own stylesheet fades every
-non-front toast to `opacity: 0` in the collapsed stack. Two toasts in one tick
-are therefore one readable toast with an invisible one behind it, whichever
-order they go out in. So they take turns: the project holds the front for 1.4s,
-then the inquiry replaces it. Nothing the reader is waiting on is delayed — the
-dialog has already closed.
-
-**Already talking → straight to the thread.** A partner you have already sent
-requirements to (or booked with) gets no dialog: it would collect nothing that
-isn't in the conversation behind it. Same for the project page's own Message
-button, which is `messagePartner` rather than `contactPartner` — that firm is
+**Already sent → straight to the thread.** A partner that has the brief (by
+broadcast or by Contact) or a booking's company card gets no dialog. Same for the
+project page's own Message button, which is `messagePartner` — that firm is
 already building the thing.
 
-**The estimate modal hands its ticks across.** Contact closes the panel and
-prefills the inquiry with the modules still ticked, rather than stacking a
-second modal and asking again.
+**The company is inside the card, not a line of its own.** Where the company goes
+out with the requirements (a direct contact, a pack booking), the requirements
+card's View details lists Company name first and the thread draws no separate
+"Company details shared" line — that wording read like a data-sharing alert.
+Only a broadcast keeps a line ("Northwind · shared"), because there the company
+goes out later, when a reply is marked Interested, and that moment needs a mark.
 
-**Requirements land in the thread as a snapshot**, not a live view of the
-project. Scope keeps moving; what the partner quoted against has to stay on the
-screen.
+**The thread is not a broadcast thread.** No `broadcast` mark, so it is never
+folded into a broadcast group and gets no broadcast status.
 
 ⚠️ **Project visibility is deliberately absent.** The public/private choice and
-the partner-side job board are a later pass; nothing on these two screens
-mentions either, so no copy here promises a control that does not exist.
+the partner-side job board are a later pass; nothing here mentions either.
 
 ## The project tracker
 
@@ -2332,33 +2275,41 @@ not. That's the inset doing its job, not a misalignment.
 
 ## The listing row's industry line
 
-One line, always. `6 success stories across Textile Manufacturing, Retail, Healthcare, and
-4 more`. Wrapping to two lines made rows uneven heights and pushed the whole list taller
-than it needs to be.
+**Stories only when they are in your industry.** The line has two forms, and
+each row gets the one that is true for it:
 
-**Two spans, not one string**, and that's what makes the single line survivable: the named
-industries carry `min-w-0 truncate` and are the part allowed to give way, while the tail is
-`shrink-0` and stays readable at any width. (`min-w-0` is load-bearing — a flex item
-defaults to `min-width:auto` and refuses to shrink below its own text, so `truncate` has
-nothing to do without it.)
+- **A story matches** — "2 success stories in Discrete Manufacturing", counted
+  and named from the stories themselves (`storiesFor`, the labels the profile's
+  Success stories section uses).
+- **None matches** — "Works across Textile Manufacturing, Retail, Healthcare,
+  and 4 more", the partner's own industries.
 
-**The tail is part of the sentence, not a chip.** It reads "and 4 more", with the joining
-comma parked at the end of the LEAD so it disappears along with the names it belongs to
-when the line truncates. It used to be `+4 more`, which read as a badge stuck on the row —
-and a badge sitting right after an ellipsis invites the reading that it's counting whatever
-just got clipped. It never was: the count is `industries.length - 3`, the span renders only
-when that's non-zero, and it's the same figure whether or not the text happens to fit at
-this width. Saying it in words is what makes that legible.
+"Your industry" is the listing's industry filter when one is set, and the
+account's own otherwise; with neither, every row says "Works across".
 
-**No count when there's nothing more.** Six of the thirteen partners name three industries
-or fewer and their line simply ends.
+It used to be "N success stories across" the partner's full directory tags, for
+every partner with a story. That measured how much a firm had written up rather
+than whether it had done work like yours, and it put two unrelated facts in one
+sentence: "1 success story across Discrete Manufacturing, Real Estate, Rental
+Business" claimed one story in three industries. The profile keeps its count —
+there it sits over the stories it counts.
 
-**The lead is conditional on stories.** Two partners have published none, so it can't
-always open with a count: "0 success stories across Retail" reads as a failure rather than
-as "here's what they work in", which is the line's actual job. Those get "Works across …".
-One story takes the singular.
+**One line, always**, and still two spans: the named industries carry
+`min-w-0 truncate` and give way, while "and 4 more" is `shrink-0` and stays
+readable. The joining comma sits at the end of the lead so it disappears with
+the names it belongs to. No count when there is nothing more.
 
 ## The listing row's hover state
+
+**Built on frappe-ui's `List`** (`PartnerList` holding `PartnerRow`s), in the
+static-row shape its docs give for rows with their own buttons: the row is not a
+link, the name's stretched link is. The geometry below is unchanged by the switch
+and was measured against the hand-built version: same 744px row, same 152px
+pitch, same content offsets. List now draws the divider (above each row but the
+first, at the content's width, instead of below each row but the last), and
+`.fc-list-partner` in `index.css` restores the hover rule List only applies to
+interactive rows. The two-box and `:has(+ …)` description below is how the
+hand-built row did the same; `ProjectRow` still uses it.
 
 **A fill, not an underline.** Hovering a row fills it (`surface-gray-1`, 8px radius); the
 name carries no underline any more.
@@ -2563,8 +2514,17 @@ collapsing only below `sm` — it now stays collapsed at every width until the
 visitor opens it. The quiz and the map are the point of the screen, and an
 expanded rail eats width the map wants.
 
-The results list caps at **800px** — a partner row stretched to the full measure
-puts too much air between the name and the Contact button.
+**Inside the app, page widths are content widths**, with the padding outside them
+(`.fc-page-read`, `.fc-page-list` in `index.css`), the way Gameplan defines its
+reading column. They used to be an 800px box whose padding grew at `lg`, so the
+content was 760px on a mid-size window and 720px on a large one — widening the
+window made every page narrower.
+
+- **720px for pages read top to bottom** — a partner profile, a pack, the home
+  screen. Gameplan's discussion column is the same.
+- **800px for lists scanned across a row** — partners, saved partners, projects.
+  Frappe's list pages run wider still (Gameplan ~900, Helpdesk ~856), but a
+  partner row stretched further puts too much air between the name and Contact.
 
 **The chip counts are plain text, not a `Badge`.** A Badge can't sit inside a
 selected chip: frappe-ui's solid gray `Button` and solid gray `Badge` both

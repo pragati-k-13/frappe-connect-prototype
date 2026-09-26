@@ -44,7 +44,7 @@ const partners = computed(() =>
 
 <template>
   <ConnectShell root-label="Projects" root-to="/connect/projects" crumb="Requirements sent">
-    <div class="mx-auto w-full max-w-[800px] px-5 py-10 lg:px-10">
+    <div class="fc-page-read py-10">
       <!-- No project behind the link: a reload after the store was cleared, or
            a forwarded URL. The list is the honest destination. -->
       <div v-if="!project" class="py-20 text-center">

@@ -202,12 +202,16 @@ export const modulesFor = (app, selectedKeys) =>
 // vocabulary rather than a device. Naming six modules is what a comma is for.
 //
 // Empty string when nothing is picked, which every caller treats as "no row":
-// a scope line reading "None." is a claim the project never made.
+// a scope line reading "None" is a claim the project never made.
+//
+// ⚠️ NO FULL STOP. Every caller prints this as the value of a labelled row,
+// beside values that end in nothing, so a trailing stop was the one row that
+// read as a sentence.
 export const scopeSentence = (modules) => {
   const names = Object.entries(modules ?? {})
     .flatMap(([app, keys]) => modulesFor(app, keys))
     .map((m) => m.label)
   if (!names.length) return ''
-  if (names.length === 1) return `${names[0]}.`
-  return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}.`
+  if (names.length === 1) return names[0]
+  return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
 }

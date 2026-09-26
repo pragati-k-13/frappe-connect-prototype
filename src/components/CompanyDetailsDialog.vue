@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import { Button, Dialog, toast } from 'frappe-ui'
 import IconExternal from '~icons/lucide/arrow-up-right'
-import { appsInUse, operationsLabel, problemLabels } from '../data/company'
 import { useConnectStore } from '../stores/connect'
 
 // What the partner received, shown back to the sender. READ ONLY, deliberately:
@@ -24,18 +23,10 @@ const store = useConnectStore()
 // company for a demo viewer who never filled that form in, and says nothing
 // rather than inventing an answer for the fields that follow.
 //
-// ⚠️ Every answer is rendered through its LABEL, never its stored value. The
-// last three are chosen options — the store keeps `'disconnected'` and
-// `['close', 'visibility']` because that is what a matcher filters on — and
-// printing them straight put the word "disconnected", and a literal JSON array,
-// in front of a customer on the one screen whose job is to show them what their
-// partner received.
-//
-// Apps are two answers in one row. "Something else" is replaced by the name they
-// gave for it rather than listed beside it — "Something else, a system built
-// in-house" reads as two systems when it is one, and the whole point of the
-// follow-up field was to stop that option from staying anonymous. It stays as-is
-// when they picked it and named nothing.
+// ⚠️ WHO THE COMPANY IS, AND NOTHING ELSE. How it runs today, the systems it
+// uses and what it wants fixed were listed here too, but those describe the
+// project rather than the company — and a partner contacted directly already
+// has them in the brief (`sharedAnswers`), so the row list said them twice.
 const rows = computed(() => {
   const c = store.company
   if (props.withRequirements) {
@@ -49,9 +40,6 @@ const rows = computed(() => {
     { label: 'Company name', value: c.name || store.viewer.company },
     { label: 'Industry', value: c.segments?.join(', ') },
     { label: 'No. of employees', value: c.employees },
-    { label: 'Current operations', value: operationsLabel(c.operations) },
-    { label: 'Apps in use', value: appsInUse(c).join(', ') },
-    { label: 'Problems to solve', value: problemLabels(c.problems).join(', ') },
   ]
 })
 
@@ -88,13 +76,6 @@ const openSettings = () =>
         </div>
       </dl>
 
-      <p class="mt-5 text-p-sm text-ink-gray-5">
-        {{
-          withRequirements
-            ? 'Shared when you said you were interested. Everything else went with your requirements.'
-            : 'These details are shared with the partner.'
-        }}
-      </p>
     </template>
 
     <template #actions>

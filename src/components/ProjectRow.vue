@@ -98,10 +98,14 @@ const created = computed(() => {
 </script>
 
 <template>
-  <!-- One row inside a border: mark, title over facts, date. -->
+  <!-- A card for a grid, half the listing's width: mark, title, facts, and
+       the date last. The listing row's one-line anatomy put the date beside
+       the title, which at this width left the name a few words before it
+       truncated. `mt-auto` on the date pins it to the foot, so two cards of
+       different heights still end on one line. -->
   <article
     v-if="card"
-    class="relative flex items-start gap-3 rounded-6 border border-outline-gray-1 p-4 transition-colors hover:border-outline-gray-2"
+    class="relative flex flex-col rounded-6 border border-outline-gray-1 p-4 transition-[border-color,box-shadow] hover:border-transparent hover:shadow-sm"
   >
     <span
       class="grid size-10 shrink-0 place-items-center rounded-4 bg-surface-gray-2 text-ink-gray-5"
@@ -111,40 +115,39 @@ const created = computed(() => {
     >
       <component :is="mark" class="size-4" />
     </span>
-    <div class="min-w-0 flex-1">
-      <!-- The whole card is the link, by the same stretched-anchor idiom as
-           the row below. -->
-      <h3 class="truncate text-lg font-medium text-ink-gray-7">
-        <RouterLink
-          :to="`/connect/projects/${project.id}`"
-          class="after:absolute after:inset-0 after:content-['']"
-        >
-          {{ project.name }}
-        </RouterLink>
-      </h3>
-      <p
-        class="mt-1 flex flex-wrap items-center text-p-sm text-ink-gray-6"
-        :class="choosing ? 'gap-x-4' : 'gap-x-1.5'"
+    <!-- The whole card is the link, by the same stretched-anchor idiom as the
+         row below. Two lines before it clips, since the name now has the
+         card's width to itself. -->
+    <h3 class="mt-3 line-clamp-2 text-lg font-medium text-ink-gray-7">
+      <RouterLink
+        :to="`/connect/projects/${project.id}`"
+        class="after:absolute after:inset-0 after:content-['']"
       >
-        <template v-for="(fact, i) in facts" :key="fact.text">
-          <span v-if="i && !choosing" class="text-ink-gray-4" aria-hidden="true">·</span>
-          <span class="flex items-center" :class="fact.icon ? 'gap-1' : 'gap-1.5'">
-            <component :is="fact.icon" v-if="fact.icon" class="size-3.5 shrink-0 text-ink-gray-6" />
-            <Avatar
-              v-else-if="fact.logo"
-              :image="fact.logo"
-              label=""
-              size="xs"
-              shape="square"
-              class="fc-logo-avatar !p-0"
-            />
-            {{ fact.text }}
-          </span>
-        </template>
-      </p>
-    </div>
+        {{ project.name }}
+      </RouterLink>
+    </h3>
+    <p
+      class="mt-1 flex flex-wrap items-center gap-y-1 text-p-sm text-ink-gray-6"
+      :class="choosing ? 'gap-x-4' : 'gap-x-1.5'"
+    >
+      <template v-for="(fact, i) in facts" :key="fact.text">
+        <span v-if="i && !choosing" class="text-ink-gray-4" aria-hidden="true">·</span>
+        <span class="flex items-center" :class="fact.icon ? 'gap-1' : 'gap-1.5'">
+          <component :is="fact.icon" v-if="fact.icon" class="size-3.5 shrink-0 text-ink-gray-6" />
+          <Avatar
+            v-else-if="fact.logo"
+            :image="fact.logo"
+            label=""
+            size="xs"
+            shape="square"
+            class="fc-logo-avatar !p-0"
+          />
+          {{ fact.text }}
+        </span>
+      </template>
+    </p>
     <time
-      class="shrink-0 text-sm text-ink-gray-5"
+      class="mt-auto pt-3 text-sm text-ink-gray-5"
       :datetime="new Date(project.at).toISOString()"
       :title="`Created ${created.full}`"
     >
