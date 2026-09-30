@@ -46,10 +46,11 @@ export function useContactPartner() {
       store.openInquiry(partner.id, prefill)
     })
 
-  // The project page's Message: the firm already building this project.
+  // The project page's Message: whoever is already building this project — the
+  // partner hired for custom work, or `FRAPPE_TEAM` on a Starter Pack.
   //
   // ⚠️ NOT gated, and that is not an oversight. You are on a project's own page
-  // with a partner assigned to it — the requirements are the thing the page is
+  // with somebody already doing the work — the requirements are the thing the page is
   // about, and a pack has a published fixed scope rather
   // than requirements a partner estimates. Asking "which modules are you
   // interested in?" of someone whose implementation is at kickoff is the

@@ -37,6 +37,9 @@ const props = defineProps({
   // bottom of the viewport. `COMPANY_STEPS` is the count; the callers read it
   // rather than hard-coding 3.
   step: { type: Number, required: true },
+  // Off where the page asks where PARTNERS are instead (the contact quiz's
+  // region chips); the country is then kept from the account or inferred.
+  askCountry: { type: Boolean, default: true },
   form: { type: Object, required: true },
   // Already gated on "have they pressed the button yet" by the parent, which
   // owns that decision because it owns the button.
@@ -81,6 +84,7 @@ const toggleProblem = (value, on) => {
          because "where can my partner be?" is a constraint; this asks where the
          business IS, which has one answer and decides the currency. -->
     <Combobox
+      v-if="askCountry"
       v-model="form.country"
       label="Where is your business based?"
       placeholder="Select a country"

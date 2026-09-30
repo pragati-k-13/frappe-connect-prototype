@@ -111,17 +111,18 @@ const industryLine = computed(() => {
        controls are invalid). The whole-row target is the name's stretched link
        instead, the pattern frappe-ui's List docs give for rows with actions.
 
-       What the List owns: the grid, the 12px inset, and the divider — above
-       each row but the first, at the content's width, in `outline-gray-1`.
-       What this row adds back for a static row: the hover fill, its radius,
-       and (in `index.css`) hiding the two dividers touching a hovered row,
-       which List only does for interactive rows.
+       What the List owns: the grid and the divider — above each row but the
+       first, at the content's width, in `outline-gray-1`.
+       What this row adds back, because frappe-ui gives it only to INTERACTIVE
+       rows: the 12px inset (see `index.css` — without it the content sat flush
+       against the hover fill), the fill itself at frappe-ui's own radius and
+       breakpoint, and hiding the two dividers touching a hovered row.
 
        ⚠️ One px more padding below than above. The divider is a 0-height
        overlay where the old one was a 1px border inside the row, so without
        it every row is a pixel shorter than before. -->
   <ListRow
-    class="fc-list-partner rounded-4 hover:bg-surface-gray-1"
+    class="fc-list-partner sm:rounded-[10px] sm:hover:bg-surface-gray-1"
     :class="compact ? 'pb-[21px] pt-5' : 'pb-[29px] pt-7'"
   >
     <ListCell class="self-stretch">

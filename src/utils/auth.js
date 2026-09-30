@@ -1,4 +1,6 @@
+import { onMounted } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { toast } from 'frappe-ui'
 import { useConnectStore } from '../stores/connect'
 
 // Everything the auth screens and the controls they gate have in common.
@@ -79,6 +81,41 @@ const AUTH_ROUTES = new Set(['login', 'signup', 'login-verify', 'signup-verify',
 // ⚠️ Relative paths only. An absolute URL in a query parameter is how a sign-in
 // page becomes an open redirect, and these are linked from a public marketing
 // page.
+// The one line an auth screen adds when it has interrupted something — the
+// contact quiz, gated just before its details dialog, and the pack checkout,
+// gated before payment. Each promises only what is true: what was picked is
+// kept and the visitor comes back to it. Nothing has been sent or paid, so
+// neither says anything will be.
+export const RESUME_LINE = 'Your answers are saved. You’ll pick up where you left off once you’re in.'
+export const CHECKOUT_RESUME_LINE = 'Your packs are saved.'
+export const resumeLineFor = (route) => {
+  const next = nextFrom(route)
+  if (next.startsWith('/connect/partners/contact')) return RESUME_LINE
+  if (next.includes(`${BASKET_RETURN}=1`) || next.startsWith('/connect/checkout'))
+    return CHECKOUT_RESUME_LINE
+  return null
+}
+
+// ⚠️ THE CHECKOUT GATE RETURNS TO THE BASKET, not to the payment page. Going
+// straight to payment after verifying made the payment page arrive as a side
+// effect of confirming an email; back on the basket, signed in with the packs
+// still ticked, the visitor presses Check out themselves and the payment page
+// follows a click that means "pay". The flag marks the return so the page can
+// say they are signed in, then is dropped.
+export const BASKET_RETURN = 'basket'
+export const basketReturnTo = (path) => `${path}?${BASKET_RETURN}=1`
+export function useBasketReturn() {
+  const route = useRoute()
+  const router = useRouter()
+  const store = useConnectStore()
+  onMounted(() => {
+    if (!route.query[BASKET_RETURN]) return
+    const { [BASKET_RETURN]: _, ...query } = route.query
+    router.replace({ query })
+    if (store.signedIn) toast.success('You’re signed in', { description: 'Your packs are saved.' })
+  })
+}
+
 export function nextFrom(route) {
   const to = route.query.next
   return typeof to === 'string' && to.startsWith('/') && !to.startsWith('//') ? to : '/connect'

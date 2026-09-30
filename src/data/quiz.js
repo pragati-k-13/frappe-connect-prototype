@@ -109,13 +109,11 @@ export const INDUSTRIES = [
 // partner simply reads 0; that is most of them, since only 13 partners are
 // seeded against a directory of 155.
 export const REGIONS = [
-  // "Asia", not the directory's "Asia Pacific", which is what this row now
-  // covers country for country. The short form is the one the label set can
-  // afford: it's read in a row of five where "Middle East" already sets the
-  // width, and in a 160px filter trigger.
+  // "Asia Pacific", the directory's own name, since this row covers Australia
+  // as well as Asia country for country.
   {
     value: 'asia',
-    label: 'Asia',
+    label: 'Asia Pacific',
     count: 90,
     countries: [
       'Australia',

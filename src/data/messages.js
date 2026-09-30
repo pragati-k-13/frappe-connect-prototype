@@ -1,4 +1,4 @@
-import { PARTNERS } from './partners'
+import { FRAPPE_TEAM, PARTNERS } from './partners'
 
 // The messages screen's data: what a thread is, when one counts as active, and
 // the ways threads come into existence.
@@ -80,6 +80,9 @@ const TEAMS = {
   'Kingstech Services': ['Wei Ling Tan'],
   Navari: ['Wanjiru Kamau', 'Brian Otieno'],
   Korecent: ['Dana Whitfield', 'Marcus Ellery', 'Priya Anand'],
+  // ⚠️ Invented like the rest, and on Frappe's side: whoever answers a Starter
+  // Pack thread, now that Frappe implements packs itself. Not a real employee.
+  [FRAPPE_TEAM.name]: ['Kavya Iyer'],
 }
 
 // Falls back to the firm's own name, so a partner with no rep listed still
@@ -244,14 +247,14 @@ export const contactThread = (partner, brief = null, body = '') => {
 }
 
 // ⚠️ SENT ON THE CUSTOMER'S BEHALF, before they have typed anything. A pack is
-// paid for and a partner is assigned in the same instant, and the thing that
-// makes that assignment useful rather than administrative is that the partner
-// already knows who they have been given and what they bought. So the thread
-// exists before the customer opens it, with a sentence and the answers they
-// gave the intake.
+// paid for and handed to Frappe's own team in the same instant — Frappe
+// implements Starter Packs itself, no partner is assigned — and the thing that
+// makes that useful rather than administrative is that the team already knows
+// who bought and what. So the thread exists before the customer opens it, with
+// a sentence and the answers they gave the intake.
 //
 // The customer sees exactly what went out — it is in their own thread, from
-// them — which is the only version of "we messaged them for you" that isn't a
+// them — which is the only version of "we sent them your details" that isn't a
 // thing done behind someone's back.
 //
 // `packs` is a LIST. The basket is normally more than one now, and "a Accounts,
@@ -264,22 +267,34 @@ export const contactThread = (partner, brief = null, body = '') => {
 // carries what they bought and the answers they gave (industry, size, how they
 // run today, what they want fixed), snapshotted like a brief. The company line
 // after it is who they are; this is what the work is. See `packBrief`.
-export const bookingThread = ({ partner, packs, brief = null }) => {
-  const at = Date.now()
-  const names = [packs].flat().map((p) => p.name)
+//
+// ⚠️ ONE THREAD WITH FRAPPE, however many bookings. A second booking adds
+// these messages to it (`bookingMessages`) rather than opening a twin — see
+// `startBooking`.
+
+// The greeting, in one place: the thread opens with it and the confirmation
+// screen quotes it back.
+export const bookingGreeting = (packs) => {
+  const names = [packs].flat().map((p) => (typeof p === 'string' ? p : p.name))
   const list =
     names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : (names[0] ?? '')
+  return `Hi — we have just bought the ${list} ${names.length > 1 ? 'Starter Packs' : 'Starter Pack'}. Here is where we are today.`
+}
+
+export const bookingMessages = ({ packs, brief = null, at = Date.now() }) => [
+  msg('you', at, { body: bookingGreeting(packs) }),
+  ...(brief ? [{ id: `m${++seq}`, from: 'you', at, kind: 'packs', brief }] : []),
+  { id: `m${++seq}`, from: 'you', at, kind: 'company' },
+]
+
+// To whoever implements the packs: Frappe, or the partner assigned at payment.
+export const bookingThread = ({ packs, brief = null, partner = FRAPPE_TEAM }) => {
+  const at = Date.now()
   return {
     id: partner.id,
     partnerId: partner.id,
     startedAt: at,
-    messages: [
-      msg('you', at, {
-        body: `Hi — we have just bought the ${list} ${names.length > 1 ? 'Starter Packs' : 'Starter Pack'} and Frappe has assigned you to us. Here is where we are today.`,
-      }),
-      ...(brief ? [{ id: `m${++seq}`, from: 'you', at, kind: 'packs', brief }] : []),
-      { id: `m${++seq}`, from: 'you', at, kind: 'company' },
-    ],
+    messages: bookingMessages({ packs, brief, at }),
   }
 }
 

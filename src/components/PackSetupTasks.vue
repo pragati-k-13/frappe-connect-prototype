@@ -7,7 +7,7 @@ import {
   AccordionRoot,
   AccordionTrigger,
 } from 'reka-ui'
-import { Button, TextInput } from 'frappe-ui'
+import { Badge, Button, TextInput } from 'frappe-ui'
 import IconCheck from '~icons/lucide/check'
 import IconCircleDashed from '~icons/lucide/circle-dashed'
 import IconChevronDown from '~icons/lucide/chevron-down'
@@ -29,7 +29,13 @@ import { isTaskDone } from '../data/project'
 const props = defineProps({
   tasks: { type: Array, required: true },
   project: { type: Object, required: true },
+  // The payment task's line, with the amount and date, in place of its hint.
+  receipt: { type: String, default: null },
+  // Who implements — Frappe or the assigned partner — named in the hints that
+  // are written as functions of it.
+  implementer: { type: String, default: 'Frappe' },
 })
+const hintOf = (t) => (typeof t.hint === 'function' ? t.hint(props.implementer) : t.hint)
 const emit = defineEmits(['act', 'share-url'])
 
 const isDone = (t) => isTaskDone(t, props.project)
@@ -41,6 +47,16 @@ const currentKey = computed(() => props.tasks[currentIndex.value]?.key)
 // Follows the task in hand: finishing one opens the next.
 const open = ref(currentKey.value)
 watch(currentKey, (key) => (open.value = key))
+
+// The requested kickoff, short enough for a badge: "Wed 30 Sep, 10:30".
+const kickoffLabel = computed(() => {
+  const at = props.project.kickoffAt
+  if (typeof at !== 'number') return null
+  const d = new Date(at)
+  const part = (o) => d.toLocaleDateString('en-US', o)
+  const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  return `${part({ weekday: 'short' })} ${d.getDate()} ${part({ month: 'short' })}, ${time}`
+})
 
 const url = ref(props.project.siteUrl ?? '')
 const share = () => {
@@ -70,11 +86,22 @@ const share = () => {
                already says which task is in hand. -->
           <IconCircleDashed v-else class="mt-0.5 size-4 shrink-0 text-ink-gray-5" aria-hidden="true" />
 
-          <span
-            class="min-w-0 flex-1 text-base font-medium leading-5"
-            :class="isDone(t) ? 'text-ink-gray-5 line-through' : 'text-ink-gray-7'"
-          >
-            {{ t.label }}
+          <!-- The name and, for the kickoff, the time it was requested for. The
+               badge sits outside the strike-through: the date is still live. -->
+          <span class="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+            <span
+              class="text-base font-medium leading-5"
+              :class="isDone(t) ? 'text-ink-gray-5 line-through' : 'text-ink-gray-7'"
+            >
+              {{ t.label }}
+            </span>
+            <Badge
+              v-if="t.action === 'kickoff' && kickoffLabel"
+              variant="subtle"
+              theme="gray"
+              size="sm"
+              :label="kickoffLabel"
+            />
           </span>
 
           <IconChevronDown
@@ -88,7 +115,9 @@ const share = () => {
         <!-- `pl-[26px]` is the mark's 16px plus its 10px gap, so the body sits
              under the title rather than under the mark. -->
         <div class="pb-5 pl-[26px]">
-          <p class="text-p-base text-ink-gray-6">{{ t.hint }}</p>
+          <p class="text-p-base text-ink-gray-6">
+            {{ t.action === 'invoice' && receipt ? receipt : hintOf(t) }}
+          </p>
 
           <template v-if="!isDone(t) && t.cta">
             <form
@@ -129,6 +158,22 @@ const share = () => {
             class="mt-3"
             variant="subtle"
             label="View terms"
+            @click="emit('act', t)"
+          />
+          <!-- The invoice stays here for good, where it is looked for later. -->
+          <Button
+            v-else-if="isDone(t) && t.action === 'invoice'"
+            class="mt-3"
+            variant="subtle"
+            label="Download invoice"
+            @click="emit('act', t)"
+          />
+          <!-- A booked call can still move. -->
+          <Button
+            v-else-if="isDone(t) && t.action === 'kickoff'"
+            class="mt-3"
+            variant="subtle"
+            label="Reschedule"
             @click="emit('act', t)"
           />
           <p v-else-if="isDone(t) && t.action === 'site-url' && project.siteUrl" class="mt-1 text-p-base text-ink-gray-8">

@@ -16,7 +16,7 @@
 // yet, somewhere in this order of magnitude".
 import { PARTNERS, cityOf } from './partners'
 import { marketFor } from './packs'
-import { GROUP_OF_SEGMENT, INDUSTRIES, REGION_OF, REGIONS } from './quiz'
+import { GEO_CHOICES, GROUP_OF_SEGMENT, INDUSTRIES, REGION_OF, REGIONS } from './quiz'
 
 // ── Budget ──────────────────────────────────────────────────────────────────
 // ⚠️ EVERY FIGURE HERE IS INVENTED. Frappe publishes no guidance on what a
@@ -80,14 +80,17 @@ export const matchesWorkStyle = (partner, want) =>
 // against until the partner side is asked when they are free. See the note on
 // `matchingPartners`.
 export const TIMELINES = [
-  { value: 'now', label: 'Ready to start now' },
-  { value: 'quarter', label: 'Within three months' },
-  { value: 'half', label: 'Within six months' },
-  { value: 'none', label: 'No specific timelines' },
+  // ⚠️ WHEN IT GOES LIVE, NOT WHEN IT STARTS. A start date tells a partner when
+  // they could begin; a go-live date is what the business is actually held to,
+  // and what a partner has to plan the work back from.
+  { value: 'now', label: 'As soon as possible' },
+  { value: 'quarter', label: 'Live within three months' },
+  { value: 'half', label: 'Live within six months' },
+  { value: 'none', label: 'No fixed deadline' },
 ]
 
 export const timelineLabel = (value) =>
-  TIMELINES.find((t) => t.value === value)?.label ?? 'No specific timelines'
+  TIMELINES.find((t) => t.value === value)?.label ?? 'No fixed deadline'
 
 export const TIERS = [
   { value: 'gold', label: 'Gold' },
@@ -116,7 +119,23 @@ export const emptyBrief = () => ({
   tiers: [],
   workStyle: '',
   timeline: '',
+  // Where the partners may be — the contact quiz's region chips, one geo
+  // dimension at two granularities (see `GEO_CHOICES`): India as a country,
+  // the rest as regions. Both empty means "near the business", read off its
+  // country as before — unless `geoAsked`, set by the quiz that asks the chips,
+  // where none picked means anywhere.
+  regions: [],
+  countries: [],
+  geoAsked: false,
 })
+
+// Is a partner inside the chips the brief picked? `null` when none are picked,
+// so the caller falls back to the business's own region — or to no constraint
+// at all where the chips were asked and left empty (`anywhere`).
+const geoPicked = (brief) => (brief?.regions?.length || brief?.countries?.length ? brief : null)
+const anywhere = (brief) => Boolean(brief?.geoAsked) && !geoPicked(brief)
+const inGeo = (p, brief) =>
+  brief.regions.includes(p.region) || p.countries.some((c) => brief.countries.includes(c))
 
 // ── The criteria, as sentences ──────────────────────────────────────────────
 // ⚠️ ONE BUILDER, TWO READERS, AND THEY ARE ON OPPOSITE SIDES. The
@@ -132,6 +151,12 @@ export const criteriaLines = (company, brief) => {
   const region = REGIONS.find((r) => r.value === REGION_OF[company?.country])
   const group = INDUSTRIES.find((i) => i.value === GROUP_OF_SEGMENT[company?.segments?.[0]])
   const cities = brief?.cities ?? []
+  const geo = geoPicked(brief)
+  const geoLabels = geo
+    ? GEO_CHOICES.filter((c) =>
+        c.country ? geo.countries.includes(c.country) : geo.regions.includes(c.region),
+      ).map((c) => c.label)
+    : []
   const tiers = brief?.tiers ?? []
   const tierLabels = TIERS.filter((t) => tiers.includes(t.value)).map((t) => t.label)
   const style = WORK_STYLES.find((w) => w.value === brief?.workStyle)
@@ -140,7 +165,11 @@ export const criteriaLines = (company, brief) => {
       icon: 'map-pin',
       text: cities.length
         ? `Based in ${listOf(cities)}`
-        : `Based anywhere in ${region?.label ?? 'your region'}`,
+        : geoLabels.length
+          ? `Based in ${listOf(geoLabels)}`
+          : anywhere(brief)
+            ? 'Based anywhere'
+            : `Based anywhere in ${region?.label ?? 'your region'}`,
     },
     {
       icon: 'briefcase',
@@ -165,9 +194,19 @@ export const criteriaSentence = (company, brief) => {
   const group = INDUSTRIES.find((i) => i.value === GROUP_OF_SEGMENT[company?.segments?.[0]])
   const cities = brief?.cities ?? []
   const tiers = TIERS.filter((t) => (brief?.tiers ?? []).includes(t.value)).map((t) => t.label)
+  const geo = geoPicked(brief)
+  const geoLabels = geo
+    ? GEO_CHOICES.filter((c) =>
+        c.country ? geo.countries.includes(c.country) : geo.regions.includes(c.region),
+      ).map((c) => c.label)
+    : []
   const where = cities.length
     ? `based in ${listOf(cities)}`
-    : `based anywhere in ${region?.label ?? 'your region'}`
+    : geoLabels.length
+      ? `based in ${listOf(geoLabels)}`
+      : anywhere(brief)
+        ? 'based anywhere'
+        : `based anywhere in ${region?.label ?? 'your region'}`
   const what = group ? `offers services for ${group.label}` : 'works in any industry'
   const tier = tiers.length ? `${listOf(tiers)} tier` : 'Any tier'
   const style =
@@ -333,20 +372,13 @@ export const scopeHint = (raw) => {
 // ONE function, because a number that doesn't match what happens next is the
 // single most damaging thing this screen could print.
 //
-// ⚠️ THE BUDGET DOES NOT NARROW THIS, and it should. It is the one structured
-// answer the brief collects and the only one this function ignores, so the
-// count never moves when the band does. Partners are not interchangeable at
-// every deal size — some run volume on small customers, some open nothing below
-// an enterprise floor — and a brief sent to a firm that was never going to
-// quote it wastes both sides.
-//
-// It is not fixed here because there is nothing on a partner to match against:
-// `region`, `industries`, `city` and `tier` are real, `workStyle` is already
-// invented, and a second fabricated attribute able to delete firms from a
-// number this button promises to message would be worse than the no-op. It
-// needs the partner side to ask the question first. See "The budget is
-// collected and then dropped" in DESIGN-NOTES.md for what to ask and what
-// changes here afterwards.
+// ⚠️ THE BUDGET NARROWS THIS, against an INVENTED floor. Partners are not
+// interchangeable at every deal size, and a brief sent to a firm that was never
+// going to quote it wastes both sides — so a band below a firm's `minBand` drops
+// it, and the lower the budget the fewer firms it reaches. The floor is made up
+// (see `data/partners.js`) until the partner side asks; "Not decided yet"
+// constrains nothing. See "The budget and
+// who receives it" in DESIGN-NOTES.md.
 //
 // ⚠️ THE BASE IS REGION AND INDUSTRY, not country. Thirteen seed partners
 // across six regions means a country test would return one firm for most of the
@@ -366,16 +398,28 @@ const groupsOf = (segments) => new Set((segments ?? []).map((s) => GROUP_OF_SEGM
 // India inside Asia. This is a question about the directory.
 const regionOfCountry = (country) => REGION_OF[country] ?? null
 
+// A band's rung on its ladder — 'inr-2' and 'usd-2' are both 2 — so one floor
+// works in either currency. Unanswered or "Not decided yet" is no constraint.
+const bandRung = (value) => {
+  const m = /-(\d)$/.exec(value ?? '')
+  return m ? Number(m[1]) : null
+}
+
 export const matchingPartners = (intake, brief) => {
   const region = intake?.country ? regionOfCountry(intake.country) : null
   const wanted = groupsOf(intake?.segments)
+  const geo = geoPicked(brief)
   return PARTNERS.filter((p) => {
-    if (region && p.region !== region) return false
+    // The brief's own region chips win over the business's country when set.
+    // Asked and left empty is anywhere.
+    if (geo ? !inGeo(p, geo) : !anywhere(brief) && region && p.region !== region) return false
     // No industry answered is no industry constraint, same as everywhere else.
     if (wanted.size && !p.industries.some((s) => wanted.has(GROUP_OF_SEGMENT[s]))) return false
     if (brief?.cities?.length && !brief.cities.includes(cityOf(p))) return false
     if (brief?.tiers?.length && !brief.tiers.includes(p.tier)) return false
     if (!matchesWorkStyle(p, brief?.workStyle)) return false
+    const rung = bandRung(brief?.budget)
+    if (rung !== null && rung < p.minBand) return false
     return true
   })
 }

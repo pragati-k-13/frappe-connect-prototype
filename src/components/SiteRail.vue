@@ -1,95 +1,183 @@
 <script setup>
-import { useRouter } from 'vue-router'
+import { onBeforeUnmount, ref } from 'vue'
+import { Sidebar, SidebarItem, SidebarLabel, ScrollArea } from 'frappe-ui'
 import frappeMark from '../assets/frappe.svg'
+import IconGrid from '~icons/lucide/layout-grid'
+import IconGlobe from '~icons/lucide/globe'
+import IconBuilding from '~icons/lucide/building-2'
+import IconFile from '~icons/lucide/file-text'
+import IconMail from '~icons/lucide/mail'
+import IconBook from '~icons/lucide/book-open'
+import IconHeart from '~icons/lucide/heart'
+import IconUsers from '~icons/lucide/users'
+import IconVideo from '~icons/lucide/video'
+import IconPen from '~icons/lucide/pen-tool'
+import IconAward from '~icons/lucide/award'
+import IconQuote from '~icons/lucide/quote'
+import IconBriefcase from '~icons/lucide/briefcase'
 
-// frappe.io's own icon rail, shared by both mocked site pages.
+// frappe.io's sidebar, shared by the three mocked site pages.
 //
-// ⚠️ IT IS NAVIGATION, NOT DECORATION, and it was drawn as decoration —
-// `aria-hidden`, nothing interactive, on the note that it "establishes that
-// this page sits inside the marketing site" and none of it was part of the
-// handoff. Then somebody clicked the envelope and asked whether it went to the
-// contact page. It does, on the real site: the rail is fourteen links and the
-// sixth is `/contact`, titled "Contact Us".
+// The icon rail is its COLLAPSED state, and hover expands it to the labelled
+// sidebar. Built on frappe-ui's `Sidebar`, whose `v-model:collapsed` is exactly
+// that switch; `Rail` has no expanded state at all.
 //
-// ⚠️ THE ENTRIES, THEIR ORDER AND THEIR TITLES ARE READ OFF frappe.io — hrefs
-// and `title` attributes, with the four groups the vertical gaps make. The
-// ICONS are the closest Lucide glyph to each and are the only guess in the
-// list.
+// ⚠️ IT EXPANDS OVER THE PAGE, not beside it. The wrapper holds a fixed 48px in
+// the layout and the Sidebar is absolutely positioned inside it, so opening it
+// reflows nothing. `Sidebar` itself is a flex item that pushes its neighbours,
+// which is right for an app and wrong for a rail you brush past.
 //
-// ⚠️ TWO OF THEM WORK, because two of them exist here: Partners is the site
-// page and Contact is the other mock. The rest are real pages this prototype
-// does not stand in for, so they are disabled buttons rather than links to
-// invented routes — `disabled` says so to a pointer and a screen reader alike,
-// instead of leaving somebody clicking a dead link twice.
-//
-// ⚠️ SHARED, because the two mocks are one website and were drifting apart:
-// the partners page had the rail and the contact page had a wordmark and a
-// text nav of its own invention, so following the envelope landed you on
-// something that looked like a different site.
-const router = useRouter()
-
-const RAIL = [
-  [{ icon: 'house', title: 'Go To Frappe Home' }],
-  [
-    { icon: 'grid', title: 'Frappe Products' },
-    { icon: 'globe', title: 'Frappe Partners', to: '/' },
-    { icon: 'book', title: 'Partner Stories' },
-    { icon: 'file', title: 'Blog' },
-    { icon: 'mail', title: 'Contact Us', to: '/contact' },
-  ],
-  [
-    { icon: 'pin', title: 'Frappe Journeys' },
-    { icon: 'users', title: 'Frappe Culture' },
-    { icon: 'bulb', title: 'About Frappe Team' },
-  ],
-  [
-    { icon: 'video', title: 'Frappe Events' },
-    { icon: 'target', title: 'Frappe Design' },
-    { icon: 'award', title: 'Frappe Community' },
-  ],
+// ⚠️ TWO ITEMS WORK, because two pages exist here (Get started is stored, not
+// routed — see `router.js`). The rest are real
+// frappe.io pages this prototype does not stand in for; they stay disabled
+// rather than linking to invented routes. See `vDisabled` for how.
+const GROUPS = [
+  {
+    items: [
+      { label: 'Products', icon: IconGrid },
+      { label: 'Partners', icon: IconGlobe, to: '/' },
+      { label: 'Customers', icon: IconBuilding },
+      { label: 'Blog', icon: IconFile },
+      { label: 'Contact', icon: IconMail, to: '/contact' },
+    ],
+  },
+  {
+    label: 'About',
+    items: [
+      { label: 'Story', icon: IconBook },
+      { label: 'Culture', icon: IconHeart },
+      { label: 'Team', icon: IconUsers },
+    ],
+  },
+  {
+    label: 'Resources',
+    items: [
+      { label: 'Events', icon: IconVideo },
+      { label: 'Design', icon: IconPen },
+      { label: 'Community', icon: IconAward },
+      { label: 'Testimonials', icon: IconQuote },
+      { label: 'Careers', icon: IconBriefcase },
+    ],
+  },
 ]
+
+// ⚠️ `SidebarItem` has no `disabled` prop, and a `disabled` attribute falls
+// through onto its wrapping div, not the button inside it. This puts it on the
+// button, so a pointer and a screen reader both get a real disabled control.
+const vDisabled = {
+  mounted: (el) => {
+    const button = el.querySelector(':scope > button')
+    if (button) button.disabled = true
+  },
+}
+
+// Hover intent: a short wait each way, so a pointer crossing the rail on its
+// way to the page does not flash it open.
+const collapsed = ref(true)
+let timer
+const setAfter = (value, ms) => {
+  clearTimeout(timer)
+  timer = setTimeout(() => (collapsed.value = value), ms)
+}
+const open = () => setAfter(false, 120)
+const close = () => setAfter(true, 180)
+// Keyboard users get the labels too: focus opens it at once, and it closes
+// when focus leaves the rail altogether.
+const onFocusIn = () => {
+  clearTimeout(timer)
+  collapsed.value = false
+}
+const onFocusOut = (e) => {
+  if (!e.currentTarget.contains(e.relatedTarget)) close()
+}
+onBeforeUnmount(() => clearTimeout(timer))
 </script>
 
 <template>
-  <!-- ⚠️ Hidden below `md`, and the Frappe mark goes with it. The real site
-       collapses to a hamburger at that width; this mock does not, because the
+  <!-- ⚠️ Hidden below `md`. The real site collapses to a hamburger there; the
        mobile nav is not what is under review. -->
-  <aside
-    class="hidden h-full w-12 shrink-0 flex-col items-center gap-6 border-r border-outline-gray-2 py-4 md:flex"
-  >
-    <!-- The mark belongs to the rail, not the top bar — checked against
-         frappe.io, where it sits at the rail's top and the bar beside it
-         carries the breadcrumb alone. -->
-    <img :src="frappeMark" alt="" class="size-6" />
-    <nav
-      v-for="(group, gi) in RAIL"
-      :key="gi"
-      class="flex flex-col items-center gap-3.5"
-      aria-label="Frappe"
+  <div class="site-rail relative z-20 hidden h-full w-12 shrink-0 md:block">
+    <Sidebar
+      v-model:collapsed="collapsed"
+      width="13rem"
+      class="absolute inset-y-0 left-0 border-r border-outline-gray-2 data-[state=expanded]:shadow-lg"
+      @mouseenter="open"
+      @mouseleave="close"
+      @focusin="onFocusIn"
+      @focusout="onFocusOut"
     >
-      <button
-        v-for="item in group"
-        :key="item.title"
-        type="button"
-        :title="item.title"
-        :aria-label="item.title"
-        :disabled="!item.to"
-        class="text-ink-gray-4 enabled:hover:text-ink-gray-7 disabled:cursor-default"
-        @click="item.to && router.push(item.to)"
-      >
-        <LucideHouse v-if="item.icon === 'house'" class="size-4" />
-        <LucideLayoutGrid v-else-if="item.icon === 'grid'" class="size-4" />
-        <LucideGlobe v-else-if="item.icon === 'globe'" class="size-4" />
-        <LucideMail v-else-if="item.icon === 'mail'" class="size-4" />
-        <LucideBookOpen v-else-if="item.icon === 'book'" class="size-4" />
-        <LucideUsers v-else-if="item.icon === 'users'" class="size-4" />
-        <LucideMapPin v-else-if="item.icon === 'pin'" class="size-4" />
-        <LucideLightbulb v-else-if="item.icon === 'bulb'" class="size-4" />
-        <LucideFileText v-else-if="item.icon === 'file'" class="size-4" />
-        <LucideTarget v-else-if="item.icon === 'target'" class="size-4" />
-        <LucideVideo v-else-if="item.icon === 'video'" class="size-4" />
-        <LucideAward v-else class="size-4" />
-      </button>
-    </nav>
-  </aside>
+      <!-- Not `SidebarHeader`: that is a workspace dropdown trigger, and the
+           mark is not a menu. 12px in centres the 24px mark on the icons'
+           24px axis. -->
+      <div class="flex h-12 shrink-0 items-center gap-2 px-3">
+        <img :src="frappeMark" alt="" class="size-6 shrink-0" />
+        <span
+          class="site-rail-fade text-[15px] font-semibold text-ink-gray-8"
+          :class="collapsed ? 'opacity-0' : 'opacity-100'"
+        >
+          Frappe
+        </span>
+      </div>
+      <ScrollArea class="min-h-0 flex-1" viewport-class="px-2 pb-4">
+        <nav aria-label="Frappe" class="flex flex-col gap-0.5">
+          <template v-for="(group, gi) in GROUPS" :key="gi">
+            <!-- Kept while collapsed, with its text faded out: the empty row is
+                 the gap between the rail's groups. -->
+            <SidebarLabel v-if="group.label" class="mt-2">
+              <span class="text-[11px] font-semibold uppercase tracking-[0.09em]">
+                {{ group.label }}
+              </span>
+            </SidebarLabel>
+            <template v-for="item in group.items" :key="item.label">
+              <SidebarItem v-if="item.to" :label="item.label" :icon="item.icon" :to="item.to" />
+              <SidebarItem
+                v-else
+                v-disabled
+                :label="item.label"
+                :icon="item.icon"
+                data-disabled
+              />
+            </template>
+          </template>
+        </nav>
+      </ScrollArea>
+    </Sidebar>
+  </div>
 </template>
+
+<style scoped>
+/* The site is white, and frappe.io marks the current page with a gray-2 fill
+   rather than the app's raised white row. */
+.site-rail :deep([data-slot='sidebar']) {
+  background-color: var(--surface-base);
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+.site-rail :deep([data-slot='sidebar-item'][data-state='active']) {
+  background-color: var(--surface-gray-2);
+  box-shadow: none;
+}
+.site-rail :deep([data-slot='sidebar-item'][data-disabled]:hover) {
+  background-color: transparent;
+}
+.site-rail :deep([data-slot='sidebar-item'] button:disabled) {
+  cursor: default;
+}
+/* Labels and headings animate at the same speed as the width. Only the
+   elements that already transition — a blanket `*` would animate everything. */
+.site-rail :deep([data-slot='sidebar'] .transition-all),
+.site-rail-fade {
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+.site-rail-fade {
+  transition-property: opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-rail :deep([data-slot='sidebar']),
+  .site-rail :deep([data-slot='sidebar'] .transition-all),
+  .site-rail-fade {
+    transition: none;
+  }
+}
+</style>

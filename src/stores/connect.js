@@ -1,11 +1,13 @@
 import { defineStore } from 'pinia'
-import { APPS, PARTNERS } from '../data/partners'
+import { APPS, FRAPPE_TEAM, PARTNERS, implementerFor } from '../data/partners'
 // Two consumers: `industryCounts`, the group totals on the industry filter's
 // headings, and `saveCompany`, which derives a segment's group. Both need to
 // know which segments belong to which group.
 import {
   DECLINE_REASONS,
   bidMessage,
+  bookingGreeting,
+  bookingMessages,
   bookingThread,
   briefThread,
   contactThread,
@@ -143,6 +145,10 @@ const snapshotBrief = (project, own, company) => ({
   tiers: [...(own.tiers ?? [])],
   workStyle: own.workStyle ?? '',
   timeline: own.timeline ?? '',
+  // The region chips, so the partner reads the same "Based in" line.
+  regions: [...(own.regions ?? [])],
+  countries: [...(own.countries ?? [])],
+  geoAsked: Boolean(own.geoAsked),
   country: company.country,
   employees: company.employees,
   segments: company.segments,
@@ -230,6 +236,10 @@ export const useConnectStore = defineStore('connect', {
     // Which persona the demo is showing. Only 'business' is built out; the
     // switcher lands with the partner views.
     role: 'business',
+    // Who implements Starter Packs: 'frappe' (this branch's model) or
+    // 'partner' (main's — Frappe assigns a partner at payment). A demo setting,
+    // switched from the Demo menu, and not cleared by `reset()`.
+    packImplementer: 'frappe',
     // See ACCOUNT_STATES above. Deliberately NOT cleared by `reset()`: it's
     // which demo you're in, not something the quiz collected — same as `role`.
     account: 'visitor',
@@ -393,14 +403,17 @@ export const useConnectStore = defineStore('connect', {
     // per-stage list — which is why `data/project.js` requires task keys to be
     // unique across a spine rather than within a stage.
     //
+    // `partnerId` on a Starter Pack is `FRAPPE_TEAM.id`: Frappe implements
+    // packs itself. See `implementerFor` in `data/partners.js`.
+    //
     // ⚠️ The confirmed screen can also be reached by URL with no store behind
-    // it (`?pack=&partner=`), so every reader treats a missing project as
-    // optional and falls back to the first stage — see `stageOf`.
+    // it (`?project=`), so every reader treats a missing project as optional
+    // and falls back to the first stage — see `stageOf`.
     projects: [],
     // Every conversation the viewer can open, newest activity last within each
     // thread. Three ways in: the demo switch seeds the exploring viewer's
-    // inbox, booking a pack adds the thread the confirmed screen promises
-    // ("Project details sent via Messaging"), and Contact opens an empty one
+    // inbox, booking a pack adds the thread with Frappe that the confirmed
+    // screen promises, and Contact opens an empty one
     // from anywhere a partner is shown. A fresh account has none, which is why
     // the screen has a real empty state.
     //
@@ -444,6 +457,14 @@ export const useConnectStore = defineStore('connect', {
   }),
 
   getters: {
+    packsByFrappe: (state) => state.packImplementer === 'frappe',
+    // Who a new pack booking goes to. With partners implementing, the best
+    // match under the answers already given — `results`, the directory's own
+    // ranked list — as main assigns it at payment; the first partner when the
+    // filters have narrowed to nothing.
+    packImplementerFor() {
+      return this.packsByFrappe ? FRAPPE_TEAM : (this.results[0] ?? PARTNERS[0])
+    },
     // The two questions a screen actually wants to ask. Everything that varies
     // by account state should go through these, so the enum stays in one place.
     signedIn: (state) => state.account !== 'visitor',
@@ -470,35 +491,6 @@ export const useConnectStore = defineStore('connect', {
     // an empty state rather than an error.
     projectBy: (state) => (id) => state.projects.find((p) => p.id === id) ?? null,
 
-    // The project behind a booking, found the way the Confirmed screen has to
-    // find it: by the two things that screen carries in its URL.
-    //
-    // ⚠️ SEARCHED FROM THE END, and matched on a PACK as well as the partner —
-    // `packValue` is now one of possibly several a project holds, so the test
-    // is membership rather than equality.
-    //
-    // ⚠️ SEARCHED FROM THE END, and matched on the PACK as well as the partner.
-    // Both were learned from the same bug. The first version took the first
-    // project with a matching partner, and booking a second pack with a partner
-    // you were already working with put the OLD project on the confirmation
-    // screen — right partner, wrong pack, wrong stage, wrong dates, and a
-    // "Project created" line dated weeks earlier than the click that produced
-    // it. Matching the pack rules out the other project; taking the last match
-    // rules out the older of two bookings of the SAME pack from the same
-    // partner, which is rarer but is what the demo's seeded data does.
-    //
-    // `packValue` is optional: a caller that knows only the partner still gets
-    // their most recent project.
-    projectForBooking: (state) => (partnerId, packValue) => {
-      for (let i = state.projects.length - 1; i >= 0; i -= 1) {
-        const p = state.projects[i]
-        if (p.partnerId !== partnerId) continue
-        if (packValue && !(p.packs ?? []).includes(packValue)) continue
-        return p
-      }
-      return null
-    },
-
     // The module scope the estimate modal prices.
     //
     // The projects an INQUIRY can be sent about, newest first.
@@ -506,9 +498,9 @@ export const useConnectStore = defineStore('connect', {
     // ⚠️ Custom work and undecided projects ONLY, and that is the flow's own
     // boundary rather than a filter for tidiness. A pack and a guided
     // onboarding are bought as a FIXED SCOPE — the pack names the work, the
-    // price is published, and the partner is assigned rather than asked — so
-    // there is no estimate for a partner to calculate and nothing an inquiry
-    // would carry. Asking "which modules?" about a pack contradicts the pack.
+    // price is published, and Frappe implements it rather than a partner being
+    // asked — so there is no estimate for a partner to calculate and nothing an
+    // inquiry would carry. Asking "which modules?" about a pack contradicts the pack.
     //
     // An account whose only projects are packs therefore reads as an account
     // with none, and gets the define-requirements form: the custom project it
@@ -533,9 +525,9 @@ export const useConnectStore = defineStore('connect', {
     // Two things count as having sent them:
     //
     //   brief     the requirements card, from a broadcast or from Contact
-    //   company   the company profile a BOOKING sends, alongside the pack ask
-    //             and the call — a pack IS a fixed scope, so that conversation
-    //             has requirements in it even though nobody filled this dialog
+    //   company   the company profile that goes out WITH requirements — a
+    //             brief sent by Contact, or a pack booking (which goes to
+    //             Frappe now, not to a partner)
     //
     // A thread of plain messages counts as neither, however much has been
     // typed into it. What a partner can quote against is a scope, not a chat.
@@ -700,6 +692,14 @@ export const useConnectStore = defineStore('connect', {
   },
 
   actions: {
+    // The Demo menu's switch. Re-seeds the signed-in personas so their pack
+    // project and its thread belong to the new implementer.
+    setPackImplementer(mode) {
+      if (mode !== 'frappe' && mode !== 'partner') return
+      this.packImplementer = mode
+      if (this.account !== 'visitor') this.demoAccount(this.account)
+    },
+
     // Which side of the product the demo is showing. Only 'business' is built
     // out; the partner views and their PRM surfaces land later, so the demo
     // switch offers the option disabled rather than hiding it.
@@ -729,7 +729,7 @@ export const useConnectStore = defineStore('connect', {
       // the tracker has to render — both services, a project with no
       // service at all, and one whose partner has not been picked yet. Three
       // of the four would leave a state with no way to see it.
-      this.projects = account === 'client' ? demoProjects() : []
+      this.projects = account === 'client' ? demoProjects(this.packImplementerFor.id) : []
       // More than the home screen shows, so both signed-in personas
       // reach "View all" without having to bookmark anything first.
       this.saved =
@@ -780,12 +780,11 @@ export const useConnectStore = defineStore('connect', {
       // cannot reach.
       for (const project of this.projects) {
         if (project.service !== 'custom' || project.stage !== 'choosing') continue
-        // ⚠️ EXCLUDES THE FIRM ALREADY ON ANOTHER PROJECT, which is a demo
-        // decision rather than a rule — a business can perfectly well send
-        // requirements to the partner delivering its pack. But the seeded pack
-        // partner was in this list, so its "Frappe has assigned you to us"
-        // conversation was silently dropped for having a thread already, and
-        // the inbox lost a whole conversation type to a coincidence.
+        // ⚠️ EXCLUDES A FIRM ALREADY ON ANOTHER PROJECT, which is a demo
+        // decision rather than a rule. It was written for the seeded pack
+        // partner, whose thread was dropped for existing already; the seeded
+        // pack is Frappe's now, which no broadcast reaches, so today this
+        // excludes nobody.
         //
         // ⚠️ ALL NINE, NOT SIX. `repliesToBrief` answers for about two-thirds,
         // and two of the silent ones are turned into declines below — at six
@@ -834,10 +833,11 @@ export const useConnectStore = defineStore('connect', {
       if (account === 'client') this.seedClientConversations()
     },
 
-    // Booking a pack starts a conversation carrying three things — see
-    // `bookingThread`. Idempotent by partner: confirming twice with the same
-    // partner reopens the thread rather than stacking a second copy of it.
-    startBooking({ partner, packs }) {
+    // Booking a pack starts a conversation with Frappe carrying three things —
+    // see `bookingThread`. Frappe implements Starter Packs itself, so there is
+    // no partner to pick. Returns the project's id, which the confirmation
+    // screen is addressed by.
+    startBooking({ packs }) {
       // The booking IS the project: one gesture starts both, so nothing else
       // has to remember to create the second one.
       //
@@ -846,13 +846,15 @@ export const useConnectStore = defineStore('connect', {
       // and it becomes the booking rather than getting a twin. Never guessed:
       // an undecided project the checkout did not start from is left alone.
       const list = [packs].flat()
+      // Frappe, or the partner assigned at payment — see `packImplementerFor`.
+      const implementer = this.packImplementerFor
       const saved = this.projects.find((p) => p.id === this.bookingFor && !p.service)
       this.bookingFor = null
       if (saved) {
         Object.assign(saved, {
           service: 'pack',
           packs: list.map((p) => p.value),
-          partnerId: partner.id,
+          partnerId: implementer.id,
           stage: 'confirmed',
           done: [],
           serviceAt: Date.now(),
@@ -865,34 +867,42 @@ export const useConnectStore = defineStore('connect', {
           name: projectName(list, this.company.name || this.viewer.company),
           apps: [],
           // A pack IS its scope, so the project carries no module list of its
-          // own — `PackPanel` renders what the pack covers. Empty rather than
+          // own — `PackScope` renders what the pack covers. Empty rather than
           // absent so every project has the same shape.
           modules: {},
           service: 'pack',
           // ⚠️ A LIST. See the note on `packs` in the state above.
           packs: list.map((p) => p.value),
-          partnerId: partner.id,
+          partnerId: implementer.id,
           stage: 'confirmed',
           done: [],
           at: Date.now(),
         },
       ]
       // ⚠️ The message goes out whether or not the customer ever opens the
-      // inbox — see `bookingThread`. An assignment nobody has been told about
-      // is not an assignment.
-      const existing = this.threads.find((t) => t.partnerId === partner.id)
-      if (existing) return existing.id
+      // inbox — see `bookingThread`.
+      //
+      // ⚠️ APPENDED to the Frappe thread when there already is one. Frappe is
+      // the implementer on every pack, so a second booking lands in the same
+      // conversation — and returning the old thread untouched, as the
+      // one-partner-per-booking version did, would send Frappe nothing about
+      // the packs just bought.
       const project = saved ?? this.projects.at(-1)
       const brief = packBrief(project, list, project.answers ?? this.company)
-      this.threads = [...this.threads, bookingThread({ partner, packs: list, brief })]
-      return partner.id
+      const existing = this.threads.find((t) => t.partnerId === implementer.id)
+      if (existing) {
+        existing.messages.push(...bookingMessages({ packs: list, brief }))
+        existing.archived = false
+      } else
+        this.threads = [...this.threads, bookingThread({ packs: list, brief, partner: implementer })]
+      return project.id
     },
 
     // ── Projects ─────────────────────────────────────────────────────────
     // A project with nothing decided but what it is called and what it covers.
     // This is the door "New project" opens, and the one path that produces a
     // project with no service — every other way in (booking a pack) arrives
-    // with the service and the partner already settled.
+    // with the service and the implementer (Frappe) already settled.
     //
     // Returns the id so the caller can navigate straight to it.
     // ⚠️ WITH ITS REQUIREMENTS. A saved project carries what the business
@@ -1030,9 +1040,9 @@ export const useConnectStore = defineStore('connect', {
       }
     },
 
-    // Conversations the client persona has that are NOT the broadcast: the
-    // partner it was assigned with its pack, somebody it approached directly,
-    // and one that went quiet long enough to fall out of the Active tab.
+    // Conversations the client persona has that are NOT the broadcast: Frappe,
+    // implementing its pack, somebody it approached directly, and one that
+    // went quiet long enough to fall out of the Active tab.
     //
     // ⚠️ THE QUIET ONE IS DATED PAST `INACTIVE_AFTER` rather than flagged. The
     // tab is derived from the last message, so a seed that wants to appear
@@ -1052,39 +1062,37 @@ export const useConnectStore = defineStore('connect', {
       }
       const at = (days, hours = 0) => Date.now() - days * 86400000 - hours * 3600 * 1000
 
-      const assigned = PARTNERS.find((p) => p.id === this.projects.find((p2) => p2.service === 'pack')?.partnerId)
-      if (assigned) {
-        add(assigned.name, [
-          {
-            id: 'm-pack-1',
-            from: 'you',
-            at: at(18),
-            kind: 'text',
-            body: 'Hi — we have just bought the Accounts, Sales, Purchase, Stock and Manufacturing Starter Packs and Frappe has assigned you to us. Here is where we are today.',
-          },
-          {
-            id: 'm-pack-req',
-            from: 'you',
-            at: at(18),
-            kind: 'packs',
-            brief: packBrief(
-              this.projects.find((p) => p.service === 'pack'),
-              STARTER_PACKS.filter((sp) =>
-                this.projects.find((p) => p.service === 'pack')?.packs.includes(sp.value),
-              ),
-              this.company,
-            ),
-          },
-          { id: 'm-pack-2', from: 'you', at: at(18), kind: 'company' },
-          {
-            id: 'm-pack-3',
-            from: 'them',
-            at: at(17, 20),
-            kind: 'text',
-            author: repFor(assigned.name),
-            body: 'Got it, thanks. We have the site provisioned — once your Frappe Cloud code is on it we can start the import. Is the opening balance data coming from Tally?',
-          },
-        ])
+      // ⚠️ THE FRAPPE THREAD, not a partner's: the seeded pack is Frappe's to
+      // implement, like every pack. Pushed directly rather than through `add`,
+      // which resolves a partner by name and Frappe is not in `PARTNERS`.
+      const pack = this.projects.find((p) => p.service === 'pack')
+      const packBy = implementerFor(pack?.partnerId) ?? FRAPPE_TEAM
+      if (pack && !this.threads.some((t) => t.partnerId === packBy.id)) {
+        const bought = STARTER_PACKS.filter((sp) => pack.packs.includes(sp.value))
+        this.threads.push({
+          id: packBy.id,
+          partnerId: packBy.id,
+          startedAt: at(18),
+          messages: [
+            { id: 'm-pack-1', from: 'you', at: at(18), kind: 'text', body: bookingGreeting(bought) },
+            {
+              id: 'm-pack-req',
+              from: 'you',
+              at: at(18),
+              kind: 'packs',
+              brief: packBrief(pack, bought, this.company),
+            },
+            { id: 'm-pack-2', from: 'you', at: at(18), kind: 'company' },
+            {
+              id: 'm-pack-3',
+              from: 'them',
+              at: at(17, 20),
+              kind: 'text',
+              author: repFor(packBy.name),
+              body: 'Got it, thanks. Once your Frappe Cloud site is up we can start the import. Is the opening balance data coming from Tally?',
+            },
+          ],
+        })
       }
 
       add('Korecent', [
@@ -1134,7 +1142,16 @@ export const useConnectStore = defineStore('connect', {
       project.done = [...project.done, taskKey]
     },
 
-    // The pack's last setup task: the site the partner installs on. Stored on
+    // The kickoff call: the requested instant (ms), which the task's badge
+    // shows and the booking dialog reopens on. Rescheduling replaces it.
+    requestKickoff(id, at) {
+      const project = this.projects.find((p) => p.id === id)
+      if (!project) return
+      project.kickoffAt = at.getTime()
+      this.completeTask(id, 'kickoff')
+    },
+
+    // The pack's last setup task: the site Frappe installs on. Stored on
     // the project, and sharing it is what completes the task.
     shareSiteUrl(id, url) {
       const project = this.projects.find((p) => p.id === id)
@@ -1227,10 +1244,11 @@ export const useConnectStore = defineStore('connect', {
     // long before they are ready to buy a pack, and gating the only way to ask
     // it behind a purchase is backwards.
     //
-    // Idempotent by partner on the same terms as `startBooking`, and they share
-    // the keying (`thread.id` IS `partner.id`), so Contact on a partner you have
-    // already booked opens the booking thread rather than a second empty one
-    // beside it. Returns the id either way, so the caller can navigate to it.
+    // Idempotent by partner, keyed the way every thread is (`thread.id` IS
+    // `partner.id`), so a second Contact opens the first conversation rather
+    // than an empty one beside it — and Message on a pack project, called with
+    // `FRAPPE_TEAM`, opens the booking thread. Returns the id either way, so
+    // the caller can navigate to it.
     openThread(partner) {
       const existing = this.threads.find((t) => t.partnerId === partner.id)
       if (existing) return existing.id
@@ -1334,8 +1352,9 @@ export const useConnectStore = defineStore('connect', {
       this.companyPrompt = true
     },
     // ⚠️ Only `saveCompany` should reach this. The dialog has no close button
-    // and is not dismissible: Frappe assigns the partner off these answers, so
-    // an account that skipped them is an account nothing can be matched for.
+    // and is not dismissible: partners are matched and packs recommended off
+    // these answers, so an account that skipped them is an account nothing can
+    // be matched for.
     closeCompanyPrompt() {
       this.companyPrompt = false
     },
@@ -1505,7 +1524,8 @@ export const useConnectStore = defineStore('connect', {
 
     // A custom project exists from the moment there is a brief to put in it —
     // before a partner, before a quote, before anyone has agreed to anything.
-    // That is the difference between the two spines: a pack arrives assigned.
+    // That is the difference between the two spines: a pack arrives with Frappe
+    // implementing it.
     //
     // Idempotent: returns the existing custom project if one is already open,
     // so pressing Continue twice does not produce two.

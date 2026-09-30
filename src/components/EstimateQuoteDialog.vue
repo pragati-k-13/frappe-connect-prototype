@@ -16,6 +16,9 @@ import { useConnectStore } from '../stores/connect'
 
 // "Estimate quote" — the action on the Pricing section's starter-pack card.
 //
+// ⚠️ UNREACHABLE: that card is hidden, because partners do not sell Starter
+// Packs — Frappe implements them. See `PartnerPricingSection`.
+//
 // The scope comes from the visitor's project (`store.project`), the rate comes
 // from the partner, and this multiplies them. It quotes the STANDARD
 // implementation of those modules — the fixed-scope version of the work, which
@@ -569,7 +572,7 @@ const close = () => {
 
         <!-- The one question the panel provokes and doesn't answer: what a
              starter pack actually contains. The rows above are the visitor's
-             project; a pack is a fixed scope the partner sells, and the two are
+             project; a pack is a fixed scope Frappe implements, and the two are
              compared constantly on this screen without the second ever being
              spelled out. The comparison table on `/connect` spells it out, so
              this points there rather than restating it in a modal.

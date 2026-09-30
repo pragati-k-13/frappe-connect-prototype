@@ -80,7 +80,9 @@ const inProjects = computed(() => PROJECT_ROUTES.has(route.name))
 // directory had no row of its own — which was true while /connect WAS a partner
 // list behind two questions. It is the intake and the recommendation now, so
 // the two are separate places and each has its row.
-const DIRECTORY_ROUTES = new Set(['results', 'partner', 'saved-partners'])
+// `contact-partners` too: it sits under /connect/partners and its breadcrumb
+// reads Partners, so the rail says the same.
+const DIRECTORY_ROUTES = new Set(['results', 'partner', 'saved-partners', 'contact-partners'])
 const inDirectory = computed(() => DIRECTORY_ROUTES.has(route.name))
 
 // The front door: the questions, and the answer they produce.
@@ -403,6 +405,13 @@ defineProps({
               <template #prefix><LucideHouse class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>
+          <!-- Starter Packs before Partners: the order the two ways to go live
+               are offered in everywhere else — the landing, Get started. -->
+          <Tooltip text="Starter Packs" side="right" :offset="8" :disabled="!collapsed">
+            <SidebarItem label="Starter Packs" to="/connect/packs" :active="inPacks">
+              <template #prefix><LucidePackage class="size-4 text-ink-gray-6" /></template>
+            </SidebarItem>
+          </Tooltip>
           <!-- ⚠️ "Partners", pointing at the DIRECTORY. This row said "Find
                partners" and went to /connect, which stopped being a partner
                search the day that page became an intake — it asked three
@@ -415,11 +424,6 @@ defineProps({
           <Tooltip text="Partners" side="right" :offset="8" :disabled="!collapsed">
             <SidebarItem label="Partners" to="/connect/partners" :active="inDirectory">
               <template #prefix><LucideBuilding2 class="size-4 text-ink-gray-6" /></template>
-            </SidebarItem>
-          </Tooltip>
-          <Tooltip text="Starter Packs" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Starter Packs" to="/connect/packs" :active="inPacks">
-              <template #prefix><LucidePackage class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>
           <!-- The collaboration half of the product. Inert until the tracker

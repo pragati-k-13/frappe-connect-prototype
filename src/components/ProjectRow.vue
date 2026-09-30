@@ -6,7 +6,7 @@ import IconPack from '~icons/lucide/package'
 import IconQuotes from '~icons/lucide/users'
 import IconShortlisted from '~icons/lucide/bookmark-check'
 import { logoFor } from '../data/logos'
-import { PARTNERS } from '../data/partners'
+import { implementerFor } from '../data/partners'
 import { serviceOf } from '../data/project'
 
 // One project in the Projects list.
@@ -31,7 +31,9 @@ const props = defineProps({
   card: { type: Boolean, default: false },
 })
 
-const partner = computed(() => PARTNERS.find((p) => p.id === props.project.partnerId) ?? null)
+// A partner, or `FRAPPE_TEAM` on a Starter Pack — Frappe implements packs itself,
+// so a pack row reads "Frappe" with the Frappe mark.
+const partner = computed(() => implementerFor(props.project.partnerId))
 const logo = computed(() => (partner.value ? logoFor(partner.value.id) : null))
 const service = computed(() => serviceOf(props.project.service))
 

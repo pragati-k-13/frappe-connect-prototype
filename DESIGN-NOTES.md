@@ -120,10 +120,14 @@ That leaves the stage with no tasks, so what finishes it is a `complete` predica
 stage rather than an empty checklist — without one, "every task is done" is vacuously true
 and the button to leave the stage stands over a list of firms nobody has hired.
 
-### The budget is collected and then dropped — a note for the partner side
+### The budget and who receives it — a note for the partner side
 
-Two questions are mandatory before requirements go anywhere, and **neither one changes who
-receives them**. `matchingPartners` filters on region, industry group, and then whatever
+**Update:** the budget now narrows the match, against a floor that is INVENTED — `minBand`
+in `data/partners.js`, derived from tier and rate. The note below is why that is a stand-in
+and what the partner side should be asked to replace it.
+
+Two questions are mandatory before requirements go anywhere, and **neither one changed who
+received them**. `matchingPartners` filters on region, industry group, and then whatever
 city, tier and work style were set in the filters dialog. The scope is free text nobody
 parses, which is fine — it is written for a human to read. The budget band is the one
 structured answer on the screen, and it is thrown away.

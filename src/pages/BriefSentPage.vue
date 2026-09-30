@@ -4,8 +4,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { Button } from 'frappe-ui'
 import IconMessage from '~icons/lucide/message-square'
 import ConnectShell from '../components/ConnectShell.vue'
-import TierIcon from '../components/TierIcon.vue'
-import { PARTNERS, cityOf } from '../data/partners'
+import PartnerList from '../components/PartnerList.vue'
+import PartnerRow from '../components/PartnerRow.vue'
+import { PARTNERS } from '../data/partners'
 import { budgetLabel } from '../data/custom'
 import { scopeSentence } from '../data/modules'
 import { answerRows, sharedAnswers } from '../data/company'
@@ -75,16 +76,30 @@ const partners = computed(() =>
         </p>
 
         <div class="mt-6 flex flex-wrap items-center gap-2">
+          <Button variant="solid" size="md" label="Read what was sent" :route="{ name: 'messages' }">
+            <template #prefix><IconMessage class="size-4" /></template>
+          </Button>
           <Button
-            variant="solid"
+            variant="subtle"
             size="md"
             label="Open the project"
             :route="{ name: 'project', params: { id: project.id } }"
           />
-          <Button variant="subtle" size="md" label="Read what was sent" :route="{ name: 'messages' }">
-            <template #prefix><IconMessage class="size-4" /></template>
-          </Button>
         </div>
+
+        <!-- ── Who it went to ────────────────────────────────────────── -->
+        <!-- ⚠️ NAMED, not counted. "Sent to 8 partners" is a claim about other
+             people's inboxes that the person who made it cannot check, and the
+             whole reason the send button carries a number is that the number
+             should be accountable. Naming them costs eight rows. -->
+        <section class="mt-20">
+          <h2 class="text-p-lg font-semibold text-ink-gray-9">Who it went to</h2>
+          <!-- The directory's own rows, so a firm reads here exactly as it did
+               in the list it was chosen from. -->
+          <PartnerList class="mt-1">
+            <PartnerRow v-for="partner in partners" :key="partner.id" :partner="partner" />
+          </PartnerList>
+        </section>
 
         <!-- ── What they got ─────────────────────────────────────────── -->
         <!-- ⚠️ EVERYTHING THAT WENT OUT, IN FULL, and this is the one surface
@@ -94,7 +109,7 @@ const partners = computed(() =>
              is nothing to decide: somebody is checking what was said in their
              name, and a receipt that hides half of it behind a button is a
              receipt that has to be interrogated. -->
-        <section class="mt-10">
+        <section class="mt-20">
           <h2 class="text-p-lg font-semibold text-ink-gray-9">What they received</h2>
           <div class="mt-3 max-w-[62ch] rounded-6 border border-outline-gray-2 p-4">
             <p class="text-p-base font-medium text-ink-gray-8">{{ project.name }}</p>
@@ -139,33 +154,6 @@ const partners = computed(() =>
               mark their reply Interested.
             </p>
           </div>
-        </section>
-
-        <!-- ── Who it went to ────────────────────────────────────────── -->
-        <!-- ⚠️ NAMED, not counted. "Sent to 8 partners" is a claim about other
-             people's inboxes that the person who made it cannot check, and the
-             whole reason the send button carries a number is that the number
-             should be accountable. Naming them costs eight rows. -->
-        <section class="mt-8">
-          <h2 class="text-p-lg font-semibold text-ink-gray-9">Who it went to</h2>
-          <ul class="mt-3 divide-y divide-outline-gray-2 rounded-6 border border-outline-gray-2">
-            <li
-              v-for="partner in partners"
-              :key="partner.id"
-              class="flex items-baseline justify-between gap-4 px-4 py-2.5"
-            >
-              <span class="flex min-w-0 items-center gap-2">
-                <RouterLink
-                  :to="{ name: 'partner', params: { id: partner.id } }"
-                  class="truncate text-p-base text-ink-gray-8 hover:underline"
-                >
-                  {{ partner.name }}
-                </RouterLink>
-                <TierIcon :tier="partner.tier" />
-              </span>
-              <span class="shrink-0 text-p-sm text-ink-gray-5">{{ cityOf(partner) }}</span>
-            </li>
-          </ul>
         </section>
       </template>
     </div>

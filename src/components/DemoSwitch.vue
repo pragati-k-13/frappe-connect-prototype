@@ -37,6 +37,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, Dropdown } from 'frappe-ui'
+import { emptyBrief } from '../data/custom'
 import { stagesFor } from '../data/project'
 import { useConnectStore } from '../stores/connect'
 
@@ -55,9 +56,23 @@ const route = useRoute()
 function switchTo(role) {
   store.setRole(role)
   store.reset()
+  // The requirements draft too, so the region chips seed again from location.
+  store.brief = emptyBrief()
   // The partner side has one screen, and the website is the business's front
-  // door, not theirs.
-  router.push(role === 'partner' ? '/connect/messages' : '/')
+  // door, not theirs. On this branch that door is frappe.io/contact.
+  router.push(role === 'partner' ? '/connect/messages' : '/contact')
+}
+
+// ── Where the visitor arrives ───────────────────────────────────────────────
+// ⚠️ THIS BRANCH ONLY. Two front doors: from frappe.io a business starts on the
+// contact page; straight to Connect it gets the landing. Both restart like
+// Business does.
+function startFrom(path) {
+  store.setRole('business')
+  store.reset()
+  store.brief = emptyBrief()
+  store.setPacks([])
+  router.push(path)
 }
 
 // Switching account state does NOT reset or navigate, unlike switching role.
@@ -76,6 +91,7 @@ function setAccount(account) {
 // option, minus on the rest.
 const check = (role) => (store.role === role ? 'lucide-check' : 'lucide-minus')
 const checkAccount = (account) => (store.account === account ? 'lucide-check' : 'lucide-minus')
+const checkImplementer = (mode) => (store.packImplementer === mode ? 'lucide-check' : 'lucide-minus')
 
 // ── The stage picker ───────────────────────────────────────────────────────
 // ⚠️ Only on a project's own page, and that is the whole design of it. A stage
@@ -115,27 +131,65 @@ const options = computed(() => [
     options: [
       {
         label: 'Business',
-        description: 'Restart from the Frappe website',
         icon: check('business'),
         onClick: () => switchTo('business'),
       },
       {
         label: 'Partner',
         // Messages only, so far: Software@Work's inbox. See `data/partnerView.js`.
-        description: 'Messages, as Software@Work',
         icon: check('partner'),
         onClick: () => switchTo('partner'),
       },
     ],
   },
+  ...(store.role === 'business'
+    ? [
+        {
+          group: 'Start from',
+          options: [
+            {
+              label: 'frappe.io',
+              icon: 'lucide-globe',
+              onClick: () => startFrom('/contact'),
+            },
+            {
+              label: 'Frappe Connect',
+              icon: 'lucide-log-in',
+              onClick: () => startFrom('/connect'),
+            },
+          ],
+        },
+      ]
+    : []),
+  // ⚠️ WHO IMPLEMENTS STARTER PACKS, and it is a model rather than a viewer:
+  // this branch has Frappe's own team on every pack; partners implementing
+  // them is main's model, and where the product may go back to. Same screens
+  // either way — who is assigned at payment, and the words that name them.
+  // Re-seeds the signed-in personas; see `setPackImplementer`.
+  ...(store.role === 'business'
+    ? [
+        {
+          group: 'Starter Packs implemented by',
+          options: [
+            {
+              label: 'Frappe',
+              icon: checkImplementer('frappe'),
+              onClick: () => store.setPackImplementer('frappe'),
+            },
+            {
+              label: 'Partner',
+              icon: checkImplementer('partner'),
+              onClick: () => store.setPackImplementer('partner'),
+            },
+          ],
+        },
+      ]
+    : []),
   // The second axis, and only meaningful on the business side — a partner
   // looking at their own PRM is never "signed out".
   //
-  // ⚠️ Both options are live and neither changes anything yet: every screen is
-  // still built for the signed-out visitor. The states exist so the switcher
-  // names them and so `store.signedIn` / `store.hasProject` have somewhere to
-  // read from; the descriptions say so rather than implying a view that isn't
-  // there.
+  // The states exist so the switcher names them and so `store.signedIn` /
+  // `store.hasProject` have somewhere to read from.
   ...(store.role === 'business'
     ? [
         {
@@ -143,7 +197,6 @@ const options = computed(() => [
           options: [
             {
               label: 'No account',
-              description: 'Signed out — every screen as built today',
               icon: checkAccount('visitor'),
               onClick: () => setAccount('visitor'),
             },
@@ -153,16 +206,13 @@ const options = computed(() => [
               // only way to see the active/inactive filter do anything, because
               // a booking gives you exactly one thread.
               label: 'Exploring partners',
-              description: 'Signed in, no project, several chats open',
               icon: checkAccount('exploring'),
               onClick: () => setAccount('exploring'),
             },
             {
               label: 'Ongoing project',
-              // The description used to end "— views to come". They came: this
-              // persona is seeded with four projects covering every state the
-              // tracker renders. See `demoProjects`.
-              description: 'Signed in, four projects under way',
+              // Seeded with four projects covering every state the tracker
+              // renders. See `demoProjects`.
               icon: checkAccount('client'),
               onClick: () => setAccount('client'),
             },
@@ -177,7 +227,6 @@ const options = computed(() => [
           options: [
             {
               label: 'Partners reply',
-              description: 'A few days later, as quotes',
               icon: 'lucide-clock',
               onClick: () => store.simulateReplies(project.value.id),
             },

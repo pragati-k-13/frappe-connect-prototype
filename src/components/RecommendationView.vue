@@ -22,7 +22,7 @@ import PartnerFiltersDialog from './PartnerFiltersDialog.vue'
 import { useConnectStore } from '../stores/connect'
 import { recommendationFor } from '../data/recommendation'
 import {
-  PACK_STEPS,
+  packSteps,
   STARTER_PACKS,
   marketFor,
   DEFAULT_REGION,
@@ -338,7 +338,6 @@ defineExpose({ send })
       v-if="view === 'packs'"
       :packs="packs"
       :region="region"
-      :signed-in="store.signedIn"
       @checkout="checkout"
     />
     <!-- ── Who it reaches ──────────────────────────────────────────
@@ -407,19 +406,19 @@ defineExpose({ send })
          ⚠️ NUMBERED, which this app avoids by default. It is earned
          here: these are not three features, they are three things that
          happen in order, and the order is the point — you pay Frappe
-         first, and a partner is assigned against that. Reversing them
+         first, and Frappe's own team implements it. Reversing them
          would describe a different product.
          The same three beats as the pack page's own "How it works";
          both read `PACK_STEPS` so they cannot drift.
          ⚠️ PACKS ONLY. It describes buying a fixed scope from Frappe and
-         being assigned somebody to deliver it, which is not what happens on
-         the custom path — there you choose the partner and pay them. It sat
+         Frappe delivering it, which is not what happens on the custom
+         path — there you choose the partner and pay them. It sat
          inside the packs branch until the justification moved below the
          button and pushed it out; the guard is what that move cost. -->
     <PackSteps
       class="mt-16"
       :title="view === 'packs' ? 'How this works' : 'How custom implementations work'"
-      :steps="view === 'packs' ? PACK_STEPS : CUSTOM_STEPS"
+      :steps="view === 'packs' ? packSteps(store.packsByFrappe) : CUSTOM_STEPS"
     />
 
     <!-- ── Why, after the thing itself and after how it works ─────

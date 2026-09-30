@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Badge, Button, Dialog, Dropdown, ScrollArea, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
@@ -14,10 +14,12 @@ import ProjectBids from '../components/ProjectBids.vue'
 import RecommendationView from '../components/RecommendationView.vue'
 import ProjectStages from '../components/ProjectStages.vue'
 import PackSetupTasks from '../components/PackSetupTasks.vue'
+import PaymentReceivedDialog from '../components/PaymentReceivedDialog.vue'
+import BookSlotDialog from '../components/BookSlotDialog.vue'
 import RatePartnerDialog from '../components/RatePartnerDialog.vue'
 import IconMore from '~icons/lucide/ellipsis'
-import { PARTNERS } from '../data/partners'
-import { DEFAULT_REGION, STARTER_PACKS, marketFor } from '../data/packs'
+import { implementerFor, isFrappe } from '../data/partners'
+import { DEFAULT_REGION, STARTER_PACKS, checkoutFor, marketFor } from '../data/packs'
 import {
   FRAPPE_CLOUD_PARTNER_URL,
   FRAPPE_CLOUD_URL,
@@ -47,7 +49,12 @@ const router = useRouter()
 const { messagePartner } = useContactPartner()
 
 const project = computed(() => store.projectBy(route.params.id))
-const partner = computed(() => PARTNERS.find((p) => p.id === project.value?.partnerId) ?? null)
+// The partner on custom work, `FRAPPE_TEAM` on a Starter Pack — Frappe
+// implements packs itself.
+const partner = computed(() => implementerFor(project.value?.partnerId))
+// ⚠️ A REVIEW IS OF A PARTNER, and is published on their profile. Frappe has
+// neither, so a pack project never asks for one.
+const reviewable = computed(() => Boolean(partner.value) && !isFrappe(partner.value))
 // ⚠️ A LIST. A project holds several packs — they are disjoint modules and
 // the recommendation ticks more than one.
 const packs = computed(() =>
@@ -55,6 +62,32 @@ const packs = computed(() =>
 )
 const stage = computed(() => stageOf(project.value?.service, project.value?.stage))
 const region = computed(() => marketFor(store.company.country) ?? DEFAULT_REGION)
+
+// ── Arriving from payment ───────────────────────────────────────────────────
+// Checkout lands here with `?paid=1`: the dialog opens once, and the flag is
+// dropped so a reload or Back does not open it again.
+const paidOpen = ref(false)
+const kickoffOpen = ref(false)
+onMounted(() => {
+  if (!route.query.paid) return
+  paidOpen.value = true
+  const { paid, ...query } = route.query
+  router.replace({ query })
+})
+// The "Pay upfront" task's line: what was paid and when, priced by the same
+// function as the basket and the processor's page.
+const receipt = computed(() => {
+  if (project.value?.service !== 'pack' || !packs.value.length) return null
+  const total = checkoutFor(packs.value, region.value).total
+  const on = project.value.at ? ` on ${fmtDate(project.value.at)}` : ''
+  return `${total} paid to Frappe${on}. A receipt was sent to your email.`
+})
+// ⚠️ Inert, and saying so: a prototype has no invoice to render.
+const downloadInvoice = () =>
+  toast.info('Invoices are not built yet', {
+    id: 'invoice',
+    description: 'This is where the tax invoice would download.',
+  })
 
 const fmtDate = (ms) => new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
@@ -197,7 +230,8 @@ const act = (task) => {
       // records the agreement. The custom spine ticks in place.
       if (project.value.service === 'pack') return (termsOpen.value = true)
       return tick(task.key)
-    case 'fc-billing':
+    case 'kickoff':
+      return (kickoffOpen.value = true)
     case 'fc-plan':
       window.open(FRAPPE_CLOUD_URL, '_blank', 'noopener')
       return tick(task.key)
@@ -206,6 +240,8 @@ const act = (task) => {
       return tick(task.key)
     case 'copy-code':
       return copyCode(task)
+    case 'invoice':
+      return downloadInvoice()
     case 'fc-link':
       window.open(FRAPPE_CLOUD_PARTNER_URL, '_blank', 'noopener')
       return tick(task.key)
@@ -260,13 +296,13 @@ const advance = () => {
 // moment the public review is asked for.
 const shareSiteUrl = (url) => {
   store.shareSiteUrl(project.value.id, url)
-  toast.success('Site URL shared with your partner')
+  toast.success(`Site URL shared with ${partner.value?.name ?? 'your partner'}`)
 }
 
 const complete = () => {
   store.completeProject(project.value.id)
   toast.success('Project completed')
-  if (partner.value) rating.value = true
+  if (reviewable.value) rating.value = true
 }
 </script>
 
@@ -326,14 +362,16 @@ const complete = () => {
                   <PackSetupTasks
                     :tasks="stage.yours"
                     :project="project"
+                    :receipt="receipt"
+                    :implementer="partner?.name ?? 'Frappe'"
                     @act="act"
                     @share-url="shareSiteUrl"
                   />
                 </div>
               </div>
               <!-- Hidden until every task is done: before then it is a button
-                   nobody can use. The partner can close the project from
-                   their side too; this is the customer's way to. -->
+                   nobody can use. Frappe can close the project from its
+                   side too; this is the customer's way to. -->
               <div v-if="yoursDone && !project.completedAt" class="mt-6">
                 <Button variant="solid" label="Mark as complete" @click="complete" />
               </div>
@@ -422,7 +460,7 @@ const complete = () => {
                 @scope="openScope"
                 :has-brief="Boolean(brief)"
                 @requirements="briefOpen = true"
-                :can-review="Boolean(project?.completedAt && !reviewed)"
+                :can-review="Boolean(reviewable && project?.completedAt && !reviewed)"
                 :when="project?.completedAt ? when : null"
                 @message="messagePartner(partner)"
                 @review="rating = true"
@@ -447,7 +485,7 @@ const complete = () => {
             @scope="openScope"
             :has-brief="Boolean(brief)"
             @requirements="briefOpen = true"
-            :can-review="Boolean(project?.completedAt && !reviewed)"
+            :can-review="Boolean(reviewable && project?.completedAt && !reviewed)"
             :when="project?.completedAt ? when : null"
             @message="messagePartner(partner)"
             @review="rating = true"
@@ -465,6 +503,22 @@ const complete = () => {
       @agree="tick('agree-terms')"
     />
     <PackScopeDialog v-model:open="scopeOpen" :packs="packs" />
+    <BookSlotDialog
+      v-if="partner"
+      :open="kickoffOpen"
+      :partner="partner"
+      :booked="project?.kickoffAt ?? null"
+      :title="project?.kickoffAt ? 'Reschedule your kickoff call' : 'Schedule your kickoff call'"
+      :description="`${isFrappe(partner) ? 'Frappe’s team' : partner.name} walks through your requirements with you and plans the implementation.`"
+      @close="kickoffOpen = false"
+      @book="(slot) => store.requestKickoff(project.id, slot.at)"
+    />
+    <PaymentReceivedDialog
+      v-model:open="paidOpen"
+      :count="packs.length"
+      :implementer="partner?.name ?? 'Frappe'"
+      @invoice="downloadInvoice"
+    />
     <RatePartnerDialog v-model:open="rating" :project="project" :partner="partner" />
     <FeedbackDialog v-model:open="feedback" />
     <NewProjectDialog

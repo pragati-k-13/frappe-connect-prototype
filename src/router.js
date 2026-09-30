@@ -19,6 +19,11 @@ const routes = [
   // than on the partners page, and they arrive with a question rather than an
   // intention to buy. It is not part of Frappe Connect; it triages into it.
   { path: '/contact', name: 'site-contact', component: () => import('./pages/ContactSitePage.vue') },
+  // ⚠️ frappe.io/get-started IS STORED, NOT ROUTED. `pages/GetStartedPage.vue`
+  // is kept for reference; the frappe.io flow starts on /contact instead. To
+  // bring it back, restore this route and the rail item in `SiteRail`:
+  //   { path: '/get-started', name: 'get-started',
+  //     component: () => import('./pages/GetStartedPage.vue') },
   { path: '/connect', name: 'connect', component: () => import('./pages/ConnectLandingPage.vue') },
   // The two auth screens. Routes rather than a dialog, and outside
   // `ConnectShell`: sign-up is the first of four steps (create account, verify,
@@ -102,34 +107,14 @@ const routes = [
       return store.signedIn ? true : { name: 'signup', query: { next: to.fullPath } }
     },
   },
-  // The end of the journey: who Frappe assigned you, and what happens next.
-  // Both `?pack=` and `?partner=` are in the URL — this is the screen someone
-  // screenshots or forwards, and an assignment that changed on reload would be
-  // worse than one never shown.
+  // The old pack confirmation. Payment now lands on the project itself, which
+  // opens a one-time dialog and keeps the receipt on its "Pay upfront" task, so
+  // this only forwards links that still point here.
   {
     path: '/connect/confirmed',
     name: 'confirmed',
-    component: () => import('./pages/ConfirmedPage.vue'),
-    // ⚠️ The one guarded route in the app. This screen says a pack is booked
-    // and names the partner assigned to you — both facts about an ACCOUNT — so
-    // a signed-out visitor reaching it by URL would be shown someone's booking
-    // or, worse, their own booking made without an account to keep it in.
-    //
-    // Sign-up rather than the catalogue, carrying `?next=`: someone on this URL
-    // is far more likely to be a customer who lost their session than a stranger
-    // guessing paths, and dropping them on the packs list would throw the link
-    // away. `useConnectStore()` is safe here — `main.js` installs Pinia before
-    // the router, so the store exists by the time any navigation resolves.
-    //
-    // ⚠️ This is the LAST line of defence, not the first. The gate that matters
-    // is one screen earlier — the pack page's "Continue to checkout" sends a
-    // signed-out visitor to sign-up, and `/connect/checkout` guards itself the
-    // same way this does, because paying for a pack creates a project and a
-    // conversation with nowhere to live without an account.
-    beforeEnter: (to) => {
-      const store = useConnectStore()
-      return store.signedIn ? true : { name: 'signup', query: { next: to.fullPath } }
-    },
+    redirect: (to) =>
+      to.query.project ? `/connect/projects/${to.query.project}` : '/connect/projects',
   },
   // The inbox. `?thread=` names the open conversation, for the same reason
   // `?pack=` names the pack two screens earlier: reloading should not lose
@@ -185,6 +170,14 @@ const routes = [
   // Everything the account has bookmarked — where the home screen's "View all"
   // goes. Under the listing because a saved partner is still a directory entry.
   // A static segment outranks `:id` in Vue Router, so no partner slug is shadowed.
+  // One brief to every partner that matches, with the questions that make the
+  // match asked on the page — the Get started page's custom door. A static
+  // segment, so it outranks `:id` like `saved` does.
+  {
+    path: '/connect/partners/contact',
+    name: 'contact-partners',
+    component: () => import('./pages/ContactPartnersPage.vue'),
+  },
   {
     path: '/connect/partners/saved',
     name: 'saved-partners',

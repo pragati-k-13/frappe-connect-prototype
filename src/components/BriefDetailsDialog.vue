@@ -49,8 +49,8 @@ const props = defineProps({
 defineEmits(['update:open'])
 
 // A pack booking's requirements rather than a brief: the packs stand in for the
-// scope, there is no budget, and nobody was asked for — the partner was
-// assigned. See `packBrief`.
+// scope, there is no budget, and nobody was asked for — Frappe implements
+// packs itself. See `packBrief`.
 const packs = computed(() => props.brief?.packs ?? null)
 
 const listOf = (items) =>
@@ -126,7 +126,9 @@ const lookingFor = computed(() =>
     <!-- Default slot, not `#body-content` — the older name fails silently; see
          the note in `NewProjectDialog`. -->
     <template #default>
-      <div v-if="brief" class="-mt-2 flex flex-col gap-7">
+      <!-- No negative margin: the pinned header has a solid background, and
+           content pulled up under it loses its first line. -->
+      <div v-if="brief" class="flex flex-col gap-7">
         <!-- The deciding facts, straight under the title. The one loud thing
              here; everything below is quiet prose. `aria-label` names each
              icon, since the icon is the label. -->

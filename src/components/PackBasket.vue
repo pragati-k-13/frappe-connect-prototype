@@ -1,7 +1,9 @@
 <script setup>
 import { computed } from 'vue'
 import { Button } from 'frappe-ui'
+import IconUser from '~icons/lucide/user-round'
 import { STARTER_PACKS, checkoutFor } from '../data/packs'
+import { useConnectStore } from '../stores/connect'
 
 // The basket beside a pack list: the total, and the one button that acts on it.
 // The same panel wherever packs are ticked — the catalogue, the recommendation
@@ -18,11 +20,13 @@ import { STARTER_PACKS, checkoutFor } from '../data/packs'
 const props = defineProps({
   packs: { type: Array, required: true },
   region: { type: String, required: true },
-  // "You'll make an account on the way" — only true for a visitor.
-  signedIn: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['checkout'])
+
+// The region's currency with nothing in it — read off a real bill so the
+// symbol can never disagree with the total that replaces it.
+const zero = computed(() => checkoutFor(STARTER_PACKS.slice(0, 1), props.region).total.replace(/[\d,.]+/, '0'))
 
 const bill = computed(() =>
   checkoutFor(
@@ -30,13 +34,28 @@ const bill = computed(() =>
     props.region,
   ),
 )
+
+// ⚠️ "Sign up", NOT "Check out", for a visitor. A solid button under a price
+// is read as "pay here" by anyone scanning, and a visitor's next step is an
+// account, not a payment — sign-up returns them here with the basket kept, and
+// Check out follows. The label is the one word a scanner reads, so it names
+// the step that actually happens.
+const store = useConnectStore()
+const action = computed(() => (store.signedIn ? 'Check out' : 'Sign up'))
 </script>
 
 <template>
   <div class="rounded-6 border border-outline-gray-2 p-4">
+    <!-- ⚠️ EMPTY, THE BASKET STILL SHOWS WHERE THIS GOES: a zero total and a
+         disabled next step. "Nothing picked" was a status with no next step in
+         it; a button waiting to be unlocked says what unlocks it. -->
     <template v-if="!packs.length">
-      <p class="text-p-base text-ink-gray-7">Nothing picked</p>
-      <p class="mt-1 text-p-sm text-ink-gray-6">Tick a pack to see what it comes to.</p>
+      <p class="text-p-base text-ink-gray-6">Total</p>
+      <p class="mt-1 text-3xl font-semibold tabular-nums text-ink-gray-4">{{ zero }}</p>
+      <Button class="mt-4 w-full" variant="solid" size="md" :label="action" disabled>
+        <template v-if="!store.signedIn" #prefix><IconUser class="size-4" /></template>
+      </Button>
+      <p class="mt-3 text-p-sm text-ink-gray-6">Select at least one pack.</p>
     </template>
     <template v-else>
       <p class="text-p-base text-ink-gray-6">Total</p>
@@ -50,12 +69,13 @@ const bill = computed(() =>
         class="mt-4 w-full"
         variant="solid"
         size="md"
-        label="Check out"
+        :label="action"
         @click="emit('checkout')"
-      />
+      >
+        <template v-if="!store.signedIn" #prefix><IconUser class="size-4" /></template>
+      </Button>
       <p class="mt-3 text-p-sm text-ink-gray-6">
         Paid to Frappe, in full and up front.
-        <template v-if="!signedIn">You'll make an account on the way.</template>
       </p>
     </template>
   </div>

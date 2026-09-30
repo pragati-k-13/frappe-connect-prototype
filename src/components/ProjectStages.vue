@@ -31,7 +31,7 @@ import { stageProgress, stagesFor } from '../data/project'
 //
 // The spine is per-service (`stagesFor`): custom work opens with two stages a
 // pack never has — writing requirements and choosing a firm — because a pack
-// arrives with a partner already assigned. Neither is forced into the other's
+// arrives with Frappe implementing it. Neither is forced into the other's
 // shape.
 //
 // Under the bar, the stage's tasks — see `ProjectTasks`. A stage with none

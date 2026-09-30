@@ -26,9 +26,9 @@ import { useConnectStore } from '../stores/connect'
 // a profile, the pack catalogue and the confirm screen, so the dialog has to be
 // able to sit over any of them.
 //
-// ⚠️ NOT dismissible, and no close button. Frappe assigns the partner off these
-// answers — an account that skipped them is an account nothing can be matched
-// for. The only way out is Confirm.
+// ⚠️ NOT dismissible, and no close button. Partners are matched and packs
+// recommended off these answers — an account that skipped them is an account
+// nothing can be matched for. The only way out is Confirm.
 const store = useConnectStore()
 
 const form = reactive(emptyCompanyForm())

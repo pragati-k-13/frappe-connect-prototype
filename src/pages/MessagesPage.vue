@@ -26,7 +26,7 @@ import { List, ListCell, ListRow } from 'frappe-ui/list'
 import CompanyDetailsDialog from '../components/CompanyDetailsDialog.vue'
 import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
 import PartnerMessagesPage from './PartnerMessagesPage.vue'
-import { PARTNERS } from '../data/partners'
+import { implementerFor, isFrappe } from '../data/partners'
 import { logoFor } from '../data/logos'
 import { STATUS_LABELS, isActive, lastAt, threadStatus } from '../data/messages'
 import { budgetLabel } from '../data/custom'
@@ -44,7 +44,11 @@ const store = useConnectStore()
 const route = useRoute()
 const router = useRouter()
 
-const partnerOf = (id) => PARTNERS.find((p) => p.id === id) ?? null
+// ⚠️ A PARTNER, OR FRAPPE. A Starter Pack's thread is with Frappe's own team —
+// Frappe implements packs itself — and `FRAPPE_TEAM` carries the name, city and
+// response time the header reads. It has no profile, so View profile is
+// partner-only below.
+const partnerOf = (id) => implementerFor(id)
 
 // Newest conversation first, which is the order an inbox is read in.
 const threads = computed(() =>
@@ -612,6 +616,7 @@ watch(open, toBottom)
                Hidden below `lg`, where two buttons squeeze the partner's name
                to nothing — the name is what the header is for. -->
           <Button
+            v-if="!isFrappe(open.partner)"
             :variant="compareProject ? 'ghost' : 'subtle'"
             size="sm"
             label="View profile"
@@ -718,7 +723,7 @@ watch(open, toBottom)
                     theme="gray"
                     variant="subtle"
                     size="sm"
-                    label="Partner team"
+                    :label="isFrappe(open.partner) ? 'Frappe team' : 'Partner team'"
                   />
                   <span class="text-ink-gray-5">·</span>
                   <span class="text-ink-gray-5">{{ time(m.at) }}</span>
