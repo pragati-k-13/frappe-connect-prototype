@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import IconChevronDown from '~icons/lucide/chevron-down'
+import IconChevronRight from '~icons/lucide/chevron-right'
 import { CUSTOMER_RESPONSIBILITIES, commercialTermsFor } from '../data/packs'
 
 // What you are agreeing to, as two disclosures.
@@ -32,23 +32,24 @@ const terms = computed(() => [
   <section>
     <h2 class="text-lg font-semibold text-ink-gray-8">Terms and conditions</h2>
 
-    <div class="mt-1 divide-y divide-outline-gray-1 border-b border-outline-gray-1">
+    <div class="mt-2">
       <!-- ⚠️ `<details>`, not a hand-rolled toggle: this version of frappe-ui
            ships no accordion, and the native element brings the open state, the
            keyboard behaviour and the semantics for free. Same device as
-           `PackScope` and `PackPanel`. -->
+           `PackScope` and `ProjectAbout`. -->
       <details v-for="t in terms" :key="t.key" class="group">
         <summary
-          class="flex cursor-pointer list-none items-center gap-2 py-3 text-p-base font-medium text-ink-gray-7 [&::-webkit-details-marker]:hidden"
+          class="flex cursor-pointer list-none items-center gap-2 py-2 text-p-base font-medium text-ink-gray-7 [&::-webkit-details-marker]:hidden"
         >
-          <span class="min-w-0 flex-1">{{ t.label }}</span>
-          <IconChevronDown
-            class="size-4 shrink-0 text-ink-gray-5 motion-safe:transition-transform group-open:rotate-180"
+          <!-- A disclosure triangle's place and turn: leading, right to down. -->
+          <IconChevronRight
+            class="size-4 shrink-0 text-ink-gray-5 motion-safe:transition-transform group-open:rotate-90"
           />
+          <span class="min-w-0 flex-1">{{ t.label }}</span>
         </summary>
         <!-- Bulleted: each line is a separate term, read one at a time. Without
              a mark, a term that wraps and the term after it look the same. -->
-        <ul class="list-disc space-y-1 pb-4 pl-5 marker:text-ink-gray-4">
+        <ul class="ml-6 list-disc space-y-1 pb-3 pl-4 marker:text-ink-gray-4">
           <li v-for="line in t.lines" :key="line" class="text-p-base text-ink-gray-6">
             {{ line }}
           </li>

@@ -23,6 +23,7 @@ import ConnectShell from '../components/ConnectShell.vue'
 import EditAnswersDialog from '../components/EditAnswersDialog.vue'
 import RecommendationView from '../components/RecommendationView.vue'
 import { useConnectStore } from '../stores/connect'
+import { basketReturnTo, useBasketReturn } from '../utils/auth'
 
 // ⚠️ THE SCREEN IS `RecommendationView`, and this page is its owner for the
 // account: the account's answers, basket and requirements go in, and the page
@@ -31,6 +32,7 @@ import { useConnectStore } from '../stores/connect'
 const store = useConnectStore()
 const router = useRouter()
 const route = useRoute()
+useBasketReturn()
 
 const reco = ref(null)
 const editing = ref(false)
@@ -44,7 +46,7 @@ onMounted(() => {
 
 const checkout = () => {
   if (!store.signedIn) {
-    return router.push({ name: 'signup', query: { next: '/connect/checkout' } })
+    return router.push({ name: 'signup', query: { next: basketReturnTo('/connect/recommendation') } })
   }
   router.push({ name: 'checkout' })
 }

@@ -3,7 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, FormControl } from 'frappe-ui'
 import AuthShell from '../components/AuthShell.vue'
-import { isEmail, useAuthExit } from '../utils/auth'
+import { isEmail, resumeLineFor, useAuthExit } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 
 // SCREEN — create an account.
@@ -90,7 +90,7 @@ useAuthExit()
 </script>
 
 <template>
-  <AuthShell title="Create your account">
+  <AuthShell title="Create your account" :subtitle="resumeLineFor(route)" partner-portal>
     <!-- `novalidate` so the browser's own bubbles stay out of it: every field
          here has a message of its own, and the two validators fire at different
          moments and word things differently.
@@ -142,19 +142,6 @@ useAuthExit()
       <RouterLink :to="loginLink" class="font-medium text-ink-gray-8 underline underline-offset-2">
         Log in
       </RouterLink>
-    </p>
-
-    <!-- ⚠️ PARTNERS ARE NOT USERS OF THIS FLOW and every field above assumes
-         they aren't — a certified firm arriving here would create a customer
-         account and wonder why it had no inbox. One line pointing them at their
-         own portal costs nothing and saves a support ticket.
-
-         Dead in this prototype: the partner-side app is not mocked. -->
-    <p class="mt-2 text-p-sm text-ink-gray-5">
-      Are you a Frappe partner?
-      <a href="#" class="font-medium text-ink-gray-8 underline underline-offset-2">
-        Log in to the partner portal
-      </a>
     </p>
   </AuthShell>
 </template>

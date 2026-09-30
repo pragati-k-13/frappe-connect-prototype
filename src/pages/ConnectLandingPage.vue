@@ -1,415 +1,317 @@
-<!-- ⚠️ A plain `<script>` beside `<script setup>`: this block runs ONCE for the
-     module rather than once per component instance. See `step` below. -->
-<script>
-import { reactive, ref } from 'vue'
-import { emptyCompanyForm } from '../data/company'
-
-// Which question the intake is showing, deliberately at MODULE scope.
-//
-// ⚠️ Inside `setup` this was re-created on every mount, so leaving the page and
-// coming back rewound the questions to the first one — and asked an industry it
-// already had the answer to, with that answer still visibly selected. The
-// ANSWERS were never the problem; they live on the store and survive fine. The
-// position in the sequence was.
-//
-// Same reasoning and the same fix as the sidebar's `collapsed` in
-// `ConnectShell`. Session-only: a reload starts over, like everything else in
-// this prototype.
-const step = ref(1)
-
-// ⚠️ THE FORM IS AT MODULE SCOPE TOO, and for a different reason than `step`.
-// It is not saved to the store until the last question is answered — a
-// half-filled intake is not a company record, and writing one would make every
-// screen that asks "has this account answered?" say yes to somebody who
-// answered one question and left. So the draft has to outlive the component, or
-// scrolling down to the packs table and back would empty the form.
-const form = reactive(emptyCompanyForm())
-</script>
-
 <script setup>
-// SCREENS 2–4 — the Frappe Connect landing page.
+// `/connect` — the home screen once signed in, and for a visitor, the two ways
+// to go live.
 //
-// Frappe Connect deliberately does NOT open on a listing. The hero is a
-// three-question intake, and what you get for finishing it is a recommendation:
-// buy these packs, or have this scoped by a partner. Everything below the fold
-// (starter packs, success stories, footer CTA) exists to give someone who isn't
-// ready to answer a reason to stay — and every one of those sections routes
-// back into the same three questions.
+// ⚠️ A HERO, THEN ONE SECTION PER WAY TO GO LIVE. Each section says what that
+// way gives you in three short features and ends on its own button, with room
+// enough between them that the two buttons are never read side by side. The
+// hero carries no button: it states the promise, and the sections keep it.
 //
-// ⚠️ EVERYONE ANSWERS THESE, which is the change this page carries. They used
-// to be two optional questions that filtered a partner listing, so skipping
-// them was a supported move that produced a wider list. They now produce a
-// RECOMMENDATION, and there is no wider version of that — see the note on
-// `companyErrors` in `data/company.js`. There is no Skip on this page any more.
-import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { Button, ScrollArea } from 'frappe-ui'
+// ⚠️ NO QUIZ. This page used to open on a three-question intake ending on a
+// recommendation. The recommendation route still exists; nothing links to it.
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { Avatar, Badge, Button } from 'frappe-ui'
+import IconBadge from '~icons/lucide/badge-check'
+import IconClock from '~icons/lucide/clock'
+import IconCoins from '~icons/lucide/coins'
+import IconMilestone from '~icons/lucide/milestone'
+import IconSparkles from '~icons/lucide/sparkles'
+import IconHandshake from '~icons/lucide/handshake'
+import IconUsers from '~icons/lucide/users'
+import IconPackage from '~icons/lucide/package'
 import ConnectShell from '../components/ConnectShell.vue'
 import HomeDashboard from '../components/HomeDashboard.vue'
-import CompanyQuestions from '../components/CompanyQuestions.vue'
-import DottedWorldMap from '../components/DottedWorldMap.vue'
+import { STARTER_PACKS, priceFor } from '../data/packs'
+import { PARTNERS } from '../data/partners'
+import { logoFor } from '../data/logos'
 import { useConnectStore } from '../stores/connect'
-import { COMPANY_STEPS, companyPayload, stepComplete, stepErrors } from '../data/company'
-import { SUCCESS_STORIES } from '../data/partners'
-import { REGION_OF } from '../data/quiz'
-// Pack pricing is per country now. This table has no answer to read until the
-// intake is finished — and a visitor scrolling past it may not have started —
-// so it quotes the default, India, and says so in the line above it.
-import { STARTER_PACKS, priceFor, pricingFor, DEFAULT_REGION } from '../data/packs'
 
 const store = useConnectStore()
 const router = useRouter()
-const route = useRoute()
 
-// ── One address, three faces ────────────────────────────────────────────────
-// ⚠️ `/connect` IS THE LANDING PAGE AND THE HOME SCREEN, and which one you get
-// depends on whether you are signed in. It could have been a second route with
-// a redirect; it is not, because the rail's Home row points here, and because a
-// returning customer typing the address they bookmarked should land on their
-// projects rather than be bounced.
-//
-// The third face is `?new=1`: the questions again, for a customer starting a
-// second thing. It shows the hero and NOTHING BELOW IT — the starter packs
-// explainer, the success stories and the footer CTA are all written for
-// somebody deciding whether to buy, and they have bought. What is left is the
-// questions and the map, which is what the intake actually is.
-const startingSomethingNew = computed(() => Boolean(route.query.new))
-const showDashboard = computed(() => store.signedIn && !startingSomethingNew.value)
+// ⚠️ ONE ADDRESS, TWO FACES. The rail's Home row points here, and a returning
+// customer who bookmarked it should land on their projects.
+const showDashboard = computed(() => store.signedIn)
 
-// ⚠️ THE PITCH IS FOR VISITORS ONLY. A signed-in customer never sees it —
-// not on the dashboard, and not on the way to a second project.
-const showPitch = computed(() => !store.signedIn && !startingSomethingNew.value)
+const fromPrice = priceFor(STARTER_PACKS.reduce((a, b) => (b.hours < a.hours ? b : a)))
 
-const TOTAL = COMPANY_STEPS
-const quizTop = ref(null)
+const SECTIONS = [
+  {
+    // ⚠️ `id` is a link target: the estimate modal links to
+    // `/connect#starter-packs`, and the router's `scrollBehavior` finds it.
+    id: 'starter-packs',
+    title: 'Starter Packs',
+    // ⚠️ THE HEADLINE IS WHAT IT DOES FOR YOU; the name sits above it as a
+    // label. Small businesses buy this to start fast and spend little.
+    headline: 'Start fast. Spend less.',
+    features: [
+      { icon: IconCoins, title: 'One fixed price', body: `From ${fromPrice}, known before you start.` },
+      // Getters, read at render, so the line follows the Demo menu's
+      // "implemented by" switch.
+      {
+        icon: IconBadge,
+        get title() {
+          return store.packsByFrappe ? 'Implemented by Frappe' : 'Implemented by a partner'
+        },
+        get body() {
+          return store.packsByFrappe
+            ? 'Our own team, start to finish.'
+            : 'Certified, and assigned by industry and region.'
+        },
+      },
+      { icon: IconClock, title: 'Live in weeks', body: 'Defined modules, defined hours.' },
+    ],
+    action: { label: 'View packs', go: () => (store.setPacks([]), router.push('/connect/packs')) },
+  },
+  {
+    id: 'custom',
+    title: 'Custom implementation',
+    // For businesses whose way of working is the point: software that bends.
+    headline: 'Software that adapts to you.',
+    features: [
+      { icon: IconSparkles, title: 'Any customization', body: 'On any Frappe app.' },
+      { icon: IconUsers, title: 'Quotes that fit', body: 'One brief, sent to the partners that match.' },
+      { icon: IconMilestone, title: 'Pay per milestone', body: 'Agreed with the partner you hire.' },
+    ],
+    action: { label: 'Contact partners', go: () => router.push({ name: 'contact-partners' }) },
+    more: { label: 'View all partners', go: () => router.push('/connect/partners') },
+  },
+]
 
-// ⚠️ THE COUNTRY ARRIVES PRE-ANSWERED, from `inferredGeo` — the store's
-// stand-in for GeoIP, which resolves to India because that is where most of
-// this traffic and eight of the thirteen partners are. So the first question
-// costs a confirmation instead of a decision, and the visitor who is somewhere
-// else changes it in one click.
-//
-// ⚠️ SEEDED, NOT LOCKED, and the field still shows its answer. A silently
-// pre-filled country would be the dishonest version of this: it decides the
-// currency every price on the next screen is quoted in, and that is not a fact
-// to assume on someone's behalf without showing them.
-//
-// ⚠️ Only when the field is EMPTY. The draft outlives the component (see
-// `form`), so someone who picked Singapore, scrolled down to the packs table
-// and came back must not find India in the box again.
-onMounted(() => {
-  if (!form.country) form.country = store.inferredGeo.country
-})
+// See the note on the reviews section: invented, at fictional companies.
+const REVIEWS = [
+  {
+    name: 'Ananya Rao',
+    role: 'Finance lead, Meridian Foods',
+    service: 'Starter Pack',
+    get quote() {
+      return `We were on spreadsheets in March and closing our books in ERPNext by May. The price was the price, and ${store.packsByFrappe ? 'Frappe’s team' : 'our partner'} handled the setup end to end.`
+    },
+  },
+  {
+    name: 'Karan Mehta',
+    role: 'Founder, Kestrel Textiles',
+    service: 'Custom implementation',
+    quote:
+      'Our dyeing process does not look like anyone else’s. Four partners quoted from one brief, and the one we hired built the job cards around how the floor actually works.',
+  },
+  {
+    name: 'Sara Thomas',
+    role: 'Operations, Halcyon Retail',
+    service: 'Starter Pack',
+    quote:
+      'Stock and sales across three stores, live in five weeks. We added HR later with a second pack, without starting over.',
+  },
+]
 
-// ⚠️ Errors are held back until Continue has been pressed ON THIS STEP, and the
-// flag resets as the step changes. Validating as someone types tells them their
-// answer is wrong before they have finished giving it; validating never leaves
-// a disabled button with no explanation.
-const tried = ref(false)
-const errors = computed(() => (tried.value ? stepErrors(form, step.value) : {}))
+// ── The pictures ────────────────────────────────────────────────────────────
+// Starter Packs: the real catalogue as a cascade — each pack a card, each one
+// lower and in front of the last, so every name reads and the front card shows
+// what a pack is: its modules, its price, its hours. The picture is the
+// product rather than a drawing of one.
+const cascade = STARTER_PACKS.slice(0, 3).map((p, i) => ({
+  name: p.name,
+  line: `${priceFor(p)} · ${p.hours} hrs`,
+  style: { transform: `translate(${i * 16}px, ${i * 60}px)`, zIndex: i },
+}))
 
-// What the map lights up. The intake asks for ONE country, so the map answers
-// with that country and the region around it — which is the honest reading of
-// "here is who is near you", and the only thing this panel is for now that the
-// geo question it used to illustrate is gone.
-const highlight = computed(() =>
-  form.country ? [form.country, REGION_OF[form.country]].filter(Boolean) : [],
-)
-
-const next = () => {
-  if (!stepComplete(form, step.value)) {
-    tried.value = true
-    return
-  }
-  tried.value = false
-  if (step.value < TOTAL) {
-    step.value += 1
-    return
-  }
-  // ⚠️ SAVED ONLY HERE, at the end. See the note on `form` above.
-  store.saveCompany(companyPayload(form))
-  // ⚠️ The basket is seeded on the recommendation screen rather than here, so
-  // that changing an answer and coming back re-runs the engine. Seeding at this
-  // point would freeze the first answer the intake ever produced.
-  router.push({ name: 'recommendation' })
-}
-
-const back = () => {
-  if (step.value > 1) {
-    step.value -= 1
-    tried.value = false
-  }
-}
-
-// Below-the-fold CTAs return to the questions rather than jumping past them —
-// the recommendation stays behind them no matter which path you take in.
-const restartQuiz = () => {
-  quizTop.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
+// Custom: Connect at the centre, partners on dotted rings around it. Real
+// logos from the directory, seated at hand-picked angles so no two share a
+// spoke and the picture reads as a network rather than a clock face.
+const RINGS = [90, 150, 210]
+const SEATS = [
+  { ring: 0, deg: -30 },
+  { ring: 0, deg: 150 },
+  { ring: 1, deg: -110 },
+  { ring: 1, deg: 20 },
+  { ring: 1, deg: 95 },
+  { ring: 1, deg: 200 },
+  { ring: 2, deg: -60 },
+  { ring: 2, deg: 55 },
+  { ring: 2, deg: 160 },
+  { ring: 2, deg: -135 },
+]
+const orbit = PARTNERS.filter((p) => logoFor(p.id))
+  .slice(0, SEATS.length)
+  .map((p, i) => {
+    const { ring, deg } = SEATS[i]
+    const a = (deg * Math.PI) / 180
+    // Positions in the 480-unit viewBox the rings are drawn in, as percentages
+    // so the logos track the SVG at any size.
+    return {
+      partner: p,
+      left: `${50 + (Math.cos(a) * RINGS[ring] * 100) / 480}%`,
+      top: `${50 + (Math.sin(a) * RINGS[ring] * 100) / 480}%`,
+    }
+  })
 </script>
 
 <template>
-  <!-- ⚠️ THE ROOT CRUMB DEPENDS ON WHICH FACE THIS IS. `ConnectShell` defaults
-       to "Partners", which is right for the directory and was wrong here the
-       moment `/connect` became a home screen: the bar read "Partners" over a
-       list of the customer's own projects. It reads "Home" once signed in, and
-       "Get started" on the way to a second project — the only two things this
-       address is when it is not the landing page. -->
-  <ConnectShell
-    :root-label="showPitch ? 'Partners' : showDashboard ? 'Home' : 'Get started'"
-    root-to="/connect"
-  >
+  <ConnectShell :root-label="showDashboard ? 'Home' : 'Get started'" root-to="/connect">
     <HomeDashboard v-if="showDashboard" />
 
-    <template v-else>
-    <!-- ── Hero: the three questions ─────────────────────────────────── -->
-    <!-- The intake owns the first screen: 100vh minus the 3rem top bar, so the
-         question and the map are the only things visible and everything below
-         the fold has to be scrolled to deliberately. -->
-    <section
-      ref="quizTop"
-      class="mx-auto grid w-full max-w-[1600px] gap-8 px-5 py-10 lg:min-h-[calc(100vh-3rem)] lg:grid-cols-2 lg:gap-14 lg:px-10 lg:pb-8 lg:pt-4 xl:grid-cols-[minmax(0,460px)_minmax(0,1fr)]"
-    >
-      <!-- ⚠️ Two column rules, and the breakpoint between them is the point.
-           460px is the narrowest column that keeps the headline on one line at
-           its 18px size with room to spare — but 460px is a FIXED max, so grid
-           hands the question its full width before the map gets anything left
-           over. Below `xl` that starved the map, so the 460 cap only applies
-           from `xl`, where there is room for it. Between `lg` and `xl` the
-           halves are simply equal. -->
-      <div class="flex min-w-0 flex-col justify-center lg:pb-16">
-        <!-- ⚠️ SHORT ENOUGH TO HOLD ONE LINE at this column's 460px, which is
-             what the previous headline did not: "Tell us about your business,
-             and we'll tell you how to start" ran to two lines and left "start"
-             alone on the second, which is the worst possible break — an orphan
-             on the largest type on the page. `text-balance` is insurance for
-             the widths where it does wrap. -->
-        <!-- ⚠️ THE COUNTER RIDES ON THE HEADLINE, which is what let the step
-             name go. Each step used to be titled — "Your business", "How you
-             work today", "What you want fixed" — with the counter opposite it
-             on its own row. Every one of those titles restated the question
-             directly beneath it ("What you want fixed" over "What are you
-             trying to fix?"), so the row cost a line of type and a line of
-             reading to say the same thing twice. The fields name themselves.
-             Baseline-aligned: 24px semibold against 13px, and aligning boxes
-             rather than baselines would float the counter off the cap line. -->
-        <div class="flex items-baseline justify-between gap-4">
-          <h1 class="text-balance text-2xl font-semibold text-ink-gray-9">
-            Tell us about your business
-          </h1>
-          <span class="shrink-0 text-p-sm tabular-nums text-ink-gray-5">
-            {{ step }} / {{ TOTAL }}
-          </span>
-        </div>
-        <!-- ⚠️ THE PROMISE, and it is here because two different doors lead to
-             this page. Somebody arriving from frappe.io/partners expects a
-             directory; somebody arriving from the contact page expects a reply
-             by email. Both of them get a form, so it has to say what it gives
-             back before it asks for anything — including the part people most
-             want to know, which is whether a salesperson is about to call.
-             ⚠️ TWO LINES, AND IT WAS FOUR. The long version also named what the
-             recommendation picks between ("a fixed-price starter pack you can
-             buy today, or quotes from partners who do your kind of work"), which
-             is a paragraph of reading above a form that has not asked anything
-             yet — and the next screen says it anyway, with prices. What is left
-             is the two facts that decide whether someone starts: how long this
-             takes, and that nobody rings them. -->
-        <p class="mt-2 max-w-md text-p-base leading-relaxed text-ink-gray-6">
-          Three questions, about a minute, and you'll get a recommendation straight away. No sales
-          call in between.
+    <div v-else class="mx-auto w-full max-w-[1120px] px-5 lg:px-10">
+      <!-- ── Hero ────────────────────────────────────────────────────────
+           Text only, centred, with the room to be read slowly. Newsreader for
+           the headline and nowhere else; the first line is quieter than the
+           second so the promise lands on the second. -->
+      <header class="mx-auto max-w-[720px] pb-12 pt-20 text-center lg:pb-16 lg:pt-24">
+        <h1 class="font-serif text-[36px] font-medium leading-[1.1] tracking-[-0.01em] sm:text-[44px]">
+          <span class="block text-ink-gray-5">Go live in weeks.</span>
+          <span class="block text-ink-gray-9">Grow for years.</span>
+        </h1>
+        <p class="mx-auto mt-6 max-w-[520px] text-lg leading-relaxed text-ink-gray-6">
+          Start on Frappe apps with a fixed Starter Pack, or a custom build by a certified
+          partner.
         </p>
+      </header>
 
-        <!-- ⚠️ NO PROGRESS BAR EITHER. There was one under the step name —
-             `Progress` with three intervals, the same control the contact
-             wizard uses — and it sat directly below a "1 / 3" saying the same
-             thing. Two indicators of one position is one too many, and the bar
-             was the weaker of them: it says how far along you are without
-             saying how far there is to go, which over three steps is the only
-             fact worth having. -->
-        <div class="relative mt-6">
-          <!-- ⚠️ THE SAME COMPONENT THE CONTACT WIZARD ASKS THESE WITH. They
-               were this page's own markup once and the wizard's own markup
-               beside it, and the two drifted within a week — one asked for a
-               segment, the other for an industry. `CompanyQuestions` is the
-               fields; this page owns the sequence and the buttons. -->
-          <div>
-            <Transition name="step" mode="out-in">
-              <div :key="step">
-                <CompanyQuestions :step="step" :form="form" :errors="errors" />
+      <!-- ── The two ways ────────────────────────────────────────────────
+           Text and picture side by side, the picture swapping sides so the
+           two read as two sections rather than one repeated row. -->
+      <section
+        v-for="(sec, i) in SECTIONS"
+        :id="sec.id"
+        :key="sec.id"
+        class="mx-auto grid max-w-[800px] scroll-mt-8 items-center gap-10 py-12 lg:grid-cols-2 lg:gap-14 lg:py-16"
+      >
+        <div :class="i % 2 && 'lg:order-2'">
+          <p class="text-base font-medium text-ink-gray-5">{{ sec.title }}</p>
+          <h2 class="mt-2 text-3xl font-semibold text-ink-gray-9">{{ sec.headline }}</h2>
+
+          <dl class="mt-10 space-y-6">
+            <div v-for="f in sec.features" :key="f.title" class="flex gap-4">
+              <component :is="f.icon" class="mt-0.5 size-5 shrink-0 text-ink-gray-5" aria-hidden="true" />
+              <div>
+                <dt class="text-base font-medium text-ink-gray-8">{{ f.title }}</dt>
+                <dd class="mt-0.5 text-p-base text-ink-gray-6">{{ f.body }}</dd>
               </div>
-            </Transition>
-          </div>
+            </div>
+          </dl>
 
-          <div class="mt-5 flex items-center gap-2">
+          <div class="mt-10 flex flex-wrap items-center gap-2">
+            <Button variant="solid" size="md" :label="sec.action.label" @click="sec.action.go" />
             <Button
-              variant="solid"
-              :label="step === TOTAL ? 'See what we recommend' : 'Continue'"
-              @click="next"
+              v-if="sec.more"
+              variant="ghost"
+              size="md"
+              :label="sec.more.label"
+              @click="sec.more.go"
             />
-            <Button v-if="step > 1" variant="subtle" label="Back" @click="back" />
           </div>
         </div>
-      </div>
 
-      <!-- Map: a stable frame beside the changing question. Its hubs light up
-           for the country answered on the first step, and stay lit. -->
-      <div class="flex min-w-0 flex-col justify-center rounded-7 bg-surface-gray-1 p-6 lg:p-8">
-        <DottedWorldMap :highlight="highlight" class="mx-auto w-full" />
-      </div>
-    </section>
-
-    <template v-if="showPitch">
-    <!-- ── Starter packs ─────────────────────────────────────────────── -->
-    <!-- Everything below the hero shares one 800px column, the same cap the
-         results screen uses — so the reading width is constant from here to the
-         partner list. Only the hero opts out (1600px), because the map needs
-         the width and is the reason this screen is wide at all.
-         No dividers between them either — vertical space does the separating.
-
-         ⚠️ `id` is a link target, not decoration: the estimate modal's "What's
-         in a starter pack?" links to `/connect#starter-packs`, and the router's
-         `scrollBehavior` resolves the hash to this element. Renaming it breaks
-         that link silently — the page still loads, just at the top. -->
-    <section id="starter-packs" class="scroll-mt-8 px-5 py-12 lg:px-10">
-      <div class="mx-auto w-full max-w-[800px]">
-        <h2 class="text-p-lg font-semibold text-ink-gray-9">
-          Starter Packs are your fastest way to get started
-        </h2>
-        <!-- ⚠️ "You pay Frappe" is the one term that has to survive being read
-             on a partner's page, so it is here and on the profile's pricing
-             section both. A fixed price quoted beside a named partner reads as
-             that partner's invoice, and for a pack it isn't one.
-
-             It sits in this paragraph rather than in a row of the table because
-             the answer is the same for all four packs. The table is the one
-             place on the page for what differs between them — which is also why
-             the Modules row went: with each pack now NAMED by its modules, that
-             row printed its own column header back. -->
-        <p class="mt-1.5 max-w-2xl text-p-base text-ink-gray-6">
-          Fixed scope, fixed price, delivered by any certified partner. You pay Frappe in full, not
-          the partner. Pick one now or let the questions above narrow it down for you. Prices for
-          India, before {{ pricingFor(DEFAULT_REGION).tax }}.
-        </p>
-
-        <ScrollArea orientation="horizontal" class="mt-5 rounded-6 border border-outline-gray-2">
-          <table class="w-full min-w-[640px] border-collapse text-p-base">
-            <thead>
-              <tr class="bg-surface-gray-1">
-                <th
-                  scope="col"
-                  class="w-32 px-4 py-3 text-left text-p-sm font-medium text-ink-gray-5"
-                >
-                  <span class="sr-only">Attribute</span>
-                </th>
-                <!-- ⚠️ NOT uppercased, unlike every other header in the app.
-                     A pack's name is now its module list — "Accounts, Sales,
-                     Purchase, Stock" — which is content in a heading's slot
-                     rather than a label for a column. Uppercase with tracking
-                     put that one across four lines in a 160px cell and made
-                     the header row three times the height of any row under it.
-                     Sentence case and a narrower attribute column bring it to
-                     two. -->
-                <th
-                  v-for="pack in STARTER_PACKS"
-                  :key="pack.value"
-                  scope="col"
-                  class="px-4 py-3 text-center text-p-sm font-medium text-ink-gray-7"
-                >
-                  {{ pack.name }}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr class="border-t border-outline-gray-2">
-                <th scope="row" class="px-4 py-3.5 text-left font-normal text-ink-gray-7">
-                  Total hours
-                </th>
-                <td
-                  v-for="p in STARTER_PACKS"
-                  :key="p.value"
-                  class="px-4 py-3.5 text-center tabular-nums text-ink-gray-8"
-                >
-                  {{ p.hours }}
-                </td>
-              </tr>
-              <tr class="border-t border-outline-gray-2">
-                <th scope="row" class="px-4 py-3.5 text-left font-normal text-ink-gray-7">
-                  Validity
-                </th>
-                <td
-                  v-for="p in STARTER_PACKS"
-                  :key="p.value"
-                  class="px-4 py-3.5 text-center text-ink-gray-8"
-                >
-                  {{ p.validity }}
-                </td>
-              </tr>
-              <tr class="border-t border-outline-gray-2">
-                <th scope="row" class="px-4 py-3.5 text-left font-normal text-ink-gray-7">Cost</th>
-                <td
-                  v-for="p in STARTER_PACKS"
-                  :key="p.value"
-                  class="px-4 py-3.5 text-center font-medium tabular-nums text-ink-gray-9"
-                >
-                  {{ priceFor(p, DEFAULT_REGION) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </ScrollArea>
-
-        <!-- ⚠️ TWO WAYS OUT, and the second one is the escape hatch this page
-             needs. Somebody who arrived from frappe.io/partners came for a
-             directory and has been handed a form; telling them the directory is
-             still there costs one link and keeps a visitor who would otherwise
-             leave. The questions stay the primary route because they are the
-             only one that ends in an answer. -->
-        <div class="mt-4 flex flex-wrap items-center gap-2">
-          <Button variant="subtle" label="Answer three questions" @click="restartQuiz" />
-          <Button variant="ghost" label="Or browse all partners" :route="{ name: 'results' }" />
-        </div>
-      </div>
-    </section>
-
-    <!-- ── Success stories ───────────────────────────────────────────── -->
-    <section class="px-5 py-12 lg:px-10">
-      <div class="mx-auto w-full max-w-[800px]">
-        <h2 class="text-p-lg font-semibold text-ink-gray-9">Success stories</h2>
-        <ul class="mt-5 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          <li v-for="s in SUCCESS_STORIES" :key="s.id">
-            <a href="#" class="group block">
+        <!-- The picture. Decorative: every fact in it is in the text beside it. -->
+        <div
+          class="relative aspect-square w-full overflow-hidden rounded-7 bg-surface-gray-1"
+          aria-hidden="true"
+        >
+          <!-- Starter Packs: the catalogue, cascaded. -->
+          <div
+            v-if="sec.id === 'starter-packs'"
+            class="absolute inset-0 flex items-center justify-center"
+          >
+            <div class="relative h-[196px] w-[284px]">
               <div
-                class="h-[132px] rounded-6 transition-opacity group-hover:opacity-90"
-                :style="{ backgroundImage: `linear-gradient(135deg, ${s.art[0]}, ${s.art[1]})` }"
-                role="img"
-                :aria-label="`Cover image for: ${s.title}`"
-              />
-              <p class="mt-3 text-p-sm font-medium text-ink-gray-5">
-                {{ s.tag }}
-              </p>
-              <p class="mt-1 text-p-base leading-snug text-ink-gray-8 group-hover:underline">
-                {{ s.title }}
-              </p>
-            </a>
-          </li>
-        </ul>
-      </div>
-    </section>
+                v-for="card in cascade"
+                :key="card.name"
+                class="absolute left-0 top-0 w-[252px] rounded-6 border border-outline-gray-1 bg-surface-elevation-1 p-4 shadow-lg"
+                :style="card.style"
+              >
+                <div class="flex items-center gap-2">
+                  <IconPackage class="size-4 shrink-0 text-ink-gray-5" />
+                  <p class="truncate text-base font-semibold text-ink-gray-8">{{ card.name }}</p>
+                </div>
+                <p class="mt-1 pl-6 text-p-sm text-ink-gray-6">{{ card.line }}</p>
+              </div>
+            </div>
+          </div>
 
-    <!-- ── Footer CTA — back into the quiz ───────────────────────────── -->
-    <section class="bg-surface-gray-1 px-5 py-14 lg:px-10">
-      <div class="mx-auto w-full max-w-[800px] text-center">
-        <h2 class="text-xl font-semibold text-ink-gray-9">Ready to start?</h2>
-        <p class="mx-auto mt-2 max-w-md text-p-base text-ink-gray-6">
-          Three questions, about a minute. You'll know whether a fixed-price pack covers you, or
-          whether this needs scoping — and either way, who can do it.
-        </p>
-        <div class="mt-5">
-          <Button variant="solid" size="md" label="Get a recommendation" @click="restartQuiz" />
+          <!-- Custom: Connect and the partners around it. -->
+          <template v-else>
+            <svg viewBox="0 0 480 480" class="fc-rings absolute inset-0 size-full text-ink-gray-3">
+              <circle
+                v-for="r in RINGS"
+                :key="r"
+                cx="240"
+                cy="240"
+                :r="r"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.25"
+                stroke-dasharray="2 5"
+                stroke-linecap="round"
+              />
+            </svg>
+            <!-- ⚠️ SIZED AS A SHARE OF THE PANEL, NOT IN PIXELS. The rings are an
+                 SVG and scale with the panel; fixed-size discs on them crowded
+                 together as it narrowed. Every disc here is a percentage of the
+                 panel's width, so the diagram shrinks as one picture.
+                 A plain `<img>` in a square box, not `Avatar`: an inline avatar
+                 inside a padded circle picked up line-height and went oval. -->
+            <div
+              v-for="o in orbit"
+              :key="o.partner.id"
+              class="absolute flex aspect-square w-[12%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-surface-elevation-1 shadow-md"
+              :style="{ left: o.left, top: o.top }"
+            >
+              <img
+                :src="logoFor(o.partner.id)"
+                alt=""
+                class="size-[56%] object-contain"
+                draggable="false"
+              />
+            </div>
+            <div
+              class="absolute left-1/2 top-1/2 flex aspect-square w-[22%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-surface-elevation-1 shadow-xl"
+            >
+              <!-- Connect's mark at the same proportions as `ConnectMark`, drawn
+                   here so it can scale: the component takes fixed Avatar sizes. -->
+              <div class="fc-mark size-[56%]">
+                <div class="flex size-full items-center justify-center rounded-[24%]">
+                  <IconHandshake class="size-[55%]" />
+                </div>
+              </div>
+            </div>
+          </template>
         </div>
-      </div>
-    </section>
-    </template>
-    </template>
+      </section>
+
+      <!-- ── What customers say ─────────────────────────────────────────
+           ⚠️ INVENTED, every one: the people, their words and their roles.
+           The companies are the prototype's own fictional clients (see
+           `assets/clients`), so none of this is attributed to a real firm or
+           a real person. Replace with real, permissioned reviews.
+           Each names the service it is about, because the two are bought for
+           different reasons and a reader is choosing between them. -->
+      <section class="mx-auto max-w-[600px] pb-24 pt-16 lg:pb-32">
+        <h2 class="text-3xl font-semibold text-ink-gray-9">Take it from our customers</h2>
+        <div class="mt-10 space-y-10">
+          <figure v-for="r in REVIEWS" :key="r.name">
+            <figcaption class="flex items-center gap-3">
+              <Avatar :label="r.name" size="2xl" shape="circle" />
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <p class="text-base font-medium text-ink-gray-8">{{ r.name }}</p>
+                  <Badge :label="r.service" variant="subtle" theme="gray" size="sm" />
+                </div>
+                <p class="mt-0.5 text-p-sm text-ink-gray-5">{{ r.role }}</p>
+              </div>
+            </figcaption>
+            <blockquote class="mt-4 text-p-base leading-relaxed text-ink-gray-7">
+              “{{ r.quote }}”
+            </blockquote>
+          </figure>
+        </div>
+      </section>
+    </div>
   </ConnectShell>
 </template>
+
+<style scoped>
+/* The rings fade towards the panel's edge rather than stopping at it. */
+.fc-rings {
+  mask-image: radial-gradient(circle at center, #000 55%, transparent 72%);
+}
+</style>

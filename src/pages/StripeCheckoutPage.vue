@@ -22,10 +22,9 @@
 // on `PaymentMethodPicker`.
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Button, Spinner, TabButtons, toast } from 'frappe-ui'
+import { Button, Spinner, TabButtons } from 'frappe-ui'
 import IconLock from '~icons/lucide/lock'
 import IconArrowLeft from '~icons/lucide/arrow-left'
-import { PARTNERS } from '../data/partners'
 import { checkoutFor, marketFor, DEFAULT_REGION } from '../data/packs'
 import { PAYMENT_METHODS, PAYMENT_MS, PROVIDER, methodBy } from '../data/payment'
 import { useConnectStore } from '../stores/connect'
@@ -45,38 +44,25 @@ const methodTabs = PAYMENT_METHODS.map((m) => ({ label: m.label, value: m.value 
 
 const paying = ref(false)
 
-// ⚠️ THE ASSIGNMENT HAPPENS ON PAYMENT, which is what the catalogue's "How it
-// works" promises: you buy the pack from Frappe, and Frappe assigns a partner
-// against it. Not before — an assignment made at the point of browsing would be
-// a name shown to somebody who never bought anything.
-//
-// The best match under the answers already given, which is `store.results` —
-// the same filtered, tier-ranked list the directory shows, so the assignment is
-// at least consistent with what the visitor would have seen browsing. A real
-// build decides this server-side on capacity and the overlap the profile brags
-// about. Falling back to the first partner keeps the screen reachable when the
-// filters have narrowed to nothing.
+// ⚠️ NO PARTNER IS ASSIGNED ON PAYMENT, and one used to be: the best match
+// under the intake's answers, picked here. Frappe implements Starter Packs
+// itself now, so paying creates a pack project that is Frappe's and a thread
+// with the Frappe team.
 const pay = () => {
   if (paying.value || !packs.value.length) return
   paying.value = true
   // The delay exists so the processing state is reviewable; there is nothing to
   // call. Same reasoning as `AUTH_MS` on the auth screens.
   setTimeout(() => {
-    const assigned = store.results[0] ?? PARTNERS[0]
-    // ⚠️ THREE THINGS AT ONCE, in this order: the project exists, the partner
-    // is on it, and the conversation is open with the brief already sent. The
-    // last one is the part a customer would otherwise have to do themselves,
-    // and it is the difference between being assigned a partner and being
-    // introduced to one. See `bookingThread`.
-    store.startBooking({ partner: assigned, packs: packs.value })
-    toast.success('Payment received', {
-      description: `A receipt is on its way, and we have introduced you to ${assigned.name}.`,
-    })
+    // ⚠️ TWO THINGS AT ONCE: the project exists, and the conversation with
+    // Frappe is open with the details already sent. See `bookingThread`.
+    const projectId = store.startBooking({ packs: packs.value })
     // ⚠️ The basket is cleared HERE and not on the confirmation screen. Leaving
     // it full would let a reload of the checkout charge for the same packs
-    // again, and the confirmation reads the project rather than the basket.
+    // again. The project page reads the project, not the basket.
     store.setPacks([])
-    router.replace({ name: 'confirmed', query: { partner: assigned.id } })
+    // Straight to the project, which opens its payment dialog once.
+    router.replace({ name: 'project', params: { id: projectId }, query: { paid: 1 } })
   }, PAYMENT_MS)
 }
 </script>

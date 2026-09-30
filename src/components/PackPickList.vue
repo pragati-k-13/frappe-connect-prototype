@@ -1,5 +1,5 @@
 <script setup>
-import { Badge, Button, Checkbox } from 'frappe-ui'
+import { Badge, Button } from 'frappe-ui'
 import { List, ListCell, ListRow } from 'frappe-ui/list'
 import IconPrice from '~icons/lucide/circle-dollar-sign'
 import IconEffort from '~icons/lucide/hourglass'
@@ -29,6 +29,14 @@ const props = defineProps({
 
 const emit = defineEmits(['toggle', 'scope'])
 
+// The List reports the whole new selection; the callers keep one `toggle`, so
+// this reports the one pack whose membership changed.
+const onSelection = (next) => {
+  const changed =
+    next.find((v) => !props.packs.includes(v)) ?? props.packs.find((v) => !next.includes(v))
+  if (changed) emit('toggle', changed)
+}
+
 const facts = (pack) => [
   { key: 'price', icon: IconPrice, text: priceFor(pack, props.region), strong: true },
   { key: 'effort', icon: IconEffort, text: `${pack.hours} hrs of effort` },
@@ -37,22 +45,31 @@ const facts = (pack) => [
 </script>
 
 <template>
-  <List divider="full" class="[--list-gap:1rem]" :columns="['auto', 'minmax(0,1fr)', 'auto']">
-    <ListRow v-for="pack in STARTER_PACKS" :key="pack.value" class="py-5">
-      <!-- The checkbox sits on the name's line, not the row's middle. -->
-      <ListCell class="self-start pt-0.5">
-        <Checkbox
-          size="md"
-          :model-value="packs.includes(pack.value)"
-          :aria-label="pack.name"
-          @update:model-value="emit('toggle', pack.value)"
-        />
-      </ListCell>
-
+  <!-- ⚠️ frappe-ui's OWN SELECTION, not a checkbox of ours in a cell. With
+       `selectable` the List draws the checkbox column and a click anywhere on
+       the row toggles it, so the whole row is the target rather than a 16px
+       box — a row with a price on it is where people click. The row also gets
+       List's interactive inset and hover, hence `-mx-3`: the fill bleeds past
+       the column and the content stays on the column's edge.
+       "View scope" stops its click, so it opens the scope and never ticks. -->
+  <List
+    selectable
+    :selection="packs"
+    divider="full"
+    class="-mx-3 [--list-gap:1rem]"
+    :columns="['minmax(0,1fr)', 'auto']"
+    @update:selection="onSelection"
+  >
+    <ListRow
+      v-for="pack in STARTER_PACKS"
+      :key="pack.value"
+      :value="pack.value"
+      class="fc-pack-row py-5"
+    >
       <ListCell>
         <div class="min-w-0">
           <div class="flex flex-wrap items-center gap-2">
-            <h3 class="text-base font-medium text-ink-gray-7">{{ pack.name }}</h3>
+            <h3 class="text-lg font-medium text-ink-gray-8">{{ pack.name }}</h3>
             <Badge
               v-if="reasons?.[pack.value]"
               variant="subtle"
@@ -76,7 +93,8 @@ const facts = (pack) => [
       </ListCell>
 
       <ListCell class="justify-end">
-        <Button variant="subtle" label="View details" @click="emit('scope', pack)" />
+        <!-- Ghost: the row is the primary action, this is the aside. -->
+        <Button variant="ghost" label="View scope" @click.stop="emit('scope', pack)" />
       </ListCell>
     </ListRow>
   </List>

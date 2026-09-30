@@ -20,15 +20,30 @@
 // eight, and at 16vh that one sat low enough on a laptop to push its own footer
 // off the bottom. One value for all four, because a column that starts at a
 // different height on each step is worse than one that starts slightly high.
+import { Button } from 'frappe-ui'
+import IconArrowUpRight from '~icons/lucide/arrow-up-right'
 import frappeMark from '../assets/frappe.svg'
 
 defineProps({
   title: { type: String, required: true },
+  // One line under the title, when the screen interrupted something — see
+  // `resumeLineFor` in `utils/auth.js`.
+  subtitle: { type: String, default: null },
+  // The partner portal, top right — log-in and sign-up only. Partners are not
+  // users of this flow, so their door sits at the edge rather than beside the
+  // customer's next step under the form.
+  partnerPortal: { type: Boolean, default: false },
 })
 </script>
 
 <template>
-  <main class="flex min-h-screen flex-col bg-surface-base px-4">
+  <main class="relative flex min-h-screen flex-col bg-surface-base px-4">
+    <!-- Dead in this prototype: the partner-side app is not mocked. -->
+    <div v-if="partnerPortal" class="absolute right-4 top-4">
+      <Button variant="ghost" label="Partner portal" link="#">
+        <template #suffix><IconArrowUpRight class="size-4" /></template>
+      </Button>
+    </div>
     <!-- Top-weighted, not centred. Centring puts a one-field log-in halfway
          down a tall window with nothing above it; a fixed fraction from the top
          keeps both screens starting in the same place whatever they hold. -->
@@ -38,6 +53,7 @@ defineProps({
            would be decoration repeated four times. -->
       <slot name="mark" />
       <h1 class="text-xl font-semibold text-ink-gray-8">{{ title }}</h1>
+      <p v-if="subtitle" class="mt-1 text-p-base text-ink-gray-5">{{ subtitle }}</p>
       <slot />
     </section>
 

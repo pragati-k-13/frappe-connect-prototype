@@ -628,6 +628,14 @@ const P = (
   founding: foundingFor(name),
   tier,
   workStyle,
+  // ⚠️ INVENTED, like `workStyle` and the rates: the smallest project a firm
+  // takes, as a rung on the budget ladder (1 = the lowest band, 4 = the
+  // highest; see `budgetBandsFor`). A floor and no ceiling, so a bigger budget
+  // only ever reaches more firms. Derived rather than set per firm, so it at
+  // least follows the other invented facts: bronze takes any size, silver from
+  // the second band, gold from the third, and the dearest only the top one.
+  // Replace with the partners' own answer.
+  minBand: rate >= 120 ? 4 : { silver: 2, gold: 3 }[tier] ?? 1,
   city,
   region,
   initials,
@@ -1052,3 +1060,32 @@ export const INDIA_CITIES = [
 // The city a partner is in, without its country — the same derivation the list
 // above is built from, so a filter cannot disagree with its own options.
 export const cityOf = (partner) => partner.city.split(',')[0].trim()
+
+// ── Frappe, implementing a Starter Pack ─────────────────────────────────────
+// ⚠️ STARTER PACKS ARE IMPLEMENTED BY FRAPPE'S OWN TEAM, for now. Buying one
+// used to assign a partner from the list above; it assigns nobody now, and the
+// pack project and its thread are with Frappe. Custom work still goes to
+// partners.
+//
+// ⚠️ NOT IN `PARTNERS`, and that is the point of it being a separate record:
+// the directory, its filters, its counts and every broadcast read that list,
+// and Frappe is none of those. It carries only the fields the pack screens read
+// off whoever is doing the work — no tier, rate, rating or industries — so a
+// reader that reaches for one of those has to ask `isFrappe` first.
+//
+// `id` is also the key its thread and its project store in `partnerId`, and
+// what `logoFor` resolves to the Frappe mark. `responds` is invented, like
+// every partner's.
+export const FRAPPE_TEAM = {
+  id: 'frappe',
+  name: 'Frappe',
+  city: 'Mumbai, India',
+  responds: '4h',
+}
+
+export const isFrappe = (who) => (typeof who === 'string' ? who : who?.id) === FRAPPE_TEAM.id
+
+// Whoever an id on a project or a thread names: Frappe, or a partner. Null for
+// an id that names neither.
+export const implementerFor = (id) =>
+  isFrappe(id) ? FRAPPE_TEAM : (PARTNERS.find((p) => p.id === id) ?? null)

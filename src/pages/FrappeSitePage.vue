@@ -54,6 +54,7 @@
 // tab may not be visible at all. The route change says the same thing, because
 // the two screens look nothing alike.
 import { useRouter } from 'vue-router'
+import { useConnectStore } from '../stores/connect'
 import { Button, ScrollArea } from 'frappe-ui'
 import SiteRail from '../components/SiteRail.vue'
 import { SUCCESS_STORIES } from '../data/partners'
@@ -62,9 +63,18 @@ import { SUCCESS_STORIES } from '../data/partners'
 import frappeMark from '../assets/frappe.svg'
 
 const router = useRouter()
+const store = useConnectStore()
 
 // Into the app, through the router, so Back comes back here.
 const go = (path = '') => router.push(`/connect${path}`)
+
+// The directory, with a location already picked from "where we think you are" —
+// the store's stand-in for GeoIP. Seeded, not locked: it lands as an ordinary
+// filter the visitor can clear, and a location they already chose is kept.
+const viewAllPartners = () => {
+  store.seedInferredGeo()
+  go('/partners')
+}
 
 // ⚠️ THE REAL PAGE'S THREE, VERBATIM — titles and bodies both. What stood here
 // was a rewrite of them: "Quality you can check" for "Quality focus", and three
@@ -172,43 +182,16 @@ const BENEFITS = [
               Browse through our list of Frappe Partners to find the best match for your business.
             </p>
 
-            <!-- ⚠️ "Find a partner" GOES TO THE LIST, which is what it does on
-                 the real page: there it opens a regional directory, here it
-                 opens the partner directory inside Connect. It used to open the
-                 three questions instead — a button that names one destination
-                 and delivers another, on the one page whose job is to be
-                 recognisable. Answering questions is what the SECOND door
-                 below is for, and it says so. -->
+            <!-- ⚠️ IT GOES TO THE LIST, and says so. The real page's "Find a
+                 partner" opens a regional directory; here it opens Connect's,
+                 already narrowed to where the visitor is — see
+                 `viewAllPartners`. -->
             <div class="mt-6">
-              <Button variant="solid" size="md" label="Find a partner" @click="go('/partners')">
+              <Button variant="solid" size="md" label="View all partners" @click="viewAllPartners">
                 <template #suffix><LucideArrowRight class="size-4" /></template>
               </Button>
             </div>
 
-            <!-- ── The second door ────────────────────────────────────────
-                 ⚠️ THIS REPLACED "Or browse all 156 partners", which was the
-                 same offer as the button above it wearing a number — and the
-                 number was the problem: a page cannot read the directory, so
-                 156 was a figure this mock would have to keep in step with the
-                 partner list by hand, on the page a visitor trusts least.
-
-                 What it says instead is the thing the directory cannot do for
-                 somebody who does not know what they are looking at. Quiet, and
-                 second: most people who reach this page came to see the firms,
-                 and being asked three questions before you are allowed to look
-                 is the experience this whole flow exists to replace. -->
-            <p class="mt-10 border-t border-outline-gray-1 pt-6 text-[15px] leading-[1.57] text-ink-gray-6">
-              Not sure what you need built? Answer three questions about your business and we will
-              say which service fits, and what it costs.
-            </p>
-            <button
-              type="button"
-              class="mt-2 flex items-center gap-1.5 text-[15px] font-medium text-ink-gray-8 hover:underline"
-              @click="go('?new=1')"
-            >
-              Get a recommendation
-              <LucideArrowRight class="size-4 text-ink-gray-5" />
-            </button>
           </section>
 
           <!-- ── Benefits ──────────────────────────────────────────────────
@@ -217,7 +200,7 @@ const BENEFITS = [
                the become-a-partner section at the foot of the page and has come
                adrift. Reproducing it would make this mock unreadable in the one
                way the original is. -->
-          <section class="mx-auto max-w-[600px] pt-24">
+          <section id="become-a-partner" class="mx-auto max-w-[600px] pt-24">
             <h2 class="font-serif text-[24px] font-medium leading-[1.3] text-ink-gray-8">
               Benefits of working with a Frappe Partner
             </h2>

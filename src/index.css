@@ -128,9 +128,29 @@
    static — they carry Save and Contact, so the row itself cannot be a link.
    This restores it, so the hover fill reads as one unbroken block as it did
    before the switch. Beats List's own `+ row` rule on specificity. */
+/* ⚠️ THE INSET frappe-ui GIVES ONLY TO INTERACTIVE ROWS. `style.css` in
+   `frappe-ui/list` sets `--_list-row-pad` on `[data-interactive]` rows alone;
+   a static row gets 0, while `PartnerList` still bleeds the list 12px each
+   side for the hover fill. So the content sat 12px outside its column and
+   flush against the fill. This is frappe-ui's own rule, applied to the static
+   row that carries the same fill — it reads the same `--list-row-padding-x`
+   hook (`list-row-px-3` on the List), so the two cannot drift. */
+[data-slot='list-row'].fc-list-partner {
+  --_list-row-pad: var(--list-row-padding-x, 0.75rem);
+}
+
 [data-slot='list-row'].fc-list-partner:hover [data-slot='list-divider'],
 [data-slot='list-row'].fc-list-partner:hover + [data-slot='list-row'] [data-slot='list-divider'] {
   opacity: 0;
+}
+
+/* frappe-ui centres the row checkbox on the whole row; a pack row has two
+   lines, so it goes on the first, level with the pack name. The top padding
+   is the row's own `py-5` plus half the gap between the 18px name line and
+   the 15px box. */
+[data-slot='list-row'].fc-pack-row > [data-slot='list-row-checkbox'] {
+  align-items: flex-start;
+  padding-top: calc(1.25rem + 1.5px);
 }
 
 /* `Dialog`'s `size` prop is an enum of Tailwind `max-w-*` steps — `xl` is
@@ -261,6 +281,31 @@
   flex-shrink: 0;
 }
 
+/* A dialog whose body is a frappe-ui ScrollArea (`fc-scroll-dialog`): the
+   body wrapper stops scrolling, and the chain down to the ScrollArea becomes
+   flex columns so it gets whatever height the header leaves. The header is
+   then pinned by layout rather than by `sticky`. */
+.dialog-content:not(:has(.fc-estimate)) > div.pb-6.pt-5:has(.fc-scroll-dialog) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dialog-content > div.pb-6.pt-5:has(.fc-scroll-dialog) > .flex,
+.dialog-content > div.pb-6.pt-5:has(.fc-scroll-dialog) > .flex > .w-full {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dialog-content > div.pb-6.pt-5:has(.fc-scroll-dialog) > .flex > .w-full > div:has(> .fc-scroll-dialog),
+.fc-scroll-dialog {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 /* ⚠️ PAGE WIDTHS ARE CONTENT WIDTHS, with the padding added outside them.
    Pages used to be `max-w-[800px] px-5 lg:px-10` — a box whose padding grew at
    `lg`, so the content was 760px on a mid-size window and 720px on a large one:
@@ -316,7 +361,7 @@
 }
 
 /* The recommendation's three steps: across when the COLUMN has room for the
-   longest title on one line ("Coordinate with partner" plus its number is about
+   longest title on one line ("Coordinate with Frappe" plus its number is about
    200px, so three and two gaps want 640), stacked when it does not. Its own
    container rather than `content`, because the column beside the rail is
    narrower than the content region by the rail's width. */

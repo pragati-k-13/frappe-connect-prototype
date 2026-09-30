@@ -7,7 +7,11 @@ import IconReview from '~icons/lucide/star'
 import IconBook from '~icons/lucide/book-open'
 import IconContact from '~icons/lucide/message-square-text'
 import IconHelp from '~icons/lucide/circle-help'
+// Opens a dialog: a panel opening over the page — not a chevron (drilling
+// down) and not maximize (frappe-ui's image viewer uses it for full screen).
+import IconOpen from '~icons/lucide/panel-top-open'
 import { logoFor } from '../data/logos'
+import { isFrappe } from '../data/partners'
 import { checkoutFor } from '../data/packs'
 import { serviceOf } from '../data/project'
 import { scopeSentence } from '../data/modules'
@@ -68,6 +72,9 @@ const revertName = (e) => {
 const HANDBOOK = 'https://frappe.io/handbook'
 
 const logo = computed(() => (props.partner ? logoFor(props.partner.id) : null))
+// ⚠️ `partner` is `FRAPPE_TEAM` on a Starter Pack: Frappe implements packs
+// itself. It is not in the directory, so it has no profile to open.
+const frappe = computed(() => isFrappe(props.partner))
 
 // The accepted quote on custom work — the source of both its cost and its
 // timeline.
@@ -102,7 +109,9 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
 <template>
   <div>
     <section v-if="partner" class="border-b border-outline-gray-1 px-5 py-5">
-      <h3 class="text-base font-medium text-ink-gray-8">Partner</h3>
+      <h3 class="text-base font-medium text-ink-gray-8">
+        {{ frappe ? 'Implemented by' : 'Partner' }}
+      </h3>
 <!-- ⚠️ THE PARTNER'S ACTIONS SIT ON THEIR ROW: message them, or open their
            profile. The row itself is not a link — two named actions beat one
            guess about what a click on a name does. Icon-only, so each carries a
@@ -117,17 +126,11 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
         />
         <p class="min-w-0 flex-1 truncate text-base text-ink-gray-8">{{ partner.name }}</p>
         <div class="flex shrink-0 gap-1.5">
-          <Tooltip text="Message">
-            <Button
-              size="xs"
-              variant="subtle"
-              aria-label="Message"
-              @click="emit('message')"
-            >
-              <template #icon><IconMessage class="size-3.5" /></template>
-            </Button>
-          </Tooltip>
-          <Tooltip text="View profile">
+          <!-- Labelled, so no tooltip: the word says what the icon meant. -->
+          <Button size="sm" variant="subtle" label="Message" @click="emit('message')">
+            <template #prefix><IconMessage class="size-3.5" /></template>
+          </Button>
+          <Tooltip v-if="!frappe" text="View profile">
             <Button
               size="xs"
               variant="subtle"
@@ -145,18 +148,25 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
       >
         <template v-if="packs.length || scopeLine">
           <dt class="text-ink-gray-5">Scope of work</dt>
-          <!-- ⚠️ WHAT THE PARTNER IS DELIVERING, so it is the partner's — and
-               where the fuller scope (modules and what is in each) will live.
+          <!-- ⚠️ WHAT THIS IMPLEMENTER IS DELIVERING — a partner, or Frappe
+               on a pack — so it sits under them, and is where the fuller scope (modules and what is in each) will live.
                ⚠️ ONE LINK, NOT ONE PER PACK. Pack names are long and wrap in a
                112px column; the dialog it opens lists them. -->
           <dd v-if="packs.length" class="min-w-0">
-            <button
-              type="button"
-              class="text-ink-gray-8 underline underline-offset-4"
+            <!-- A value you can open: frappe-ui's ghost Button at `sm` (its 14px
+                 text matches the other values), with the overlay mark as its
+                 suffix. `-mx-2 -my-1` is the one override: it pulls the
+                 button's 8px padding and 28px height back so the text stays on
+                 the column and the row keeps its height. -->
+            <Button
+              variant="ghost"
+              size="sm"
+              class="-mx-2 -my-1 max-w-full"
+              :label="packs.length === 1 ? packs[0].name : `${packs.length} Starter Packs`"
               @click="emit('scope')"
             >
-              {{ packs.length === 1 ? packs[0].name : `${packs.length} Starter Packs` }}
-            </button>
+              <template #suffix><IconOpen class="size-3.5 text-ink-gray-5" /></template>
+            </Button>
           </dd>
           <dd v-else class="text-ink-gray-8">{{ scopeLine }}</dd>
         </template>
@@ -172,7 +182,8 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
         </template>
       </dl>
       <!-- The one partner action that asks for something, and only once the
-           work is done — so it is a labelled button, and only then. -->
+           work is done — so it is a labelled button, and only then. Never on
+           a pack: Frappe did the work, and there is no partner to review. -->
       <Button
         v-if="canReview"
         class="mt-3"
@@ -209,13 +220,15 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
         <template v-if="hasBrief">
           <dt class="text-ink-gray-5">Requirements</dt>
           <dd class="min-w-0">
-            <button
-              type="button"
-              class="text-left text-ink-gray-8 underline underline-offset-4"
+            <Button
+              variant="ghost"
+              size="sm"
+              class="-mx-2 -my-1 max-w-full"
+              label="View requirements"
               @click="emit('requirements')"
             >
-              View requirements
-            </button>
+              <template #suffix><IconOpen class="size-3.5 text-ink-gray-5" /></template>
+            </Button>
           </dd>
         </template>
 

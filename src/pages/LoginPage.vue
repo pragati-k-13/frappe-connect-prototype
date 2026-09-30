@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, FormControl } from 'frappe-ui'
 import AuthShell from '../components/AuthShell.vue'
-import { isEmail, useAuthExit } from '../utils/auth'
+import { isEmail, resumeLineFor, useAuthExit } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 
 // SCREEN — log in.
@@ -53,7 +53,7 @@ useAuthExit()
 </script>
 
 <template>
-  <AuthShell title="Log in to your account">
+  <AuthShell title="Log in to your account" :subtitle="resumeLineFor(route)" partner-portal>
     <form class="mt-6 space-y-4" novalidate @submit.prevent="submit">
       <FormControl
         v-model="email"
@@ -74,16 +74,6 @@ useAuthExit()
       <RouterLink :to="signupLink" class="font-medium text-ink-gray-8 underline underline-offset-2">
         Create an account
       </RouterLink>
-    </p>
-
-    <!-- The same line as sign-up carries, and for the same reason: a certified
-         partner logging in here reaches a customer account. Dead in this
-         prototype — the partner-side app is not mocked. -->
-    <p class="mt-2 text-p-sm text-ink-gray-5">
-      Are you a Frappe partner?
-      <a href="#" class="font-medium text-ink-gray-8 underline underline-offset-2">
-        Log in to the partner portal
-      </a>
     </p>
   </AuthShell>
 </template>

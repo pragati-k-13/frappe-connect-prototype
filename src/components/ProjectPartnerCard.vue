@@ -7,6 +7,7 @@ import IconRate from '~icons/lucide/circle-dollar-sign'
 import IconStar from '~icons/lucide/star'
 import IconClock from '~icons/lucide/clock'
 import { logoFor } from '../data/logos'
+import { isFrappe } from '../data/partners'
 
 // Who is doing the work: the listing row's three facts, framed as a card.
 //
@@ -31,16 +32,22 @@ import { logoFor } from '../data/logos'
 // three facts with the same icons, same 2/12/4 rhythm. 16px of padding, and a
 // border rather than the row's hover fill — nothing here is a list, so there is
 // nothing to hover between.
+// ⚠️ `partner` IS `FRAPPE_TEAM` ON A STARTER PACK — Frappe implements packs
+// itself. That record has a name, a city and a response time and nothing a
+// directory listing has, so the tier, the rate, the rating, the expertise line
+// and Visit profile are all partner-only below.
 const props = defineProps({
   partner: { type: Object, required: true },
 })
 
+const frappe = computed(() => isFrappe(props.partner))
 const logo = computed(() => logoFor(props.partner.id))
 
 // The same three facts the listing row carries, in the same order and with the
 // same icons — this card is that row, framed. See `PartnerRow`.
 const facts = computed(() => {
   const p = props.partner
+  if (frappe.value) return [{ icon: IconClock, text: `Typically ${p.responds}` }]
   return [
     { icon: IconRate, text: p.rate ? `From $${p.rate}/hr` : 'Undisclosed', muted: !p.rate },
     { icon: IconStar, text: `${p.rating}`, sub: `(${p.reviews})` },
@@ -86,7 +93,7 @@ const expertise = computed(() => {
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
           <h2 class="text-lg font-medium text-ink-gray-8">{{ partner.name }}</h2>
-          <TierIcon :tier="partner.tier" />
+          <TierIcon v-if="!frappe" :tier="partner.tier" />
         </div>
         <p class="mt-0.5 text-p-sm text-ink-gray-6">{{ partner.city }}</p>
       </div>
@@ -96,6 +103,7 @@ const expertise = computed(() => {
            about the last line it followed. Beside the name, it is plainly about
            the partner. -->
       <Button
+        v-if="!frappe"
         class="shrink-0"
         variant="subtle"
         size="sm"
@@ -119,7 +127,7 @@ const expertise = computed(() => {
          line; the listing solves the same problem by pinning its tail and
          truncating the lead, and here the line is allowed to wrap so the tail
          just has to stay whole. -->
-    <p class="mt-1 text-p-sm text-ink-gray-6">
+    <p v-if="expertise.lead" class="mt-1 text-p-sm text-ink-gray-6">
       Expertise across {{ expertise.lead }}
       <span v-if="expertise.rest" class="whitespace-nowrap">and {{ expertise.rest }} more</span>
     </p>

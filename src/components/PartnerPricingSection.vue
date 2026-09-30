@@ -9,6 +9,13 @@ import { useContactPartner } from '../utils/contact'
 
 // SCREEN 6, fourth section — "Pricing".
 //
+// ⚠️ NOT MOUNTED, and its Starter Pack card is no longer true. The profile
+// stopped rendering this section; since then Starter Packs became something
+// Frappe implements itself, so a partner offering one on its own profile
+// contradicts the product. The pack card and its "paid to Frappe, not the
+// partner" line are hidden below (`offersPacks`), which leaves the Custom card.
+// The estimator opened only from the pack card, so it is unreachable too.
+//
 // Two cards, and they are the two answers to the quiz's third question: a
 // standard implementation off a starter pack, or a custom engagement. Same
 // split as `IMPLEMENTATION_TYPES` in `data/quiz.js`, so a visitor who answered
@@ -35,6 +42,9 @@ const packHours = computed(() =>
     .filter((h) => typeof h === 'number')
     .sort((a, b) => a - b),
 )
+
+// ⚠️ Off: partners do not sell Starter Packs. See the note at the top.
+const offersPacks = false
 
 const hoursLabel = computed(() => {
   const h = packHours.value
@@ -72,7 +82,7 @@ const estimating = ref(false)
            partner in the directory does today, but the card is the claim "you
            can buy a fixed scope from us", so it shouldn't appear without one. -->
       <div
-        v-if="hoursLabel"
+        v-if="offersPacks && hoursLabel"
         class="flex items-start gap-3 rounded-5 border border-outline-gray-2 bg-surface-base p-4"
       >
         <span
@@ -161,7 +171,7 @@ const estimating = ref(false)
          of them drops its action a line below the other's. It names starter
          packs so that sitting under both cards doesn't read as a claim about
          custom work, which is priced in a conversation and not here. -->
-    <p v-if="hoursLabel" class="mt-3 text-p-sm text-ink-gray-5">
+    <p v-if="offersPacks && hoursLabel" class="mt-3 text-p-sm text-ink-gray-5">
       Starter Packs are paid to Frappe in full, not to the partner.
     </p>
 

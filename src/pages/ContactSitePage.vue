@@ -13,21 +13,54 @@
 // headline, one line of invitation, e-mail and phone, the office address, and a
 // "Get in touch" button. That is what is below.
 //
-// ⚠️ THE ONE ADDITION is the implementation row, which is the entire reason
-// this page is mocked at all: a large share of implementation leads arrive here
-// rather than on /partners, and today the page has nothing for them but an
-// e-mail address and a wait. It is one row above the contact details, because
-// somebody who came to write in should still find the address immediately.
+// ⚠️ THE ONE ADDITION is the entry-point cards — Starter Packs, custom
+// implementation, tech support — which is the reason this
+// page is mocked at all: a large share of implementation leads arrive here
+// rather than on /partners, and the page had nothing for them but an e-mail
+// address and a wait. They sit above the contact details, which stay for
+// somebody who came to write in. It is the frappe.io flow's starting page.
 //
 // ⚠️ EVERY DETAIL BELOW IS FRAPPE'S OWN, read off the live page — one phone
 // number, not three, and hello@frappe.io. An earlier draft listed US and UK
 // numbers that are not on it.
 import { useRouter } from 'vue-router'
+import { reactive, computed } from 'vue'
+import { Button, FormControl, toast } from 'frappe-ui'
 import SiteRail from '../components/SiteRail.vue'
+import officeMap from '../assets/office-map.png'
 import LucideArrowRight from '~icons/lucide/arrow-right'
+import LucideArrowUpRight from '~icons/lucide/arrow-up-right'
 import LucideChevronRight from '~icons/lucide/chevron-right'
 
 const router = useRouter()
+
+
+const DOORS = [
+  {
+    title: 'Explore Starter Packs',
+    body: 'The fastest way to get started with ERPNext.',
+    to: '/connect/packs',
+  },
+  {
+    title: 'Need a custom implementation?',
+    body: 'Send your requirements to the partners that fit.',
+    to: { name: 'contact-partners' },
+  },
+  {
+    title: 'Need tech support?',
+    body: 'If you are hosted on Frappe Cloud, raise a ticket on our support portal.',
+  },
+]
+
+// The "anything else" form. All three are asked for, since a message nobody
+// can reply to is not a way to get in touch.
+const message = reactive({ name: '', phone: '', body: '' })
+const canSend = computed(() => Boolean(message.name.trim() && message.phone.trim() && message.body.trim()))
+const send = () => {
+  if (!canSend.value) return
+  toast.success('Message sent', { description: 'We will get back to you soon.' })
+  Object.assign(message, { name: '', phone: '', body: '' })
+}
 
 const REACH = [
   { label: 'E-mail', value: 'hello@frappe.io' },
@@ -67,7 +100,8 @@ const OFFICE = [
       </header>
 
       <div class="min-h-0 flex-1 overflow-y-auto">
-        <main class="mx-auto w-full max-w-[600px] px-6 py-16">
+        <!-- 800px of content: the 848px cap less the 24px gutter each side. -->
+        <main class="mx-auto w-full max-w-[848px] px-6 py-16">
           <p class="text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-gray-5">
             Contact
           </p>
@@ -78,51 +112,58 @@ const OFFICE = [
           >
             Get in touch
           </h1>
-          <p class="mt-3 text-[15px] leading-[23.55px] text-ink-gray-6">
-            Want to write to us or have a question or comment? Write in, we would love to hear from
-            you.
-          </p>
 
-          <!-- ── The one modification ──────────────────────────────────────
-               ⚠️ A ROW, NOT A CARD OR A BANNER. It is an addition to somebody
-               else's page, and the loudest thing on a contact page should not
-               be a funnel: a business that came here to ask a question finds
-               the address two inches below, unchanged. What this row buys is
-               the reader who came to ask "who can implement this for us" —
-               which the page cannot answer today except by promising an
-               e-mail back. -->
-          <!-- ⚠️ THE BUTTON SAID "Find a partner" AND OPENED THE QUESTIONS.
-               Two things wrong with that, and the second is the one that
-               matters. It named a destination it did not go to — the same fault
-               the partners mock's hero button had. And "Find a partner" is now
-               a specific thing elsewhere in this prototype: the control on
-               /partners that opens the directory. A visitor who presses the
-               same words on two pages and lands in two different places has
-               learnt nothing from the first press.
-
-               What this row actually offers is the opposite of a directory —
-               you do not know which firm you want, which is why you were about
-               to write in. So it says so, and it matches the second door on the
-               partners page word for word: same offer, same words, same
-               destination. -->
-          <div class="mt-10 rounded-4 border border-outline-gray-1 p-4">
-            <p class="text-[15px] font-medium text-ink-gray-8">Looking for implementation?</p>
-            <p class="mt-1 text-[15px] leading-[1.57] text-ink-gray-6">
-              Answer three questions about your business and we will say which service fits, and
-              what it costs — no reply to wait for.
-            </p>
-            <button
-              type="button"
-              class="mt-3 flex items-center gap-1.5 text-[15px] font-medium text-ink-gray-8 hover:underline"
-              @click="router.push('/connect?new=1')"
-            >
-              Get a recommendation
-              <LucideArrowRight class="size-4 text-ink-gray-5" />
-            </button>
-          </div>
+          <!-- ── Where to go ─────────────────────────────────────────────
+               ⚠️ ENTRY POINTS, IN THE ORDER A VISITOR IS MOST LIKELY TO NEED
+               THEM, and the one change to the real page: most people writing in
+               want an implementation, so the two ways to get one come first,
+               then support. The address stays below
+               for everyone who came to write in.
+               ⚠️ Tech support is the real page's own link to the support
+               portal, which this prototype does not stand in for, so that card
+               does not navigate. -->
+          <!-- A question rather than "Quick links": the cards below answer it,
+               each in the visitor's words. Same style as the section title
+               further down. -->
+          <h2 class="mt-12 text-[17px] font-semibold leading-[1.35] text-ink-gray-8">
+            How can we help?
+          </h2>
+          <ul class="mt-4 flex flex-col gap-3">
+            <li v-for="door in DOORS" :key="door.title">
+              <!-- ⚠️ A NEW TAB, so this page stays where the visitor left it.
+                   A new tab starts a fresh app, which is the state these
+                   doors want anyway: no packs picked, an empty quiz. -->
+              <component
+                :is="door.to ? 'a' : 'div'"
+                :href="door.to ? router.resolve(door.to).href : undefined"
+                :target="door.to ? '_blank' : undefined"
+                :rel="door.to ? 'noopener' : undefined"
+                class="group flex w-full items-center gap-4 rounded-6 border border-outline-gray-2 p-5 text-left"
+                :class="door.to && 'transition-colors hover:bg-surface-gray-1'"
+              >
+                <span class="min-w-0 flex-1">
+                  <span class="block text-[15px] font-medium text-ink-gray-8">{{ door.title }}</span>
+                  <span class="mt-1 block text-[15px] leading-[1.57] text-ink-gray-6">
+                    {{ door.body }}
+                  </span>
+                </span>
+                <!-- Up-right: the mark for "opens in a new tab". -->
+                <LucideArrowUpRight
+                  v-if="door.to"
+                  class="size-4 shrink-0 text-ink-gray-5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                  aria-hidden="true"
+                />
+              </component>
+            </li>
+          </ul>
 
           <!-- ── The page as it stands ─────────────────────────────────── -->
-          <dl class="mt-10 grid gap-x-10 gap-y-6 sm:grid-cols-2">
+          <!-- The real page's invitation, shortened into the title of the part
+               it invites you to: the address, the map and the form. -->
+          <h2 class="mt-20 text-[17px] font-semibold leading-[1.35] text-ink-gray-8">
+            Have a question? Write in.
+          </h2>
+          <dl class="mt-4 grid gap-x-10 gap-y-6 sm:grid-cols-2">
             <div v-for="row in REACH" :key="row.label">
               <dt class="text-[15px] font-medium text-ink-gray-7">{{ row.label }}</dt>
               <dd class="mt-1 text-[15px] text-ink-gray-6">{{ row.value }}</dd>
@@ -137,18 +178,53 @@ const OFFICE = [
             </div>
           </dl>
 
-          <!-- ⚠️ INERT, and deliberately. The real button opens Frappe's own
-               contact form, which this prototype does not stand in for — and
-               inventing one here would put a second, competing way to reach the
-               company on a page whose e-mail address is three lines above. -->
-          <button
-            type="button"
-            disabled
-            class="mt-8 flex items-center gap-1.5 rounded-4 bg-surface-gray-2 px-3 py-1.5 text-[15px] text-ink-gray-5"
-          >
-            Get in touch
-            <LucideArrowRight class="size-4" />
-          </button>
+          <!-- The office on a map, as the real page shows it. A static image,
+               supplied as is: the page has no map of its own to stand in for.
+               Cropped to 320px tall by `object-cover`, held on the pin, which
+               sits at about 46% across and 34% down the image. -->
+          <img
+            :src="officeMap"
+            alt="Map showing Frappe Technologies at Neelkanth Business Park, Vidyavihar West, Mumbai"
+            class="mt-6 h-[320px] w-full rounded-6 border border-outline-gray-1 object-cover object-[46%_34%]"
+          />
+
+          <!-- ── Anything else ───────────────────────────────────────────
+               For the visitor whose reason is none of the cards above: a short
+               form, and "Get in touch" sends it. Nothing is sent anywhere in
+               this prototype; the toast is what a sent message would say.
+               `sm` controls, the product's own form size (see SignupPage). -->
+          <form class="mt-12 flex flex-col gap-4" novalidate @submit.prevent="send">
+            <div class="grid gap-4 sm:grid-cols-2">
+              <FormControl
+                v-model="message.name"
+                size="sm"
+                label="Name"
+                placeholder="Your full name"
+                autocomplete="name"
+              />
+              <FormControl
+                v-model="message.phone"
+                type="tel"
+                size="sm"
+                label="Phone number"
+                placeholder="+91 98765 43210"
+                autocomplete="tel"
+              />
+            </div>
+            <FormControl
+              v-model="message.body"
+              type="textarea"
+              size="sm"
+              label="Message"
+              placeholder="Your message"
+              :rows="4"
+            />
+            <div>
+              <Button variant="solid" size="md" type="submit" label="Get in touch" :disabled="!canSend">
+                <template #suffix><LucideArrowRight class="size-4" /></template>
+              </Button>
+            </div>
+          </form>
         </main>
       </div>
     </div>

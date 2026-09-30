@@ -11,12 +11,10 @@ import PackFitTests from '../components/PackFitTests.vue'
 import PackSteps from '../components/PackSteps.vue'
 import PackTerms from '../components/PackTerms.vue'
 import frappeMark from '../assets/frappe.svg'
-import IconPricing from '~icons/lucide/circle-dollar-sign'
-import IconSpeed from '~icons/lucide/clock'
-import IconOversight from '~icons/lucide/circle-check'
 import { useConnectStore } from '../stores/connect'
+import { basketReturnTo, useBasketReturn } from '../utils/auth'
 import {
-  PACK_STEPS,
+  packSteps,
   pricingFor,
   marketFor,
   DEFAULT_REGION,
@@ -62,23 +60,6 @@ const region = computed(
 )
 const pricing = computed(() => pricingFor(region.value))
 
-// The three reasons a pack is the right shape for a small business, from the
-// design. Kept as data so the row is one thing to render rather than three
-// copies of the same markup.
-//
-// ⚠️ The only `.fc-col-3` row left on this page. "How it works" used the same
-// class and sat under the packs; it moved to the pack page, where the button it
-// describes is. The class is still shared across the two screens — see
-// `index.css` for the column split, which is measured against both.
-const POINTS = [
-  { icon: IconPricing, title: 'Standardized pricing', body: 'Based on region' },
-  // ⚠️ The middle cell is the tight one: it's the only one padded on both
-  // sides, so it gets 48px less than its neighbours. This copy needs 180px for
-  // the title and 185 for the subtext, which the 800px measure affords and 720
-  // did not — narrow the page again and both of these wrap.
-  { icon: IconSpeed, title: 'Faster implementation', body: '3x faster to get started' },
-  { icon: IconOversight, title: 'Frappe oversee', body: 'Quality at every step' },
-]
 
 // "What's included", in a dialog over the list — as on the recommendation
 // screen, so reading a scope does not cost the basket its place.
@@ -111,6 +92,7 @@ const showScope = (pack) => {
 // name keeps the link and the row keeps the checkbox, and the two jobs the row
 // now has — read this pack, buy this pack — have a target each.
 const router = useRouter()
+useBasketReturn()
 
 
 // ⚠️ THE GATE IS THE CHECKOUT, not this page. Reading and picking need no
@@ -119,7 +101,7 @@ const router = useRouter()
 const checkout = () => {
   if (!store.packs.length) return
   if (!store.signedIn) {
-    return router.push({ name: 'signup', query: { next: '/connect/checkout' } })
+    return router.push({ name: 'signup', query: { next: basketReturnTo('/connect/packs') } })
   }
   router.push({ name: 'checkout' })
 }
@@ -142,38 +124,11 @@ const checkout = () => {
       <h1 class="text-2xl font-semibold text-ink-gray-8">
         Hit the ground running with Starter Packs for ERPNext
       </h1>
-      <p class="mt-2 max-w-[560px] text-p-base text-ink-gray-6">
-        Small businesses have limited needs, users and timelines. A no-frills implementation with
-        minimal customization is usually enough, and that is what a Starter Pack is.
-      </p>
 
-      <!-- Rules BETWEEN the three, not around them: they're one row of three
-           readings, and a box would make them a card. Stacked below `sm`, where
-           the divider turns horizontal for the same reason. -->
-      <dl class="fc-col-3 mt-7">
-        <div v-for="point in POINTS" :key="point.title">
-          <!-- `items-start`, so a title that wraps keeps its icon beside the
-               FIRST line rather than centred against both. -->
-          <dt class="flex items-start gap-2 text-base font-medium text-ink-gray-7">
-            <component :is="point.icon" class="size-4 shrink-0 text-ink-gray-6" />
-            {{ point.title }}
-          </dt>
-          <!-- `pl-6` is the icon's 16px plus the 8px gap, so the second line
-               starts under the title rather than under the icon. -->
-          <dd class="mt-1 pl-6 text-p-base text-ink-gray-6">{{ point.body }}</dd>
-        </div>
-      </dl>
-
-      <section class="mt-16">
-        <div class="flex items-baseline justify-between gap-4">
-          <h2 class="text-lg font-semibold text-ink-gray-8">Starter Packs for your region</h2>
-          <!-- ⚠️ ONE LINE SAYING THE LIST IS MULTI-SELECT, and it earns its
-               place because checkboxes alone do not say it: four of them read
-               as four independent yes/no purchases, not as one basket. It is
-               here rather than as a standfirst under the h1 — the fact is about
-               this list, and it is read on the way into it. -->
-          <p class="shrink-0 text-p-sm text-ink-gray-6">Take as many as you need</p>
-        </div>
+      <!-- ⚠️ THE PACKS COME STRAIGHT AFTER THE HEADLINE, with no standfirst and
+           no list heading: the headline already says what they are, and the
+           rows are the page. `aria-label` stands in for the heading. -->
+      <section class="mt-2" aria-label="Starter Packs">
 
         <!-- `divide-y` puts a rule BETWEEN rows and none after the last, which
              is exactly what the design asks for — no wrapper border to undo. -->
@@ -207,17 +162,18 @@ const checkout = () => {
            work is the better fit, the terms, and a way to talk to someone.
            Both pages sell the same packs; drawing them twice was how the
            exclusions came to disagree. -->
-      <PackSteps class="mt-16" title="How this works" :steps="PACK_STEPS" />
-      <PackCoverage class="mt-16 block" />
-      <PackFitTests class="mt-16 block" side="packs">
+      <PackSteps class="mt-24" title="How this works" :steps="packSteps(store.packsByFrappe)" />
+
+      <PackCoverage class="mt-24 block" />
+      <PackFitTests class="mt-24 block" side="packs">
         <Button
           class="mt-5"
           variant="subtle"
           label="Get quotes from partners instead"
-          :route="{ name: 'recommendation', query: { view: 'custom' } }"
+          :route="{ name: 'contact-partners' }"
         />
       </PackFitTests>
-      <PackTerms class="mt-16 block" :region="region" />
+      <PackTerms class="mt-24 block" :region="region" />
       <!-- ⚠️ Inert. It opens the Starter Pack scope document, the contract the
            terms above summarise. The arrow leaves the app, same as the
            marketplace links. -->
@@ -227,7 +183,7 @@ const checkout = () => {
         </Button>
       </div>
 
-      <div class="mt-16">
+      <div class="mt-24">
         <h2 class="text-lg font-semibold text-ink-gray-8">Still unsure?</h2>
         <Button class="mt-3" variant="subtle" label="Contact Frappe" :route="{ path: '/contact' }">
           <template #prefix><img :src="frappeMark" alt="" class="size-4" /></template>
@@ -254,7 +210,6 @@ const checkout = () => {
           <PackBasket
             :packs="store.packs"
             :region="region"
-            :signed-in="store.signedIn"
             @checkout="checkout"
           />
         </aside>

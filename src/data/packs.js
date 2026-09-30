@@ -549,25 +549,28 @@ export const SCOPE_AREAS = Object.keys(PACK_SCOPE).map((key) => ({
 
 // ── What buying one actually sets off ───────────────────────────────────────
 // ⚠️ THREE THINGS IN ORDER, and the order is the product. You buy the pack from
-// Frappe; a partner is assigned against it; the two of you get on with it. This
-// is the one fact the rest of the flow leaves implicit — the price sits beside
-// a partner's name on several screens, and a fixed price beside a named firm
-// reads as that firm's invoice.
+// Frappe; Frappe's own team implements it; the two of you get on with it. It
+// used to be "Frappe assigns a partner" in the middle — packs are implemented
+// by Frappe itself now, and no partner is assigned.
 //
-// ⚠️ Step 1 names WHO IS PAID, and it is the page's only statement of it. Step 2
-// hands you a partner, so an unqualified "pay in full" above a list about
-// partners reads as paying one.
+// ⚠️ Step 1 names WHO IS PAID, and it is the page's only statement of it.
 //
 // ⚠️ Lifted out of `PackDetailPage`, which owned it privately, when the
 // recommendation screen needed the same three lines. Two copies of a sequence
 // is how the two screens come to disagree about what order things happen in.
-export const PACK_STEPS = [
+// Two versions, by who implements: Frappe's own team, or a partner Frappe
+// assigns (main's wording). The Demo menu picks — see `packImplementer`.
+// ⚠️ The middle line is the tight one wherever this is laid out in three
+// columns — it is the only cell padded on both sides. Keep it short: "Frappe
+// assigns you a partner" measured 195px and took two lines.
+export const packSteps = (byFrappe = true) => [
   { title: 'Pay in full', body: 'To Frappe, up front' },
-  // ⚠️ The middle line is the tight one wherever this is laid out in three
-  // columns — it is the only cell padded on both sides. "Frappe assigns you a
-  // partner" measured 195px and took two lines while its neighbours took one.
-  { title: 'Frappe assigns a partner', body: 'By industry and region' },
-  { title: 'Coordinate with partner', body: 'Share data and processes' },
+  byFrappe
+    ? { title: 'Frappe implements it', body: 'With its own team' }
+    : { title: 'Frappe assigns a partner', body: 'By industry and region' },
+  byFrappe
+    ? { title: 'Coordinate with Frappe', body: 'Share data and processes' }
+    : { title: 'Coordinate with partner', body: 'Share data and processes' },
 ]
 
 // Section 4 — ships with every pack regardless of which one you buy.
@@ -739,10 +742,8 @@ export const termsSectionsFor = (region = DEFAULT_REGION) => {
       key: 'payment',
       label: 'Payment',
       lines: [
-        // ⚠️ "to Frappe" is the whole point of the line. A pack is bought from
-        // Frappe and delivered by the partner Frappe assigns, so the money
-        // never goes to the partner — and every other surface a buyer sees
-        // this on names a partner somewhere on the same screen.
+        // "to Frappe": a pack is bought from Frappe and implemented by
+        // Frappe's own team, so there is no partner to pay.
         'Payment to Frappe in full, in advance',
         `${p.tax} charged on top`,
         `Extra hours beyond the pack: ${additionalHourRateFor(region)} per hour, plus ${p.tax}`,

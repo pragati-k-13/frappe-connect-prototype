@@ -104,12 +104,12 @@ const taxLabel = computed(() => pricingFor(region.value).tax)
 // one, and a button that jumps them to a payment screen ends that.
 //
 // ⚠️ NO AUTH GATE. Adding a pack to a basket is not a fact about an account, and
-// the recommendation screen it lands on is deliberately open to a signed-out
+// the catalogue it lands on, basket beside it, is open to a signed-out
 // visitor. The gate is the checkout.
 const addToBasket = () => {
   if (!pack.value) return
   if (!inBasket.value) store.togglePack(pack.value.value)
-  router.push({ name: 'recommendation' })
+  router.push({ name: 'packs' })
 }
 </script>
 
