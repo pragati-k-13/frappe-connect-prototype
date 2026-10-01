@@ -3,9 +3,9 @@
 // ⚠️ EVERYTHING HERE IS A MOCK, and it is the one part of the app where that
 // matters beyond invented numbers: money. Nothing in this prototype talks to a
 // payment processor, holds a merchant account or moves a rupee. The page this
-// opens is `StripeCheckoutPage`, which is ours, drawn to read like Stripe's own
-// hosted page — it collects NO card, UPI or bank details and never should.
-// Whatever replaces it is Stripe's hosted Checkout, which is the entire reason
+// opens is `RazorpayCheckoutPage`, which is ours, drawn to read like Razorpay's
+// own payment page — it collects NO card, UPI or bank details and never should.
+// Whatever replaces it is Frappe's Razorpay payment page, which is the entire reason
 // the buyer's credentials never reach this application.
 //
 // ⚠️ NO BRAND MARKS. The design this came from prints Visa, Mastercard, RuPay
@@ -23,9 +23,12 @@
 // button they pressed. `provider` is gone from the methods with it: every
 // method goes to the same place, and a field that always holds one value is a
 // choice nobody is making.
+//
+// ⚠️ THE ONE PROCESSOR IS NOW RAZORPAY: Frappe already takes Starter Pack
+// payments on a Razorpay payment page, so the mock follows that page.
 export const PROVIDER = {
-  value: 'stripe',
-  label: 'Stripe',
+  value: 'razorpay',
+  label: 'Razorpay',
   // What the page says while it pretends to work. Two beats, because a
   // processor that answered instantly would make the state unreviewable.
   blurb: 'Cards and UPI',

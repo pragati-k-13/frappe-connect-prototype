@@ -1750,9 +1750,14 @@ export const useConnectStore = defineStore('connect', {
     // is approved and the partner learns who they are talking to. Both are
     // after this screen, so one ask here covers both, and the first ten seconds
     // of the funnel stay about the business rather than about paperwork.
-    signUp({ name, email, company }) {
+    signUp({ name, email, company, country }) {
       this.viewer = { ...this.viewer, name, email }
       if (company) this.saveAccount({ name, company })
+      // Sets pricing and the partner pool, as the intake's country does.
+      if (country) {
+        this.company = { ...this.company, country }
+        this.filters.countries = [country]
+      }
     },
 
     // Logging in knows only the address. The name stays whatever the store
