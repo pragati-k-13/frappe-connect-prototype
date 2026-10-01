@@ -3,8 +3,8 @@ import { useConnectStore } from './stores/connect'
 
 // One route per screen in the handoff.
 //
-// `/` is the frappe.io partners page — the discovery surface, not part of the
-// app. Every link it has into `/connect` opens in a NEW TAB, matching the
+// `/partners` is the frappe.io partners page — the discovery surface, not part
+// of the app. `/` lands on `/contact`, where the frappe.io flow starts. Every link it has into `/connect` opens in a NEW TAB, matching the
 // design: Frappe Connect is a separate destination, not a section of the
 // marketing site.
 // Screens that only exist for an account. Log in rather than sign up: these
@@ -13,7 +13,8 @@ const requireAccount = (to) =>
   useConnectStore().signedIn ? true : { name: 'login', query: { next: to.fullPath } }
 
 const routes = [
-  { path: '/', name: 'website', component: () => import('./pages/FrappeSitePage.vue') },
+  { path: '/', redirect: '/contact' },
+  { path: '/partners', name: 'website', component: () => import('./pages/FrappeSitePage.vue') },
   // frappe.io/contact — the OTHER discovery surface, and the reason it is
   // mocked at all: a large share of implementation leads arrive here rather
   // than on the partners page, and they arrive with a question rather than an
@@ -67,18 +68,18 @@ const routes = [
   },
   // Where the money moves: straight to the processor's page. There is no
   // checkout screen of ours in front of it — the basket and its total were on
-  // the screen that sent you here, and Stripe's page shows them again beside
-  // the payment method, which is the only thing left to choose.
+  // the screen that sent you here, and Razorpay's page shows them again beside
+  // the payment details.
   //
   // The processor's own page, as a full screen rather than a modal over ours.
-  // ⚠️ THE FICTION IS THAT YOU HAVE LEFT. Stripe hosts its checkout, which is
+  // ⚠️ THE FICTION IS THAT YOU HAVE LEFT. Razorpay hosts its checkout, which is
   // the entire reason a card number never reaches this application — so drawing
   // it as a dialog floating over our own chrome would be drawing a lie. It
   // takes no app shell, no sidebar and no back button of ours.
   {
     path: '/connect/checkout',
     name: 'checkout',
-    component: () => import('./pages/StripeCheckoutPage.vue'),
+    component: () => import('./pages/RazorpayCheckoutPage.vue'),
     // ⚠️ Guarded. Paying creates a project and a conversation with an assigned
     // partner, and both are facts about an ACCOUNT. Sign-up carries `?next=`,
     // so the flow the gate interrupted resumes here. An empty basket has
@@ -162,6 +163,14 @@ const routes = [
   // and addressed by the pack's `value`, exactly as a partner profile is
   // addressed by its slug — this used to be `/connect/confirm?pack=`, a URL
   // named after a gesture the page no longer performs.
+  // The cart: review the basket before paying. Open to everyone; paying needs
+  // an account, so a visitor signs up from here. Static, so it outranks `:id`,
+  // and under `/connect/packs` so sign-up from it gets the company step.
+  {
+    path: '/connect/packs/cart',
+    name: 'cart',
+    component: () => import('./pages/CartPage.vue'),
+  },
   {
     path: '/connect/packs/:id',
     name: 'pack',

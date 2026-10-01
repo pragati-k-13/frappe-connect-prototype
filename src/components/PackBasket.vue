@@ -20,6 +20,9 @@ import { useConnectStore } from '../stores/connect'
 const props = defineProps({
   packs: { type: Array, required: true },
   region: { type: String, required: true },
+  // Overrides Sign up / Check out where the button leads somewhere else first
+  // (the catalogue's goes to the cart).
+  label: { type: String, default: null },
 })
 
 const emit = defineEmits(['checkout'])
@@ -41,7 +44,8 @@ const bill = computed(() =>
 // Check out follows. The label is the one word a scanner reads, so it names
 // the step that actually happens.
 const store = useConnectStore()
-const action = computed(() => (store.signedIn ? 'Check out' : 'Sign up'))
+const action = computed(() => props.label ?? (store.signedIn ? 'Check out' : 'Sign up'))
+const signUpIcon = computed(() => !props.label && !store.signedIn)
 </script>
 
 <template>
@@ -53,7 +57,7 @@ const action = computed(() => (store.signedIn ? 'Check out' : 'Sign up'))
       <p class="text-p-base text-ink-gray-6">Total</p>
       <p class="mt-1 text-3xl font-semibold tabular-nums text-ink-gray-4">{{ zero }}</p>
       <Button class="mt-4 w-full" variant="solid" size="md" :label="action" disabled>
-        <template v-if="!store.signedIn" #prefix><IconUser class="size-4" /></template>
+        <template v-if="signUpIcon" #prefix><IconUser class="size-4" /></template>
       </Button>
       <p class="mt-3 text-p-sm text-ink-gray-6">Select at least one pack.</p>
     </template>
@@ -72,7 +76,7 @@ const action = computed(() => (store.signedIn ? 'Check out' : 'Sign up'))
         :label="action"
         @click="emit('checkout')"
       >
-        <template v-if="!store.signedIn" #prefix><IconUser class="size-4" /></template>
+        <template v-if="signUpIcon" #prefix><IconUser class="size-4" /></template>
       </Button>
       <p class="mt-3 text-p-sm text-ink-gray-6">
         Paid to Frappe, in full and up front.

@@ -35,7 +35,7 @@ const GROUPS = [
   {
     items: [
       { label: 'Products', icon: IconGrid },
-      { label: 'Partners', icon: IconGlobe, to: '/' },
+      { label: 'Partners', icon: IconGlobe, to: '/partners' },
       { label: 'Customers', icon: IconBuilding },
       { label: 'Blog', icon: IconFile },
       { label: 'Contact', icon: IconMail, to: '/contact' },

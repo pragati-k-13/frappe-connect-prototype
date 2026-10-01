@@ -1,8 +1,9 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Button, FormControl } from 'frappe-ui'
+import { Button, Combobox, FormControl } from 'frappe-ui'
 import AuthShell from '../components/AuthShell.vue'
+import { COUNTRY_OPTIONS } from '../data/company'
 import { isEmail, resumeLineFor, useAuthExit } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 
@@ -24,8 +25,9 @@ import { useConnectStore } from '../stores/connect'
 // the moment a bid is approved and a partner learns who they are dealing with.
 // Both are downstream of this screen.
 //
-// ⚠️ COUNTRY IS GONE from this form. The intake asks it, one screen earlier,
-// because it sets the currency and the partner pool.
+// ⚠️ COUNTRY IS BACK on this form. The intake asks it too, but the Starter
+// Packs page reaches sign-up without the intake, and country sets the currency
+// and the partner pool.
 //
 // ⚠️ There is no password, and that's not an omission. The next step in the
 // flow is `verify`, which means an emailed code or link — so the address is the
@@ -41,6 +43,7 @@ const form = reactive({
   name: store.viewer.name ?? '',
   email: '',
   company: store.company.name ?? '',
+  country: store.company.country ?? '',
 })
 
 // Errors are only shown after a submit attempt. Validating as you type means
@@ -58,6 +61,7 @@ const errors = computed(() => {
   if (!form.email.trim()) e.email = 'Enter your work email'
   else if (!isEmail(form.email)) e.email = 'Enter a valid email address, like you@company.com'
   if (!form.company.trim()) e.company = 'Enter your company name'
+  if (!form.country) e.country = 'Select a country'
   return e
 })
 
@@ -71,6 +75,7 @@ const submit = () => {
     name: form.name.trim(),
     email: form.email.trim(),
     company: form.company.trim(),
+    country: form.country,
   })
   // `email` in the query as well as the store, so a reload on the verify screen
   // still knows where the code went. `next` rides along so the gate's errand
@@ -129,6 +134,15 @@ useAuthExit()
         placeholder="The name on your invoices"
         autocomplete="organization"
         :error="errors.company"
+      />
+      <Combobox
+        v-model="form.country"
+        size="sm"
+        label="Country"
+        placeholder="Select a country"
+        trigger="button"
+        :options="COUNTRY_OPTIONS"
+        :error="errors.country"
       />
 
       <Button type="submit" variant="solid" size="md" class="w-full" label="Continue" />

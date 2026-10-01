@@ -12,7 +12,7 @@ import PackSteps from '../components/PackSteps.vue'
 import PackTerms from '../components/PackTerms.vue'
 import frappeMark from '../assets/frappe.svg'
 import { useConnectStore } from '../stores/connect'
-import { basketReturnTo, useBasketReturn } from '../utils/auth'
+import { useBasketReturn } from '../utils/auth'
 import {
   packSteps,
   pricingFor,
@@ -95,15 +95,10 @@ const router = useRouter()
 useBasketReturn()
 
 
-// ⚠️ THE GATE IS THE CHECKOUT, not this page. Reading and picking need no
-// account; paying does. Same `?next=` as the recommendation screen, so the two
-// entry points to the same purchase behave identically.
+// Continue goes to the cart for everyone; the cart is where a visitor signs
+// up and a customer pays.
 const checkout = () => {
-  if (!store.packs.length) return
-  if (!store.signedIn) {
-    return router.push({ name: 'signup', query: { next: basketReturnTo('/connect/packs') } })
-  }
-  router.push({ name: 'checkout' })
+  if (store.packs.length) router.push({ name: 'cart' })
 }
 </script>
 
@@ -122,13 +117,15 @@ const checkout = () => {
       <div class="grid gap-x-16 gap-y-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:pl-8">
       <div class="w-full lg:mx-auto lg:max-w-[720px]">
       <h1 class="text-2xl font-semibold text-ink-gray-8">
-        Hit the ground running with Starter Packs for ERPNext
+        Start fast, start cheap with Starter Packs
       </h1>
+      <p class="mt-1.5 text-base text-ink-gray-6">
+        Set up by Frappe’s own team.
+      </p>
 
-      <!-- ⚠️ THE PACKS COME STRAIGHT AFTER THE HEADLINE, with no standfirst and
-           no list heading: the headline already says what they are, and the
-           rows are the page. `aria-label` stands in for the heading. -->
-      <section class="mt-2" aria-label="Starter Packs">
+      <!-- The standfirst says what buying a pack leads to; the cards say what
+           the packs are. `aria-label` stands in for a list heading. -->
+      <section class="mt-8" aria-label="Starter Packs">
 
         <!-- `divide-y` puts a rule BETWEEN rows and none after the last, which
              is exactly what the design asks for — no wrapper border to undo. -->
@@ -150,6 +147,7 @@ const checkout = () => {
         <PackPickList
           :packs="store.packs"
           :region="region"
+          layout="grid"
           @toggle="store.togglePack"
           @scope="showScope"
         />
@@ -210,6 +208,7 @@ const checkout = () => {
           <PackBasket
             :packs="store.packs"
             :region="region"
+            label="Continue"
             @checkout="checkout"
           />
         </aside>
