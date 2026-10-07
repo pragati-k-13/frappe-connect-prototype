@@ -67,6 +67,16 @@ export const STARTER_PACKS = [
     // the catalogue row the tagline sits directly under it.
     tagline: 'Where most businesses start',
     pitch: 'Run the business without spreadsheets.',
+    // ⚠️ `outcomes` and every area's `summary` are OUR copy, not the scope
+    // document's. They are what a skimming reader takes away, so each one is
+    // written only from rows in PACK_SCOPE — if a line promises something no
+    // row covers, it is wrong, however well it sells.
+    outcomes: [
+      'Quotes, orders and GST invoices for every sale',
+      'Purchases tracked from request to supplier bill',
+      'Stock that moves with every delivery and receipt',
+      'Bank reconciled, with Balance Sheet, P&L and GSTR-1 from your own entries',
+    ],
     // ⚠️ The document's own labels for these four are Accounting, Selling,
     // Buying and Inventory. The pack is named in the pricing sheet's
     // vocabulary; the scope tables keep the document's. Same four modules.
@@ -81,6 +91,12 @@ export const STARTER_PACKS = [
     name: 'Manufacturing',
     tagline: 'For businesses that make what they sell',
     pitch: 'Plan production against real stock.',
+    outcomes: [
+      'Bills of materials for what you make, single and multi-level',
+      'Work orders and job cards on the shop floor',
+      'Materials consumed and finished goods stocked as you produce',
+      'Sales, purchases, stock and books running alongside',
+    ],
     // ⚠️ THE ONE PACK THAT CONTAINS ANOTHER. Manufacturing ships with the core
     // four, because production is planned against the stock and orders they
     // keep, so it costs the core pack's hours plus its own. `supersedes` is
@@ -106,6 +122,12 @@ export const STARTER_PACKS = [
     name: 'HR and Payroll',
     tagline: 'For people, leave and salaries on one record',
     pitch: 'Pay people on time, off their attendance.',
+    outcomes: [
+      'Every employee on one record',
+      'Leave, attendance and shifts tracked against your policies',
+      'Expense claims submitted and approved in the system',
+      'Salary slips every pay cycle, with India’s standard tax setup',
+    ],
     areas: ['hrms', 'payroll'],
     apps: ['frappe-hr'],
     hours: 10,
@@ -323,6 +345,7 @@ export const additionalHourRateFor = (region = DEFAULT_REGION) =>
 export const PACK_SCOPE = {
   accounting: {
     label: 'Accounting',
+    summary: 'Your books, GST and TDS kept from the same entries, and reconciled with the bank.',
     rows: [
       {
         area: 'Masters',
@@ -368,6 +391,7 @@ export const PACK_SCOPE = {
   },
   selling: {
     label: 'Selling',
+    summary: 'Quotes become orders, deliveries and GST invoices, with stock and accounts updated as you go.',
     rows: [
       {
         area: 'Masters',
@@ -405,6 +429,7 @@ export const PACK_SCOPE = {
   },
   buying: {
     label: 'Buying',
+    summary: 'Requests, quotes and orders through to supplier bills, including imports and landed costs.',
     rows: [
       {
         area: 'Masters',
@@ -447,6 +472,7 @@ export const PACK_SCOPE = {
   },
   inventory: {
     label: 'Inventory',
+    summary: 'Every item, batch and serial number tracked across your warehouses, with reorder levels.',
     rows: [
       {
         area: 'Masters',
@@ -462,6 +488,7 @@ export const PACK_SCOPE = {
   },
   manufacturing: {
     label: 'Manufacturing',
+    summary: 'Bills of materials turned into work orders and job cards, drawing on real stock.',
     rows: [
       { area: 'Masters', items: ['BOM', 'Operations', 'Workstation'] },
       {
@@ -493,6 +520,7 @@ export const PACK_SCOPE = {
   },
   hrms: {
     label: 'HRMS',
+    summary: 'Employee records, leave, attendance, shifts and expense claims, with standard approvals.',
     rows: [
       {
         area: 'Configuration',
@@ -518,6 +546,7 @@ export const PACK_SCOPE = {
   },
   payroll: {
     label: 'Payroll',
+    summary: 'Salary structures and slips on a regular cycle, with India’s standard tax setup.',
     rows: [
       {
         area: 'Setup',

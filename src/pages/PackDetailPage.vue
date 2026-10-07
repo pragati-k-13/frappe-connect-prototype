@@ -5,6 +5,7 @@ import { Button } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import PackScope from '../components/PackScope.vue'
 import { FACT_ICONS } from '../packFactIcons'
+import IconCheck from '~icons/lucide/check'
 import {
   STARTER_PACKS,
   packFacts,
@@ -30,10 +31,16 @@ import { useConnectStore } from '../stores/connect'
 // component in the first place.
 //
 // What is left is what is true of THIS pack and no other: what it is for, what
-// it costs, and what is in it. That is what a page per pack is for. A fixed
-// scope is a contract somebody may want to cite or send to a colleague, and a
-// URL is the only way to do either. The selling is done by the screens that
-// sell.
+// it costs, what you will have running, and what is in it. A fixed scope is a
+// contract somebody may want to cite or send to a colleague, and a URL is the
+// only way to do either.
+//
+// ⚠️ IT SELLS NOW, and it said it didn't. This page is read twice: skimmed on
+// the first visit, checked line by line before checkout. The scope alone only
+// served the second read — twenty rows of doctype names at one weight, with
+// nothing for a skimming eye to land on. So the page leads with outcomes in
+// the buyer's words, each module opens with one sentence, and the doctype
+// lists are the layer underneath for the careful read.
 //
 // ⚠️ Confirm sits under the price rather than at the foot of the document. With
 // the scope collapsed this page is still two screens, and a buying gesture two
@@ -241,32 +248,41 @@ const addToBasket = () => {
           />
         </div>
 
+        <!-- ── What you will have running ────────────────────────────────
+             The skim layer, and the one place on the page that is sized up:
+             a reader who stops here should know what the pack gets them. No
+             frame — this is copy to read, not a panel to compare. The lines
+             are written from the scope tables; see `outcomes` in the data. -->
+        <section class="mt-14">
+          <h2 class="text-base font-semibold text-ink-gray-8">What you'll have running</h2>
+          <ul class="mt-4 space-y-3">
+            <li
+              v-for="line in pack.outcomes"
+              :key="line"
+              class="flex gap-3 text-p-lg text-ink-gray-8"
+            >
+              <IconCheck class="mt-1 size-4 shrink-0 text-ink-gray-7" aria-hidden="true" />
+              {{ line }}
+            </li>
+          </ul>
+        </section>
+
         <!-- ── This pack, module by module ────────────────────────────────
              `PackScope` renders the scope document and knows nothing about
              where it is mounted — it has been a dialog body, a side panel and
              now a page section, without a line changing inside it. Everything
              is collapsed, which is what keeps a ~2000px document to a heading
              and a list of named modules. -->
-        <section class="mt-16">
+        <section class="mt-14">
           <h2 class="text-base font-semibold text-ink-gray-8">What this pack covers</h2>
           <div class="mt-5">
             <PackScope :pack="pack" />
           </div>
         </section>
 
-        <!-- ⚠️ THREE SECTIONS USED TO FOLLOW THIS ONE — How it works, True
-             of every pack, and the terms — and every one of them is now on the
-             recommendation screen, which is where the money actually moves.
-             This page kept them on the argument that it was that screen. It has
-             not been for a while: packs are added to a basket here and checked
-             out there, and four surfaces carrying the same two lists is four
-             places for them to drift.
-
-             What is left is the only thing that is TRUE OF THIS PACK AND NO
-             OTHER: what it is for, what it costs, and what is in it. A pack's
-             scope is a contract somebody may want to cite or send to a
-             colleague, and that is what a page per pack is for. Selling is done
-             by the screens that sell. -->
+        <!-- How it works, True of every pack and the terms are on the
+             recommendation screen, where the basket is checked out — not
+             repeated here, so the shared lists have one place to drift from. -->
       </template>
     </div>
   </ConnectShell>

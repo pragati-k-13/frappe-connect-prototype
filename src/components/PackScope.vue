@@ -4,6 +4,7 @@ import { PACK_SCOPE } from '../data/packs'
 // ⚠️ Shared with the booking panel, which labels the same modules. See
 // `src/scopeIcons.js` — one mapping, so one module can't become two glyphs.
 import { SCOPE_ICONS } from '../scopeIcons'
+import IconX from '~icons/lucide/x'
 
 // A Starter Pack's scope, rendered from the scope document in `data/packs.js`.
 //
@@ -56,6 +57,7 @@ const areas = computed(() =>
     return {
       key,
       label: area.label,
+      summary: area.summary,
       icon: SCOPE_ICONS[key],
       rows: [
         ...area.rows
@@ -89,6 +91,12 @@ const areas = computed(() =>
         {{ area.label }}
       </h3>
 
+      <!-- The module in one sentence, for the reader who is skimming. The rows
+           under it are the specification, for the one who is checking. -->
+      <p class="text-p-base text-ink-gray-7" :class="!single && 'mt-1.5'">
+        {{ area.summary }}
+      </p>
+
       <!-- ⚠️ A GRID, not a flex row per line: the label column has to be one
            width down the whole module — and down every module, since they sit
            in one stack — or the runs start at a different place on each line
@@ -97,8 +105,7 @@ const areas = computed(() =>
            run about 180px wide, which sets six doctype names as six lines. Below
            that the label sits above its run instead. -->
       <dl
-        class="gap-x-6 gap-y-2.5 sm:grid sm:grid-cols-[136px_minmax(0,1fr)]"
-        :class="!single && 'mt-3'"
+        class="mt-4 gap-x-6 gap-y-4 sm:grid sm:grid-cols-[136px_minmax(0,1fr)]"
       >
         <template v-for="row in area.rows" :key="row.key">
           <!-- ⚠️ `sm:contents`, not `contents`, and the wrapper carries its own
@@ -119,16 +126,31 @@ const areas = computed(() =>
             <dt class="text-p-base text-ink-gray-6">
               {{ row.label }}
             </dt>
-            <!-- A comma run, not a list: these are six and seven doctype names
-                 to a row, and as bullets each becomes a column of one-word
-                 lines. The carve-outs take the same shape as everything else —
-                 what marks them is the label and the colour, not a different
-                 structure, because they are part of the same specification. -->
-            <dd
-              class="mt-0.5 text-p-base sm:mt-0"
-              :class="row.excluded ? 'text-ink-gray-5' : 'text-ink-gray-8'"
-            >
-              {{ row.items.join(', ') }}
+            <!-- ⚠️ ONE ITEM PER LINE, and it was a comma run. The run kept six
+                 doctype names to two lines, but it could only be read, not
+                 checked: someone looking for GSTR-1 had to read along a
+                 sentence. Columns let the eye run down instead.
+                 `columns-[13rem]` sets a column WIDTH, not a count, so the
+                 same markup is two columns on this page and one in a narrow
+                 dialog without a breakpoint knowing which it is in.
+                 ⚠️ The carve-outs carry an × as well as the lighter ink: a
+                 contract's exclusions should not depend on colour alone. -->
+            <dd class="mt-1 sm:mt-0">
+              <ul class="columns-[13rem] gap-x-6 text-p-base">
+                <li
+                  v-for="item in row.items"
+                  :key="item"
+                  class="flex break-inside-avoid gap-1.5 pb-1"
+                  :class="row.excluded ? 'text-ink-gray-5' : 'text-ink-gray-8'"
+                >
+                  <IconX
+                    v-if="row.excluded"
+                    class="mt-[3px] size-3.5 shrink-0"
+                    aria-hidden="true"
+                  />
+                  {{ item }}
+                </li>
+              </ul>
             </dd>
           </div>
         </template>
