@@ -58,24 +58,36 @@ import { REGIONS } from './quiz'
 // `areas` keys into PACK_SCOPE below, in the order the detail view lists them.
 // The pack is exactly the sum of its areas, so a pack's coverage can't drift
 // from the scope tables the way a hand-written summary would.
+// Every pack is delivered WITHIN this many sessions, whatever its hours — a
+// ceiling, not a count, so the copy says "within". The catalogue's "How it
+// works" and each pack's page both say so.
+export const SESSIONS_PER_PACK = 5
+
 export const STARTER_PACKS = [
   {
     value: 'accounts-sales-purchase-stock',
     name: 'Accounts, Sales, Purchase, Stock',
-    // ⚠️ `tagline` says who the pack is FOR, `pitch` says what it lets you do.
-    // Neither one lists modules any more — the name is the module list, and on
-    // the catalogue row the tagline sits directly under it.
+    // ⚠️ `tagline` is the pack's ONE line under its name, everywhere: the
+    // catalogue card, the pack dialog and the pack page all print it. There
+    // was a second line, `pitch`, on the dialog and the page — three surfaces,
+    // two descriptions of one pack, so it went.
     tagline: 'Where most businesses start',
-    pitch: 'Run the business without spreadsheets.',
     // ⚠️ `outcomes` and every area's `summary` are OUR copy, not the scope
     // document's. They are what a skimming reader takes away, so each one is
     // written only from rows in PACK_SCOPE — if a line promises something no
     // row covers, it is wrong, however well it sells.
+    // Each outcome is an icon (named in `OUTCOME_ICONS`, PackDetailPage), a
+    // title on its own line and a short body under it. ⚠️ Titles stay one line
+    // four across (~22 characters); bodies may take two.
     outcomes: [
-      'Quotes, orders and GST invoices for every sale',
-      'Purchases tracked from request to supplier bill',
-      'Stock that moves with every delivery and receipt',
-      'Bank reconciled, with Balance Sheet, P&L and GSTR-1 from your own entries',
+      {
+        icon: 'invoice',
+        title: 'GST invoices',
+        body: 'Quotes, orders and invoices for every sale.',
+      },
+      { icon: 'purchase', title: 'Purchases', body: 'Tracked from request to supplier bill.' },
+      { icon: 'stock', title: 'Live stock', body: 'Moves with every delivery and receipt.' },
+      { icon: 'books', title: 'Your books', body: 'Bank-reconciled, with P&L and GSTR-1.' },
     ],
     // ⚠️ The document's own labels for these four are Accounting, Selling,
     // Buying and Inventory. The pack is named in the pricing sheet's
@@ -89,20 +101,21 @@ export const STARTER_PACKS = [
   {
     value: 'manufacturing',
     name: 'Manufacturing',
+    // ⚠️ Says who the pack is for, like the other two — not what is in it. That
+    // it ships with the core four is on its page and in its dialog, which list
+    // all five modules.
     tagline: 'For businesses that make what they sell',
-    pitch: 'Plan production against real stock.',
     outcomes: [
-      'Bills of materials for what you make, single and multi-level',
-      'Work orders and job cards on the shop floor',
-      'Materials consumed and finished goods stocked as you produce',
-      'Sales, purchases, stock and books running alongside',
+      { icon: 'bom', title: 'Bills of materials', body: 'Single and multi-level.' },
+      { icon: 'factory', title: 'Shop floor', body: 'Work orders and job cards for every run.' },
+      { icon: 'stock', title: 'Production stock', body: 'Materials out, finished goods in.' },
+      { icon: 'core', title: 'The core four', body: 'Sales, purchases, stock and books.' },
     ],
     // ⚠️ THE ONE PACK THAT CONTAINS ANOTHER. Manufacturing ships with the core
     // four, because production is planned against the stock and orders they
     // keep, so it costs the core pack's hours plus its own. `supersedes` is
     // what stops a basket holding both and paying for the core twice — see
     // `togglePack` in the store and `recommendationFor`.
-    includes: 'Accounts, Sales, Purchase and Stock',
     supersedes: ['accounts-sales-purchase-stock'],
     areas: ['accounting', 'selling', 'buying', 'inventory', 'manufacturing'],
     apps: ['erpnext'],
@@ -121,12 +134,11 @@ export const STARTER_PACKS = [
     value: 'hrms',
     name: 'HR and Payroll',
     tagline: 'For people, leave and salaries on one record',
-    pitch: 'Pay people on time, off their attendance.',
     outcomes: [
-      'Every employee on one record',
-      'Leave, attendance and shifts tracked against your policies',
-      'Expense claims submitted and approved in the system',
-      'Salary slips every pay cycle, with India’s standard tax setup',
+      { icon: 'employee', title: 'Employee records', body: 'Every employee on one record.' },
+      { icon: 'attendance', title: 'Leave and attendance', body: 'Tracked against your policies.' },
+      { icon: 'expense', title: 'Expense claims', body: 'Submitted and approved in the system.' },
+      { icon: 'salary', title: 'Salary slips', body: 'Every cycle, with India’s standard tax.' },
     ],
     areas: ['hrms', 'payroll'],
     apps: ['frappe-hr'],
@@ -342,10 +354,13 @@ export const additionalHourRateFor = (region = DEFAULT_REGION) =>
 // settings, then exclusions — because that's the order the work happens in, and
 // the exclusions read as the end of a list rather than as a warning bolted on.
 // A pack renders only the areas it includes (see `areas` above).
+// ⚠️ A row may carry `screenshot`, an imported image URL, and the pack page
+// shows it beside that sub-section. None do yet; `PackScopeShot` stands in a
+// named placeholder until they do.
 export const PACK_SCOPE = {
   accounting: {
     label: 'Accounting',
-    summary: 'Your books, GST and TDS kept from the same entries, and reconciled with the bank.',
+    summary: 'Books, GST and TDS from one set of entries, reconciled with your bank.',
     rows: [
       {
         area: 'Masters',
@@ -391,7 +406,7 @@ export const PACK_SCOPE = {
   },
   selling: {
     label: 'Selling',
-    summary: 'Quotes become orders, deliveries and GST invoices, with stock and accounts updated as you go.',
+    summary: 'Quotes to orders, deliveries and GST invoices, updating stock and books.',
     rows: [
       {
         area: 'Masters',
@@ -429,7 +444,7 @@ export const PACK_SCOPE = {
   },
   buying: {
     label: 'Buying',
-    summary: 'Requests, quotes and orders through to supplier bills, including imports and landed costs.',
+    summary: 'Requests and orders through to supplier bills, imports and landed costs.',
     rows: [
       {
         area: 'Masters',
@@ -472,7 +487,7 @@ export const PACK_SCOPE = {
   },
   inventory: {
     label: 'Inventory',
-    summary: 'Every item, batch and serial number tracked across your warehouses, with reorder levels.',
+    summary: 'Every item, batch and serial number across warehouses, with reorder levels.',
     rows: [
       {
         area: 'Masters',
@@ -488,7 +503,7 @@ export const PACK_SCOPE = {
   },
   manufacturing: {
     label: 'Manufacturing',
-    summary: 'Bills of materials turned into work orders and job cards, drawing on real stock.',
+    summary: 'Bills of materials into work orders and job cards, against real stock.',
     rows: [
       { area: 'Masters', items: ['BOM', 'Operations', 'Workstation'] },
       {
@@ -520,7 +535,7 @@ export const PACK_SCOPE = {
   },
   hrms: {
     label: 'HRMS',
-    summary: 'Employee records, leave, attendance, shifts and expense claims, with standard approvals.',
+    summary: 'Employee records, leave, attendance, shifts and expenses, with approvals.',
     rows: [
       {
         area: 'Configuration',
@@ -546,7 +561,7 @@ export const PACK_SCOPE = {
   },
   payroll: {
     label: 'Payroll',
-    summary: 'Salary structures and slips on a regular cycle, with India’s standard tax setup.',
+    summary: 'Salary structures and slips every cycle, with India’s standard tax setup.',
     rows: [
       {
         area: 'Setup',

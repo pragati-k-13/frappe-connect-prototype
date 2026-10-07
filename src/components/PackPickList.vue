@@ -6,7 +6,6 @@ import IconEffort from '~icons/lucide/hourglass'
 import IconDelivery from '~icons/lucide/calendar'
 import IconAdd from '~icons/lucide/plus'
 import IconHours from '~icons/lucide/clock'
-import IconIncludes from '~icons/lucide/layers'
 import IconAdded from '~icons/lucide/check'
 import { STARTER_PACKS, priceFor } from '../data/packs'
 import { appLogo } from '../data/apps'
@@ -62,7 +61,7 @@ const facts = (pack) => [
     <li
       v-for="pack in STARTER_PACKS"
       :key="pack.value"
-      class="flex cursor-pointer flex-col rounded-6 border border-outline-gray-1 p-5 transition-colors hover:bg-surface-gray-1"
+      class="flex cursor-pointer flex-col rounded-6 border border-outline-gray-1 p-5 transition-colors hover:border-outline-gray-2 hover:bg-surface-gray-1"
       @click="emit('scope', pack)"
     >
       <!-- The app the pack sets up: ERPNext, or Frappe HR. -->
@@ -77,26 +76,18 @@ const facts = (pack) => [
           label="Recommended"
         />
       </div>
-      <p class="mt-1 text-p-sm text-ink-gray-6">{{ pack.tagline }}</p>
+      <p class="mt-1 text-p-base text-ink-gray-6">{{ pack.tagline }}</p>
 
-      <p
-        v-if="pack.includes"
-        class="mt-4 flex items-start gap-1.5 text-p-sm text-ink-gray-7"
-      >
-        <IconIncludes class="mt-[3px] size-3.5 shrink-0 text-ink-gray-5" />
-        Includes {{ pack.includes }}
-      </p>
-      <p
-        class="flex items-center gap-1.5 text-p-sm text-ink-gray-7"
-        :class="pack.includes ? 'mt-1.5' : 'mt-4'"
-      >
-        <IconHours class="size-3.5 shrink-0 text-ink-gray-5" />
-        {{ pack.hours }} hrs of effort
-      </p>
-
-      <!-- `mt-auto` keeps the prices and buttons level across the row. -->
+      <!-- `mt-auto` keeps the hours, prices and buttons level across the row.
+           ⚠️ The hours are IN this block, not under the tagline: there they
+           sat wherever the title and tagline happened to end, at a different
+           height on every card. -->
       <div class="mt-auto pt-6">
-        <p class="text-2xl font-semibold tabular-nums text-ink-gray-9">
+        <p class="flex items-center gap-2 text-p-base text-ink-gray-7">
+          <IconHours class="size-4 shrink-0 text-ink-gray-6" />
+          {{ pack.hours }} hrs of effort
+        </p>
+        <p class="mt-6 text-2xl font-semibold tabular-nums text-ink-gray-9">
           {{ priceFor(pack, region) }}
         </p>
         <Button
