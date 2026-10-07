@@ -21,7 +21,7 @@ import { sharedAnswers } from '../data/company'
 import { INDUSTRIES } from '../data/quiz'
 import { emptyBrief, matchingPartners } from '../data/custom'
 import { bidFor, repliesToBrief } from '../data/bids'
-import { STARTER_PACKS } from '../data/packs'
+import { STARTER_PACKS, packConflicts } from '../data/packs'
 import { recommendedPackValues } from '../data/recommendation'
 
 // A skipped question stores `null`, which every filter below reads as "no
@@ -1436,10 +1436,15 @@ export const useConnectStore = defineStore('connect', {
       this.packs = [...new Set(values)]
     },
 
+    // Adding a pack takes out any it overlaps with — Manufacturing includes
+    // the core pack, so the two never share a basket. See `packConflicts`.
     togglePack(value) {
-      this.packs = this.packs.includes(value)
-        ? this.packs.filter((v) => v !== value)
-        : [...this.packs, value]
+      if (this.packs.includes(value)) {
+        this.packs = this.packs.filter((v) => v !== value)
+        return
+      }
+      const conflicts = packConflicts(value)
+      this.packs = [...this.packs.filter((v) => !conflicts.includes(v)), value]
     },
 
     // ⚠️ Seeds the basket ONLY IF IT IS EMPTY, which is what makes the

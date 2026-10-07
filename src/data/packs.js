@@ -32,10 +32,9 @@ import { REGIONS } from './quiz'
 // the catalogue now. The old set was a ladder of tiers — Core ERPNext,
 // Manufacturing (core plus production), All in one (all of it), Frappe HR —
 // where three packs nested and a name like "All in one" told you nothing about
-// what it contained. These four are disjoint slices of PACK_SCOPE that a buyer
-// combines: Accounts/Sales/Purchase/Stock, Manufacturing, HR, Payroll.
-// Nothing is a prefix of anything, so `name` and `areas` are two renderings of one
-// list rather than two ways of saying "and the rest".
+// what it contained. These are slices of PACK_SCOPE that a buyer combines:
+// Accounts/Sales/Purchase/Stock, Manufacturing, HR and Payroll. The one
+// exception is Manufacturing, which includes the core four — see its entry.
 //
 // Two consequences worth knowing before editing:
 //
@@ -82,44 +81,48 @@ export const STARTER_PACKS = [
     name: 'Manufacturing',
     tagline: 'For businesses that make what they sell',
     pitch: 'Plan production against real stock.',
-    areas: ['manufacturing'],
+    // ⚠️ THE ONE PACK THAT CONTAINS ANOTHER. Manufacturing ships with the core
+    // four, because production is planned against the stock and orders they
+    // keep, so it costs the core pack's hours plus its own. `supersedes` is
+    // what stops a basket holding both and paying for the core twice — see
+    // `togglePack` in the store and `recommendationFor`.
+    includes: 'Accounts, Sales, Purchase and Stock',
+    supersedes: ['accounts-sales-purchase-stock'],
+    areas: ['accounting', 'selling', 'buying', 'inventory', 'manufacturing'],
     apps: ['erpnext'],
-    hours: 5,
+    hours: 10,
     validityDays: 60,
     validity: '60 days',
   },
   {
-    // ⚠️ TWO PACKS AGAIN, and they were one. HR and Payroll were combined into
-    // a single 10-hour pack on the argument that nobody buys attendance without
-    // paying people off it; the current pricing sheet sells them apart, 5 hours
-    // each, so a business can start with its people records and add salaries
-    // later. The recommendation still offers both together when payroll is
-    // the problem — see `PACK_RULES`.
+    // ⚠️ ONE PACK, AND IT WAS TWO. HR and Payroll were sold apart, 5 hours each,
+    // so a business could start with its people records and add salaries later.
+    // They are one 10-hour pack again: payroll runs off the employee records
+    // and attendance HR keeps, so nobody buys one without the other.
     //
     // `value` stays `hrms`: it is the id partners are tagged with in
     // `data/partners.js`, and the firms that sold HR still sell this.
     value: 'hrms',
-    name: 'HR',
-    tagline: 'For a headcount that has outgrown a spreadsheet',
-    pitch: 'Keep people, leave and attendance in one place.',
-    areas: ['hrms'],
-    apps: ['frappe-hr'],
-    hours: 5,
-    validityDays: 30,
-    validity: '30 days',
-  },
-  {
-    value: 'payroll',
-    name: 'Payroll',
-    tagline: 'For paying people off the records HR keeps',
+    name: 'HR and Payroll',
+    tagline: 'For people, leave and salaries on one record',
     pitch: 'Pay people on time, off their attendance.',
-    areas: ['payroll'],
+    areas: ['hrms', 'payroll'],
     apps: ['frappe-hr'],
-    hours: 5,
+    hours: 10,
     validityDays: 30,
     validity: '30 days',
   },
 ]
+
+// Packs that cannot share a basket with `value`: the ones it supersedes and the
+// ones that supersede it. Adding one takes the others out.
+export const packConflicts = (value) => {
+  const pack = STARTER_PACKS.find((p) => p.value === value)
+  return [
+    ...(pack?.supersedes ?? []),
+    ...STARTER_PACKS.filter((p) => p.supersedes?.includes(value)).map((p) => p.value),
+  ]
+}
 
 // Price is `hours × rate`, always — which is how the real India sheet is built:
 // ₹10,000 for 5 hours, a flat ₹2,000/hr across every pack.
@@ -536,12 +539,11 @@ export const PACK_SCOPE = {
 
 // Every module area the catalogue covers, in the document's own order.
 //
-// The four packs are four DISJOINT slices of this list, and together they are
-// exactly it: Accounts/Sales/Purchase/Stock takes the first four, Manufacturing
-// the fifth, HR and Payroll one each. Nothing nests and nothing overlaps, so a
-// buyer who wants production on top of the basics buys two packs rather than a
-// bigger one. That shape is the most useful thing a buyer can know about the
-// four, so it's exported rather than left implicit in each pack's `areas`.
+// The three packs cover exactly this list: Accounts/Sales/Purchase/Stock takes
+// the first four, Manufacturing those four plus the fifth, HR and Payroll the
+// last two. Manufacturing is the only overlap, and a basket can hold it or the
+// core pack, never both. That shape is the most useful thing a buyer can know about the
+// three, so it's exported rather than left implicit in each pack's `areas`.
 export const SCOPE_AREAS = Object.keys(PACK_SCOPE).map((key) => ({
   key,
   label: PACK_SCOPE[key].label,
@@ -693,23 +695,24 @@ export const PACK_BLOCKERS = PACK_WONT_COVER.map(
 // commercial terms word it, because the pack's own scope panel quotes the
 // document and must go on quoting it. These are the readings, keyed to the
 // label so a renamed exclusion loses its sentences loudly instead of silently
-// keeping the wrong ones.
+// keeping the wrong ones. Each reading carries its exclusion's `hint` in the
+// sentence itself — the list has no tooltips.
 const BOTH_WAYS = {
   [PACK_USER_LIMIT]: {
     need: 'More than 50 people will use it',
     fits: 'Fewer than 50 people will use it',
   },
   [excluded('data cleaning')]: {
-    need: 'You need your data cleaned and migrated',
-    fits: 'Your data needs no cleaning before it is imported',
+    need: "Your data isn't clean Excel or CSV yet",
+    fits: 'Your data is ready as clean Excel or CSV',
   },
   [excluded('custom scripting')]: {
     need: 'You need custom scripting',
     fits: 'ERPNext as it ships covers how you work',
   },
   [excluded('api integrations')]: {
-    need: 'You need API integrations',
-    fits: 'Nothing has to connect to another system',
+    need: 'You need bank, payment or device integrations',
+    fits: 'Nothing connects to banks, payments or devices',
   },
 }
 
