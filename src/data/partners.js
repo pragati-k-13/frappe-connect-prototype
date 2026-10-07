@@ -683,7 +683,7 @@ export const PARTNERS = [
       'Chemical Manufacturing',
     ],
     apps: ['erpnext', 'helpdesk', 'crm'],
-    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms', 'payroll'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
   }),
   P('Software@Work', {
     tagline: 'Running payroll, plants and pipelines on one system since 2011',
@@ -701,7 +701,7 @@ export const PARTNERS = [
     stories: 9,
     industries: ['Discrete Manufacturing', 'Professional services', 'Goods Trading', 'Logistics'],
     apps: ['erpnext', 'frappe-hr', 'crm'],
-    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms', 'payroll'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
   }),
   P('New Indictrans', {
     tagline: 'Open source for institutions that keep records for decades',
@@ -720,7 +720,7 @@ export const PARTNERS = [
     stories: 3,
     industries: ['Process Manufacturing', 'Education', 'Government'],
     apps: ['erpnext', 'helpdesk', 'learning'],
-    packs: ['accounts-sales-purchase-stock', 'hrms', 'payroll'],
+    packs: ['accounts-sales-purchase-stock', 'hrms'],
   }),
   P('8848 Digital', {
     tagline: 'Traceability from the shop floor up',
@@ -743,7 +743,7 @@ export const PARTNERS = [
       'Retail',
     ],
     apps: ['erpnext', 'crm', 'frappe-hr', 'insights'],
-    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms', 'payroll'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
   }),
   P('Greycube Technologies', {
     tagline: 'A small studio setting up ERPNext properly for small teams',
@@ -779,7 +779,7 @@ export const PARTNERS = [
     stories: 5,
     industries: ['Food and Beverages', 'Retail', 'Healthcare', 'Education'],
     apps: ['erpnext', 'helpdesk', 'frappe-hr', 'school'],
-    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms', 'payroll'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
   }),
   P('Hybrowlabs', {
     tagline: 'Building less on Frappe, so you maintain less',
@@ -797,7 +797,7 @@ export const PARTNERS = [
     stories: 2,
     industries: ['Software Development', 'E-commerce', 'Professional services'],
     apps: ['erpnext', 'crm', 'drive', 'framework'],
-    packs: ['accounts-sales-purchase-stock', 'hrms', 'payroll'],
+    packs: ['accounts-sales-purchase-stock', 'hrms'],
   }),
   P('Finbyz Tech', {
     tagline: 'Built for the finance team that lives in the ERP',
@@ -858,7 +858,7 @@ export const PARTNERS = [
       'Hotels, Restaurants and Cafes',
     ],
     apps: ['erpnext', 'helpdesk', 'crm'],
-    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms', 'payroll'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
   }),
   P('Kingstech Services', {
     tagline: 'One rollout, several jurisdictions, out of Singapore',
@@ -876,7 +876,7 @@ export const PARTNERS = [
     stories: 0,
     industries: ['Goods Trading', 'E-commerce', 'Logistics', 'Professional services'],
     apps: ['erpnext', 'helpdesk', 'crm'],
-    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms', 'payroll'],
+    packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
   }),
   P('Navari', {
     tagline: 'Software built for the conditions East Africa actually works in',
@@ -913,7 +913,7 @@ export const PARTNERS = [
     stories: 3,
     industries: ['Medical Device Manufacturing', 'Healthcare', 'Professional services'],
     apps: ['erpnext', 'frappe-hr', 'crm', 'insights'],
-    packs: ['accounts-sales-purchase-stock', 'hrms', 'payroll'],
+    packs: ['accounts-sales-purchase-stock', 'hrms'],
   }),
 
   // ── Partners with no success stories ──────────────────────────────────────
@@ -966,7 +966,7 @@ export const PARTNERS = [
     stories: 0,
     industries: ['Goods Trading', 'Discrete Manufacturing', 'Retail', 'Professional services', 'Nonprofit'],
     apps: ['erpnext', 'frappe-hr', 'insights', 'crm', 'helpdesk'],
-    packs: ['accounts-sales-purchase-stock', 'hrms', 'payroll'],
+    packs: ['accounts-sales-purchase-stock', 'hrms'],
   }),
   P('NestorBird', {
     address: 'F 468, IFB Phase 8, Phase 8B, SAS Nagar, Mohali 160071, Punjab, India',

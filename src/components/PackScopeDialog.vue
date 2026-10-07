@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Dialog, ScrollArea, TabButtons } from 'frappe-ui'
+import { Button, Dialog, ScrollArea, TabButtons } from 'frappe-ui'
 import PackScope from './PackScope.vue'
 
 // What THIS pack covers, module by module.
@@ -30,6 +30,9 @@ const props = defineProps({
   // A basket: the dialog shows one pack at a time, with tabs to switch.
   // Takes precedence over `pack`.
   packs: { type: Array, default: () => [] },
+  // Offer a way on to the pack's own page, `/connect/packs/:id`. Only the
+  // catalogue asks for it; elsewhere the dialog is the whole of the detail.
+  fullPage: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:open'])
 
@@ -80,6 +83,17 @@ const tabs = computed(() => list.value.map((p) => ({ label: p.name, value: p.val
         </p>
         <PackScope :key="shown.value" :pack="shown" />
       </ScrollArea>
+    </template>
+    <template v-if="fullPage && shown" #actions>
+      <div class="flex justify-end">
+        <Button
+          variant="subtle"
+          label="View full page"
+          :route="{ name: 'pack', params: { id: shown.value } }"
+        >
+          <template #suffix><LucideArrowRight class="size-4" /></template>
+        </Button>
+      </div>
     </template>
   </Dialog>
 </template>

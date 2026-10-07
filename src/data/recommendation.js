@@ -131,13 +131,7 @@ const PACK_RULES = {
   },
   hrms: (f) => {
     if (!f.problems.includes('people')) return null
-    return 'Leave and attendance are kept by hand today; this puts them on one employee record'
-  },
-  // Offered with HR, never without it: payroll runs off the employee records
-  // and attendance that HR keeps.
-  payroll: (f) => {
-    if (!f.problems.includes('people')) return null
-    return 'Salaries are worked out by hand today; this runs them off the attendance HR records'
+    return 'Leave, attendance and salaries are worked out by hand today; this runs them off one employee record'
   },
 }
 
@@ -166,8 +160,13 @@ export const recommendationFor = (form) => {
 
   const triggered = CUSTOM_TRIGGERS.filter((t) => t.test(f))
 
-  const packs = STARTER_PACKS.map((pack) => ({ pack, reason: PACK_RULES[pack.value]?.(f) ?? null }))
+  const matched = STARTER_PACKS.map((pack) => ({ pack, reason: PACK_RULES[pack.value]?.(f) ?? null }))
     .filter((row) => row.reason)
+  // A pack another matched pack already includes is dropped: Manufacturing
+  // carries the core four, so recommending both would charge for them twice.
+  const packs = matched.filter(
+    (row) => !matched.some((other) => other.pack.supersedes?.includes(row.pack.value)),
+  )
 
   if (triggered.length) {
     return {
