@@ -236,7 +236,7 @@ const OUTCOME_ICONS = {
           />
 
           <h1
-            class="mt-5 max-w-[24ch] text-balance text-6xl font-semibold leading-[1.15] tracking-tight text-ink-gray-9 sm:col-start-1 sm:row-start-2"
+            class="mt-5 max-w-[24ch] text-balance text-[22px] font-semibold leading-[1.15] tracking-tight text-ink-gray-9 sm:col-start-1 sm:row-start-2"
           >
             {{ pack.name }}
           </h1>
