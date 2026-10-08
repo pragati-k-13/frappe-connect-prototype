@@ -2,11 +2,16 @@
 import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Button, FormControl, toast } from 'frappe-ui'
+import {
+  AccordionContent,
+  AccordionHeader,
+  AccordionItem,
+  AccordionRoot,
+  AccordionTrigger,
+} from 'reka-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import PackPickList from '../components/PackPickList.vue'
 import PackScopeDialog from '../components/PackScopeDialog.vue'
-import PackFitTests from '../components/PackFitTests.vue'
-import PackTermsDialog from '../components/PackTermsDialog.vue'
 import MediaLightbox from '../components/MediaLightbox.vue'
 import { mediaFor } from '../data/media'
 import frappeMark from '../assets/frappe.svg'
@@ -140,21 +145,64 @@ const steps = [
 // "What's included", in a dialog over the list — as on the recommendation
 // screen, so reading a scope does not cost the basket its place.
 const scopeOf = ref(null)
-const termsOpen = ref(false)
+
+// The FAQ, before the contact form. Every answer starts closed.
+const FAQS = [
+  {
+    q: 'When do I need to make the payment for the Starter Pack?',
+    a: 'Full advance payment is required before the engagement begins.',
+  },
+  {
+    q: 'What happens if I use up all the hours included in the Starter Pack?',
+    a: 'The pack covers only the number of hours specified. If additional hours are needed, you must purchase a new pack.',
+  },
+  {
+    q: 'Who will implement my project?',
+    a: 'Your implementation will be carried out by Frappe Partners who are trained and monitored by the Frappe Team.',
+  },
+  {
+    q: 'Is this only available for India?',
+    a: 'Yes, Starter Pack is only available for customers from India region. It will be available for other regions later.',
+  },
+  {
+    q: 'Can I get a refund after the work has started?',
+    a: 'No, refunds are not provided once work has commenced.',
+  },
+  {
+    q: 'How long do I have to use the hours in my Starter Pack?',
+    a: "All hours are valid up to the specified timeline from the kick-off date. This is done to ensure the allocated capacity for the project does not go unutilised due to delays from customer's end.",
+  },
+  {
+    q: 'How long is Go-live support available?',
+    a: 'Additional AMC is required for post go-live support.',
+  },
+  {
+    q: 'Can Frappe change the pricing or terms of the Starter Pack?',
+    a: 'Yes, Frappe reserves the right to change pricing or terms at any time, with due notice.',
+  },
+  {
+    q: 'Is on-site implementation available?',
+    a: 'No, implementations are conducted remotely only.',
+  },
+  {
+    q: "My needs don't fit into the Starter Pack?",
+    a: 'If you are a business with more complex needs requiring 3rd party integrations, custom app development, or have over 50+ active users, reach out to our extensive partner ecosystem (frappe.io/partners/regions) for personalised demo, personalised quotation and implementation plans.',
+  },
+]
 
 // "Still unsure?" — a question to Frappe, sent from the page.
-const question = reactive({ name: '', phone: '', body: '' })
+const question = reactive({ name: '', email: '', phone: '', body: '' })
 const canSendQuestion = computed(() =>
-  Boolean(question.name.trim() && question.phone.trim() && question.body.trim()),
+  Boolean(question.name.trim() && question.email.trim() && question.phone.trim() && question.body.trim()),
 )
 // The button is never disabled; a send with a field empty says which ones.
 const sendQuestion = () => {
   if (!canSendQuestion.value) {
-    toast.error('Add your name, phone number and what you’d like to know')
+    toast.error('Add your name, email, phone number and what you’d like to know')
     return
   }
-  toast.success('Call requested', { description: 'Frappe will call you soon.' })
-  Object.assign(question, { name: '', phone: '', body: '' })
+  toast.success('Message sent', { description: 'Frappe will get back to you soon.' })
+  Object.assign(question, { name: '', email: '', phone: '', body: '' })
 }
 const scopeOpen = ref(false)
 
@@ -198,7 +246,7 @@ useBasketReturn()
 // Continue goes to the cart for everyone; the cart is where a visitor signs
 // up and a customer pays.
 const checkout = () => {
-  if (store.packs.length) router.push({ name: 'cart' })
+  router.push({ name: 'cart' })
 }
 </script>
 
@@ -213,8 +261,9 @@ const checkout = () => {
         <!-- Bottom padding lifts the text above the video's centre line. -->
         <div class="md:pb-12">
           <img :src="erpnextMark" alt="ERPNext" class="size-8" />
-          <h1 class="mt-4 text-balance text-4xl font-semibold leading-snug tracking-tight text-ink-gray-9">
-            Cover the essentials with Starter Packs
+          <h1 class="mt-4 text-5xl font-semibold leading-snug tracking-tight text-ink-gray-9">
+            Implemented in hours,<br />
+            not months
           </h1>
           <p class="mt-2 text-balance text-p-base text-ink-gray-6">
             Five 1-hour guided sessions to set up ERPNext and run your core
@@ -247,26 +296,10 @@ const checkout = () => {
         </button>
       </header>
 
-      <!-- ── How it works ─────────────────────────────────────────────────
-           Drawn here rather than with `PackSteps`: the recommendation screen
-           keeps the compact numbered list, this page gets three columns. -->
-      <section class="mt-36" aria-labelledby="packs-steps">
-        <h2 id="packs-steps" class="text-3xl font-semibold tracking-tight text-ink-gray-9">
-          Go live with ERPNext <em>now</em>
-        </h2>
-        <ol class="mt-8 grid gap-8 md:grid-cols-3">
-          <li v-for="step in steps" :key="step.title">
-            <component :is="step.icon" class="size-5 text-ink-gray-7" aria-hidden="true" />
-            <h3 class="mt-4 text-base font-medium text-ink-gray-9">{{ step.title }}</h3>
-            <p class="mt-1.5 text-pretty text-p-base text-ink-gray-6">{{ step.body }}</p>
-          </li>
-        </ol>
-      </section>
-
       <!-- ── The packs ────────────────────────────────────────────────────
            The cards, then the total and the way on to the cart. -->
-      <section class="mt-44" aria-labelledby="packs-list">
-        <h2 id="packs-list" class="text-3xl font-semibold tracking-tight text-ink-gray-9">
+      <section class="mt-36" aria-labelledby="packs-list">
+        <h2 id="packs-list" class="text-2xl font-semibold tracking-tight text-ink-gray-9">
           Start small. Upgrade anytime.
         </h2>
         <!-- The same component as the recommendation screen and a draft —
@@ -286,8 +319,7 @@ const checkout = () => {
           <div>
             <p class="text-sm text-ink-gray-6">Total</p>
             <p
-              class="mt-1 text-3xl font-semibold tabular-nums"
-              :class="store.packs.length ? 'text-ink-gray-9' : 'text-ink-gray-4'"
+              class="mt-1 text-2xl font-semibold tabular-nums text-ink-gray-9"
             >
               {{ total }}
             </p>
@@ -296,12 +328,27 @@ const checkout = () => {
             variant="solid"
             size="md"
             label="Continue"
-            :disabled="!store.packs.length"
             @click="checkout"
           >
             <template #suffix><LucideArrowRight class="size-4" /></template>
           </Button>
         </div>
+      </section>
+
+      <!-- ── How it works ─────────────────────────────────────────────────
+           Drawn here rather than with `PackSteps`: the recommendation screen
+           keeps the compact numbered list, this page gets three columns. -->
+      <section class="mt-44" aria-labelledby="packs-steps">
+        <h2 id="packs-steps" class="text-2xl font-semibold tracking-tight text-ink-gray-9">
+          Go live with ERPNext <em>now</em>
+        </h2>
+        <ol class="mt-8 grid gap-8 md:grid-cols-3">
+          <li v-for="step in steps" :key="step.title">
+            <component :is="step.icon" class="size-5 text-ink-gray-6" aria-hidden="true" />
+            <h3 class="mt-4 text-base font-medium text-ink-gray-9">{{ step.title }}</h3>
+            <p class="mt-1.5 text-pretty text-p-base text-ink-gray-6">{{ step.body }}</p>
+          </li>
+        </ol>
       </section>
 
       <!-- ── Frappe's word on it ──────────────────────────────────────────
@@ -313,7 +360,7 @@ const checkout = () => {
       >
         <div class="flex items-center gap-1.5">
           <img :src="frappeMark" alt="" class="size-4" />
-          <span class="text-base font-semibold text-ink-gray-9">Frappe</span>
+          <span class="text-base font-semibold text-ink-gray-8">Frappe</span>
         </div>
         <blockquote class="mt-8 max-w-[640px] text-balance text-3xl font-medium leading-snug tracking-tight text-ink-gray-7">
           “We’ve implemented ERPNext for thousands of companies.
@@ -345,58 +392,49 @@ const checkout = () => {
       >
         <h2
           :id="`packs-${group.key}`"
-          class="text-3xl font-semibold tracking-tight text-ink-gray-9"
+          class="text-2xl font-semibold tracking-tight text-ink-gray-9"
         >
           {{ group.title }}
         </h2>
         <ul class="mt-10 grid gap-x-8 gap-y-10 sm:grid-cols-2 md:grid-cols-3">
           <li v-for="item in group.items" :key="item.title">
-            <component :is="item.icon" class="size-5 text-ink-gray-7" aria-hidden="true" />
+            <component :is="item.icon" class="size-5 text-ink-gray-6" aria-hidden="true" />
             <p class="mt-3 text-p-base text-ink-gray-6">
-              <span class="font-medium text-ink-gray-7">{{ item.title }}.</span>
+              <span class="font-medium text-ink-gray-8">{{ item.title }}.</span>
               {{ item.body }}
             </p>
           </li>
         </ul>
       </section>
-      <!-- ── Before you decide ────────────────────────────────────────────
-           When a pack is the wrong buy, and the terms: two columns split by a
-           rule, no cards. The terms open in a dialog. -->
-      <section class="mt-48" aria-labelledby="packs-decide">
-        <h2 id="packs-decide" class="text-3xl font-semibold tracking-tight text-ink-gray-9">
-          Before you decide
+      <!-- ── FAQ ──────────────────────────────────────────────────────────
+           Rules between rows only. 8px from question to answer, as frappe-ui
+           puts between a title and its description. -->
+      <section class="mx-auto mt-48 max-w-[600px]" aria-labelledby="packs-faq">
+        <h2 id="packs-faq" class="text-2xl font-semibold tracking-tight text-ink-gray-9">
+          Frequently asked questions
         </h2>
-        <div class="mt-6 grid md:grid-cols-2">
-        <PackFitTests
-          class="flex flex-col pb-6 md:pb-0 md:pr-8"
-          side="packs"
-          card
-        >
-          <div class="mt-auto pt-6">
-            <Button
-              variant="subtle"
-              label="Get quotes from partners"
-              :route="{ name: 'contact-partners' }"
-            >
-              <template #suffix><LucideArrowRight class="size-4" /></template>
-            </Button>
-          </div>
-        </PackFitTests>
-
-        <div
-          class="flex flex-col border-t border-outline-gray-1 pt-6 md:border-l md:border-t-0 md:pl-8 md:pt-0"
-        >
-          <h3 class="text-base font-semibold text-ink-gray-9">Terms and conditions</h3>
-          <p class="mt-2 text-p-base text-ink-gray-6">
-            Payment, the validity period, and what your team is responsible for.
-          </p>
-          <!-- `mt-auto`, like the left column's: the two rows of buttons sit
-               on one line at the foot of the section. -->
-          <div class="mt-auto flex flex-wrap gap-2 pt-6">
-            <Button variant="subtle" label="View terms" @click="termsOpen = true" />
-          </div>
-        </div>
-        </div>
+        <AccordionRoot type="multiple" class="mt-6 divide-y divide-outline-gray-1">
+          <AccordionItem v-for="f in FAQS" :key="f.q" :value="f.q" class="group">
+            <AccordionHeader as="h3">
+              <AccordionTrigger
+                class="flex w-full items-start justify-between gap-4 py-6 text-left text-base font-medium leading-6 text-ink-gray-8 group-data-[state=open]:pb-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-outline-gray-3"
+              >
+                {{ f.q }}
+                <LucideMinus
+                  class="mt-1 hidden size-4 shrink-0 text-ink-gray-5 group-data-[state=open]:block"
+                  aria-hidden="true"
+                />
+                <LucidePlus
+                  class="mt-1 size-4 shrink-0 text-ink-gray-5 group-data-[state=open]:hidden"
+                  aria-hidden="true"
+                />
+              </AccordionTrigger>
+            </AccordionHeader>
+            <AccordionContent class="fc-accordion-content overflow-hidden">
+              <p class="pb-6 pr-8 text-p-base text-ink-gray-6">{{ f.a }}</p>
+            </AccordionContent>
+          </AccordionItem>
+        </AccordionRoot>
       </section>
 
       <!-- ── Still unsure? ────────────────────────────────────────────────
@@ -422,6 +460,14 @@ const checkout = () => {
             autocomplete="name"
           />
           <FormControl
+            v-model="question.email"
+            type="email"
+            size="sm"
+            label="Email"
+            placeholder="name@company.com"
+            autocomplete="email"
+          />
+          <FormControl
             v-model="question.phone"
             type="tel"
             size="sm"
@@ -442,7 +488,7 @@ const checkout = () => {
               variant="solid"
               size="md"
               type="submit"
-              label="Request a call"
+              label="Send message"
             />
           </div>
         </form>
@@ -450,7 +496,5 @@ const checkout = () => {
     </div>
     <PackScopeDialog v-model:open="scopeOpen" :pack="scopeOf" />
     <MediaLightbox :open="videoOpen" :items="heroVideo" @close="videoOpen = false" />
-    <!-- `agreed` hides the dialog's Agree button: here the terms are only read. -->
-    <PackTermsDialog v-model:open="termsOpen" :region="region" agreed />
   </ConnectShell>
 </template>

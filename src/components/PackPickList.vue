@@ -61,13 +61,13 @@ const facts = (pack) => [
     <li
       v-for="pack in STARTER_PACKS"
       :key="pack.value"
-      class="flex cursor-pointer flex-col rounded-6 border border-outline-gray-1 p-5 transition-colors hover:border-outline-gray-2 hover:bg-surface-gray-1"
+      class="flex cursor-pointer flex-col rounded-6 border border-outline-gray-1 p-5 transition-colors hover:border-outline-gray-3"
       @click="emit('scope', pack)"
     >
       <!-- The app the pack sets up: ERPNext, or Frappe HR. -->
       <img :src="appLogo(pack.apps[0])" alt="" class="mb-3 size-6 object-contain" />
       <div class="flex flex-wrap items-center gap-2">
-        <h3 class="text-base font-semibold text-ink-gray-9">{{ pack.name }}</h3>
+        <h3 class="text-lg font-semibold text-ink-gray-7">{{ pack.name }}</h3>
         <Badge
           v-if="reasons?.[pack.value]"
           variant="subtle"
@@ -82,12 +82,12 @@ const facts = (pack) => [
            ⚠️ The hours are IN this block, not under the tagline: there they
            sat wherever the title and tagline happened to end, at a different
            height on every card. -->
-      <div class="mt-auto pt-6">
-        <p class="flex items-center gap-2 text-p-base text-ink-gray-7">
+      <div class="mt-auto pt-5">
+        <p class="flex items-center gap-2 text-p-base text-ink-gray-6">
           <IconHours class="size-4 shrink-0 text-ink-gray-6" />
           {{ pack.hours }} hrs of effort
         </p>
-        <p class="mt-6 text-2xl font-semibold tabular-nums text-ink-gray-9">
+        <p class="mt-6 text-base font-semibold tabular-nums text-ink-gray-7">
           {{ priceFor(pack, region) }}
         </p>
         <Button
