@@ -1,14 +1,32 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import PackScope from '../components/PackScope.vue'
+import PackCartPanel from '../components/PackCartPanel.vue'
 import { FACT_ICONS } from '../packFactIcons'
+import { appLogo } from '../data/apps'
+import IconCheck from '~icons/lucide/check'
+import IconPlus from '~icons/lucide/plus'
+import IconBag from '~icons/lucide/shopping-bag'
+import IconTime from '~icons/lucide/clock'
+import IconPrice from '~icons/lucide/tag'
+import IconInvoice from '~icons/lucide/receipt-text'
+import IconPurchase from '~icons/lucide/truck'
+import IconStock from '~icons/lucide/package'
+import IconBooks from '~icons/lucide/landmark'
+import IconBom from '~icons/lucide/layers'
+import IconFactory from '~icons/lucide/factory'
+import IconCore from '~icons/lucide/blocks'
+import IconEmployee from '~icons/lucide/user-round'
+import IconAttendance from '~icons/lucide/calendar-check'
+import IconExpense from '~icons/lucide/receipt'
+import IconSalary from '~icons/lucide/banknote'
 import {
   STARTER_PACKS,
+  SESSIONS_PER_PACK,
   packFacts,
-  pricingFor,
   marketFor,
   DEFAULT_REGION,
 } from '../data/packs'
@@ -30,10 +48,16 @@ import { useConnectStore } from '../stores/connect'
 // component in the first place.
 //
 // What is left is what is true of THIS pack and no other: what it is for, what
-// it costs, and what is in it. That is what a page per pack is for. A fixed
-// scope is a contract somebody may want to cite or send to a colleague, and a
-// URL is the only way to do either. The selling is done by the screens that
-// sell.
+// it costs, what it gets you, and what is in it. A fixed scope is a
+// contract somebody may want to cite or send to a colleague, and a URL is the
+// only way to do either.
+//
+// ⚠️ IT SELLS NOW, and it said it didn't. This page is read twice: skimmed on
+// the first visit, checked line by line before checkout. The scope alone only
+// served the second read — twenty rows of doctype names at one weight, with
+// nothing for a skimming eye to land on. So the page leads with outcomes in
+// the buyer's words, each module opens with one sentence, and the doctype
+// lists are the layer underneath for the careful read.
 //
 // ⚠️ Confirm sits under the price rather than at the foot of the document. With
 // the scope collapsed this page is still two screens, and a buying gesture two
@@ -91,11 +115,26 @@ const region = computed(
 // three-column `.fc-col-3` grid once and is a wrapping flex row now, so there
 // are no equal cell heights left to absorb a long one: it wraps to a second
 // line instead. Trim rather than add.
-const facts = computed(() => (pack.value ? packFacts(pack.value, region.value) : []))
-
-// The region's own word for its tax — "18% GST" in India, "local VAT" where no
-// rate has been decided — read from the same rate card the checkout bills from.
-const taxLabel = computed(() => pricingFor(region.value).tax)
+// ⚠️ Price and effort only — the delivery window is dropped from the pack
+// page. `packFacts` still returns it for the other surfaces that show it.
+//
+// ⚠️ Effort reads as hours AND sessions here: "10 hrs within 5 sessions".
+// Every pack is delivered within `SESSIONS_PER_PACK`, a ceiling rather than a
+// count. Only on this page;
+// `packFacts` still words it in hours alone for the other surfaces. Its mark is
+// the catalogue card's clock, not the shared hourglass, so the two pages a
+// buyer moves between show time the same way.
+const facts = computed(() =>
+  pack.value
+    ? packFacts(pack.value, region.value)
+        .filter((f) => f.key !== 'delivery')
+        .map((f) =>
+          f.key === 'effort'
+            ? { ...f, line: `${pack.value.hours} hrs within ${SESSIONS_PER_PACK} sessions` }
+            : f,
+        )
+    : [],
+)
 
 // ⚠️ THIS ADDS TO THE BASKET AND GOES TO THE BASKET — it does not buy, and it
 // does not go straight to a checkout either. Both were true of earlier versions
@@ -111,6 +150,37 @@ const addToBasket = () => {
   if (!inBasket.value) store.togglePack(pack.value.value)
   router.push({ name: 'packs' })
 }
+
+// ⚠️ Once added, the button is the catalogue card's: "Added" with a check,
+// subtle, and clicking it takes the pack back out — here, on the page. Same
+// state, same control, wherever a pack is shown.
+const removeFromBasket = () => pack.value && store.togglePack(pack.value.value)
+
+// The basket, from here: the count of packs in it, and the bag that opens it as
+// a drawer — `PackCartPanel`, in the shell's right-hand panel — with the
+// checkout at its foot.
+const basketCount = computed(() => store.packs.length)
+const cartOpen = ref(false)
+
+// This page's marks for the price and time facts, over the shared set:
+// see the notes where they render.
+const PAGE_FACT_ICONS = { price: IconPrice, effort: IconTime }
+
+// The marks for "What this pack gets you", keyed by each outcome's `icon`.
+// Icons live here rather than in `data/packs.js`, which stays plain data.
+const OUTCOME_ICONS = {
+  invoice: IconInvoice,
+  purchase: IconPurchase,
+  stock: IconStock,
+  books: IconBooks,
+  bom: IconBom,
+  factory: IconFactory,
+  core: IconCore,
+  employee: IconEmployee,
+  attendance: IconAttendance,
+  expense: IconExpense,
+  salary: IconSalary,
+}
 </script>
 
 <template>
@@ -118,7 +188,8 @@ const addToBasket = () => {
        page that ran its own scrollers side by side — content left, pack panel
        right. There is one column now, so the shell's own ScrollArea is the
        right one, and this page takes the same 800px measure as the catalogue
-       it came from. -->
+       it came from — it needs it now, for a screenshot beside each module's
+       list. -->
   <!-- ⚠️ The crumb is the PACK, not "Confirm selection". That label named an
        action this page stopped performing when checkout took the purchase —
        it said Confirm while the button under it said Continue to checkout.
@@ -129,7 +200,7 @@ const addToBasket = () => {
     root-to="/connect/packs"
     :crumb="pack ? pack.name : 'Starter Pack'"
   >
-    <div class="fc-page-read py-8">
+    <div class="fc-page-list py-8">
       <!-- No pack in the store: someone reached this by URL rather than by
            choosing. Sending them to the catalogue is the only honest answer —
            there is nothing to confirm. -->
@@ -142,104 +213,106 @@ const addToBasket = () => {
       </div>
 
       <template v-else>
-        <!-- ── What you are buying, and what it costs ─────────────────────
-             ⚠️ ONE HORIZONTAL BAND, and the price is in it. This has now been
-             three things, and the last two are why it is this one:
+        <!-- ── Hero ─────────────────────────────────────────────────────────
+             The pack's name is the headline — it is what the breadcrumb, the
+             basket and the checkout call it — and `tagline` is the line under
+             it, the same one the catalogue card and the dialog print.
 
-             A three-across `fc-col-3` row of price / hours / validity — the
-             same ruled device the steps row uses sixty pixels below, so the
-             page printed one shape twice, and the price was one of three equal
-             columns on a screen whose next click is a payment.
+             Same vocabulary as the catalogue's hero — the app mark, a balanced
+             semibold headline in gray-9 with tight tracking, a gray subline —
+             set one step larger, because this is the page for one pack.
 
-             Then a two-column header with the price and the button boxed at the
-             right. The box fixed a button that hung in mid-air, but it bought
-             that by splitting the offer in half: the name and the work on one
-             side, the money on the other, with the reader's eye crossing 300px
-             of nothing between "30 days to deliver" and what it costs.
+             ⚠️ The button sits level with the headline, at the right edge: the
+             act is held beside the name it acts on, out of the column that
+             describes it. A GRID so it can be placed there while staying LAST
+             in the markup — below `sm` there is no grid, source order is the
+             reading order, and the button lands after the facts instead of
+             between the name and its tagline. -->
+        <header class="pt-6 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-8">
+          <img
+            :src="appLogo(pack.apps[0])"
+            alt=""
+            class="size-8 object-contain sm:col-span-2 sm:row-start-1"
+          />
 
-             Now the three facts are one line under the pitch — they are the
-             same KIND of thing, the terms of one offer, and a row is what says
-             so — and the action sits beside the title, level with the name it
-             acts on. Everything that DESCRIBES the pack runs down the left at
-             the page's own alignment; the one thing that acts on it is held out
-             of that column.
-
-             ⚠️ Gaps, not separators. Middots and ruled columns are both
-             available and both wrong here: the first is meta-string furniture,
-             the second is the device this row was already mistaken for.
-
-             ⚠️ A GRID, not two flex columns, and the facts band is the reason.
-             As a left column beside the button it lost the ~190px the button
-             takes and wrapped its three items onto two lines — the one thing
-             that row exists to avoid. Here the button is placed in row 1,
-             column 2, and the band spans both columns, so it keeps the full
-             measure.
-
-             ⚠️ The button is LAST in the markup and placed back up by the grid.
-             Below `sm` there is no grid, so source order is the reading order:
-             title, pitch, facts, then the act. Written into the title's row it
-             would land between the name and the pitch on a phone — the act
-             before the description. -->
-        <div class="sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-8">
-          <h1 class="text-2xl font-semibold text-ink-gray-7 sm:col-start-1 sm:row-start-1">
+          <h1
+            class="mt-5 max-w-[24ch] text-balance text-[22px] font-semibold leading-[1.15] tracking-tight text-ink-gray-9 sm:col-start-1 sm:row-start-2"
+          >
             {{ pack.name }}
           </h1>
-          <!-- `pitch`, not `tagline`: this is the one line that says what the
-               pack is FOR, and the scope below says what is in it. -->
-          <p class="mt-2 max-w-[46ch] text-p-base text-ink-gray-6 sm:col-start-1 sm:row-start-2">
-            {{ pack.pitch }}
+          <p class="mt-3 text-p-lg text-ink-gray-6 sm:col-span-2 sm:row-start-3">
+            {{ pack.tagline }}
           </p>
 
-          <ul class="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 sm:col-span-2 sm:row-start-3">
-            <li
-              v-for="f in facts"
-              :key="f.key"
-              class="flex items-center gap-2"
-              :class="
-                f.key === 'price'
-                  ? 'text-base font-medium text-ink-gray-8'
-                  : 'text-p-base text-ink-gray-6'
-              "
-            >
+          <!-- `items-baseline`: the price is 16px and the other two 14px, and
+               centring them set the price's baseline a pixel off theirs. -->
+          <ul
+            class="mt-8 flex flex-wrap items-baseline gap-x-6 gap-y-2 sm:col-span-2 sm:row-start-4"
+          >
+            <li v-for="f in facts" :key="f.key" class="flex items-center gap-2">
+              <!-- ⚠️ The price's mark is a TAG, not the shared circled DOLLAR
+                   sign, which sat beside a rupee figure. A tag names no
+                   currency, and `banknote` is taken — it is Payroll's. -->
               <component
-                :is="FACT_ICONS[f.key]"
+                :is="PAGE_FACT_ICONS[f.key] ?? FACT_ICONS[f.key]"
                 class="size-4 shrink-0 text-ink-gray-6"
                 aria-hidden="true"
               />
-              <!-- ⚠️ The price carries its tax and nothing else. "To Frappe,
-                   before 18% GST" was two conditions in a column that has room
-                   for one; the payee is the very next thing on the page — step
-                   1 of How it works is "Pay in full / To Frappe, upfront" — and
-                   the tax is the half a reader cannot work out for themselves.
-                   The phrase comes from the region's own rate card, so a market
-                   with no decided rate reads "+ local VAT". -->
-              <span :class="f.key === 'price' && 'tabular-nums'">
-                {{ f.key === 'price' ? `${f.value} + ${taxLabel}` : f.line }}
+              <!-- ⚠️ The figure alone, no tax: this page says what the pack costs,
+                   and the basket and checkout add and show the tax. -->
+              <span
+                v-if="f.key === 'price'"
+                class="text-lg font-semibold tabular-nums text-ink-gray-9"
+              >
+                {{ f.value }}
               </span>
+              <span v-else class="text-p-base text-ink-gray-8">{{ f.line }}</span>
             </li>
           </ul>
 
-          <!-- ⚠️ `sm:mt-1` is optical, not structural: the grid puts the
-               button's box on the heading's box, which sets it three pixels
-               above the cap height it is meant to line up with.
+          <div
+            class="mt-6 flex items-center gap-2 sm:col-start-2 sm:row-start-2 sm:mt-5 sm:self-center"
+          >
+            <!-- "Add" with a +, as on the catalogue card and in the pack
+               dialog: packs are bought in combinations, so the gesture adds
+               to a basket that holds the others. Once in, it is the card's
+               "Added" — see `removeFromBasket`. -->
+            <Button
+              size="md"
+              :variant="inBasket ? 'subtle' : 'solid'"
+              :label="inBasket ? 'Added' : 'Add'"
+              @click="inBasket ? removeFromBasket() : addToBasket()"
+            >
+              <template #prefix>
+                <IconCheck v-if="inBasket" class="size-4" />
+                <IconPlus v-else class="size-4" />
+              </template>
+            </Button>
 
-               ⚠️ "Add to my packs", not "Continue to checkout" and not
-               "Confirm". Each label matched what the button did at the time,
-               and this one does too: packs are bought in combinations, so the
-               gesture is adding one to a basket that already holds the others.
-               The label changes once it is in, rather than the button
-               disabling — a pack you have already added is still a route back
-               to the total.
-               ⚠️ And no "Cancel" beside it. Nothing has been started on this
-               page, so that control was offering to undo reading; the
-               breadcrumb is how you go back to the packs. -->
-          <Button
-            class="mt-5 shrink-0 sm:col-start-2 sm:row-start-1 sm:mt-1 sm:justify-self-end"
-            variant="solid"
-            :label="inBasket ? 'In your packs — review and check out' : 'Add to my packs'"
-            @click="addToBasket"
-          />
-        </div>
+            <!-- ⚠️ A BAG, not a cart: `shopping-cart` is the Buying module's
+                 mark, and Buying is a module heading further down this page.
+                 Subtle, so it never competes with the solid "Add"; the count
+                 is text beside the icon rather than a coloured badge, and an
+                 empty basket shows the bag alone — "0" is noise. -->
+            <!-- ⚠️ The count is the DEFAULT SLOT, not `label`: frappe-ui sets
+                 `aria-label` from `label` when there is one, so a label of "2"
+                 had a screen reader announce "2". -->
+            <Button
+              size="md"
+              variant="subtle"
+              tooltip="Your packs"
+              :aria-label="basketCount ? `Your packs, ${basketCount} added` : 'Your packs'"
+              :icon="basketCount ? undefined : IconBag"
+              :aria-expanded="cartOpen"
+              @click="cartOpen = !cartOpen"
+            >
+              <template v-if="basketCount" #prefix>
+                <IconBag class="size-4" aria-hidden="true" />
+              </template>
+              <span v-if="basketCount" class="tabular-nums">{{ basketCount }}</span>
+            </Button>
+          </div>
+        </header>
 
         <!-- ── This pack, module by module ────────────────────────────────
              `PackScope` renders the scope document and knows nothing about
@@ -247,27 +320,43 @@ const addToBasket = () => {
              now a page section, without a line changing inside it. Everything
              is collapsed, which is what keeps a ~2000px document to a heading
              and a list of named modules. -->
-        <section class="mt-16">
-          <h2 class="text-base font-semibold text-ink-gray-8">What this pack covers</h2>
-          <div class="mt-5">
-            <PackScope :pack="pack" />
-          </div>
+        <section class="mt-24" aria-label="What this pack covers">
+          <PackScope :pack="pack" />
         </section>
 
-        <!-- ⚠️ THREE SECTIONS USED TO FOLLOW THIS ONE — How it works, True
-             of every pack, and the terms — and every one of them is now on the
-             recommendation screen, which is where the money actually moves.
-             This page kept them on the argument that it was that screen. It has
-             not been for a while: packs are added to a basket here and checked
-             out there, and four surfaces carrying the same two lists is four
-             places for them to drift.
+        <!-- ── What this pack gets you ───────────────────────────────────
+             LAST, after the modules: the modules say what is in the pack, and
+             this closes on what that adds up to.
+             An icon, then the title on its own line and the body under it:
+             four across, the titles level, the bodies free to take two lines
+             without breaking the row's rhythm the way a run-in title did.
+             Four across, one row: every pack has exactly four outcomes. Two
+             columns below `lg`, where four would leave each ~150px wide. Written from the scope tables; see
+             `outcomes` in the data. -->
+        <!-- `pb-24`: the page ends here, and the last row wants air under it
+             rather than stopping at the window's edge. -->
+        <section class="mt-36 pb-24">
+          <h2 class="text-lg font-semibold text-ink-gray-8">What this pack gets you</h2>
+          <ul class="mt-8 grid gap-x-4 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
+            <li v-for="item in pack.outcomes" :key="item.title">
+              <component
+                :is="OUTCOME_ICONS[item.icon]"
+                class="size-5 text-ink-gray-7"
+                aria-hidden="true"
+              />
+              <p class="mt-3 text-base font-medium text-ink-gray-8">{{ item.title }}</p>
+              <p class="mt-1 text-pretty text-p-base text-ink-gray-6">{{ item.body }}</p>
+            </li>
+          </ul>
+        </section>
 
-             What is left is the only thing that is TRUE OF THIS PACK AND NO
-             OTHER: what it is for, what it costs, and what is in it. A pack's
-             scope is a contract somebody may want to cite or send to a
-             colleague, and that is what a page per pack is for. Selling is done
-             by the screens that sell. -->
+        <!-- How it works, True of every pack and the terms are on the
+             recommendation screen, where the basket is checked out — not
+             repeated here, so the shared lists have one place to drift from. -->
       </template>
     </div>
+    <template v-if="cartOpen && pack" #panel>
+      <PackCartPanel :region="region" @close="cartOpen = false" />
+    </template>
   </ConnectShell>
 </template>

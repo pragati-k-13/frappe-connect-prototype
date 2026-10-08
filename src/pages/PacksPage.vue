@@ -7,6 +7,8 @@ import PackPickList from '../components/PackPickList.vue'
 import PackScopeDialog from '../components/PackScopeDialog.vue'
 import PackFitTests from '../components/PackFitTests.vue'
 import PackTermsDialog from '../components/PackTermsDialog.vue'
+import MediaLightbox from '../components/MediaLightbox.vue'
+import { mediaFor } from '../data/media'
 import frappeMark from '../assets/frappe.svg'
 import erpnextMark from '../assets/apps/erpnext.png'
 import LucideCreditCard from '~icons/lucide/credit-card'
@@ -120,17 +122,17 @@ const steps = [
   {
     icon: LucideCreditCard,
     title: 'Pay in full to Frappe upfront',
-    body: 'One fixed price, paid to Frappe before work begins. Nothing within the pack’s scope is billed separately.',
+    body: 'One fixed price, paid before work begins. Nothing in scope costs extra.',
   },
   {
     icon: LucideCalendarCheck,
     title: 'Schedule your kickoff call',
-    body: 'Meet your implementation team to confirm the scope, agree the plan and fix a start date.',
+    body: 'Meet your implementation team to confirm the scope and a start date.',
   },
   {
     icon: LucideTimer,
     title: 'Commit to the Sprint',
-    body: 'The delivery window runs from the start date. Keep your data, approvals and key users ready.',
+    body: 'Done within five sessions, with your data and project champion ready.',
   },
 ]
 
@@ -148,13 +150,22 @@ const canSendQuestion = computed(() =>
 // The button is never disabled; a send with a field empty says which ones.
 const sendQuestion = () => {
   if (!canSendQuestion.value) {
-    toast.error('Add your name, phone number and question')
+    toast.error('Add your name, phone number and what you’d like to know')
     return
   }
-  toast.success('Question sent', { description: 'Frappe will get back to you soon.' })
+  toast.success('Call requested', { description: 'Frappe will call you soon.' })
   Object.assign(question, { name: '', phone: '', body: '' })
 }
 const scopeOpen = ref(false)
+
+// The hero's video plays in `MediaLightbox`, the same full-screen player a
+// partner profile's clip opens in. The clip is the shared placeholder reel,
+// relabelled: its own alt names a partner's intro video.
+const heroVideo = computed(() => {
+  const reel = mediaFor().find((m) => m.kind === 'video')
+  return reel ? [{ ...reel, id: 'packs-video', alt: 'Starter Packs video' }] : []
+})
+const videoOpen = ref(false)
 const showScope = (pack) => {
   scopeOf.value = pack
   scopeOpen.value = true
@@ -217,11 +228,14 @@ const checkout = () => {
           </ul>
         </div>
 
-        <!-- Mock video: a placeholder frame wired to nothing. The whole frame
-             is the button, so hovering anywhere on it lifts the play mark. -->
+        <!-- The video: a placeholder frame that opens the clip full-screen, as
+             a partner profile's does. The whole frame is the button, so
+             hovering anywhere on it lifts the play mark. -->
         <button
           type="button"
           aria-label="Play video"
+          :disabled="!heroVideo.length"
+          @click="videoOpen = true"
           class="group flex aspect-[16/15] w-full items-center justify-center rounded-7 bg-surface-gray-3 transition-colors hover:bg-surface-gray-4"
         >
           <span
@@ -242,16 +256,16 @@ const checkout = () => {
         </h2>
         <ol class="mt-8 grid gap-8 md:grid-cols-3">
           <li v-for="step in steps" :key="step.title">
-            <component :is="step.icon" class="size-5 text-ink-gray-8" aria-hidden="true" />
+            <component :is="step.icon" class="size-5 text-ink-gray-7" aria-hidden="true" />
             <h3 class="mt-4 text-base font-medium text-ink-gray-9">{{ step.title }}</h3>
-            <p class="mt-1.5 text-p-sm text-ink-gray-6">{{ step.body }}</p>
+            <p class="mt-1.5 text-pretty text-p-base text-ink-gray-6">{{ step.body }}</p>
           </li>
         </ol>
       </section>
 
       <!-- ── The packs ────────────────────────────────────────────────────
            The cards, then the total and the way on to the cart. -->
-      <section class="mt-36" aria-labelledby="packs-list">
+      <section class="mt-44" aria-labelledby="packs-list">
         <h2 id="packs-list" class="text-3xl font-semibold tracking-tight text-ink-gray-9">
           Start small. Upgrade anytime.
         </h2>
@@ -294,12 +308,14 @@ const checkout = () => {
            Social proof from Frappe rather than a customer: the packs are
            delivered by partners, and Frappe's oversight is the selling point.
            The quote and the person are placeholders. -->
-      <figure class="mt-48 flex flex-col items-center text-center">
+      <figure
+        class="mt-48 flex flex-col items-center border-y border-outline-gray-1 py-16 text-center"
+      >
         <div class="flex items-center gap-1.5">
           <img :src="frappeMark" alt="" class="size-4" />
           <span class="text-base font-semibold text-ink-gray-9">Frappe</span>
         </div>
-        <blockquote class="mt-8 max-w-[640px] text-balance text-3xl font-medium leading-snug tracking-tight text-ink-gray-9">
+        <blockquote class="mt-8 max-w-[640px] text-balance text-3xl font-medium leading-snug tracking-tight text-ink-gray-7">
           “We’ve implemented ERPNext for thousands of companies.
           <br class="hidden md:block" />
           The ones that succeed start simple. Starter Packs are that start.”
@@ -426,13 +442,14 @@ const checkout = () => {
               variant="solid"
               size="md"
               type="submit"
-              label="Send question"
+              label="Request a call"
             />
           </div>
         </form>
       </section>
     </div>
-    <PackScopeDialog v-model:open="scopeOpen" :pack="scopeOf" full-page />
+    <PackScopeDialog v-model:open="scopeOpen" :pack="scopeOf" />
+    <MediaLightbox :open="videoOpen" :items="heroVideo" @close="videoOpen = false" />
     <!-- `agreed` hides the dialog's Agree button: here the terms are only read. -->
     <PackTermsDialog v-model:open="termsOpen" :region="region" agreed />
   </ConnectShell>
