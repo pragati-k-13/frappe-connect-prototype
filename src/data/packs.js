@@ -66,7 +66,7 @@ export const SESSIONS_PER_PACK = 5
 export const STARTER_PACKS = [
   {
     value: 'accounts-sales-purchase-stock',
-    name: 'Accounts, Sales, Purchase, Stock',
+    name: 'Accounts, Sales, Purchase and Stock',
     // ⚠️ `tagline` is the pack's ONE line under its name, everywhere: the
     // catalogue card, the pack dialog and the pack page all print it. There
     // was a second line, `pitch`, on the dialog and the page — three surfaces,
@@ -133,7 +133,7 @@ export const STARTER_PACKS = [
     // `data/partners.js`, and the firms that sold HR still sell this.
     value: 'hrms',
     name: 'HR and Payroll',
-    tagline: 'For people, leave and salaries on one record',
+    tagline: 'For people, leaves and salaries on one record',
     outcomes: [
       { icon: 'employee', title: 'Employee records', body: 'Every employee on one record.' },
       { icon: 'attendance', title: 'Leave and attendance', body: 'Tracked against your policies.' },
