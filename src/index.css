@@ -360,43 +360,11 @@
   container-name: content;
 }
 
-/* A pack module's sub-sections beside their screenshot (`PackScope`). Its own
-   container because the same component renders on the pack page and in the
-   scope dialog, and only its own width says whether a screenshot fits beside
-   the list. 640px leaves the list ~240px and the shot ~360px; below that the
-   aside goes and the shot moves inside the open row, at 16:10. */
-.fc-scope {
-  container-type: inline-size;
-  container-name: scope;
-}
+/* A pack's modules (`PackScope`), one to a row. */
 .fc-scope-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-}
-.fc-scope-aside {
-  display: none;
-}
-@container scope (min-width: 640px) {
-  .fc-scope-grid {
-    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-    column-gap: 2.5rem;
-  }
-  /* Held at the module's fixed height (see `fit` in PackScope), so the shot
-     never changes size as rows open. */
-  .fc-scope-aside {
-    display: block;
-  }
-  .fc-scope-inline {
-    display: none;
-  }
-  /* Alternate modules mirror: the wide column first, the shot moved ahead of
-     the list by `order` alone, so the markup keeps its reading order. */
-  .fc-scope-flip .fc-scope-grid {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  }
-  .fc-scope-flip .fc-scope-aside {
-    order: -1;
-  }
+  row-gap: 4rem;
 }
 
 /* The recommendation's three steps: across when the COLUMN has room for the

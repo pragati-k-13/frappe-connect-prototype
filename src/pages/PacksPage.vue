@@ -15,7 +15,6 @@ import PackScopeDialog from '../components/PackScopeDialog.vue'
 import MediaLightbox from '../components/MediaLightbox.vue'
 import { mediaFor } from '../data/media'
 import frappeMark from '../assets/frappe.svg'
-import erpnextMark from '../assets/apps/erpnext.png'
 import LucideCreditCard from '~icons/lucide/credit-card'
 import LucideCalendarCheck from '~icons/lucide/calendar-check'
 import LucideTimer from '~icons/lucide/timer'
@@ -25,11 +24,7 @@ import IconMail from '~icons/lucide/mail'
 import IconDashboard from '~icons/lucide/layout-dashboard'
 import IconSettings from '~icons/lucide/settings-2'
 import IconImport from '~icons/lucide/file-up'
-import IconPrinter from '~icons/lucide/printer'
-import IconTraining from '~icons/lucide/graduation-cap'
-import IconWorkflow from '~icons/lucide/workflow'
-import IconBell from '~icons/lucide/bell-ring'
-import IconSupport from '~icons/lucide/life-buoy'
+import IconBag from '~icons/lucide/shopping-bag'
 import { useConnectStore } from '../stores/connect'
 import { useBasketReturn } from '../utils/auth'
 import {
@@ -91,7 +86,7 @@ const total = computed(() =>
     : checkoutFor(STARTER_PACKS.slice(0, 1), region.value).subtotal.replace(/[\d,.]+/, '0'),
 )
 
-const heroPoints = ['Fixed price', '3x faster', 'Frappe oversight']
+const heroPoints = ['Fixed price', '3x faster', 'Frappe-vetted']
 
 // "True of every pack", as two grids. Rewritten for reading from
 // `INCLUDED_IN_ALL` and `PACK_ADD_ONS` in `data/packs.js`, which keep the scope
@@ -108,17 +103,6 @@ const coverage = [
       { icon: IconDashboard, title: 'Dashboards', body: 'Standard dashboards for each module.' },
       { icon: IconSettings, title: 'Configuration', body: 'Core settings and one document numbering session.' },
       { icon: IconImport, title: 'Your data', body: 'One import session, with opening balances entered.' },
-    ],
-  },
-  {
-    key: 'add-ons',
-    title: 'Available as add-ons',
-    items: [
-      { icon: IconPrinter, title: 'Print formats', body: 'Custom layouts for invoices and quotations.' },
-      { icon: IconTraining, title: 'UAT training', body: 'Guided user acceptance testing with your team.' },
-      { icon: IconWorkflow, title: 'Workflows', body: 'Custom approval and status flows.' },
-      { icon: IconBell, title: 'Notification automation', body: 'Rule-based alerts beyond the defaults.' },
-      { icon: IconSupport, title: 'Post go-live support', body: 'Covered by an annual maintenance contract.' },
     ],
   },
 ]
@@ -149,16 +133,8 @@ const scopeOf = ref(null)
 // The FAQ, before the contact form. Every answer starts closed.
 const FAQS = [
   {
-    q: 'When do I need to make the payment for the Starter Pack?',
-    a: 'Full advance payment is required before the engagement begins.',
-  },
-  {
     q: 'What happens if I use up all the hours included in the Starter Pack?',
     a: 'The pack covers only the number of hours specified. If additional hours are needed, you must purchase a new pack.',
-  },
-  {
-    q: 'Who will implement my project?',
-    a: 'Your implementation will be carried out by Frappe Partners who are trained and monitored by the Frappe Team.',
   },
   {
     q: 'Is this only available for India?',
@@ -196,6 +172,28 @@ const canSendQuestion = computed(() =>
   Boolean(question.name.trim() && question.email.trim() && question.phone.trim() && question.body.trim()),
 )
 // The button is never disabled; a send with a field empty says which ones.
+// "Talk to us" under the steps: down to the form, cursor in its first field.
+// ⚠️ NOT `scrollIntoView`: that scrolls every ancestor it can, including the
+// shell's `overflow-hidden` content frame, which then sat 60px up and left a
+// blank band at the foot of the window. Only the page's own scroller moves.
+const contactForm = ref(null)
+const toContact = () => {
+  const form = contactForm.value
+  if (!form) return
+  let scroller = form.parentElement
+  while (scroller && !/auto|scroll/.test(getComputedStyle(scroller).overflowY)) {
+    scroller = scroller.parentElement
+  }
+  if (scroller) {
+    const box = scroller.getBoundingClientRect()
+    const r = form.getBoundingClientRect()
+    scroller.scrollTo({
+      top: scroller.scrollTop + r.top - box.top - (box.height - r.height) / 2,
+      behavior: 'smooth',
+    })
+  }
+  form.querySelector('input')?.focus({ preventScroll: true })
+}
 const sendQuestion = () => {
   if (!canSendQuestion.value) {
     toast.error('Add your name, email, phone number and what you’d like to know')
@@ -248,10 +246,19 @@ useBasketReturn()
 const checkout = () => {
   router.push({ name: 'cart' })
 }
+// The button counts what is in the cart once there is something in it.
+const continueLabel = computed(() =>
+  store.packs.length ? `View cart (${store.packs.length})` : 'View cart',
+)
 </script>
 
 <template>
   <ConnectShell root-label="Starter Packs" root-to="/connect/packs">
+    <!-- The bar's action on this page: down to the contact form, in place of
+         the shell's "Log in or create account". `-mr-2` as the shell's own. -->
+    <template #action>
+      <Button variant="ghost" class="-mr-2" label="Contact us" @click="toContact" />
+    </template>
     <div class="mx-auto w-full max-w-[800px] pb-36 pt-8">
       <!-- ── Hero ─────────────────────────────────────────────────────────
            Text left, video right, vertically centred on each other. Stacks
@@ -260,8 +267,7 @@ const checkout = () => {
       <header class="grid items-center gap-8 pt-8 md:grid-cols-[320px_1fr]">
         <!-- Bottom padding lifts the text above the video's centre line. -->
         <div class="md:pb-12">
-          <img :src="erpnextMark" alt="ERPNext" class="size-8" />
-          <h1 class="mt-4 text-5xl font-semibold leading-snug tracking-tight text-ink-gray-9">
+          <h1 class="text-5xl font-semibold leading-snug tracking-tight text-ink-gray-9">
             Implemented in hours,<br />
             not months
           </h1>
@@ -300,7 +306,7 @@ const checkout = () => {
            The cards, then the total and the way on to the cart. -->
       <section class="mt-36" aria-labelledby="packs-list">
         <h2 id="packs-list" class="text-2xl font-semibold tracking-tight text-ink-gray-9">
-          Start small. Upgrade anytime.
+          Start small and upgrade anytime
         </h2>
         <!-- The same component as the recommendation screen and a draft —
              see `PackPickList`. -->
@@ -325,12 +331,12 @@ const checkout = () => {
             </p>
           </div>
           <Button
-            variant="solid"
+            variant="subtle"
             size="md"
-            label="Continue"
+            :label="continueLabel"
             @click="checkout"
           >
-            <template #suffix><LucideArrowRight class="size-4" /></template>
+            <template #prefix><IconBag class="size-4" /></template>
           </Button>
         </div>
       </section>
@@ -349,6 +355,7 @@ const checkout = () => {
             <p class="mt-1.5 text-pretty text-p-base text-ink-gray-6">{{ step.body }}</p>
           </li>
         </ol>
+        <Button class="mt-8" variant="subtle" size="md" label="Talk to us" @click="toContact" />
       </section>
 
       <!-- ── Frappe's word on it ──────────────────────────────────────────
@@ -448,12 +455,14 @@ const checkout = () => {
           Still unsure? Let’s talk.
         </h2>
         <form
+          ref="contactForm"
           class="mt-6 flex w-full max-w-[480px] flex-col gap-4 text-left"
           novalidate
           @submit.prevent="sendQuestion"
         >
           <FormControl
             v-model="question.name"
+            required
             size="sm"
             label="Name"
             placeholder="Your full name"
@@ -461,6 +470,7 @@ const checkout = () => {
           />
           <FormControl
             v-model="question.email"
+            required
             type="email"
             size="sm"
             label="Email"
@@ -469,6 +479,7 @@ const checkout = () => {
           />
           <FormControl
             v-model="question.phone"
+            required
             type="tel"
             size="sm"
             label="Phone number"
@@ -477,6 +488,7 @@ const checkout = () => {
           />
           <FormControl
             v-model="question.body"
+            required
             type="textarea"
             size="sm"
             label="What would you like to know?"
@@ -494,6 +506,8 @@ const checkout = () => {
         </form>
       </section>
     </div>
+    <!-- Not opened from here while the cards link to the pack page; kept so
+         it can come back. -->
     <PackScopeDialog v-model:open="scopeOpen" :pack="scopeOf" />
     <MediaLightbox :open="videoOpen" :items="heroVideo" @close="videoOpen = false" />
   </ConnectShell>

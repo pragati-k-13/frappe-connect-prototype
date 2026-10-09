@@ -80,7 +80,7 @@ const WHY = [
                 <div class="min-w-0 flex-1">
                   <h2 class="text-lg font-medium text-ink-gray-8">{{ pack.name }}</h2>
                   <p class="mt-1 text-p-sm text-ink-gray-6">
-                    {{ pack.hours }} hrs of effort, delivered in {{ pack.validity }}
+                    {{ pack.hours }} hrs of effort
                   </p>
                   <Button
                     class="-ml-2 mt-2"
@@ -111,7 +111,7 @@ const WHY = [
                 <div class="min-w-0 flex-1">
                   <p class="text-p-base font-medium text-ink-gray-8">{{ pack.name }}</p>
                   <p class="text-p-sm text-ink-gray-6">
-                    {{ pack.hours }} hrs of effort, delivered in {{ pack.validity }}
+                    {{ pack.hours }} hrs of effort
                   </p>
                 </div>
                 <p class="shrink-0 text-p-base tabular-nums text-ink-gray-7">

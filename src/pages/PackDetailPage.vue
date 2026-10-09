@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { Button } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import PackScope from '../components/PackScope.vue'
@@ -66,7 +66,6 @@ import { useConnectStore } from '../stores/connect'
 // than a click away in a panel.
 const store = useConnectStore()
 const route = useRoute()
-const router = useRouter()
 
 // ⚠️ The URL is authoritative, the store is the fallback.
 //
@@ -136,11 +135,11 @@ const facts = computed(() =>
     : [],
 )
 
-// ⚠️ THIS ADDS TO THE BASKET AND GOES TO THE BASKET — it does not buy, and it
-// does not go straight to a checkout either. Both were true of earlier versions
-// of this button and both are wrong now that packs are bought in combinations:
-// somebody reading the Manufacturing scope is very often about to read the HR
-// one, and a button that jumps them to a payment screen ends that.
+// ⚠️ THIS ADDS TO THE BASKET AND STAYS — it does not buy, go to a checkout, or
+// leave the page. Packs are bought in combinations, and somebody reading the
+// Manufacturing scope is very often about to read the HR one. Sending them back
+// to the catalogue made the add invisible: the button flipping to "Added" and
+// the bag's count going up are what show it worked.
 //
 // ⚠️ NO AUTH GATE. Adding a pack to a basket is not a fact about an account, and
 // the catalogue it lands on, basket beside it, is open to a signed-out
@@ -148,7 +147,6 @@ const facts = computed(() =>
 const addToBasket = () => {
   if (!pack.value) return
   if (!inBasket.value) store.togglePack(pack.value.value)
-  router.push({ name: 'packs' })
 }
 
 // ⚠️ Once added, the button is the catalogue card's: "Added" with a check,
@@ -229,25 +227,23 @@ const OUTCOME_ICONS = {
              reading order, and the button lands after the facts instead of
              between the name and its tagline. -->
         <header class="pt-6 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-8">
-          <img
-            :src="appLogo(pack.apps[0])"
-            alt=""
-            class="size-8 object-contain sm:col-span-2 sm:row-start-1"
-          />
+          <!-- The app's logo leads the name and tagline, level with the name. -->
+          <div class="flex items-start gap-3 sm:col-start-1 sm:row-start-1">
+            <img :src="appLogo(pack.apps[0])" alt="" class="mt-0.5 size-7 shrink-0 object-contain" />
+            <div class="min-w-0">
+              <h1
+                class="text-balance text-[22px] font-semibold leading-[1.15] tracking-tight text-ink-gray-9"
+              >
+                {{ pack.name }}
+              </h1>
+              <p class="mt-1 text-p-base text-ink-gray-6">
+                {{ pack.tagline }}
+              </p>
+            </div>
+          </div>
 
-          <h1
-            class="mt-5 max-w-[24ch] text-balance text-[22px] font-semibold leading-[1.15] tracking-tight text-ink-gray-9 sm:col-start-1 sm:row-start-2"
-          >
-            {{ pack.name }}
-          </h1>
-          <p class="mt-3 text-p-lg text-ink-gray-6 sm:col-span-2 sm:row-start-3">
-            {{ pack.tagline }}
-          </p>
-
-          <!-- `items-baseline`: the price is 16px and the other two 14px, and
-               centring them set the price's baseline a pixel off theirs. -->
           <ul
-            class="mt-8 flex flex-wrap items-baseline gap-x-6 gap-y-2 sm:col-span-2 sm:row-start-4"
+            class="mt-8 flex flex-wrap items-baseline gap-x-4 gap-y-2 sm:col-span-2 sm:row-start-2"
           >
             <li v-for="f in facts" :key="f.key" class="flex items-center gap-2">
               <!-- ⚠️ The price's mark is a TAG, not the shared circled DOLLAR
@@ -262,7 +258,7 @@ const OUTCOME_ICONS = {
                    and the basket and checkout add and show the tax. -->
               <span
                 v-if="f.key === 'price'"
-                class="text-lg font-semibold tabular-nums text-ink-gray-9"
+                class="text-p-base font-semibold tabular-nums text-ink-gray-9"
               >
                 {{ f.value }}
               </span>
@@ -271,7 +267,7 @@ const OUTCOME_ICONS = {
           </ul>
 
           <div
-            class="mt-6 flex items-center gap-2 sm:col-start-2 sm:row-start-2 sm:mt-5 sm:self-center"
+            class="mt-6 flex items-center gap-2 sm:col-start-2 sm:row-start-1 sm:mt-0 sm:self-center"
           >
             <!-- "Add" with a +, as on the catalogue card and in the pack
                dialog: packs are bought in combinations, so the gesture adds

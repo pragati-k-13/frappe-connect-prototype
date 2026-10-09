@@ -56,19 +56,29 @@ const facts = (pack) => [
 <template>
   <!-- ── Pack cards, one row ──────────────────────────────────────────────────
        Name and who it's for, what
-       it takes, then the price and the button. The card opens the pack's scope;
-       the button adds it, and "Added" is the only selected state. -->
+       it takes, then the price and the button. The card links to the pack's
+       page; the button adds it, and "Added" is the only selected state. -->
   <ul v-if="layout === 'grid'" class="grid gap-3 md:grid-cols-3">
     <li
       v-for="pack in STARTER_PACKS"
       :key="pack.value"
-      class="flex cursor-pointer flex-col rounded-6 border border-outline-gray-1 px-5 pb-5 pt-4 transition-colors hover:border-outline-gray-3"
-      @click="emit('scope', pack)"
+      class="group relative flex flex-col rounded-6 border border-outline-gray-1 px-5 pb-5 pt-4 transition-colors hover:border-outline-gray-3"
     >
       <!-- The app the pack sets up: ERPNext, or Frappe HR. -->
       <img :src="appLogo(pack.apps[0])" alt="" class="mb-3 size-5 object-contain" />
       <div class="flex flex-wrap items-center gap-2">
-        <h3 class="text-lg font-semibold text-ink-gray-7">{{ pack.name }}</h3>
+        <!-- ⚠️ THE NAME IS THE LINK, stretched over the whole card by its
+             `after:` layer, so the card is one real link — keyboard, screen
+             reader, new tab and back button all work. The Add button sits
+             above the layer (`relative z-10`) and keeps its own click. -->
+        <h3 class="text-lg font-semibold text-ink-gray-7 transition-colors group-hover:text-ink-gray-9">
+          <RouterLink
+            :to="{ name: 'pack', params: { id: pack.value } }"
+            class="after:absolute after:inset-0 after:rounded-6 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-outline-gray-3"
+          >
+            {{ pack.name }}
+          </RouterLink>
+        </h3>
         <Badge
           v-if="reasons?.[pack.value]"
           variant="subtle"
@@ -93,8 +103,8 @@ const facts = (pack) => [
           {{ pack.hours }} hrs of effort
         </p>
         <Button
-          class="mt-7 w-full"
-          variant="subtle"
+          class="relative z-10 mt-7 w-full"
+          :variant="packs.includes(pack.value) ? 'subtle' : 'solid'"
           :label="packs.includes(pack.value) ? 'Added' : 'Add'"
           @click.stop="emit('toggle', pack.value)"
         >
