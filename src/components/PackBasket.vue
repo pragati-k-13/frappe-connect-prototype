@@ -27,6 +27,13 @@ const props = defineProps({
 
 const emit = defineEmits(['checkout'])
 
+// The tax row's label: the market's own wording ("18% GST", "local VAT"),
+// capitalised to stand as a label rather than run on in a sentence.
+const taxRow = computed(() => {
+  const label = checkoutFor([], props.region).taxLabel
+  return label.charAt(0).toUpperCase() + label.slice(1)
+})
+
 // The region's currency with nothing in it — read off a real bill so the
 // symbol can never disagree with the total that replaces it.
 const zero = computed(() => checkoutFor(STARTER_PACKS.slice(0, 1), props.region).total.replace(/[\d,.]+/, '0'))
@@ -44,7 +51,7 @@ const bill = computed(() =>
 // Check out follows. The label is the one word a scanner reads, so it names
 // the step that actually happens.
 const store = useConnectStore()
-const action = computed(() => props.label ?? (store.signedIn ? 'Check out' : 'Sign up'))
+const action = computed(() => props.label ?? (store.signedIn ? 'Check out' : 'Sign up to continue'))
 const signUpIcon = computed(() => !props.label && !store.signedIn)
 </script>
 
@@ -61,14 +68,28 @@ const signUpIcon = computed(() => !props.label && !store.signedIn)
       </Button>
       <p class="mt-3 text-p-sm text-ink-gray-6">Select at least one pack.</p>
     </template>
+    <!-- Filled, read as an invoice: subtotal and tax as figures, ruled off,
+         then the total — every amount in one right-hand column, so the sum can
+         be checked down it. Where a market has no decided rate the tax row
+         says so and the total is before it. No footnote under the
+         button. -->
     <template v-else>
-      <p class="text-p-base text-ink-gray-6">Total</p>
-      <p class="mt-1 text-3xl font-semibold tabular-nums text-ink-gray-8">{{ bill.total }}</p>
-      <p class="mt-1 text-p-sm text-ink-gray-6">
-        <template v-if="bill.exact">{{ bill.subtotal }} plus {{ bill.taxLabel }}</template>
-        <template v-else>{{ bill.subtotal }} before {{ bill.taxLabel }}</template>
-        · {{ bill.hours }} hours
-      </p>
+      <dl class="space-y-1.5 text-p-sm">
+        <div class="flex justify-between gap-3">
+          <dt class="text-ink-gray-6">Subtotal</dt>
+          <dd class="font-medium tabular-nums text-ink-gray-7">{{ bill.subtotal }}</dd>
+        </div>
+        <div class="flex justify-between gap-3">
+          <dt class="text-ink-gray-6">{{ taxRow }}</dt>
+          <dd class="font-medium tabular-nums" :class="bill.exact ? 'text-ink-gray-7' : 'text-ink-gray-6'">
+            {{ bill.exact ? bill.tax : 'At checkout' }}
+          </dd>
+        </div>
+      </dl>
+      <div class="mt-3 flex items-baseline justify-between gap-3 border-t border-outline-gray-2 pt-3">
+        <p class="text-p-base font-medium text-ink-gray-8">Total</p>
+        <p class="text-2xl font-semibold tabular-nums text-ink-gray-8">{{ bill.total }}</p>
+      </div>
       <Button
         class="mt-4 w-full"
         variant="solid"
@@ -78,9 +99,6 @@ const signUpIcon = computed(() => !props.label && !store.signedIn)
       >
         <template v-if="signUpIcon" #prefix><IconUser class="size-4" /></template>
       </Button>
-      <p class="mt-3 text-p-sm text-ink-gray-6">
-        Paid to Frappe, in full and up front.
-      </p>
     </template>
   </div>
 </template>

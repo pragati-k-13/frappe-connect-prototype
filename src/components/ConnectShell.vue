@@ -202,6 +202,10 @@ defineProps({
   // composer stays put at the bottom. A page that scrolls as one document
   // wants the default.
   flush: { type: Boolean, default: false },
+  // Off where the page carries its own sign-up — the cart, whose Sign up sits
+  // under the total. Two ways into one account, one in the chrome and one in
+  // the page, split the click.
+  authCta: { type: Boolean, default: true },
 })
 
 // Slots: `default` is the screen. `#action` is optional and replaces the top
@@ -586,7 +590,7 @@ defineProps({
                `store.signedIn` rather than `store.account` keeps the enum in
                the store — see `stores/connect.js`. -->
           <Button
-            v-if="!store.signedIn && store.role !== 'partner'"
+            v-if="authCta && !store.signedIn && store.role !== 'partner'"
             variant="ghost"
             class="-mr-2"
             label="Log in or create account"

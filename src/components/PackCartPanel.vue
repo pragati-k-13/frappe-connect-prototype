@@ -78,7 +78,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
       v-if="!inCart.length"
       class="flex flex-1 flex-col items-center justify-center gap-3 px-5 pb-16"
     >
-      <IconBag class="size-8 text-ink-gray-4" stroke-width="1.25" aria-hidden="true" />
+      <IconBag class="size-6 text-ink-gray-4" aria-hidden="true" />
       <p class="text-p-base text-ink-gray-6">No packs added</p>
     </div>
 
