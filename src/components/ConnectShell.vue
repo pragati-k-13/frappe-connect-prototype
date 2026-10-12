@@ -296,7 +296,9 @@ defineProps({
              same reason. It isn't a regression, and it isn't a gap in the
              accessible name either: `SidebarItem` puts `aria-label` on the
              control itself. -->
-        <nav class="space-y-0.5">
+        <!-- Signed in only: a visitor has no threads and nothing to be notified
+             of, so the pair would be two dead rows. -->
+        <nav v-if="store.signedIn" class="space-y-0.5">
           <!-- An inbox, not a message bubble. The bubble belongs to the Contact
                buttons that WRITE into this screen; this row is the pile those
                threads land in. `lucide-inbox` is frappe-ui's own choice for the
@@ -392,7 +394,11 @@ defineProps({
              Find partners takes a building, not a magnifying glass: the item is
              the directory of partner companies, and search is a control that
              lives inside it. -->
-        <nav v-if="store.role !== 'partner'" class="mt-4 space-y-0.5">
+        <nav
+          v-if="store.role !== 'partner'"
+          class="space-y-0.5"
+          :class="store.signedIn && 'mt-4'"
+        >
           <!-- ⚠️ HOME IS LIVE NOW, AND IT IS FOR EVERYONE. It was an inert row
                shown only to signed-in accounts, on the reasoning that a visitor
                who arrived from a marketing page has nothing to come home to.

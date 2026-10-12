@@ -66,7 +66,7 @@ export const SESSIONS_PER_PACK = 5
 export const STARTER_PACKS = [
   {
     value: 'accounts-sales-purchase-stock',
-    name: 'Accounts, Sales, Purchase, Stock',
+    name: 'Accounts, Sales, Purchase and Stock',
     // ⚠️ `tagline` is the pack's ONE line under its name, everywhere: the
     // catalogue card, the pack dialog and the pack page all print it. There
     // was a second line, `pitch`, on the dialog and the page — three surfaces,
@@ -85,13 +85,26 @@ export const STARTER_PACKS = [
         title: 'GST invoices',
         body: 'Quotes, orders and invoices for every sale.',
       },
-      { icon: 'purchase', title: 'Purchases', body: 'Tracked from request to supplier bill.' },
-      { icon: 'stock', title: 'Live stock', body: 'Moves with every delivery and receipt.' },
-      { icon: 'books', title: 'Your books', body: 'Bank-reconciled, with P&L and GSTR-1.' },
+      { icon: 'purchase', title: 'Purchases', body: 'Tracked from request to supplier bill' },
+      { icon: 'stock', title: 'Live stock', body: 'Moves with every delivery and receipt' },
+      { icon: 'books', title: 'Your books', body: 'Bank-reconciled, with P&L and GSTR-1' },
     ],
     // ⚠️ The document's own labels for these four are Accounting, Selling,
     // Buying and Inventory. The pack is named in the pricing sheet's
     // vocabulary; the scope tables keep the document's. Same four modules.
+    // ⚠️ `highlights` are the pack page's rows under the price: five of the
+    // module stars, each its star's icon and one sentence. The sentence NAMES
+    // THE FEATURE in plain words — what it does, never how it feels; the
+    // people reading know these terms from Tally and spreadsheets. One line at
+    // the column's width, two at most. Every row is backed by a star in
+    // PACK_SCOPE, which the page's full scope lists.
+    highlights: [
+      { icon: 'receipt-indian-rupee', text: 'GST on every invoice, and TDS deducted on supplier bills' },
+      { icon: 'arrow-left-right', text: 'Bank statements matched to your ledger' },
+      { icon: 'chart-line', text: 'P&L, balance sheet and cash flow for any period' },
+      { icon: 'file-text', text: 'Quotations become orders, then invoices, without retyping' },
+      { icon: 'scan-barcode', text: 'Stock tracked by batch and serial number, with expiry dates' },
+    ],
     areas: ['accounting', 'selling', 'buying', 'inventory'],
     apps: ['erpnext'],
     hours: 5,
@@ -106,18 +119,27 @@ export const STARTER_PACKS = [
     // all five modules.
     tagline: 'For businesses that make what they sell',
     outcomes: [
-      { icon: 'bom', title: 'Bills of materials', body: 'Single and multi-level.' },
-      { icon: 'factory', title: 'Shop floor', body: 'Work orders and job cards for every run.' },
-      { icon: 'stock', title: 'Production stock', body: 'Materials out, finished goods in.' },
-      { icon: 'core', title: 'The core four', body: 'Sales, purchases, stock and books.' },
+      { icon: 'bom', title: 'Bills of materials', body: 'Single and multi-level' },
+      { icon: 'factory', title: 'Shop floor', body: 'Work orders and job cards for every run' },
+      { icon: 'stock', title: 'Production stock', body: 'Materials out, finished goods in' },
+      { icon: 'core', title: 'The core four', body: 'Sales, purchases, stock and books' },
     ],
     // ⚠️ THE ONE PACK THAT CONTAINS ANOTHER. Manufacturing ships with the core
     // four, because production is planned against the stock and orders they
-    // keep, so it costs the core pack's hours plus its own. `supersedes` is
-    // what stops a basket holding both and paying for the core twice — see
-    // `togglePack` in the store and `recommendationFor`.
+    // keep, so it costs the core pack's hours plus its own. The catalogue shows
+    // the two as an either-or on one card. `supersedes` is what stops a basket
+    // holding both and paying for the core twice — see `togglePack` in the
+    // store and `recommendationFor`.
     supersedes: ['accounts-sales-purchase-stock'],
-    areas: ['accounting', 'selling', 'buying', 'inventory', 'manufacturing'],
+    // Three for production, two from the core pack it ships with.
+    highlights: [
+      { icon: 'layers', text: 'Single and multi-level BOMs for every product' },
+      { icon: 'clipboard-list', text: 'Work orders and job cards for each operation' },
+      { icon: 'boxes', text: 'Materials consumed and finished goods received in stock' },
+      { icon: 'receipt-indian-rupee', text: 'GST on every invoice, and TDS deducted on supplier bills' },
+      { icon: 'arrow-left-right', text: 'Bank statements matched to your ledger' },
+    ],
+    areas: ['manufacturing', 'accounting', 'selling', 'buying', 'inventory'],
     apps: ['erpnext'],
     hours: 10,
     validityDays: 60,
@@ -133,12 +155,19 @@ export const STARTER_PACKS = [
     // `data/partners.js`, and the firms that sold HR still sell this.
     value: 'hrms',
     name: 'HR and Payroll',
-    tagline: 'For people, leave and salaries on one record',
+    tagline: 'For people, leaves and salaries on one record',
     outcomes: [
-      { icon: 'employee', title: 'Employee records', body: 'Every employee on one record.' },
-      { icon: 'attendance', title: 'Leave and attendance', body: 'Tracked against your policies.' },
-      { icon: 'expense', title: 'Expense claims', body: 'Submitted and approved in the system.' },
-      { icon: 'salary', title: 'Salary slips', body: 'Every cycle, with India’s standard tax.' },
+      { icon: 'employee', title: 'Employee records', body: 'Every employee on one record' },
+      { icon: 'attendance', title: 'Leave and attendance', body: 'Tracked against your policies' },
+      { icon: 'expense', title: 'Expense claims', body: 'Submitted and approved in the system' },
+      { icon: 'salary', title: 'Salary slips', body: 'Every cycle, with India’s standard tax' },
+    ],
+    highlights: [
+      { icon: 'contact', text: 'Every employee on one record, with skills and certifications' },
+      { icon: 'calendar-days', text: 'Leave, attendance and shifts tracked against your policies' },
+      { icon: 'receipt', text: 'Expense claims submitted and approved in the system' },
+      { icon: 'percent', text: 'Income tax calculated on standard Indian slabs' },
+      { icon: 'wallet', text: 'Salary slips for every employee, every payroll cycle' },
     ],
     areas: ['hrms', 'payroll'],
     apps: ['frappe-hr'],
@@ -357,10 +386,53 @@ export const additionalHourRateFor = (region = DEFAULT_REGION) =>
 // ⚠️ A row may carry `screenshot`, an imported image URL, and the pack page
 // shows it beside that sub-section. None do yet; `PackScopeShot` stands in a
 // named placeholder until they do.
+// ⚠️ `stars` and `alsoSetUp` are what the pack page shows: three highlighted
+// features per module, written from the rows below, and every other row's
+// items as one plain list. HRMS and Payroll fit entirely in their stars. The
+// `rows` are kept as the scope document's own wording and are no longer shown.
 export const PACK_SCOPE = {
   accounting: {
     label: 'Accounting',
     summary: 'Books, GST and TDS from one set of entries, reconciled with your bank.',
+    stars: [
+      { icon: 'receipt-indian-rupee', title: 'GST and TDS', body: 'TDS deducted on supplier bills' },
+      { icon: 'arrow-left-right', title: 'Bank reconciliation', body: 'Statements matched to ledger' },
+      { icon: 'chart-line', title: 'Financial statements', body: 'P&L, balance sheet, cash flow' },
+      { icon: 'calendar-clock', title: 'Receivables and payables', body: 'Outstanding, with ageing' },
+      { icon: 'banknote', title: 'Payments and journals', body: 'Payment entries and vouchers' },
+      { icon: 'file-minus', title: 'Debit and credit notes', body: 'Returns and price corrections' },
+    ],
+    alsoSetUp: [
+      'chart of accounts', 'fiscal year', 'financial book', 'accounting period', 'mode of payment',
+      'inter-bank transfers',
+      'trial balance', 'general ledger', 'accounts settings',
+    ],
+    // The pack page's "Full scope": everything this module covers, sorted the
+    // way ERPNext's own workspaces sort it — what's configured once, the
+    // documents used every day, and the reports read from them.
+    fullScope: {
+      setup: [
+        'Chart of accounts',
+        'Fiscal year',
+        'Financial book',
+        'Accounting period',
+        'Mode of payment',
+        'Accounts settings',
+      ],
+      transactions: [
+        'GST and TDS',
+        'Bank reconciliation',
+        'Payments and journals',
+        'Debit and credit notes',
+        'Inter-bank transfers',
+      ],
+      reports: [
+        'Financial statements',
+        'Receivables and payables',
+        'Trial balance',
+        'General ledger',
+      ],
+    },
     rows: [
       {
         area: 'Masters',
@@ -407,6 +479,41 @@ export const PACK_SCOPE = {
   selling: {
     label: 'Selling',
     summary: 'Quotes to orders, deliveries and GST invoices, updating stock and books.',
+    stars: [
+      { icon: 'file-text', title: 'Quotation → Order → Invoice', body: 'Each built from the previous' },
+      { icon: 'truck', title: 'Delivery notes', body: 'Stock reduced on delivery' },
+      { icon: 'file-check', title: 'GSTR-1 and GST registers', body: 'Built from sales invoices' },
+    ],
+    alsoSetUp: [
+      'customers with addresses and contacts', 'item master', 'price lists', 'territories',
+      'sales team and partner on orders', 'sales analytics', 'sales order trends', 'item-wise sales history',
+      'pending sales order items', 'inactive customers', 'selling settings',
+    ],
+    // The pack page's "Full scope": everything this module covers, sorted the
+    // way ERPNext's own workspaces sort it — what's configured once, the
+    // documents used every day, and the reports read from them.
+    fullScope: {
+      setup: [
+        'Customers with addresses and contacts',
+        'Item master',
+        'Price lists',
+        'Territories',
+        'Sales team and partner on orders',
+        'Selling settings',
+      ],
+      transactions: [
+        'Quotation → order → invoice',
+        'Delivery notes',
+      ],
+      reports: [
+        'GSTR-1 and GST registers',
+        'Sales analytics',
+        'Sales order trends',
+        'Item-wise sales history',
+        'Pending sales order items',
+        'Inactive customers',
+      ],
+    },
     rows: [
       {
         area: 'Masters',
@@ -445,6 +552,39 @@ export const PACK_SCOPE = {
   buying: {
     label: 'Buying',
     summary: 'Requests and orders through to supplier bills, imports and landed costs.',
+    stars: [
+      { icon: 'shopping-cart', title: 'Request → Order → Receipt', body: 'Through to the supplier bill' },
+      { icon: 'scale', title: 'RFQs and quotations', body: 'Compare quotes before a PO' },
+      { icon: 'ship', title: 'Imports and landed cost', body: 'Freight and duty in valuation' },
+    ],
+    alsoSetUp: [
+      'suppliers with addresses and contacts', 'terms and conditions', 'payment terms', 'purchase order approval',
+      'purchase analytics', 'supplier reports',
+      'item purchase history', 'GST purchase registers', 'reconciliation tools',
+    ],
+    // The pack page's "Full scope": everything this module covers, sorted the
+    // way ERPNext's own workspaces sort it — what's configured once, the
+    // documents used every day, and the reports read from them.
+    fullScope: {
+      setup: [
+        'Suppliers with addresses and contacts',
+        'Terms and conditions',
+        'Payment terms',
+        'Purchase order approval',
+      ],
+      transactions: [
+        'Request → order → receipt',
+        'RFQs and quotations',
+        'Imports and landed cost',
+        'Reconciliation tools',
+      ],
+      reports: [
+        'Purchase analytics',
+        'Supplier reports',
+        'Item purchase history',
+        'GST purchase registers',
+      ],
+    },
     rows: [
       {
         area: 'Masters',
@@ -488,6 +628,35 @@ export const PACK_SCOPE = {
   inventory: {
     label: 'Inventory',
     summary: 'Every item, batch and serial number across warehouses, with reorder levels.',
+    stars: [
+      { icon: 'building-2', title: 'Multi-warehouse stock', body: 'Stock ledger per warehouse' },
+      { icon: 'scan-barcode', title: 'Batch and serial numbers', body: 'With a batch expiry report' },
+      { icon: 'bell-ring', title: 'Reorder levels', body: 'Per item, reported when below' },
+    ],
+    alsoSetUp: [
+      'items', 'item groups', 'units of measure', 'brands', 'stock entries', 'stock reconciliation', 'stock settings',
+    ],
+    // The pack page's "Full scope": everything this module covers, sorted the
+    // way ERPNext's own workspaces sort it — what's configured once, the
+    // documents used every day, and the reports read from them.
+    fullScope: {
+      setup: [
+        'Items',
+        'Item groups',
+        'Units of measure',
+        'Brands',
+        'Reorder levels',
+        'Stock settings',
+      ],
+      transactions: [
+        'Stock entries',
+        'Stock reconciliation',
+        'Batch and serial numbers',
+      ],
+      reports: [
+        'Multi-warehouse stock',
+      ],
+    },
     rows: [
       {
         area: 'Masters',
@@ -504,6 +673,37 @@ export const PACK_SCOPE = {
   manufacturing: {
     label: 'Manufacturing',
     summary: 'Bills of materials into work orders and job cards, against real stock.',
+    stars: [
+      { icon: 'layers', title: 'Single and multi-level BOMs', body: 'Sub-assemblies and operations' },
+      { icon: 'clipboard-list', title: 'Work orders and job cards', body: 'Per operation and workstation' },
+      { icon: 'boxes', title: 'Production stock entries', body: 'Materials out, goods in' },
+    ],
+    alsoSetUp: [
+      'operations', 'workstations', 'manufacturing settings', 'work order summary', 'BOM stock report',
+      'production analytics', 'job card summary', 'work order stock reports',
+    ],
+    // The pack page's "Full scope": everything this module covers, sorted the
+    // way ERPNext's own workspaces sort it — what's configured once, the
+    // documents used every day, and the reports read from them.
+    fullScope: {
+      setup: [
+        'Single and multi-level BOMs',
+        'Operations',
+        'Workstations',
+        'Manufacturing settings',
+      ],
+      transactions: [
+        'Work orders and job cards',
+        'Production stock entries',
+      ],
+      reports: [
+        'Work order summary',
+        'BOM stock report',
+        'Production analytics',
+        'Job card summary',
+        'Work order stock reports',
+      ],
+    },
     rows: [
       { area: 'Masters', items: ['BOM', 'Operations', 'Workstation'] },
       {
@@ -536,6 +736,29 @@ export const PACK_SCOPE = {
   hrms: {
     label: 'HRMS',
     summary: 'Employee records, leave, attendance, shifts and expenses, with approvals.',
+    stars: [
+      { icon: 'contact', title: 'Employee master', body: 'Skills and certifications' },
+      { icon: 'calendar-days', title: 'Leave, attendance and shifts', body: 'Policies, balances and shifts' },
+      { icon: 'receipt', title: 'Expense claims', body: 'With a standard approval flow' },
+    ],
+    alsoSetUp: [],
+    // The pack page's "Full scope": everything this module covers, sorted the
+    // way ERPNext's own workspaces sort it — what's configured once, the
+    // documents used every day, and the reports read from them.
+    fullScope: {
+      setup: [
+        'Employee master',
+        'Leave policies',
+        'Standard approval workflows',
+        'Custom fields like skills and certifications',
+      ],
+      transactions: [
+        'Leave applications',
+        'Attendance and shifts',
+        'Expense claims',
+      ],
+      reports: [],
+    },
     rows: [
       {
         area: 'Configuration',
@@ -562,6 +785,27 @@ export const PACK_SCOPE = {
   payroll: {
     label: 'Payroll',
     summary: 'Salary structures and slips every cycle, with India’s standard tax setup.',
+    stars: [
+      { icon: 'wallet', title: 'Salary structures', body: 'Earnings and deductions' },
+      { icon: 'percent', title: 'Indian tax configuration', body: 'Income tax on standard slabs' },
+      { icon: 'file-text', title: 'Salary slips', body: 'Every employee, every cycle' },
+    ],
+    alsoSetUp: [],
+    // The pack page's "Full scope": everything this module covers, sorted the
+    // way ERPNext's own workspaces sort it — what's configured once, the
+    // documents used every day, and the reports read from them.
+    fullScope: {
+      setup: [
+        'Salary structures',
+        'Payroll cycle',
+        'Indian tax configuration',
+        'Salary slip format',
+      ],
+      transactions: [
+        'Salary slips',
+      ],
+      reports: [],
+    },
     rows: [
       {
         area: 'Setup',

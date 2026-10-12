@@ -322,7 +322,8 @@
 
    The padding is 20px, then 40px from `lg`. */
 .fc-page-read,
-.fc-page-list {
+.fc-page-list,
+.fc-page-wide {
   --fc-page-pad: 20px;
   width: 100%;
   margin-inline: auto;
@@ -331,7 +332,8 @@
 
 @media (min-width: 1024px) {
   .fc-page-read,
-  .fc-page-list {
+  .fc-page-list,
+  .fc-page-wide {
     --fc-page-pad: 40px;
   }
 }
@@ -342,6 +344,11 @@
 
 .fc-page-list {
   max-width: calc(800px + 2 * var(--fc-page-pad));
+}
+
+/* 1040px — a pack page: images beside the pack, two columns of ~500px. */
+.fc-page-wide {
+  max-width: calc(1040px + 2 * var(--fc-page-pad));
 }
 
 /* The in-app content column, as a container-query root.
@@ -358,45 +365,6 @@
 .fc-content {
   container-type: inline-size;
   container-name: content;
-}
-
-/* A pack module's sub-sections beside their screenshot (`PackScope`). Its own
-   container because the same component renders on the pack page and in the
-   scope dialog, and only its own width says whether a screenshot fits beside
-   the list. 640px leaves the list ~240px and the shot ~360px; below that the
-   aside goes and the shot moves inside the open row, at 16:10. */
-.fc-scope {
-  container-type: inline-size;
-  container-name: scope;
-}
-.fc-scope-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-}
-.fc-scope-aside {
-  display: none;
-}
-@container scope (min-width: 640px) {
-  .fc-scope-grid {
-    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-    column-gap: 2.5rem;
-  }
-  /* Held at the module's fixed height (see `fit` in PackScope), so the shot
-     never changes size as rows open. */
-  .fc-scope-aside {
-    display: block;
-  }
-  .fc-scope-inline {
-    display: none;
-  }
-  /* Alternate modules mirror: the wide column first, the shot moved ahead of
-     the list by `order` alone, so the markup keeps its reading order. */
-  .fc-scope-flip .fc-scope-grid {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  }
-  .fc-scope-flip .fc-scope-aside {
-    order: -1;
-  }
 }
 
 /* The recommendation's three steps: across when the COLUMN has room for the
