@@ -6,9 +6,10 @@ import IconEffort from '~icons/lucide/hourglass'
 import IconDelivery from '~icons/lucide/calendar'
 import IconHours from '~icons/lucide/clock'
 import IconTag from '~icons/lucide/tag'
+import IconModules from '~icons/lucide/boxes'
 import IconAdded from '~icons/lucide/check'
 import IconUpgrade from '~icons/lucide/arrow-up'
-import { STARTER_PACKS, priceFor } from '../data/packs'
+import { PACK_SCOPE, STARTER_PACKS, priceFor } from '../data/packs'
 import { appLogo } from '../data/apps'
 
 // The Starter Packs, as a list to tick — the one list the catalogue, the
@@ -58,7 +59,7 @@ const groups = STARTER_PACKS.filter((p) => !p.supersedes?.length).map((base) => 
 }))
 const halves = (g) => [
   { key: 'base', pack: g.base, name: g.base.name },
-  { key: 'addon', pack: g.addon, name: `+ ${g.addon.name}` },
+  { key: 'addon', pack: g.addon, name: g.addon.name },
 ]
 // What a half's button does, from the basket: 'added', 'upgrade' (core in,
 // move to Manufacturing), 'switch' (Manufacturing in, drop back to the core),
@@ -73,6 +74,22 @@ const stateOf = (g, h) => {
 // other out (`togglePack` and `packConflicts`); "Added" takes it out.
 const actOn = (g, h) => emit('toggle', h.pack.value)
 const LABELS = { add: 'Add to cart', added: 'In cart', upgrade: 'Upgrade', switch: 'Switch to this' }
+
+// The card's third fact: the modules the pack sets up, in the scope document's
+// own labels and the order the pack page lists them. Its line keeps two lines'
+// height (`min-h-[2lh]`) so a one-line list doesn't drop its card's price
+// below the others in the row.
+// A pack that contains another names that pack and only what it adds.
+// "A, B, C and D" — the last two joined by "and", no serial comma.
+const labelsOf = (areas) => {
+  const labels = areas.map((a) => PACK_SCOPE[a].label)
+  return labels.length < 2 ? labels.join('') : `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}`
+}
+const modulesOf = (pack) => {
+  const inner = STARTER_PACKS.find((p) => pack.supersedes?.includes(p.value))
+  if (!inner) return labelsOf(pack.areas)
+  return `Everything in ${inner.name}, plus ${labelsOf(pack.areas.filter((a) => !inner.areas.includes(a)))}`
+}
 
 const facts = (pack) => [
   { key: 'price', icon: IconPrice, text: priceFor(pack, props.region), strong: true },
@@ -95,14 +112,28 @@ const facts = (pack) => [
            so the join reads as deliberate. Stacked below `sm`. -->
       <li
         v-if="g.addon"
-        class="grid rounded-6 border border-outline-gray-1 sm:grid-cols-2 md:col-span-2"
+        class="grid rounded-6 border border-outline-gray-2 sm:grid-cols-2 md:col-span-2"
       >
         <div
           v-for="(h, i) in halves(g)"
           :key="h.key"
           class="flex flex-col px-5 pb-5 pt-4"
-          :class="i && 'border-t border-outline-gray-1 sm:border-l sm:border-t-0'"
+          :class="i && 'relative border-t border-outline-gray-2 sm:border-l sm:border-t-0'"
         >
+          <!-- "or" on the divider: the two are a choice of one, and both are
+               packs people come for, so neither half is framed as the upsell.
+               Centred on the second half's leading edge — the vertical rule
+               side by side, the horizontal one when stacked. Side by side it
+               sits at 40%, not 50%: the optical centre, and the blank band
+               between the taglines and the prices rather than beside a fact. -->
+          <Badge
+            v-if="i"
+            variant="outline"
+            theme="gray"
+            size="lg"
+            label="or"
+            class="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 bg-surface-base font-medium text-ink-gray-8 sm:left-0 sm:top-[40%]"
+          />
           <img :src="appLogo(g.base.apps[0])" alt="" class="mb-3 size-5 object-contain" />
           <h3 class="text-lg font-semibold text-ink-gray-7">{{ h.name }}</h3>
           <p class="mt-1 text-pretty text-p-sm text-ink-gray-6">{{ h.pack.tagline }}</p>
@@ -115,12 +146,19 @@ const facts = (pack) => [
               <IconHours class="size-4 shrink-0 text-ink-gray-6" />
               {{ h.pack.hours }} hrs of effort
             </p>
+            <p class="mt-1 flex min-h-[2lh] items-start gap-2 text-p-sm text-ink-gray-6">
+              <IconModules class="mt-0.5 size-4 shrink-0 text-ink-gray-6" />
+              {{ modulesOf(h.pack) }}
+            </p>
             <!-- Stacked: the act, then the way to the scope. Solid only for
-                 Add and Upgrade; Added and Switch to this stay quiet. -->
+                 Add and Upgrade; Added and Switch to this stay quiet.
+                 "Choose …", not "Add to cart": three identical Add buttons
+                 read as three things to add. HR's card, which is additive,
+                 keeps "Add to cart". -->
             <div class="mt-7 flex flex-col gap-2">
               <Button
                 :variant="['add', 'upgrade'].includes(stateOf(g, h)) ? 'solid' : 'subtle'"
-                :label="LABELS[stateOf(g, h)]"
+                :label="stateOf(g, h) === 'add' ? `Choose ${h.pack.name}` : LABELS[stateOf(g, h)]"
                 @click="actOn(g, h)"
               >
                 <!-- No icon on "Add to cart": the words say it. The check marks
@@ -145,7 +183,7 @@ const facts = (pack) => [
            "What's included" is the way to the pack's page. -->
       <li
         v-else
-        class="flex flex-col rounded-6 border border-outline-gray-1 px-5 pb-5 pt-4"
+        class="flex flex-col rounded-6 border border-outline-gray-2 px-5 pb-5 pt-4"
       >
         <img :src="appLogo(g.base.apps[0])" alt="" class="mb-3 size-5 object-contain" />
         <h3 class="text-lg font-semibold text-ink-gray-7">{{ g.base.name }}</h3>
@@ -158,6 +196,10 @@ const facts = (pack) => [
           <p class="mt-1 flex items-center gap-2 text-p-sm text-ink-gray-6">
             <IconHours class="size-4 shrink-0 text-ink-gray-6" />
             {{ g.base.hours }} hrs of effort
+          </p>
+          <p class="mt-1 flex min-h-[2lh] items-start gap-2 text-p-sm text-ink-gray-6">
+            <IconModules class="mt-0.5 size-4 shrink-0 text-ink-gray-6" />
+            {{ modulesOf(g.base) }}
           </p>
           <div class="mt-7 flex flex-col gap-2">
             <Button

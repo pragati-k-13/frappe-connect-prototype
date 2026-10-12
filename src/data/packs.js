@@ -66,12 +66,12 @@ export const SESSIONS_PER_PACK = 5
 export const STARTER_PACKS = [
   {
     value: 'accounts-sales-purchase-stock',
-    name: 'Accounts, Sales, Purchase and Stock',
+    name: 'Core',
     // ⚠️ `tagline` is the pack's ONE line under its name, everywhere: the
     // catalogue card, the pack dialog and the pack page all print it. There
     // was a second line, `pitch`, on the dialog and the page — three surfaces,
     // two descriptions of one pack, so it went.
-    tagline: 'Where most businesses start',
+    tagline: 'For businesses that buy and sell goods or services',
     // ⚠️ `outcomes` and every area's `summary` are OUR copy, not the scope
     // document's. They are what a skimming reader takes away, so each one is
     // written only from rows in PACK_SCOPE — if a line promises something no
@@ -113,7 +113,7 @@ export const STARTER_PACKS = [
   },
   {
     value: 'manufacturing',
-    name: 'Manufacturing',
+    name: 'Core + Manufacturing',
     // ⚠️ Says who the pack is for, like the other two — not what is in it. That
     // it ships with the core four is on its page and in its dialog, which list
     // all five modules.
