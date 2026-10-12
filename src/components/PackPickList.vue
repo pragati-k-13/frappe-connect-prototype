@@ -4,10 +4,10 @@ import { List, ListCell, ListRow } from 'frappe-ui/list'
 import IconPrice from '~icons/lucide/circle-dollar-sign'
 import IconEffort from '~icons/lucide/hourglass'
 import IconDelivery from '~icons/lucide/calendar'
-import IconAdd from '~icons/lucide/plus'
 import IconHours from '~icons/lucide/clock'
 import IconTag from '~icons/lucide/tag'
 import IconAdded from '~icons/lucide/check'
+import IconUpgrade from '~icons/lucide/arrow-up'
 import { STARTER_PACKS, priceFor } from '../data/packs'
 import { appLogo } from '../data/apps'
 
@@ -44,6 +44,36 @@ const onSelection = (next) => {
   if (changed) emit('toggle', changed)
 }
 
+// ── The catalogue grid: a pack and the one that contains it share a card ───
+// Manufacturing CONTAINS the core pack (`supersedes`), so the two are the two
+// halves of one card, split by a divider and framed as either-or. The basket
+// holds one or the other. Each half has its own Add, worded by what it would
+// do to the basket — so choosing the other half is said out loud ("Upgrade",
+// "Switch to this") rather than swapping silently. Packs that neither contain
+// nor are contained by another (HR) keep a card of their own.
+const containerOf = (pack) => STARTER_PACKS.find((p) => p.supersedes?.includes(pack.value))
+const groups = STARTER_PACKS.filter((p) => !p.supersedes?.length).map((base) => ({
+  base,
+  addon: containerOf(base),
+}))
+const halves = (g) => [
+  { key: 'base', pack: g.base, name: g.base.name },
+  { key: 'addon', pack: g.addon, name: `+ ${g.addon.name}` },
+]
+// What a half's button does, from the basket: 'added', 'upgrade' (core in,
+// move to Manufacturing), 'switch' (Manufacturing in, drop back to the core),
+// or 'add'.
+const stateOf = (g, h) => {
+  const hasBase = props.packs.includes(g.base.value)
+  const hasAddon = props.packs.includes(g.addon.value)
+  if (h.key === 'base') return hasAddon ? 'switch' : hasBase ? 'added' : 'add'
+  return hasAddon ? 'added' : hasBase ? 'upgrade' : 'add'
+}
+// Every case is one toggle of the half's own pack: adding either takes the
+// other out (`togglePack` and `packConflicts`); "Added" takes it out.
+const actOn = (g, h) => emit('toggle', h.pack.value)
+const LABELS = { add: 'Add to cart', added: 'In cart', upgrade: 'Upgrade', switch: 'Switch to this' }
+
 const facts = (pack) => [
   { key: 'price', icon: IconPrice, text: priceFor(pack, props.region), strong: true },
   { key: 'effort', icon: IconEffort, text: `${pack.hours} hrs of effort` },
@@ -59,62 +89,95 @@ const facts = (pack) => [
        it takes, then the price and the button. The card links to the pack's
        page; the button adds it, and "Added" is the only selected state. -->
   <ul v-if="layout === 'grid'" class="grid gap-3 md:grid-cols-3">
-    <li
-      v-for="pack in STARTER_PACKS"
-      :key="pack.value"
-      class="group relative flex flex-col rounded-6 border border-outline-gray-1 px-5 pb-5 pt-4 transition-colors hover:border-outline-gray-3"
-    >
-      <!-- The app the pack sets up: ERPNext, or Frappe HR. -->
-      <img :src="appLogo(pack.apps[0])" alt="" class="mb-3 size-5 object-contain" />
-      <div class="flex flex-wrap items-center gap-2">
-        <!-- ⚠️ THE NAME IS THE LINK, stretched over the whole card by its
-             `after:` layer, so the card is one real link — keyboard, screen
-             reader, new tab and back button all work. The Add button sits
-             above the layer (`relative z-10`) and keeps its own click. -->
-        <h3 class="text-lg font-semibold text-ink-gray-7 transition-colors group-hover:text-ink-gray-9">
-          <RouterLink
-            :to="{ name: 'pack', params: { id: pack.value } }"
-            class="after:absolute after:inset-0 after:rounded-6 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-outline-gray-3"
-          >
-            {{ pack.name }}
-          </RouterLink>
-        </h3>
-        <Badge
-          v-if="reasons?.[pack.value]"
-          variant="subtle"
-          theme="gray"
-          size="sm"
-          label="Recommended"
-        />
-      </div>
-      <p class="mt-1 text-p-sm text-ink-gray-6">{{ pack.tagline }}</p>
-
-      <!-- `mt-auto` keeps the hours, prices and buttons level across the row.
-           ⚠️ The hours are IN this block, not under the tagline: there they
-           sat wherever the title and tagline happened to end, at a different
-           height on every card. -->
-      <div class="mt-auto pt-6">
-        <p class="flex items-center gap-2 text-p-sm font-semibold tabular-nums text-ink-gray-6">
-          <IconTag class="size-4 shrink-0 text-ink-gray-6" />
-          {{ priceFor(pack, region) }}
-        </p>
-        <p class="mt-1 flex items-center gap-2 text-p-sm text-ink-gray-6">
-          <IconHours class="size-4 shrink-0 text-ink-gray-6" />
-          {{ pack.hours }} hrs of effort
-        </p>
-        <Button
-          class="relative z-10 mt-7 w-full"
-          :variant="packs.includes(pack.value) ? 'subtle' : 'solid'"
-          :label="packs.includes(pack.value) ? 'Added' : 'Add'"
-          @click.stop="emit('toggle', pack.value)"
+    <template v-for="g in groups" :key="g.base.value">
+      <!-- ── A base pack and its add-on: one card, two halves ─────────────
+           A divider between the halves, in the card's own border colour,
+           so the join reads as deliberate. Stacked below `sm`. -->
+      <li
+        v-if="g.addon"
+        class="grid rounded-6 border border-outline-gray-1 sm:grid-cols-2 md:col-span-2"
+      >
+        <div
+          v-for="(h, i) in halves(g)"
+          :key="h.key"
+          class="flex flex-col px-5 pb-5 pt-4"
+          :class="i && 'border-t border-outline-gray-1 sm:border-l sm:border-t-0'"
         >
-          <template #prefix>
-            <IconAdded v-if="packs.includes(pack.value)" class="size-4" />
-            <IconAdd v-else class="size-4" />
-          </template>
-        </Button>
-      </div>
-    </li>
+          <img :src="appLogo(g.base.apps[0])" alt="" class="mb-3 size-5 object-contain" />
+          <h3 class="text-lg font-semibold text-ink-gray-7">{{ h.name }}</h3>
+          <p class="mt-1 text-pretty text-p-sm text-ink-gray-6">{{ h.pack.tagline }}</p>
+          <div class="mt-auto pt-6">
+            <p class="flex items-center gap-2 text-p-sm font-semibold tabular-nums text-ink-gray-6">
+              <IconTag class="size-4 shrink-0 text-ink-gray-6" />
+              {{ priceFor(h.pack, region) }}
+            </p>
+            <p class="mt-1 flex items-center gap-2 text-p-sm text-ink-gray-6">
+              <IconHours class="size-4 shrink-0 text-ink-gray-6" />
+              {{ h.pack.hours }} hrs of effort
+            </p>
+            <!-- Stacked: the act, then the way to the scope. Solid only for
+                 Add and Upgrade; Added and Switch to this stay quiet. -->
+            <div class="mt-7 flex flex-col gap-2">
+              <Button
+                :variant="['add', 'upgrade'].includes(stateOf(g, h)) ? 'solid' : 'subtle'"
+                :label="LABELS[stateOf(g, h)]"
+                @click="actOn(g, h)"
+              >
+                <!-- No icon on "Add to cart": the words say it. The check marks
+                     a state and the arrow a change, so those keep theirs. -->
+                <template v-if="['added', 'upgrade'].includes(stateOf(g, h))" #prefix>
+                  <IconAdded v-if="stateOf(g, h) === 'added'" class="size-4" />
+                  <IconUpgrade v-else class="size-4" />
+                </template>
+              </Button>
+              <Button
+                variant="subtle"
+                label="What’s included"
+                :route="{ name: 'pack', params: { id: h.pack.value } }"
+              />
+            </div>
+          </div>
+        </div>
+      </li>
+
+      <!-- ── A pack on its own ────────────────────────────────────────────
+           Static, like the halves beside it: no hover and no whole-card link.
+           "What's included" is the way to the pack's page. -->
+      <li
+        v-else
+        class="flex flex-col rounded-6 border border-outline-gray-1 px-5 pb-5 pt-4"
+      >
+        <img :src="appLogo(g.base.apps[0])" alt="" class="mb-3 size-5 object-contain" />
+        <h3 class="text-lg font-semibold text-ink-gray-7">{{ g.base.name }}</h3>
+        <p class="mt-1 text-pretty text-p-sm text-ink-gray-6">{{ g.base.tagline }}</p>
+        <div class="mt-auto pt-6">
+          <p class="flex items-center gap-2 text-p-sm font-semibold tabular-nums text-ink-gray-6">
+            <IconTag class="size-4 shrink-0 text-ink-gray-6" />
+            {{ priceFor(g.base, region) }}
+          </p>
+          <p class="mt-1 flex items-center gap-2 text-p-sm text-ink-gray-6">
+            <IconHours class="size-4 shrink-0 text-ink-gray-6" />
+            {{ g.base.hours }} hrs of effort
+          </p>
+          <div class="mt-7 flex flex-col gap-2">
+            <Button
+              :variant="packs.includes(g.base.value) ? 'subtle' : 'solid'"
+              :label="packs.includes(g.base.value) ? 'In cart' : 'Add to cart'"
+              @click="emit('toggle', g.base.value)"
+            >
+              <template v-if="packs.includes(g.base.value)" #prefix>
+                <IconAdded class="size-4" />
+              </template>
+            </Button>
+            <Button
+              variant="subtle"
+              label="What’s included"
+              :route="{ name: 'pack', params: { id: g.base.value } }"
+            />
+          </div>
+        </div>
+      </li>
+    </template>
   </ul>
 
   <!-- ⚠️ frappe-ui's OWN SELECTION, not a checkbox of ours in a cell. With

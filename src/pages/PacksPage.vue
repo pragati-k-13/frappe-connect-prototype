@@ -34,6 +34,7 @@ import {
   marketFor,
   DEFAULT_REGION,
 } from '../data/packs'
+import { INDUSTRIES } from '../data/quiz'
 
 // SCREEN — the Starter Pack catalogue.
 //
@@ -92,6 +93,11 @@ const heroPoints = ['Fixed price', '3x faster', 'Frappe-vetted']
 // `INCLUDED_IN_ALL` and `PACK_ADD_ONS` in `data/packs.js`, which keep the scope
 // document's wording — ⚠️ a line added or dropped there has to be added or
 // dropped here too.
+// ⚠️ PARKED: this section is being replaced. Until the new version is ready
+// it isn't rendered; a placeholder for developers stands in its place. Flip
+// this to bring the current version back.
+const SHOW_COVERAGE = false
+
 const coverage = [
   {
     key: 'included',
@@ -166,10 +172,78 @@ const FAQS = [
   },
 ]
 
-// "Still unsure?" — a question to Frappe, sent from the page.
-const question = reactive({ name: '', email: '', phone: '', body: '' })
+// "Tell us about your business" — the contact form at the foot of the page.
+//
+// ⚠️ INDIA ONLY, so there is no country field. This form replaces
+// frappe.io/contact for visitors whose IP is in India; everyone else keeps the
+// existing page. IP routing misfires (VPNs, travel, teams abroad), so State
+// ends with "Outside India" as an honest answer for anyone routed here wrongly.
+// The detected country should be stored with each lead server-side.
+//
+// Designation, team size and current software are frappe.io/contact's own
+// options, as is. Industry is the quiz's taxonomy (`INDUSTRIES`), one field
+// in place of contact's industry and sub-industry: the segments, grouped.
+// "App interested" isn't asked — on these pages it follows from the pack.
+const DESIGNATIONS = [
+  'CEO/Founder/GM',
+  'CFO',
+  'CTO/CIO',
+  'Vice president',
+  'Director/Head of Department',
+  'IT/System manager',
+  'Manager (Sales/Marketing/Customer)',
+  'Developer/Analyst',
+  'Student/Freelancer/Just looking',
+  'Others',
+]
+const TEAM_SIZES = ['1-10', '11-50', '51-200', '201-500', '501-1000', '1000+']
+const CURRENT_SOFTWARE = [
+  'Tally',
+  'Odoo',
+  'Zoho',
+  'QuickBooks',
+  'Microsoft Dynamics',
+  'SAP',
+  'Oracle',
+  'Spreadsheets (Excel / Google Sheets)',
+  'No system / Manual process',
+  'Other',
+]
+// `Combobox`, not `Select`: frappe-ui's `Select` renders no groups.
+const INDUSTRY_OPTIONS = INDUSTRIES.map((i) => ({
+  group: i.label,
+  key: i.value,
+  options: i.segments,
+}))
+const INDIAN_STATES = [
+  'Andaman and Nicobar Islands', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar',
+  'Chandigarh', 'Chhattisgarh', 'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Goa',
+  'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jammu and Kashmir', 'Jharkhand', 'Karnataka',
+  'Kerala', 'Ladakh', 'Lakshadweep', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya',
+  'Mizoram', 'Nagaland', 'Odisha', 'Puducherry', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+  'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+]
+const STATE_OPTIONS = [
+  { group: 'States and union territories', hideLabel: true, options: INDIAN_STATES },
+  { group: 'Outside India', hideLabel: true, options: ['Outside India'] },
+]
+
+const EMPTY_QUESTION = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  company: '',
+  designation: '',
+  teamSize: '',
+  software: '',
+  industry: null,
+  state: null,
+  body: '',
+}
+const question = reactive({ ...EMPTY_QUESTION })
 const canSendQuestion = computed(() =>
-  Boolean(question.name.trim() && question.email.trim() && question.phone.trim() && question.body.trim()),
+  Object.values(question).every((v) => (typeof v === 'string' ? v.trim() : v)),
 )
 // The button is never disabled; a send with a field empty says which ones.
 // "Talk to us" under the steps: down to the form, cursor in its first field.
@@ -196,11 +270,11 @@ const toContact = () => {
 }
 const sendQuestion = () => {
   if (!canSendQuestion.value) {
-    toast.error('Add your name, email, phone number and what you’d like to know')
+    toast.error('Fill in every field to send your message')
     return
   }
   toast.success('Message sent', { description: 'Frappe will get back to you soon.' })
-  Object.assign(question, { name: '', email: '', phone: '', body: '' })
+  Object.assign(question, EMPTY_QUESTION)
 }
 const scopeOpen = ref(false)
 
@@ -341,6 +415,37 @@ const continueLabel = computed(() =>
         </div>
       </section>
 
+      <!-- ── Talk to our team ──────────────────────────────────────────────
+           For the reader who has seen the prices and isn't sure: right after
+           the packs, the invitation to talk before paying. Many buyers in
+           India would rather speak to a person before a purchase this size,
+           and a conversation turns an unsure visitor into a confident one.
+           Centred in a filled band (`surface-gray-1`, no rules), so it reads
+           as one invitation, apart from the left-aligned sections around it
+           and from the ruled quote further down. The
+           button goes down to the form (`toContact`), whose answers are what
+           make the call useful. ⚠️ No response time is promised on purpose. -->
+      <section
+        class="my-56 flex flex-col items-center rounded-7 bg-surface-gray-1 px-6 py-14 text-center"
+        aria-labelledby="packs-talk"
+      >
+        <h2
+          id="packs-talk"
+          class="text-balance text-3xl font-semibold tracking-tight text-ink-gray-9"
+        >
+          The right pack is a 15-minute conversation away
+        </h2>
+        <!-- A set break from `sm`: a slightly longer first line over a slightly
+             shorter second, neither lopsided nor two equal lines. Wraps freely
+             on a phone. -->
+        <p class="mt-3 text-pretty text-p-base text-ink-gray-6">
+          Tell us how you work today. Our team will call you
+          <br class="hidden sm:block" />
+          and tell you which pack fits, or if none does.
+        </p>
+        <Button class="mt-8" variant="solid" size="md" label="Talk to our team" @click="toContact" />
+      </section>
+
       <!-- ── How it works ─────────────────────────────────────────────────
            Drawn here rather than with `PackSteps`: the recommendation screen
            keeps the compact numbered list, this page gets three columns. -->
@@ -355,7 +460,6 @@ const continueLabel = computed(() =>
             <p class="mt-1.5 text-pretty text-p-base text-ink-gray-6">{{ step.body }}</p>
           </li>
         </ol>
-        <Button class="mt-8" variant="subtle" size="md" label="Talk to us" @click="toContact" />
       </section>
 
       <!-- ── Frappe's word on it ──────────────────────────────────────────
@@ -391,8 +495,19 @@ const continueLabel = computed(() =>
            Two sections, not a two-sided card: a buyer reads what they get
            before what costs extra. Same shape as each other — an icon, a
            title and one line — so neither reads as fine print. -->
+      <!-- Placeholder while the section is parked — see `SHOW_COVERAGE`. -->
+      <div
+        v-if="!SHOW_COVERAGE"
+        class="mt-48 rounded-6 border border-dashed border-outline-gray-3 px-6 py-24 text-center"
+      >
+        <p class="text-base font-medium text-ink-gray-7">What every pack includes goes here</p>
+        <p class="mx-auto mt-2 max-w-[520px] text-pretty text-p-sm text-ink-gray-6">
+          For developers: this section will be replaced. The current version is in this file
+          behind <code>SHOW_COVERAGE</code>.
+        </p>
+      </div>
       <section
-        v-for="group in coverage"
+        v-for="group in SHOW_COVERAGE ? coverage : []"
         :key="group.key"
         class="mt-48"
         :aria-labelledby="`packs-${group.key}`"
@@ -444,64 +559,131 @@ const continueLabel = computed(() =>
         </AccordionRoot>
       </section>
 
-      <!-- ── Still unsure? ────────────────────────────────────────────────
+      <!-- ── Tell us about your business ───────────────────────────────────
            A question to Frappe, on the page: centred heading, the form and a
-           solid send. Same three fields as
-           /contact.
+           solid send. frappe.io/contact's questions, India only — see the
+           note on `question` in the script.
            Nothing is sent in this prototype; the toast is what a sent message
            would say. -->
       <section class="mt-48 flex flex-col items-center text-center" aria-labelledby="packs-unsure">
         <h2 id="packs-unsure" class="text-3xl font-semibold tracking-tight text-ink-gray-9">
-          Still unsure? Let’s talk.
+          Tell us about your business
         </h2>
+        <!-- Two columns from `sm`: the person, then the business, then the
+             message across both. One column on a phone. -->
         <form
           ref="contactForm"
-          class="mt-6 flex w-full max-w-[480px] flex-col gap-4 text-left"
+          class="mt-6 w-full max-w-[640px] text-left"
           novalidate
           @submit.prevent="sendQuestion"
         >
-          <FormControl
-            v-model="question.name"
-            required
-            size="sm"
-            label="Name"
-            placeholder="Your full name"
-            autocomplete="name"
-          />
-          <FormControl
-            v-model="question.email"
-            required
-            type="email"
-            size="sm"
-            label="Email"
-            placeholder="name@company.com"
-            autocomplete="email"
-          />
-          <FormControl
-            v-model="question.phone"
-            required
-            type="tel"
-            size="sm"
-            label="Phone number"
-            placeholder="+91 98765 43210"
-            autocomplete="tel"
-          />
+          <div class="grid gap-x-3 gap-y-4 sm:grid-cols-2">
+            <FormControl
+              v-model="question.firstName"
+              required
+              size="sm"
+              label="First name"
+              autocomplete="given-name"
+            />
+            <FormControl
+              v-model="question.lastName"
+              required
+              size="sm"
+              label="Last name"
+              autocomplete="family-name"
+            />
+            <FormControl
+              v-model="question.email"
+              required
+              type="email"
+              size="sm"
+              label="Email"
+              placeholder="name@company.com"
+              autocomplete="email"
+            />
+            <!-- India only (see the note on the script), so the code is fixed. -->
+            <FormControl
+              v-model="question.phone"
+              required
+              type="tel"
+              size="sm"
+              label="Phone number"
+              placeholder="98765 43210"
+              autocomplete="tel-national"
+            >
+              <template #prefix>
+                <span class="text-base text-ink-gray-5">+91</span>
+              </template>
+            </FormControl>
+          </div>
+
+          <div class="mt-6 grid gap-x-3 gap-y-4 sm:grid-cols-2">
+            <FormControl
+              v-model="question.company"
+              required
+              size="sm"
+              label="Company name"
+              autocomplete="organization"
+            />
+            <FormControl
+              v-model="question.designation"
+              required
+              type="select"
+              size="sm"
+              label="Designation"
+              placeholder="Select"
+              :options="DESIGNATIONS"
+            />
+            <FormControl
+              v-model="question.teamSize"
+              required
+              type="select"
+              size="sm"
+              label="Number of employees"
+              placeholder="Select"
+              :options="TEAM_SIZES"
+            />
+            <FormControl
+              v-model="question.software"
+              required
+              type="select"
+              size="sm"
+              label="Current software"
+              placeholder="Select"
+              :options="CURRENT_SOFTWARE"
+            />
+            <FormControl
+              v-model="question.industry"
+              required
+              type="combobox"
+              size="sm"
+              label="Industry"
+              placeholder="Search"
+              :options="INDUSTRY_OPTIONS"
+            />
+            <FormControl
+              v-model="question.state"
+              required
+              type="combobox"
+              size="sm"
+              label="State"
+              placeholder="Search"
+              :options="STATE_OPTIONS"
+            />
+          </div>
+
           <FormControl
             v-model="question.body"
+            class="mt-6"
             required
             type="textarea"
             size="sm"
-            label="What would you like to know?"
+            label="Tell us about your business and what isn’t working today"
             placeholder="Scope, pricing, timelines, or which pack fits"
             :rows="4"
           />
-          <div class="flex justify-center">
-            <Button
-              variant="solid"
-              size="md"
-              type="submit"
-              label="Send message"
-            />
+          <div class="mt-6 flex justify-center">
+            <Button variant="solid" size="md" type="submit" label="Send message" />
           </div>
         </form>
       </section>
