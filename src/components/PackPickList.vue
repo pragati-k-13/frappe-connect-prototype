@@ -89,29 +89,24 @@ const facts = (pack) => [
 </script>
 
 <template>
-  <!-- ⚠️ LAID OUT BY THE COLUMN, NOT THE WINDOW: `.fc-packs` and friends in
-       index.css are container queries on the shell's content region, which
-       narrows when the cart drawer opens without the window changing. Keyed to
-       the window, three cards stayed three across in a 624px column and
-       cut their labels off. Three across, or all stacked — no in-between.
-  ── Pack cards, one row ──────────────────────────────────────────────────
+  <!-- ── Pack cards, one row ──────────────────────────────────────────────────
        Name and who it's for, what
        it takes, then the price and the button. The card links to the pack's
        page; the button adds it, and "Added" is the only selected state. -->
-  <ul v-if="layout === 'grid'" class="fc-packs">
+  <ul v-if="layout === 'grid'" class="grid gap-3 md:grid-cols-3">
     <template v-for="g in groups" :key="g.base.value">
       <!-- ── A base pack and its add-on: one card, two halves ─────────────
            A divider between the halves, in the card's own border colour,
            so the join reads as deliberate. Stacked below `sm`. -->
       <li
         v-if="g.addon"
-        class="fc-packs-pair rounded-6 border border-outline-gray-2"
+        class="grid rounded-6 border border-outline-gray-2 sm:grid-cols-2 md:col-span-2"
       >
         <div
           v-for="(h, i) in halves(g)"
           :key="h.key"
           class="flex flex-col px-5 pb-5 pt-4"
-          :class="i && 'relative'"
+          :class="i && 'relative border-t border-outline-gray-2 sm:border-l sm:border-t-0'"
         >
           <!-- "or" on the divider: the two are a choice of one, and both are
                packs people come for, so neither half is framed as the upsell.
@@ -123,7 +118,7 @@ const facts = (pack) => [
             theme="gray"
             size="lg"
             label="or"
-            class="fc-or-stacked absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 bg-surface-base font-medium text-ink-gray-8"
+            class="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 bg-surface-base font-medium text-ink-gray-8 sm:hidden"
           />
           <img :src="appLogo(g.base.apps[0])" alt="" class="mb-3 size-5 object-contain" />
           <h3 class="text-lg font-semibold text-ink-gray-7">{{ h.name }}</h3>
@@ -139,7 +134,7 @@ const facts = (pack) => [
               theme="gray"
               size="lg"
               label="or"
-              class="fc-or-side absolute -left-5 top-3 -translate-x-1/2 -translate-y-1/2 bg-surface-base font-medium text-ink-gray-8"
+              class="absolute -left-5 top-3 hidden -translate-x-1/2 -translate-y-1/2 bg-surface-base font-medium text-ink-gray-8 sm:inline-flex"
             />
             <p class="flex items-center gap-2 text-p-sm font-semibold tabular-nums text-ink-gray-6">
               <IconTag class="size-4 shrink-0 text-ink-gray-6" />
@@ -155,15 +150,13 @@ const facts = (pack) => [
             </p>
             <!-- Stacked: the act, then the way to the scope. Solid only for
                  Add and Upgrade; Added and Switch to this stay quiet.
-                 "Choose", not "Add to cart": three identical Add buttons
+                 "Choose …", not "Add to cart": three identical Add buttons
                  read as three things to add. HR's card, which is additive,
-                 keeps "Add to cart". Just "Choose" — the pack's name is right
-                 above it, and "Choose Core + Manufacturing" was the one label
-                 that forced the row to break when the cart drawer narrowed it. -->
+                 keeps "Add to cart". -->
             <div class="mt-7 flex flex-col gap-2">
               <Button
                 :variant="['add', 'upgrade'].includes(stateOf(g, h)) ? 'solid' : 'subtle'"
-                :label="stateOf(g, h) === 'add' ? 'Choose' : LABELS[stateOf(g, h)]"
+                :label="stateOf(g, h) === 'add' ? `Choose ${h.pack.name}` : LABELS[stateOf(g, h)]"
                 @click="actOn(g, h)"
               >
                 <!-- No icon on "Add to cart": the words say it. The check marks

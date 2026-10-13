@@ -1,5 +1,6 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Button, FormControl, toast } from 'frappe-ui'
 import {
   AccordionContent,
@@ -23,9 +24,12 @@ import IconMail from '~icons/lucide/mail'
 import IconDashboard from '~icons/lucide/layout-dashboard'
 import IconSettings from '~icons/lucide/settings-2'
 import IconImport from '~icons/lucide/file-up'
+import IconBag from '~icons/lucide/shopping-bag'
 import { useConnectStore } from '../stores/connect'
 import { useBasketReturn } from '../utils/auth'
 import {
+  STARTER_PACKS,
+  checkoutFor,
   pricingFor,
   marketFor,
   DEFAULT_REGION,
@@ -71,6 +75,17 @@ const region = computed(
   () => marketFor(store.filters.countries[0]) ?? store.answers.region[0] ?? DEFAULT_REGION,
 )
 const pricing = computed(() => pricingFor(region.value))
+
+// What the packs in the basket come to. Empty, the total reads as zero in the
+// region's currency, taken off a real bill so the symbol cannot disagree.
+const bill = computed(() =>
+  checkoutFor(STARTER_PACKS.filter((p) => store.packs.includes(p.value)), region.value),
+)
+const total = computed(() =>
+  store.packs.length
+    ? bill.value.subtotal
+    : checkoutFor(STARTER_PACKS.slice(0, 1), region.value).subtotal.replace(/[\d,.]+/, '0'),
+)
 
 const heroPoints = ['Fixed price', '3x faster', 'Frappe-vetted']
 
@@ -296,15 +311,26 @@ const showScope = (pack) => {
 // it: the stretched layer swallows every click that is not the name. So the
 // name keeps the link and the row keeps the checkbox, and the two jobs the row
 // now has — read this pack, buy this pack — have a target each.
-// Returning from sign-up (or `?cart=1`) reopens the cart drawer.
+const router = useRouter()
 useBasketReturn()
+
+
+// Continue goes to the cart for everyone; the cart is where a visitor signs
+// up and a customer pays.
+const checkout = () => {
+  router.push({ name: 'cart' })
+}
+// The button counts what is in the cart once there is something in it.
+const continueLabel = computed(() =>
+  store.packs.length ? `View cart (${store.packs.length})` : 'View cart',
+)
 </script>
 
 <template>
-  <ConnectShell root-label="Starter Packs" root-to="/connect/packs" :cart-region="region">
-    <!-- 800px of content inside a 20px gutter: the gutter is what keeps the
-         page off the cart drawer's edge when the drawer narrows the column. -->
-    <div class="mx-auto w-full max-w-[840px] px-5 pb-36 pt-8">
+  <!-- Nothing in the bar: no "Log in or create account" here; the cart is
+       where a visitor signs up. -->
+  <ConnectShell root-label="Starter Packs" root-to="/connect/packs" :auth-cta="false">
+    <div class="mx-auto w-full max-w-[800px] pb-36 pt-8">
       <!-- ── Hero ─────────────────────────────────────────────────────────
            Text left, video right, vertically centred on each other. Stacks
            below `md`. The price rail that used to sit beside the column is
@@ -348,7 +374,7 @@ useBasketReturn()
       </header>
 
       <!-- ── The packs ────────────────────────────────────────────────────
-           The cards. The cart is the bag in the bar. -->
+           The cards, then the total and the way on to the cart. -->
       <section class="mt-36" aria-labelledby="packs-list">
         <h2 id="packs-list" class="text-2xl font-semibold tracking-tight text-ink-gray-9">
           Start small and upgrade anytime
@@ -364,6 +390,26 @@ useBasketReturn()
           @scope="showScope"
         />
 
+        <!-- The total is the cards' prices summed, before tax, so it can be
+             checked against the grid above it. -->
+        <div class="mt-6 flex items-center justify-between gap-4">
+          <div>
+            <p class="text-sm text-ink-gray-6">Total</p>
+            <p
+              class="mt-1 text-2xl font-semibold tabular-nums text-ink-gray-9"
+            >
+              {{ total }}
+            </p>
+          </div>
+          <Button
+            variant="subtle"
+            size="md"
+            :label="continueLabel"
+            @click="checkout"
+          >
+            <template #prefix><IconBag class="size-4" /></template>
+          </Button>
+        </div>
       </section>
 
       <!-- ── Talk to our team ──────────────────────────────────────────────

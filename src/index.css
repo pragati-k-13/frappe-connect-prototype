@@ -445,51 +445,6 @@
   }
 }
 
-/* The catalogue's pack cards (`PackPickList`, grid layout). Three across, or
-   all stacked — no in-between (the pair across the top and HR alone under it
-   read as HR demoted). Measured: at a 660px column each card is ~212px, which
-   still holds "What's included", "Switch to this" and a two-line module list;
-   narrower, the module lists run to three lines and the prices drop out of
-   line. 700 is that column plus the page's 20px gutters. The pair's buttons
-   say "Choose" rather than "Choose Core + Manufacturing" so this holds.
-   Stacked, the "or" sits on the horizontal rule between the halves
-   (`.fc-or-stacked`); across, on the vertical one (`.fc-or-side`).
-   `!important` because the Badge brings its own display. */
-.fc-packs {
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: minmax(0, 1fr);
-}
-.fc-packs-pair {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-}
-.fc-packs-pair > * + * {
-  border-top: 1px solid var(--outline-gray-2);
-}
-.fc-or-side {
-  display: none !important;
-}
-@container content (min-width: 700px) {
-  .fc-packs {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  .fc-packs-pair {
-    grid-column: span 2 / span 2;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .fc-packs-pair > * + * {
-    border-top: 0;
-    border-left: 1px solid var(--outline-gray-2);
-  }
-  .fc-or-stacked {
-    display: none !important;
-  }
-  .fc-or-side {
-    display: inline-flex !important;
-  }
-}
-
 /* Two across for the included / not-included ledger, with the rule on the
    midline and the same 2rem of air either side of it. */
 .fc-col-2 {

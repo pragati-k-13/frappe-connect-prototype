@@ -305,10 +305,6 @@ export const useConnectStore = defineStore('connect', {
     defaultScope: {
       erpnext: ['finance', 'sales', 'purchase', 'inventory', 'manufacturing', 'hr'],
     },
-    // The cart drawer, open or shut. Shell state, not a page's: the bag in the
-    // bar and a return from sign-up both open the same drawer, on whichever
-    // page it lives (see `ConnectShell`'s `cart-region`).
-    cartOpen: false,
     // The pack the visitor pressed Get started on, by `value`. It lives here
     // rather than in the URL because the gate fires BEFORE the panel opens —
     // there is no `?pack=` yet at the moment of the click — and the onboarding

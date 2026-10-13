@@ -102,27 +102,17 @@ export const resumeLineFor = (route) => {
 // still ticked, the visitor presses Check out themselves and the payment page
 // follows a click that means "pay". The flag marks the return so the page can
 // say they are signed in, then is dropped.
-//
-// `cart` reopens the cart drawer on arrival: there is no cart page, so a sign-up
-// started from the drawer comes back to the page it was on with the drawer open,
-// the packs kept. The same `?cart=1` opens the drawer from a link — the old
-// cart address redirects to the catalogue with it.
 export const BASKET_RETURN = 'basket'
-export const CART_OPEN = 'cart'
-export const basketReturnTo = (path, { cart = false } = {}) =>
-  `${path}?${BASKET_RETURN}=1${cart ? `&${CART_OPEN}=1` : ''}`
+export const basketReturnTo = (path) => `${path}?${BASKET_RETURN}=1`
 export function useBasketReturn() {
   const route = useRoute()
   const router = useRouter()
   const store = useConnectStore()
   onMounted(() => {
-    const { [BASKET_RETURN]: basket, [CART_OPEN]: cart, ...query } = route.query
-    if (!basket && !cart) return
+    if (!route.query[BASKET_RETURN]) return
+    const { [BASKET_RETURN]: _, ...query } = route.query
     router.replace({ query })
-    if (cart) store.cartOpen = true
-    if (basket && store.signedIn) {
-      toast.success('You’re signed in', { description: 'Your packs are saved.' })
-    }
+    if (store.signedIn) toast.success('You’re signed in', { description: 'Your packs are saved.' })
   })
 }
 
