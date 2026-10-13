@@ -6,13 +6,11 @@ import PackBasket from '../components/PackBasket.vue'
 import { Button } from 'frappe-ui'
 import { List, ListCell, ListRow } from 'frappe-ui/list'
 import IconCheck from '~icons/lucide/check'
-import IconAdd from '~icons/lucide/plus'
 import IconHours from '~icons/lucide/clock'
 import IconModules from '~icons/lucide/boxes'
 import IconBag from '~icons/lucide/shopping-bag'
 import {
   STARTER_PACKS,
-  packConflicts,
   packModules,
   priceFor,
   marketFor,
@@ -24,12 +22,11 @@ import { basketReturnTo, useBasketReturn } from '../utils/auth'
 
 // SCREEN — the cart. The basket reviewed before paying.
 //
-// ⚠️ TWO GROUPS, NOT ONE CHECKLIST. The packs in the cart are line items, each
-// with its price and a Remove; the rest sit below under "Other packs", each
-// with what adding it does — Add, Upgrade or Switch to this, which is why the
-// heading names the packs and not one action. Neither is framed — rules
-// between rows only, and the heading is what sets the two apart. No scope
-// links: the packs were read on the catalogue.
+// ⚠️ ONLY WHAT IS IN THE CART. The packs are line items, each with its price
+// and a Remove, rules between rows only. Nothing is added from here — not
+// even an upgrade: adding happens on the catalogue and the pack pages, where
+// the scope and the choice between Core and Core + Manufacturing are laid
+// out. "Starter Packs" in the crumb is the way back.
 //
 // ⚠️ OPEN TO EVERYONE, and the gate is its button: a visitor signs up from here
 // and returns to it with the basket kept; a customer goes on to pay.
@@ -43,17 +40,6 @@ const region = computed(
 )
 
 const inCart = computed(() => STARTER_PACKS.filter((p) => store.packs.includes(p.value)))
-const notInCart = computed(() => STARTER_PACKS.filter((p) => !store.packs.includes(p.value)))
-
-// What adding a pack does to the cart, said on its button — the catalogue's
-// words. Core and the pack that contains it can't both be in: adding one takes
-// the other out (`togglePack`), so that is "Upgrade" from Core and "Switch to
-// this" back to it, never a silent swap.
-const addLabel = (pack) => {
-  const replaces = packConflicts(pack.value).find((v) => store.packs.includes(v))
-  if (!replaces) return 'Add'
-  return pack.supersedes?.includes(replaces) ? 'Upgrade' : 'Switch to this'
-}
 
 const checkout = () => {
   if (!store.packs.length) return
@@ -163,43 +149,6 @@ const WHY = [
                 </ListCell>
               </ListRow>
             </List>
-
-            <!-- ── Not in the cart: one tap to add ──────────────────────── -->
-            <section v-if="notInCart.length" class="mt-16">
-              <!-- Quiet on purpose: one gray line per pack, so the cart above
-                   stays the anchor; the heading is the page's section title.
-                   The action keeps a small subtle button. -->
-              <h2 class="text-base font-semibold text-ink-gray-8">Other packs</h2>
-              <List class="mt-1 [--list-gap:1rem]" :columns="['minmax(0,1fr)', 'auto']">
-                <ListRow
-                  v-for="pack in notInCart"
-                  :key="pack.value"
-                  :value="pack.value"
-                  class="py-3"
-                >
-                  <ListCell>
-                    <!-- Still one quiet line, but the name reads as the name:
-                         medium and a step darker than the facts after it. -->
-                    <p class="truncate text-p-sm tabular-nums text-ink-gray-6">
-                      <span class="font-medium text-ink-gray-7">{{ pack.name }}</span>
-                      · {{ priceFor(pack, region) }} · {{ pack.hours }} hrs
-                    </p>
-                  </ListCell>
-                  <ListCell class="justify-end">
-                    <Button
-                      variant="subtle"
-                      size="sm"
-                      :label="addLabel(pack)"
-                      @click="store.togglePack(pack.value)"
-                    >
-                      <template v-if="addLabel(pack) === 'Add'" #prefix>
-                        <IconAdd class="size-3.5" />
-                      </template>
-                    </Button>
-                  </ListCell>
-                </ListRow>
-              </List>
-            </section>
           </template>
         </div>
 
