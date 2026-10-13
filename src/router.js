@@ -163,14 +163,10 @@ const routes = [
   // and addressed by the pack's `value`, exactly as a partner profile is
   // addressed by its slug — this used to be `/connect/confirm?pack=`, a URL
   // named after a gesture the page no longer performs.
-  // The cart: review the basket before paying. Open to everyone; paying needs
-  // an account, so a visitor signs up from here. Static, so it outranks `:id`,
-  // and under `/connect/packs` so sign-up from it gets the company step.
-  {
-    path: '/connect/packs/cart',
-    name: 'cart',
-    component: () => import('./pages/CartPage.vue'),
-  },
+  // There is no cart page: the cart is a drawer on the pack pages (see
+  // `PackCartPanel`). The old address still lands — on the catalogue, with the
+  // drawer open. Static, so it outranks `:id`.
+  { path: '/connect/packs/cart', redirect: { name: 'packs', query: { cart: '1' } } },
   {
     path: '/connect/packs/:id',
     name: 'pack',

@@ -10,10 +10,8 @@ import {
   AccordionTrigger,
 } from 'reka-ui'
 import ConnectShell from '../components/ConnectShell.vue'
-import PackCartPanel from '../components/PackCartPanel.vue'
 import { appLogo } from '../data/apps'
 import IconCheck from '~icons/lucide/check'
-import IconBag from '~icons/lucide/shopping-bag'
 import IconRupee from '~icons/lucide/receipt-indian-rupee'
 import IconReconcile from '~icons/lucide/arrow-left-right'
 import IconStatements from '~icons/lucide/chart-line'
@@ -36,6 +34,7 @@ import {
   PACK_SCOPE,
 } from '../data/packs'
 import { useConnectStore } from '../stores/connect'
+import { useBasketReturn } from '../utils/auth'
 
 // SCREEN — the pack you are about to buy.
 //
@@ -159,11 +158,9 @@ const addToBasket = () => {
 // state, same control, wherever a pack is shown.
 const removeFromBasket = () => pack.value && store.togglePack(pack.value.value)
 
-// The basket, from here: the count of packs in it, and the bag that opens it as
-// a drawer — `PackCartPanel`, in the shell's right-hand panel — with the
-// checkout at its foot.
-const basketCount = computed(() => store.packs.length)
-const cartOpen = ref(false)
+// The cart is the shell's: the bag in the bar opens it as a drawer, and the
+// drawer pays. Returning from sign-up (or `?cart=1`) reopens it.
+useBasketReturn()
 
 // The terms — price and hours — sit together under the name, beside Add, as
 // one statement of the deal.
@@ -327,6 +324,7 @@ const reviews = computed(() => (pack.value && REVIEWS[pack.value.value]) ?? [])
     root-label="Starter Packs"
     root-to="/connect/packs"
     :crumb="pack ? pack.name : 'Starter Pack'"
+    :cart-region="region"
   >
     <div class="fc-page-wide py-8">
       <!-- No pack in the store: someone reached this by URL rather than by
@@ -411,24 +409,6 @@ const reviews = computed(() => (pack.value && REVIEWS[pack.value.value]) ?? [])
                 <template v-if="inBasket" #prefix>
                   <IconCheck class="size-4" />
                 </template>
-              </Button>
-
-              <!-- ⚠️ A BAG, not a cart: `shopping-cart` is the Buying module's
-                   mark. The count is the DEFAULT SLOT, not `label`: frappe-ui
-                   sets `aria-label` from `label`, so a label of "2" read "2". -->
-              <Button
-                size="md"
-                variant="subtle"
-                tooltip="Your packs"
-                :aria-label="basketCount ? `Your packs, ${basketCount} added` : 'Your packs'"
-                :icon="basketCount ? undefined : IconBag"
-                :aria-expanded="cartOpen"
-                @click="cartOpen = !cartOpen"
-              >
-                <template v-if="basketCount" #prefix>
-                  <IconBag class="size-4" aria-hidden="true" />
-                </template>
-                <span v-if="basketCount" class="tabular-nums">{{ basketCount }}</span>
               </Button>
             </div>
             </div>
@@ -578,8 +558,5 @@ const reviews = computed(() => (pack.value && REVIEWS[pack.value.value]) ?? [])
              repeated here, so the shared lists have one place to drift from. -->
       </template>
     </div>
-    <template v-if="cartOpen && pack" #panel>
-      <PackCartPanel :region="region" @close="cartOpen = false" />
-    </template>
   </ConnectShell>
 </template>

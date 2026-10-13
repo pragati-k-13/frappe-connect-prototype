@@ -39,12 +39,14 @@ import {
   Tooltip,
 } from 'frappe-ui'
 import ConnectMark from './ConnectMark.vue'
+import PackCartPanel from './PackCartPanel.vue'
 import FeedbackDialog from './FeedbackDialog.vue'
 import AppSettingsDialog from './settings/AppSettingsDialog.vue'
 import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 import { PARTNERS } from '../data/partners'
 import { PARTNER_SELF } from '../data/partnerView'
+import IconBag from '~icons/lucide/shopping-bag'
 
 const store = useConnectStore()
 const { requireAccount } = useAuthGate()
@@ -187,7 +189,7 @@ const onRailMove = (e) => {
 //
 // Sidebar owns its own collapse behaviour (auto-collapses below `sm`), so
 // there's no responsive handling to write here.
-defineProps({
+const props = defineProps({
   // Trailing breadcrumb label. Unset on the list screens, where the bar just
   // reads the root.
   crumb: { type: String, default: null },
@@ -202,11 +204,17 @@ defineProps({
   // composer stays put at the bottom. A page that scrolls as one document
   // wants the default.
   flush: { type: Boolean, default: false },
-  // Off where the page carries its own sign-up — the cart, whose Sign up sits
-  // under the total. Two ways into one account, one in the chrome and one in
-  // the page, split the click.
-  authCta: { type: Boolean, default: true },
+  // The cart, on the pages that sell packs: a bag in the bar, with the count,
+  // and the cart drawer (`PackCartPanel`) in this shell's panel. The value is
+  // the page's pricing region, which the drawer bills in. Unset, no cart.
+  // ⚠️ With a cart, no "Log in or create account": the drawer's own Sign up is
+  // the way in on these pages, and two ways into one account split the click.
+  cartRegion: { type: String, default: null },
 })
+
+// The cart drawer is this shell's panel when the page sells packs and the
+// drawer is open; a page's own `#panel` still wins the slot.
+const cartPanel = computed(() => !!props.cartRegion && store.cartOpen)
 
 // Slots: `default` is the screen. `#action` is optional and replaces the top
 // bar's trailing control — see the note at the slot for why it replaces the
@@ -572,33 +580,54 @@ defineProps({
              own PageHeader example gets for free. Same correction the profile
              page's ghost buttons make with `-ml-2`. Anything filling `#action`
              wants it too. -->
-        <slot name="action">
-          <!-- Signed out: one auth CTA, the ghost "Log in or create account".
-               It used to promote to a solid "Create account" on the results
-               screen, but a solid button in the chrome outranks the page's own
-               primary action.
+        <!-- The page's control, then — on the pages that sell packs — the bag
+             that opens the cart, at the bar's far edge on every one of them.
+             ⚠️ A BAG, not a cart: `shopping-cart` is the Buying module's mark.
+             The count is the DEFAULT SLOT, not `label`: frappe-ui sets
+             `aria-label` from `label`, so a label of "2" read "2". -->
+        <div class="flex shrink-0 items-center gap-2">
+          <slot name="action">
+            <!-- Signed out: one auth CTA, the ghost "Log in or create account".
+                 It used to promote to a solid "Create account" on the results
+                 screen, but a solid button in the chrome outranks the page's own
+                 primary action.
 
-               It goes through `requireAccount`, the gate in `utils/auth.js`:
-               signed out, it navigates to the sign-up screen carrying `?next=`
-               back to here. This is the seam the removed `LoginDialog` used to
-               fill and that `signInToast` stood in for; both are gone.
+                 It goes through `requireAccount`, the gate in `utils/auth.js`:
+                 signed out, it navigates to the sign-up screen carrying `?next=`
+                 back to here. This is the seam the removed `LoginDialog` used to
+                 fill and that `signInToast` stood in for; both are gone.
 
-               Signed in: nothing here. The account surface isn't designed yet,
-               so the bar shows the absence of the CTA rather than a stand-in
-               for a control whose shape nobody has decided. `store.viewer`
-               holds the identity for whenever user settings land. Reading
-               `store.signedIn` rather than `store.account` keeps the enum in
-               the store — see `stores/connect.js`. -->
+                 Signed in: nothing here. The account surface isn't designed yet,
+                 so the bar shows the absence of the CTA rather than a stand-in
+                 for a control whose shape nobody has decided. `store.viewer`
+                 holds the identity for whenever user settings land. Reading
+                 `store.signedIn` rather than `store.account` keeps the enum in
+                 the store — see `stores/connect.js`. -->
+            <Button
+              v-if="!cartRegion && !store.signedIn && store.role !== 'partner'"
+              variant="ghost"
+              class="-mr-2"
+              label="Log in or create account"
+              @click="requireAccount()"
+            >
+              <template #suffix><LucideArrowRight class="size-4" /></template>
+            </Button>
+          </slot>
           <Button
-            v-if="authCta && !store.signedIn && store.role !== 'partner'"
-            variant="ghost"
-            class="-mr-2"
-            label="Log in or create account"
-            @click="requireAccount()"
+            v-if="cartRegion"
+            variant="subtle"
+            tooltip="Your cart"
+            :aria-label="store.packs.length ? `Your cart, ${store.packs.length} added` : 'Your cart'"
+            :aria-expanded="store.cartOpen"
+            :icon="store.packs.length ? undefined : IconBag"
+            @click="store.cartOpen = !store.cartOpen"
           >
-            <template #suffix><LucideArrowRight class="size-4" /></template>
+            <template v-if="store.packs.length" #prefix>
+              <IconBag class="size-4" aria-hidden="true" />
+            </template>
+            <span v-if="store.packs.length" class="tabular-nums">{{ store.packs.length }}</span>
           </Button>
-        </slot>
+        </div>
       </PageHeader>
 
       <!-- frappe-ui's ScrollArea: overlay scrollbars that fade in on hover or
@@ -622,7 +651,7 @@ defineProps({
         <ScrollArea
           v-else
           class="fc-content min-h-0 min-w-0 flex-1"
-          :class="$slots.panel ? 'hidden md:block' : ''"
+          :class="$slots.panel || cartPanel ? 'hidden md:block' : ''"
         >
           <main class="min-w-0">
             <slot />
@@ -637,11 +666,13 @@ defineProps({
              still growing. -->
         <Transition name="panel">
           <aside
-            v-if="$slots.panel"
+            v-if="$slots.panel || cartPanel"
             class="fc-panel flex shrink-0 border-l border-outline-gray-1 bg-surface-base"
           >
             <div class="fc-panel-inner flex min-w-0 flex-col">
-              <slot name="panel" />
+              <slot name="panel">
+                <PackCartPanel :region="cartRegion" @close="store.cartOpen = false" />
+              </slot>
             </div>
           </aside>
         </Transition>
