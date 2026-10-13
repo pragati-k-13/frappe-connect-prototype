@@ -4,10 +4,20 @@ import { useRouter } from 'vue-router'
 import ConnectShell from '../components/ConnectShell.vue'
 import PackBasket from '../components/PackBasket.vue'
 import { Button } from 'frappe-ui'
+import { List, ListCell, ListRow } from 'frappe-ui/list'
 import IconCheck from '~icons/lucide/check'
 import IconAdd from '~icons/lucide/plus'
+import IconHours from '~icons/lucide/clock'
+import IconModules from '~icons/lucide/boxes'
 import IconBag from '~icons/lucide/shopping-bag'
-import { STARTER_PACKS, packConflicts, priceFor, marketFor, DEFAULT_REGION } from '../data/packs'
+import {
+  STARTER_PACKS,
+  packConflicts,
+  packModules,
+  priceFor,
+  marketFor,
+  DEFAULT_REGION,
+} from '../data/packs'
 import { appLogo } from '../data/apps'
 import { useConnectStore } from '../stores/connect'
 import { basketReturnTo, useBasketReturn } from '../utils/auth'
@@ -17,10 +27,9 @@ import { basketReturnTo, useBasketReturn } from '../utils/auth'
 // ⚠️ TWO GROUPS, NOT ONE CHECKLIST. The packs in the cart are line items, each
 // with its price and a Remove; the rest sit below under "Other packs", each
 // with what adding it does — Add, Upgrade or Switch to this, which is why the
-// heading names the packs and not one action. Neither is framed — rules between rows only, and the heading is what
-// sets the two apart. A list of four checkboxes read as the catalogue again — a
-// cart is the things you are buying, set apart from the things you are not. No
-// scope links: the packs were read on the catalogue.
+// heading names the packs and not one action. Neither is framed — rules
+// between rows only, and the heading is what sets the two apart. No scope
+// links: the packs were read on the catalogue.
 //
 // ⚠️ OPEN TO EVERYONE, and the gate is its button: a visitor signs up from here
 // and returns to it with the basket kept; a customer goes on to pay.
@@ -78,7 +87,7 @@ const WHY = [
         <div class="min-w-0" :class="!inCart.length && 'lg:col-span-2'">
           <!-- Only over line items: empty, the empty state's words are the
                heading. -->
-          <h1 v-if="inCart.length" class="text-2xl font-semibold text-ink-gray-8">Review your cart</h1>
+          <h1 v-if="inCart.length" class="text-2xl font-semibold text-ink-gray-8">Your cart</h1>
 
           <!-- ── Empty: the page is the empty state ────────────────────
                The drawer's bag and words (PackCartPanel), unframed, with the
@@ -104,24 +113,43 @@ const WHY = [
 
           <!-- ── In the cart: line items ─────────────────────────────── -->
           <template v-else>
-            <div class="mt-1">
-              <ul class="divide-y divide-outline-gray-1">
-                <li
-                  v-for="pack in inCart"
-                  :key="pack.value"
-                  class="flex items-start gap-3 py-4 sm:py-5"
-                >
-                  <!-- The pack's app logo, in a fixed slot so names line up. -->
-                  <img :src="appLogo(pack.apps[0])" alt="" class="size-8 shrink-0 object-contain" />
-                  <div class="min-w-0 flex-1">
-                    <h2 class="text-base font-semibold text-ink-gray-7">{{ pack.name }}</h2>
-                    <p class="mt-1 text-p-sm text-ink-gray-6">{{ pack.hours }} hrs of effort</p>
+            <!-- frappe-ui's List, feed mode: logo, content, trailing. Static
+                 rows (they carry their own Remove), so no hover surface and
+                 no content inset; dividers start at the text edge. -->
+            <List class="mt-1 [--list-gap:0.75rem]">
+              <ListRow
+                v-for="pack in inCart"
+                :key="pack.value"
+                :value="pack.value"
+                class="py-4 sm:py-5"
+              >
+                <!-- `self-start` on each cell: List centres cells in the row,
+                     and the logo, name and price should share a top edge. -->
+                <ListCell class="self-start">
+                  <img :src="appLogo(pack.apps[0])" alt="" class="size-8 object-contain" />
+                </ListCell>
+                <!-- The anchor beside the total: the name a step up, then the
+                     pack's facts with the catalogue card's own icons, one
+                     lane — so the row reads as the card it was chosen from. -->
+                <ListCell class="self-start">
+                  <div class="min-w-0">
+                    <h2 class="text-lg font-semibold text-ink-gray-7">{{ pack.name }}</h2>
+                    <p class="mt-2 flex items-start gap-2 text-p-sm text-ink-gray-6">
+                      <IconModules class="mt-0.5 size-4 shrink-0" />
+                      {{ packModules(pack) }}
+                    </p>
+                    <p class="mt-1 flex items-center gap-2 text-p-sm text-ink-gray-6">
+                      <IconHours class="size-4 shrink-0" />
+                      {{ pack.hours }} hrs of effort
+                    </p>
                   </div>
-                  <!-- Price and Remove share the right edge. Remove is the
-                       quiet one: small, gray, no icon — not a rival to the
-                       name. `-mr-2` puts its text on the price's edge. -->
-                  <div class="flex shrink-0 flex-col items-end">
-                    <p class="text-base font-semibold tabular-nums text-ink-gray-7">
+                </ListCell>
+                <!-- Price and Remove share the right edge. Remove is the
+                     quiet one: small, gray, no icon — not a rival to the
+                     name. `-mr-2` puts its text on the price's edge. -->
+                <ListCell class="self-start justify-end">
+                  <div class="flex flex-col items-end">
+                    <p class="text-lg font-semibold tabular-nums text-ink-gray-7">
                       {{ priceFor(pack, region) }}
                     </p>
                     <Button
@@ -132,40 +160,45 @@ const WHY = [
                       @click="store.togglePack(pack.value)"
                     />
                   </div>
-                </li>
-              </ul>
-            </div>
+                </ListCell>
+              </ListRow>
+            </List>
 
             <!-- ── Not in the cart: one tap to add ──────────────────────── -->
-            <section v-if="notInCart.length" class="mt-12">
+            <section v-if="notInCart.length" class="mt-16">
+              <!-- Quiet on purpose: one gray line per pack, so the cart above
+                   stays the anchor; the heading is the page's section title.
+                   The action keeps a small subtle button. -->
               <h2 class="text-base font-semibold text-ink-gray-8">Other packs</h2>
-              <ul class="mt-2 divide-y divide-outline-gray-1">
-                <li
+              <List class="mt-1 [--list-gap:1rem]" :columns="['minmax(0,1fr)', 'auto']">
+                <ListRow
                   v-for="pack in notInCart"
                   :key="pack.value"
-                  class="flex items-center justify-between gap-4 py-3"
+                  :value="pack.value"
+                  class="py-3"
                 >
-                  <!-- The price rides in the subtext, beside the hours: these
-                       are offers, not lines on the bill, so it isn't a column. -->
-                  <div class="min-w-0">
-                    <p class="text-p-base font-semibold text-ink-gray-7">{{ pack.name }}</p>
-                    <p class="text-p-sm tabular-nums text-ink-gray-6">
-                      {{ priceFor(pack, region) }} · {{ pack.hours }} hrs of effort
+                  <ListCell>
+                    <!-- Still one quiet line, but the name reads as the name:
+                         medium and a step darker than the facts after it. -->
+                    <p class="truncate text-p-sm tabular-nums text-ink-gray-6">
+                      <span class="font-medium text-ink-gray-7">{{ pack.name }}</span>
+                      · {{ priceFor(pack, region) }} · {{ pack.hours }} hrs
                     </p>
-                  </div>
-                  <div class="flex shrink-0 justify-end">
+                  </ListCell>
+                  <ListCell class="justify-end">
                     <Button
                       variant="subtle"
+                      size="sm"
                       :label="addLabel(pack)"
                       @click="store.togglePack(pack.value)"
                     >
                       <template v-if="addLabel(pack) === 'Add'" #prefix>
-                        <IconAdd class="size-4" />
+                        <IconAdd class="size-3.5" />
                       </template>
                     </Button>
-                  </div>
-                </li>
-              </ul>
+                  </ListCell>
+                </ListRow>
+              </List>
             </section>
           </template>
         </div>
@@ -177,7 +210,7 @@ const WHY = [
              empty basket — see PackBasket. Empty, the page takes the rail's
              column too: nothing is added from here, so nothing shifts. -->
         <aside v-if="inCart.length" class="space-y-4 lg:sticky lg:top-6 lg:self-start">
-          <PackBasket :packs="store.packs" :region="region" @checkout="checkout" />
+          <PackBasket :packs="store.packs" :region="region" require-terms @checkout="checkout" />
 
           <div class="rounded-6 border border-outline-gray-2 p-4">
             <h2 class="text-p-base font-medium text-ink-gray-8">Why Starter Packs?</h2>

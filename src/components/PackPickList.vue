@@ -9,7 +9,7 @@ import IconTag from '~icons/lucide/tag'
 import IconModules from '~icons/lucide/boxes'
 import IconAdded from '~icons/lucide/check'
 import IconUpgrade from '~icons/lucide/arrow-up'
-import { PACK_SCOPE, STARTER_PACKS, priceFor } from '../data/packs'
+import { STARTER_PACKS, packModules, priceFor } from '../data/packs'
 import { appLogo } from '../data/apps'
 
 // The Starter Packs, as a list to tick — the one list the catalogue, the
@@ -75,21 +75,9 @@ const stateOf = (g, h) => {
 const actOn = (g, h) => emit('toggle', h.pack.value)
 const LABELS = { add: 'Add to cart', added: 'In cart', upgrade: 'Upgrade', switch: 'Switch to this' }
 
-// The card's third fact: the modules the pack sets up, in the scope document's
-// own labels and the order the pack page lists them. Its line keeps two lines'
-// height (`min-h-[2lh]`) so a one-line list doesn't drop its card's price
-// below the others in the row.
-// A pack that contains another names that pack and only what it adds.
-// "A, B, C and D" — the last two joined by "and", no serial comma.
-const labelsOf = (areas) => {
-  const labels = areas.map((a) => PACK_SCOPE[a].label)
-  return labels.length < 2 ? labels.join('') : `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}`
-}
-const modulesOf = (pack) => {
-  const inner = STARTER_PACKS.find((p) => pack.supersedes?.includes(p.value))
-  if (!inner) return labelsOf(pack.areas)
-  return `Everything in ${inner.name}, plus ${labelsOf(pack.areas.filter((a) => !inner.areas.includes(a)))}`
-}
+// The card's third fact: the modules the pack sets up (`packModules`). Its
+// line keeps two lines' height (`min-h-[2lh]`) so a one-line list doesn't drop
+// its card's price below the others in the row.
 
 const facts = (pack) => [
   { key: 'price', icon: IconPrice, text: priceFor(pack, props.region), strong: true },
@@ -122,22 +110,32 @@ const facts = (pack) => [
         >
           <!-- "or" on the divider: the two are a choice of one, and both are
                packs people come for, so neither half is framed as the upsell.
-               Centred on the second half's leading edge — the vertical rule
-               side by side, the horizontal one when stacked. Side by side it
-               sits at 40%, not 50%: the optical centre, and the blank band
-               between the taglines and the prices rather than beside a fact. -->
+               Stacked, it sits on the horizontal rule between the halves. Side
+               by side it's the one below, in the facts block. -->
           <Badge
             v-if="i"
             variant="outline"
             theme="gray"
             size="lg"
             label="or"
-            class="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 bg-surface-base font-medium text-ink-gray-8 sm:left-0 sm:top-[40%]"
+            class="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 bg-surface-base font-medium text-ink-gray-8 sm:hidden"
           />
           <img :src="appLogo(g.base.apps[0])" alt="" class="mb-3 size-5 object-contain" />
           <h3 class="text-lg font-semibold text-ink-gray-7">{{ h.name }}</h3>
           <p class="mt-1 text-pretty text-p-sm text-ink-gray-6">{{ h.pack.tagline }}</p>
-          <div class="mt-auto pt-6">
+          <div class="relative mt-auto pt-6">
+            <!-- Side by side: on the vertical rule (the half's px-5 to its
+                 left), centred in the blank band between the taglines and the
+                 prices — the middle of this block's pt-6, so 12px above the
+                 price row, which sits at one height in both halves. -->
+            <Badge
+              v-if="i"
+              variant="outline"
+              theme="gray"
+              size="lg"
+              label="or"
+              class="absolute -left-5 top-3 hidden -translate-x-1/2 -translate-y-1/2 bg-surface-base font-medium text-ink-gray-8 sm:inline-flex"
+            />
             <p class="flex items-center gap-2 text-p-sm font-semibold tabular-nums text-ink-gray-6">
               <IconTag class="size-4 shrink-0 text-ink-gray-6" />
               {{ priceFor(h.pack, region) }}
@@ -148,7 +146,7 @@ const facts = (pack) => [
             </p>
             <p class="mt-1 flex min-h-[2lh] items-start gap-2 text-p-sm text-ink-gray-6">
               <IconModules class="mt-0.5 size-4 shrink-0 text-ink-gray-6" />
-              {{ modulesOf(h.pack) }}
+              {{ packModules(h.pack) }}
             </p>
             <!-- Stacked: the act, then the way to the scope. Solid only for
                  Add and Upgrade; Added and Switch to this stay quiet.
@@ -199,7 +197,7 @@ const facts = (pack) => [
           </p>
           <p class="mt-1 flex min-h-[2lh] items-start gap-2 text-p-sm text-ink-gray-6">
             <IconModules class="mt-0.5 size-4 shrink-0 text-ink-gray-6" />
-            {{ modulesOf(g.base) }}
+            {{ packModules(g.base) }}
           </p>
           <div class="mt-7 flex flex-col gap-2">
             <Button

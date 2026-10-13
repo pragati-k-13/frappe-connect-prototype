@@ -832,6 +832,20 @@ export const PACK_SCOPE = {
 // last two. Manufacturing is the only overlap, and a basket can hold it or the
 // core pack, never both. That shape is the most useful thing a buyer can know about the
 // three, so it's exported rather than left implicit in each pack's `areas`.
+// A pack's modules as one line — the catalogue card's third fact and the
+// cart's. The scope document's own labels, in the order the pack page lists
+// them; "A, B, C and D", no serial comma. A pack that contains another names
+// that pack and only what it adds.
+const joinLabels = (areas) => {
+  const labels = areas.map((a) => PACK_SCOPE[a].label)
+  return labels.length < 2 ? labels.join('') : `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}`
+}
+export const packModules = (pack) => {
+  const inner = STARTER_PACKS.find((p) => pack.supersedes?.includes(p.value))
+  if (!inner) return joinLabels(pack.areas)
+  return `Everything in ${inner.name}, plus ${joinLabels(pack.areas.filter((a) => !inner.areas.includes(a)))}`
+}
+
 export const SCOPE_AREAS = Object.keys(PACK_SCOPE).map((key) => ({
   key,
   label: PACK_SCOPE[key].label,
