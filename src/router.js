@@ -90,6 +90,18 @@ const routes = [
       return store.packs.length ? true : { name: 'packs' }
     },
   },
+  // The processor's confirmation, its own address so a reload or Back can't
+  // land on a payment form that's already been paid. Reads the project the
+  // payment created from `?project=`; without one there's nothing to confirm.
+  {
+    path: '/connect/checkout/paid',
+    name: 'checkout-paid',
+    component: () => import('./pages/RazorpayCheckoutPage.vue'),
+    beforeEnter: (to) => {
+      const store = useConnectStore()
+      return store.projects.some((p) => p.id === to.query.project) ? true : { name: 'packs' }
+    },
+  },
   // The old address of the processor's page, kept so a link to it still lands.
   { path: '/connect/checkout/pay', redirect: { name: 'checkout' } },
   // The custom path's own receipt, and the counterpart of `/connect/confirmed`.

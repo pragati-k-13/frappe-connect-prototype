@@ -34,6 +34,9 @@ const props = defineProps({
   // Who implements — Frappe or the assigned partner — named in the hints that
   // are written as functions of it.
   implementer: { type: String, default: 'Frappe' },
+  // The company task's answers in a line, once given — shown in place of its
+  // hint, with Edit.
+  companySummary: { type: String, default: null },
 })
 const hintOf = (t) => (typeof t.hint === 'function' ? t.hint(props.implementer) : t.hint)
 const emit = defineEmits(['act', 'share-url'])
@@ -116,7 +119,13 @@ const share = () => {
              under the title rather than under the mark. -->
         <div class="pb-5 pl-[26px]">
           <p class="text-p-base text-ink-gray-6">
-            {{ t.action === 'invoice' && receipt ? receipt : hintOf(t) }}
+            {{
+              t.action === 'invoice' && receipt
+                ? receipt
+                : t.action === 'company' && isDone(t) && companySummary
+                  ? companySummary
+                  : hintOf(t)
+            }}
           </p>
 
           <template v-if="!isDone(t) && t.cta">
@@ -166,6 +175,14 @@ const share = () => {
             class="mt-3"
             variant="subtle"
             label="Download invoice"
+            @click="emit('act', t)"
+          />
+          <!-- The company answers can be corrected. -->
+          <Button
+            v-else-if="isDone(t) && t.action === 'company'"
+            class="mt-3"
+            variant="subtle"
+            label="Edit"
             @click="emit('act', t)"
           />
           <!-- A booked call can still move. -->

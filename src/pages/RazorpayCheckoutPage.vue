@@ -14,20 +14,30 @@
 // ⚠️ NO RAZORPAY OR CARD-NETWORK LOGOS. Trademarks, and a hand-drawn
 // approximation on a payment screen reads as fraudulent. Names in text stand in
 // until licensed assets are dropped in.
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Spinner } from 'frappe-ui'
 import IconMail from '~icons/lucide/mail'
 import IconPhone from '~icons/lucide/phone'
 import frappeMark from '../assets/frappe.svg'
-import { checkoutFor, marketFor, DEFAULT_REGION } from '../data/packs'
+import { STARTER_PACKS, checkoutFor, marketFor, DEFAULT_REGION } from '../data/packs'
 import { PAYMENT_MS, PROVIDER } from '../data/payment'
 import { useConnectStore } from '../stores/connect'
 
 const store = useConnectStore()
 const router = useRouter()
+const route = useRoute()
 
-const packs = computed(() => store.packRecords())
+// ⚠️ ONE COMPONENT, TWO ADDRESSES: `checkout`, the form, and `checkout-paid`,
+// the confirmation. On the second, what was bought is read off the project the
+// payment created — the basket is already empty by then.
+const paid = computed(() => route.name === 'checkout-paid')
+const project = computed(() => store.projects.find((p) => p.id === route.query.project))
+const packs = computed(() =>
+  paid.value
+    ? STARTER_PACKS.filter((p) => project.value?.packs?.includes(p.value))
+    : store.packRecords(),
+)
 const region = computed(() => marketFor(store.company.country) ?? DEFAULT_REGION)
 const bill = computed(() => checkoutFor(packs.value, region.value))
 
@@ -46,9 +56,47 @@ const pay = () => {
     // ⚠️ The basket is cleared HERE, so a reload of the checkout can't charge
     // for the same packs again.
     store.setPacks([])
-    router.replace({ name: 'project', params: { id: projectId }, query: { paid: 1 } })
+    // `replace`, so Back from the confirmation skips the paid-for form.
+    router.replace({
+      name: 'checkout-paid',
+      query: { project: projectId, payment: `pay_${Math.random().toString(36).slice(2, 16)}` },
+    })
   }, PAYMENT_MS)
 }
+
+// ⚠️ PAID, RAZORPAY SAYS SO ON ITS OWN PAGE, then sends the customer back —
+// the Payment Page's "Redirect to your website" after a successful payment.
+// The success state replaces the form: amount, a payment ID, where the receipt
+// went, and a short countdown with a way to skip it. Back in Connect the
+// project page opens its "Payment received" dialog (`?paid=1`).
+// ⚠️ The payment ID is made up, shaped like Razorpay's `pay_…` ids.
+const REDIRECT_S = 3
+const seconds = ref(REDIRECT_S)
+const paymentId = computed(() => route.query.payment)
+// The receipt's details. Paid "now": the page is shown the moment it's paid.
+const receipt = computed(() => [
+  { label: 'Paid to', value: 'Frappe Technologies Pvt. Ltd.' },
+  { label: 'Payment ID', value: paymentId.value },
+  {
+    label: 'Date',
+    value: new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),
+  },
+  { label: 'Receipt sent to', value: store.viewer.email || 'you@company.example' },
+])
+let timer = null
+const goNow = () => {
+  clearTimeout(timer)
+  router.replace({ name: 'project', params: { id: route.query.project }, query: { paid: 1 } })
+}
+const tick = () => {
+  if (seconds.value <= 0) return goNow()
+  timer = setTimeout(() => {
+    seconds.value -= 1
+    tick()
+  }, 1000)
+}
+onMounted(() => paid.value && tick())
+onBeforeUnmount(() => clearTimeout(timer))
 
 const field =
   'w-full rounded-sm border border-outline-gray-2 bg-surface-white px-3 py-2.5 text-base text-ink-gray-6'
@@ -59,7 +107,57 @@ const field =
        left, the payment card on the right. Stacked below `lg`, order first. -->
   <div class="min-h-screen bg-surface-gray-1 pl-3">
     <div class="fixed inset-y-0 left-0 w-3 bg-surface-blue-7" aria-hidden="true" />
+    <!-- ── Paid: Razorpay's confirmation ─────────────────────────────────
+         A different page, and it looks it: one centred column, no merchant
+         sidebar, no form. The merchant small at the top, then a receipt — a
+         green band with the result and the amount, the details under it, what
+         was bought — and the countdown back to Connect below the card. -->
+    <div v-if="paid" class="mx-auto flex max-w-[460px] flex-col items-center px-6 py-14">
+      <div class="flex items-center gap-3">
+        <div class="grid size-9 place-items-center rounded-sm bg-surface-white shadow-sm">
+          <img :src="frappeMark" alt="" class="size-6" />
+        </div>
+        <p class="text-base font-semibold text-ink-gray-9">Frappe Technologies Pvt. Ltd.</p>
+      </div>
+
+      <div class="mt-8 w-full overflow-hidden rounded-sm bg-surface-white shadow-xl" role="status">
+        <div class="flex flex-col items-center bg-surface-green-2 px-6 py-8 text-center">
+          <div class="grid size-12 place-items-center rounded-full bg-surface-white">
+            <LucideCheck class="size-6 text-ink-green-7" aria-hidden="true" />
+          </div>
+          <h1 class="mt-4 text-lg font-semibold text-ink-gray-9">Payment successful</h1>
+          <p class="mt-1 text-3xl font-semibold tabular-nums text-ink-gray-9">{{ bill.total }}</p>
+        </div>
+
+        <dl class="space-y-3 px-6 py-6 text-p-sm">
+          <div v-for="row in receipt" :key="row.label" class="flex justify-between gap-4">
+            <dt class="shrink-0 text-ink-gray-6">{{ row.label }}</dt>
+            <dd class="min-w-0 truncate text-right tabular-nums text-ink-gray-8">{{ row.value }}</dd>
+          </div>
+        </dl>
+
+        <ul class="space-y-2 border-t border-outline-gray-1 px-6 py-5 text-p-sm text-ink-gray-7">
+          <li v-for="line in bill.lines" :key="line.value" class="flex justify-between gap-4">
+            <span class="min-w-0">{{ line.name }} · {{ line.hours }} hours</span>
+            <span class="shrink-0 tabular-nums">{{ line.price }}</span>
+          </li>
+        </ul>
+      </div>
+
+      <p class="mt-8 text-p-sm text-ink-gray-6">Redirecting you to Frappe Connect in {{ seconds }}…</p>
+      <button
+        type="button"
+        class="mt-2 text-p-sm font-medium text-ink-blue-6 underline underline-offset-2"
+        @click="goNow"
+      >
+        Go now
+      </button>
+
+      <p class="mt-12 text-base font-semibold italic text-ink-gray-7">{{ PROVIDER.label }}</p>
+    </div>
+
     <div
+      v-else
       class="mx-auto grid max-w-[1080px] gap-12 px-6 py-10 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-16 lg:py-12"
     >
       <!-- ── The merchant and the order ──────────────────────────────── -->

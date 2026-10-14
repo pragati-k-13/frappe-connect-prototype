@@ -1,6 +1,5 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { Button, FormControl, toast } from 'frappe-ui'
 import {
   AccordionContent,
@@ -25,6 +24,7 @@ import IconDashboard from '~icons/lucide/layout-dashboard'
 import IconSettings from '~icons/lucide/settings-2'
 import IconImport from '~icons/lucide/file-up'
 import IconBag from '~icons/lucide/shopping-bag'
+import { useRouter } from 'vue-router'
 import { useConnectStore } from '../stores/connect'
 import { useBasketReturn } from '../utils/auth'
 import {
@@ -33,6 +33,7 @@ import {
   pricingFor,
   marketFor,
   DEFAULT_REGION,
+  hostingLineFor,
 } from '../data/packs'
 import { INDUSTRIES } from '../data/quiz'
 
@@ -311,28 +312,23 @@ const showScope = (pack) => {
 // it: the stretched layer swallows every click that is not the name. So the
 // name keeps the link and the row keeps the checkbox, and the two jobs the row
 // now has — read this pack, buy this pack — have a target each.
-const router = useRouter()
 useBasketReturn()
 
-
-// Continue goes to the cart for everyone; the cart is where a visitor signs
-// up and a customer pays.
-const checkout = () => {
-  router.push({ name: 'cart' })
-}
-// The button counts what is in the cart once there is something in it.
-const continueLabel = computed(() =>
+// ⚠️ THE CATALOGUE'S WAY TO THE CART IS HERE, beside the total — not the bag
+// in the bar, which the pack pages have and this page leaves out. The total
+// changes as packs are chosen, right under the cards, so this is where the
+// next step is looked for; one way to the cart per page.
+const router = useRouter()
+const viewCart = () => router.push({ name: 'cart' })
+const viewCartLabel = computed(() =>
   store.packs.length ? `View cart (${store.packs.length})` : 'View cart',
 )
 </script>
 
 <template>
-  <ConnectShell root-label="Starter Packs" root-to="/connect/packs">
-    <!-- The bar's action on this page: down to the contact form, in place of
-         the shell's "Log in or create account". `-mr-2` as the shell's own. -->
-    <template #action>
-      <Button variant="ghost" class="-mr-2" label="Contact us" @click="toContact" />
-    </template>
+  <!-- Nothing in the bar: no "Log in or create account" here; the cart is
+       where a visitor signs up. -->
+  <ConnectShell root-label="Starter Packs" root-to="/connect/packs" :auth-cta="false">
     <div class="mx-auto w-full max-w-[800px] pb-36 pt-8">
       <!-- ── Hero ─────────────────────────────────────────────────────────
            Text left, video right, vertically centred on each other. Stacks
@@ -377,7 +373,7 @@ const continueLabel = computed(() =>
       </header>
 
       <!-- ── The packs ────────────────────────────────────────────────────
-           The cards, then the total and the way on to the cart. -->
+           The cards, then the total. The cart is the bag in the bar. -->
       <section class="mt-36" aria-labelledby="packs-list">
         <h2 id="packs-list" class="text-2xl font-semibold tracking-tight text-ink-gray-9">
           Start small and upgrade anytime
@@ -398,18 +394,10 @@ const continueLabel = computed(() =>
         <div class="mt-6 flex items-center justify-between gap-4">
           <div>
             <p class="text-sm text-ink-gray-6">Total</p>
-            <p
-              class="mt-1 text-2xl font-semibold tabular-nums text-ink-gray-9"
-            >
-              {{ total }}
-            </p>
+            <p class="mt-1 text-2xl font-semibold tabular-nums text-ink-gray-9">{{ total }}</p>
+            <p class="mt-1 text-p-sm text-ink-gray-6">{{ hostingLineFor(region) }}</p>
           </div>
-          <Button
-            variant="subtle"
-            size="md"
-            :label="continueLabel"
-            @click="checkout"
-          >
+          <Button variant="subtle" size="md" :label="viewCartLabel" @click="viewCart">
             <template #prefix><IconBag class="size-4" /></template>
           </Button>
         </div>
@@ -426,7 +414,7 @@ const continueLabel = computed(() =>
            button goes down to the form (`toContact`), whose answers are what
            make the call useful. ⚠️ No response time is promised on purpose. -->
       <section
-        class="my-56 flex flex-col items-center rounded-7 bg-surface-gray-1 px-6 py-14 text-center"
+        class="my-56 flex flex-col items-center rounded-7 border border-outline-gray-1/60 bg-surface-gray-1/50 px-6 py-10 text-center"
         aria-labelledby="packs-talk"
       >
         <h2
@@ -443,7 +431,7 @@ const continueLabel = computed(() =>
           <br class="hidden sm:block" />
           and tell you which pack fits, or if none does.
         </p>
-        <Button class="mt-8" variant="solid" size="md" label="Talk to our team" @click="toContact" />
+        <Button class="mt-6" variant="subtle" size="md" label="Talk to our team" @click="toContact" />
       </section>
 
       <!-- ── How it works ─────────────────────────────────────────────────
@@ -567,7 +555,7 @@ const continueLabel = computed(() =>
            would say. -->
       <section class="mt-48 flex flex-col items-center text-center" aria-labelledby="packs-unsure">
         <h2 id="packs-unsure" class="text-3xl font-semibold tracking-tight text-ink-gray-9">
-          Tell us about your business
+          Still unsure? Let’s talk.
         </h2>
         <!-- Two columns from `sm`: the person, then the business, then the
              message across both. One column on a phone. -->

@@ -121,7 +121,7 @@ const SEEDS = [
       [
         'you',
         ago(4),
-        'We are comparing a few partners for a Manufacturing Starter Pack. Do you have capacity this quarter?',
+        'We are comparing a few partners for a Core + Manufacturing Starter Pack. Do you have capacity this quarter?',
       ],
       [
         'partner',

@@ -207,11 +207,20 @@ const PACK_STAGES = [
         action: 'invoice',
         complete: () => true,
       }),
-      task('agree-terms', 'Agree to Terms and Conditions', {
+      // ⚠️ NO TERMS TASK: they're agreed at checkout, with the box above the
+      // button, and asking again here read as the page not knowing.
+      //
+      // ⚠️ THE COMPANY QUESTIONS, and NOT SKIPPABLE: they sit before the
+      // kickoff, and the list only lets the task in hand be done, so the
+      // kickoff can't be booked until they're answered. They moved here from
+      // sign-up — after paying, not before it. Already answered (the intake
+      // asks them on the custom path), the project starts with this ticked;
+      // see `startBooking`. Asked in `PackWelcomeDialog`.
+      task('company', 'Tell us about your company', {
         hint: (who) =>
-          `The terms set out the scope of each pack, the payment and validity period, and what your team is responsible for during the implementation. ${who} starts once you have agreed to them.`,
-        action: 'terms',
-        cta: 'Review and agree',
+          `So ${who === 'Frappe' ? 'Frappe’s team' : who} can prepare for your sessions. It takes a minute.`,
+        action: 'company',
+        cta: 'Tell us about your company',
       }),
       // Booked in `BookSlotDialog`; the requested time is kept on the project
       // (`kickoffAt`) and shown once the task is done.
@@ -228,8 +237,8 @@ const PACK_STAGES = [
       }),
       // One task, and it was two: billing then plan, which are one visit to
       // Frappe Cloud — a plan cannot be bought without a payment method.
-      task('fc-plan', 'Add a payment method and set up a minimum $25 plan', {
-        hint: 'Hosting is billed by Frappe Cloud, separately from the Starter Pack. Add your billing details and a payment method, then create a site on a plan of at least $25 a month, or add it to a server you already run.',
+      task('fc-plan', 'Add a payment method and set up a plan of at least ₹820/month', {
+        hint: 'Hosting is billed by Frappe Cloud, separately from the Starter Pack. Add your billing details and a payment method, then create a site on a plan of at least ₹820 a month, or add it to a server you already run.',
         action: 'fc-plan',
         cta: 'Open Frappe Cloud',
       }),

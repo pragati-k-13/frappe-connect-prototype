@@ -14,7 +14,7 @@ import ProjectBids from '../components/ProjectBids.vue'
 import RecommendationView from '../components/RecommendationView.vue'
 import ProjectStages from '../components/ProjectStages.vue'
 import PackSetupTasks from '../components/PackSetupTasks.vue'
-import PaymentReceivedDialog from '../components/PaymentReceivedDialog.vue'
+import PackWelcomeDialog from '../components/PackWelcomeDialog.vue'
 import BookSlotDialog from '../components/BookSlotDialog.vue'
 import RatePartnerDialog from '../components/RatePartnerDialog.vue'
 import IconMore from '~icons/lucide/ellipsis'
@@ -67,9 +67,13 @@ const region = computed(() => marketFor(store.company.country) ?? DEFAULT_REGION
 // Checkout lands here with `?paid=1`: the dialog opens once, and the flag is
 // dropped so a reload or Back does not open it again.
 const paidOpen = ref(false)
+// The welcome dialog's first step on arrival from payment (`?paid=1`), or
+// straight to the company questions from the task.
+const welcomeStart = ref(1)
 const kickoffOpen = ref(false)
 onMounted(() => {
   if (!route.query.paid) return
+  welcomeStart.value = 1
   paidOpen.value = true
   const { paid, ...query } = route.query
   router.replace({ query })
@@ -230,6 +234,9 @@ const act = (task) => {
       // records the agreement. The custom spine ticks in place.
       if (project.value.service === 'pack') return (termsOpen.value = true)
       return tick(task.key)
+    case 'company':
+      welcomeStart.value = 2
+      return (paidOpen.value = true)
     case 'kickoff':
       return (kickoffOpen.value = true)
     case 'fc-plan':
@@ -247,6 +254,24 @@ const act = (task) => {
       return tick(task.key)
   }
   toast.info('Not built yet')
+}
+
+// The company task's line once answered: size, industry, what they use.
+const companySummary = computed(() => {
+  const c = store.company
+  if (!c.employees) return null
+  const apps = (c.apps ?? []).map((a) => (a === 'Something else' && c.appsOther ? c.appsOther : a))
+  const parts = [`${c.employees} employees`, ...(c.segments ?? [])]
+  return `${parts.join(', ')}${apps.length ? `. Uses ${apps.join(', ')}` : ''}.`
+})
+
+// The company task's answers, saved to the account and the task ticked — which
+// unlocks the kickoff.
+const saveCompanyAnswers = (answers) => {
+  store.saveCompany({ ...store.company, ...answers })
+  tick('company')
+  paidOpen.value = false
+  toast.success('Saved')
 }
 
 const termsAgreed = computed(() => (project.value?.done ?? []).includes('agree-terms'))
@@ -363,6 +388,7 @@ const complete = () => {
                     :tasks="stage.yours"
                     :project="project"
                     :receipt="receipt"
+                    :company-summary="companySummary"
                     :implementer="partner?.name ?? 'Frappe'"
                     @act="act"
                     @share-url="shareSiteUrl"
@@ -513,10 +539,13 @@ const complete = () => {
       @close="kickoffOpen = false"
       @book="(slot) => store.requestKickoff(project.id, slot.at)"
     />
-    <PaymentReceivedDialog
+    <PackWelcomeDialog
       v-model:open="paidOpen"
-      :count="packs.length"
+      :start="welcomeStart"
+      :asks-company="!(project?.done ?? []).includes('company')"
+      :packs="packs"
       :implementer="partner?.name ?? 'Frappe'"
+      @save="saveCompanyAnswers"
       @invoice="downloadInvoice"
     />
     <RatePartnerDialog v-model:open="rating" :project="project" :partner="partner" />
