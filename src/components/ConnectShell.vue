@@ -26,7 +26,7 @@ const collapsed = ref(true)
 
 <script setup>
 import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   Badge,
   Button,
@@ -39,6 +39,7 @@ import {
   Tooltip,
 } from 'frappe-ui'
 import ConnectMark from './ConnectMark.vue'
+import IconBag from '~icons/lucide/shopping-bag'
 import FeedbackDialog from './FeedbackDialog.vue'
 import AppSettingsDialog from './settings/AppSettingsDialog.vue'
 import { useAuthGate } from '../utils/auth'
@@ -47,6 +48,7 @@ import { PARTNERS } from '../data/partners'
 import { PARTNER_SELF } from '../data/partnerView'
 
 const store = useConnectStore()
+const router = useRouter()
 const { requireAccount } = useAuthGate()
 
 // ⚠️ `SidebarItem` infers its active state by comparing the WHOLE path
@@ -206,6 +208,9 @@ defineProps({
   // under the total. Two ways into one account, one in the chrome and one in
   // the page, split the click.
   authCta: { type: Boolean, default: true },
+  // The pages that sell packs: a bag at the bar's far edge, with the count,
+  // that goes to the cart page. The one way into the cart, the same on each.
+  cart: { type: Boolean, default: false },
 })
 
 // Slots: `default` is the screen. `#action` is optional and replaces the top
@@ -599,6 +604,18 @@ defineProps({
             <template #suffix><LucideArrowRight class="size-4" /></template>
           </Button>
         </slot>
+        <!-- ⚠️ A BAG, not a cart: `shopping-cart` is the Buying module's mark.
+             Labelled, in the catalogue's words ("View cart (2)" beside its
+             total): an icon alone up here went unnoticed. -->
+        <Button
+          v-if="cart"
+          class="ml-2"
+          variant="subtle"
+          :label="store.packs.length ? `View cart (${store.packs.length})` : 'View cart'"
+          @click="router.push({ name: 'cart' })"
+        >
+          <template #prefix><IconBag class="size-4" aria-hidden="true" /></template>
+        </Button>
       </PageHeader>
 
       <!-- frappe-ui's ScrollArea: overlay scrollbars that fade in on hover or

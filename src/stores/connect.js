@@ -375,6 +375,9 @@ export const useConnectStore = defineStore('connect', {
       appsOther: '',
       operations: '',
       problems: [],
+      // What they'd like the Starter Pack sessions to focus on. Optional,
+      // free text — see `PackWelcomeDialog`.
+      focus: '',
     },
     // Every implementation the account is tracking. A LIST, because a business
     // routinely has more than one thing on: a starter pack running while a
@@ -856,7 +859,7 @@ export const useConnectStore = defineStore('connect', {
           packs: list.map((p) => p.value),
           partnerId: implementer.id,
           stage: 'confirmed',
-          done: [],
+          done: this.company.employees ? ['company'] : [],
           serviceAt: Date.now(),
         })
       } else this.projects = [
@@ -875,7 +878,8 @@ export const useConnectStore = defineStore('connect', {
           packs: list.map((p) => p.value),
           partnerId: implementer.id,
           stage: 'confirmed',
-          done: [],
+          // The company task is done already if we know the business.
+          done: this.company.employees ? ['company'] : [],
           at: Date.now(),
         },
       ]
@@ -1488,7 +1492,7 @@ export const useConnectStore = defineStore('connect', {
     // way to contacting one firm, where it shrank the list behind the screen
     // for nothing anyone asked.
     saveCompany(
-      { country, employees, segments, apps, appsOther, operations, problems },
+      { country, employees, segments, apps, appsOther, operations, problems, focus },
       { narrow = true } = {},
     ) {
       this.company = {
@@ -1501,6 +1505,7 @@ export const useConnectStore = defineStore('connect', {
         appsOther: appsOther ?? '',
         operations: operations ?? null,
         problems: problems ?? [],
+        focus: focus ?? this.company.focus ?? '',
       }
       if (!narrow) return
       const group = INDUSTRIES.find((i) => i.segments.includes(segments?.[0]))

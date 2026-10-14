@@ -49,16 +49,12 @@ const checkout = () => {
   router.push({ name: 'checkout' })
 }
 
-// Read off the packs, so a new delivery window can't leave this line stale.
-const days = STARTER_PACKS.map((p) => p.validityDays)
-const [minDays, maxDays] = [Math.min(...days), Math.max(...days)]
-
 // One check for every reason: they're a list of what you get, and three
 // different pictures made three different kinds of thing out of it.
 const WHY = [
   'Implemented by Frappe’s own team',
   'Fixed price, fixed scope',
-  minDays === maxDays ? `Live in ${minDays} days` : `Live in ${minDays} to ${maxDays} days`,
+  // No "Live in N days": the current scope document promises no timeline.
 ]
 </script>
 
@@ -76,7 +72,7 @@ const WHY = [
           <h1 v-if="inCart.length" class="text-2xl font-semibold text-ink-gray-8">Your cart</h1>
 
           <!-- ── Empty: the page is the empty state ────────────────────
-               The drawer's bag and words (PackCartPanel), unframed, with the
+               A gray bag over a few words, unframed, with the
                words as the page's heading and one way out: back to the
                catalogue, where the packs and the choice between Core and Core
                + Manufacturing are laid out. Nothing is added from here.
@@ -163,7 +159,7 @@ const WHY = [
 
           <div class="rounded-6 border border-outline-gray-2 p-4">
             <h2 class="text-p-base font-medium text-ink-gray-8">Why Starter Packs?</h2>
-            <ul class="mt-3 space-y-3">
+            <ul class="mt-3 space-y-2">
               <li
                 v-for="item in WHY"
                 :key="item"

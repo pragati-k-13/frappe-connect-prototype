@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { Button, Checkbox } from 'frappe-ui'
 import PackTermsDialog from './PackTermsDialog.vue'
 import IconUser from '~icons/lucide/user-round'
-import { STARTER_PACKS, checkoutFor } from '../data/packs'
+import { STARTER_PACKS, checkoutFor, hostingLineFor } from '../data/packs'
 import { useConnectStore } from '../stores/connect'
 
 // The basket beside a pack list: the total, and the one button that acts on it.
@@ -68,12 +68,19 @@ const termsOpen = ref(false)
 const termsError = ref('')
 watch(agreed, (v) => v && (termsError.value = ''))
 
+// ⚠️ CHECK OUT WAITS A MOMENT, a stand-in for the order being created
+// before the payment page opens — the button spins, then hands over. Sign up
+// doesn't: it's only a navigation.
+const CHECKOUT_MS = 2000
+const leaving = ref(false)
 const act = () => {
   if (needsTerms.value && !agreed.value) {
     termsError.value = 'Agree to the terms to continue'
     return
   }
-  emit('checkout')
+  if (!store.signedIn) return emit('checkout')
+  leaving.value = true
+  setTimeout(() => emit('checkout'), CHECKOUT_MS)
 }
 </script>
 
@@ -137,10 +144,13 @@ const act = () => {
           variant="solid"
           size="md"
           :label="action"
+          :loading="leaving"
           @click="act"
         >
           <template v-if="signUpIcon" #prefix><IconUser class="size-4" /></template>
         </Button>
+        <!-- Hosting, under the button: not part of this payment. -->
+        <p class="mt-3 text-center text-p-sm text-ink-gray-6">{{ hostingLineFor(region) }}</p>
       </div>
     </template>
     <PackTermsDialog

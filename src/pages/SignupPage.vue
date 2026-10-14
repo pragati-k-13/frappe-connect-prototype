@@ -36,14 +36,17 @@ const store = useConnectStore()
 const route = useRoute()
 const router = useRouter()
 
-// ⚠️ Prefilled from whatever the account already holds, which is normally
-// nothing — but someone who signed up, logged out and came back should not be
-// made to type their own company name again.
+// ⚠️ Prefilled from whatever the account already holds — but someone who
+// signed up, logged out and came back should not be made to type their own
+// company name again.
+// ⚠️ DEMO: anything still empty falls back to the demo's own business user
+// (`store.viewer`, Meera at Northwind, India), so a walkthrough clicks
+// Continue rather than typing. A real form starts empty.
 const form = reactive({
   name: store.viewer.name ?? '',
-  email: '',
-  company: store.company.name ?? '',
-  country: store.company.country ?? '',
+  email: store.viewer.email ?? '',
+  company: store.company.name || store.viewer.company || '',
+  country: store.company.country || 'India',
 })
 
 // Errors are only shown after a submit attempt. Validating as you type means

@@ -1,7 +1,7 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { Avatar, Button, TabButtons } from 'frappe-ui'
+import { Button } from 'frappe-ui'
 import {
   AccordionContent,
   AccordionHeader,
@@ -10,10 +10,16 @@ import {
   AccordionTrigger,
 } from 'reka-ui'
 import ConnectShell from '../components/ConnectShell.vue'
-import PackCartPanel from '../components/PackCartPanel.vue'
+import shotSession from '../assets/packs/session.webp'
+import shotLaptop from '../assets/packs/laptop.webp'
+import shotDesk from '../assets/packs/desk.webp'
+import PackTermsDialog from '../components/PackTermsDialog.vue'
+import { SCOPE_ICONS } from '../scopeIcons'
+import IconSetup from '~icons/lucide/settings-2'
+import IconData from '~icons/lucide/database'
+import IconTrade from '~icons/lucide/arrow-right-left'
 import { appLogo } from '../data/apps'
 import IconCheck from '~icons/lucide/check'
-import IconBag from '~icons/lucide/shopping-bag'
 import IconRupee from '~icons/lucide/receipt-indian-rupee'
 import IconReconcile from '~icons/lucide/arrow-left-right'
 import IconStatements from '~icons/lucide/chart-line'
@@ -22,6 +28,7 @@ import IconBarcode from '~icons/lucide/scan-barcode'
 import IconBom from '~icons/lucide/layers'
 import IconWorkOrder from '~icons/lucide/clipboard-list'
 import IconStock from '~icons/lucide/boxes'
+import IconPack from '~icons/lucide/package'
 import IconEmployee from '~icons/lucide/contact'
 import IconLeave from '~icons/lucide/calendar-days'
 import IconExpense from '~icons/lucide/receipt'
@@ -34,6 +41,9 @@ import {
   marketFor,
   DEFAULT_REGION,
   PACK_SCOPE,
+  ERPNEXT_SETUP,
+  ERPNEXT_DATA,
+  hostingLineFor,
 } from '../data/packs'
 import { useConnectStore } from '../stores/connect'
 
@@ -159,11 +169,7 @@ const addToBasket = () => {
 // state, same control, wherever a pack is shown.
 const removeFromBasket = () => pack.value && store.togglePack(pack.value.value)
 
-// The basket, from here: the count of packs in it, and the bag that opens it as
-// a drawer — `PackCartPanel`, in the shell's right-hand panel — with the
-// checkout at its foot.
-const basketCount = computed(() => store.packs.length)
-const cartOpen = ref(false)
+// The cart is the bag in the shell's bar, which goes to the cart page.
 
 // The terms — price and hours — sit together under the name, beside Add, as
 // one statement of the deal.
@@ -172,13 +178,13 @@ const effortLine = computed(() => facts.value.find((f) => f.key === 'effort')?.l
 
 // ── The buy area: images left, the pack right ─────────────────────────────
 //
-// ⚠️ PLACEHOLDERS. Three frames for real images: the team in a session (the
-// guidance is what the pack sells), ERPNext after setup, and a document the
-// pack produces. The last one pins — see `pinTop`.
+// ⚠️ TEMPORARY PHOTOS, the same three on every pack, standing in for each
+// pack's own images. The session photo leads: the guidance is what the pack
+// sells. The last one pins — see `pinTop`.
 const SHOTS = [
-  { key: 'session', icon: 'users', label: 'Photo placeholder: the implementation team in a session' },
-  { key: 'erpnext', icon: 'dashboard', label: 'Image placeholder: ERPNext after setup' },
-  { key: 'document', icon: 'invoice', label: 'Image placeholder: a GST invoice, close up' },
+  { key: 'session', src: shotSession, alt: 'Two people working through ERPNext on laptops at a shared table' },
+  { key: 'laptop', src: shotLaptop, alt: 'Hands typing on a laptop at a desk' },
+  { key: 'desk', src: shotDesk, alt: 'Someone at a desk working on a monitor, in silhouette' },
 ]
 
 // Mixed sticky: BOTH columns are sticky, and whichever is shorter is the one
@@ -189,15 +195,27 @@ const SHOTS = [
 // taller column never pins — its grid row is its own height.
 // The viewport is the page's own scroller, not the window: the shell's
 // content frame is `overflow-hidden`.
+// ⚠️ A SHORT COLUMN PINS WHERE IT STARTS, not at a fixed gap under the bar:
+// pinned at 32px it first rode up the ~24px between there and where the page
+// puts it, a small lurch before it stopped. `startTop` is the columns' own
+// distance from the top of the scroller at rest.
 const PIN_GAP = 32
 const shotsCol = ref(null)
 const packCol = ref(null)
 const pinTop = ref({ shots: PIN_GAP, pack: PIN_GAP })
 let resizer = null
 let scroller = null
-const topFor = (el) => Math.min(PIN_GAP, scroller.clientHeight - el.offsetHeight - PIN_GAP)
 const measurePin = () => {
   if (!scroller || !shotsCol.value || !packCol.value) return
+  // The grid both columns sit in isn't sticky, so its position (inside its
+  // top padding) is the columns' resting one whatever the scroll.
+  const grid = shotsCol.value.parentElement
+  const startTop =
+    grid.getBoundingClientRect().top -
+    scroller.getBoundingClientRect().top +
+    scroller.scrollTop +
+    parseFloat(getComputedStyle(grid).paddingTop)
+  const topFor = (el) => Math.min(startTop, scroller.clientHeight - el.offsetHeight - PIN_GAP)
   pinTop.value = { shots: topFor(shotsCol.value), pack: topFor(packCol.value) }
 }
 onMounted(() => {
@@ -222,6 +240,7 @@ const HIGHLIGHT_ICONS = {
   layers: IconBom,
   'clipboard-list': IconWorkOrder,
   boxes: IconStock,
+  package: IconPack,
   contact: IconEmployee,
   'calendar-days': IconLeave,
   receipt: IconExpense,
@@ -229,42 +248,49 @@ const HIGHLIGHT_ICONS = {
   wallet: IconSalary,
 }
 
-// "Full scope": every module the pack covers, its items in three kinds —
-// set up once, used every day, read from — see `fullScope` in `data/packs.js`.
-const SCOPE_KINDS = [
-  { key: 'setup', label: 'Setup' },
-  { key: 'transactions', label: 'Transactions' },
-  { key: 'reports', label: 'Reports' },
-]
-// ⚠️ FULL SCOPE IS PARKED. Each module's scope is about to be cut down, and
-// the right layout depends on how long the lists end up (short lists want
-// everything visible; long ones want tabs). Until the scope is locked the
-// section isn't rendered — a placeholder for developers stands in its place.
-// Flip this to bring it back.
-const SHOW_FULL_SCOPE = false
-
-// ⚠️ REVIEW ONLY: two takes on Full scope, picked by `?scope=` so each has
-// its own link. `tabs` (default) — module tabs over three filled cards;
-// `cards` — one bordered accordion card per module, plain columns inside.
-// Delete the loser and this switch once one is chosen.
-const scopeLayout = computed(() => (route.query.scope === 'cards' ? 'cards' : 'tabs'))
-const scopeTab = ref(null)
-watch(
-  () => pack.value?.value,
-  () => (scopeTab.value = pack.value?.areas[0] ?? null),
-  { immediate: true },
-)
-const scopeTabs = computed(() =>
-  (pack.value?.areas ?? []).map((key) => ({ value: key, label: PACK_SCOPE[key].label })),
-)
-
-const scope = computed(() =>
-  (pack.value?.areas ?? []).map((key) => ({
-    key,
-    label: PACK_SCOPE[key].label,
-    ...PACK_SCOPE[key].fullScope,
-  })),
-)
+// "What the sessions cover": one flat accordion, every row closed and one open at a time, in the
+// scope document's order — Setup, each module as the business runs it (sell,
+// buy, stock, books, then make), Data and users. One level: the row names
+// alone say what the pack covers, and any row opens to its points, one per
+// line; a flow's steps are simply in order. Setup and Data and users are the
+// ERPNext document's, so the HR pack has its two modules only.
+const SCOPE_ORDER = ['selling', 'buying', 'inventory', 'accounting', 'manufacturing', 'hrms', 'payroll']
+// ⚠️ BUYING AND SELLING ARE ONE ROW: mirror flows, each orders to payment.
+// Inside, each flow keeps its own line, so the two "payment"s don't run
+// together as one list.
+const scope = computed(() => {
+  let modules = [...(pack.value?.areas ?? [])]
+    .sort((x, y) => SCOPE_ORDER.indexOf(x) - SCOPE_ORDER.indexOf(y))
+    .map((key) => ({ key, icon: SCOPE_ICONS[key], ...PACK_SCOPE[key] }))
+  const selling = modules.find((m) => m.key === 'selling')
+  const buying = modules.find((m) => m.key === 'buying')
+  if (selling && buying) {
+    modules = [
+      { key: 'trade', icon: IconTrade, label: 'Buying and selling', lines: [buying.flow, selling.flow] },
+      ...modules.filter((m) => m !== selling && m !== buying),
+    ]
+  }
+  if (!pack.value?.apps.includes('erpnext')) return modules
+  return [
+    { key: 'setup', icon: IconSetup, ...ERPNEXT_SETUP },
+    ...modules,
+    { key: 'data', icon: IconData, ...ERPNEXT_DATA },
+  ]
+})
+// An open row's points run as one line of names joined by commas, in order,
+// reports included. Names after the first lose their capital unless they're
+// an acronym. Long points stay one per line.
+// Setup and Data and users are written as a sentence (`sentence`).
+// The left column under the heading: what order the rows run in, and the way
+// to the full terms — where the exclusions live now that the page doesn't
+// list them. The dialog opens for reading (`agreed`), so it offers no Agree;
+// agreeing is the cart's.
+const isErpnext = computed(() => !!pack.value?.apps.includes('erpnext'))
+const termsOpen = ref(false)
+const pointsOf = (m) => [...(m.flow ?? m.items), ...(m.reports ?? [])]
+const isProse = (points) => points.every((p) => p.length <= 32)
+const commas = (points) =>
+  points.map((p, i) => (i && /^[A-Z][a-z]/.test(p) ? p[0].toLowerCase() + p.slice(1) : p)).join(', ')
 
 // What customers said about each pack, in the partner profile's review format.
 // ⚠️ PLACEHOLDER: every review, name and company below is INVENTED for the
@@ -327,6 +353,8 @@ const reviews = computed(() => (pack.value && REVIEWS[pack.value.value]) ?? [])
     root-label="Starter Packs"
     root-to="/connect/packs"
     :crumb="pack ? pack.name : 'Starter Pack'"
+    :auth-cta="false"
+    cart
   >
     <div class="fc-page-wide py-8">
       <!-- No pack in the store: someone reached this by URL rather than by
@@ -349,25 +377,21 @@ const reviews = computed(() => (pack.value && REVIEWS[pack.value.value]) ?? [])
              ⚠️ Rules between the right column's parts, and only "Full scope"
              collapses: the checklist and How it works are the pitch and are
              always open. -->
-        <div class="pt-6 md:grid md:grid-cols-2 md:items-start md:gap-12">
-          <!-- The images. ⚠️ Placeholders — see `SHOTS`. Both columns are
+        <div class="md:grid md:grid-cols-[minmax(0,1fr)_420px] md:items-start md:gap-12">
+          <!-- The images. ⚠️ Temporary photos — see `SHOTS`. Both columns are
                sticky from `md`; `pinTop` decides which one pins. -->
           <div
             ref="shotsCol"
             class="flex flex-col gap-4 md:sticky"
             :style="{ top: `${pinTop.shots}px` }"
           >
-            <div
+            <img
               v-for="shot in SHOTS"
               :key="shot.key"
-              class="flex aspect-[4/3] w-full items-center justify-center rounded-7 bg-surface-gray-3"
-              role="img"
-              :aria-label="shot.label"
-            >
-              <LucideUsers v-if="shot.icon === 'users'" class="size-6 text-ink-gray-4" aria-hidden="true" />
-              <LucideLayoutDashboard v-else-if="shot.icon === 'dashboard'" class="size-6 text-ink-gray-4" aria-hidden="true" />
-              <LucideReceiptText v-else class="size-6 text-ink-gray-4" aria-hidden="true" />
-            </div>
+              :src="shot.src"
+              :alt="shot.alt"
+              class="aspect-[3/2] w-full rounded-7 bg-surface-gray-3 object-cover"
+            />
           </div>
 
           <div ref="packCol" class="mt-10 md:sticky md:mt-0" :style="{ top: `${pinTop.pack}px` }">
@@ -389,55 +413,22 @@ const reviews = computed(() => (pack.value && REVIEWS[pack.value.value]) ?? [])
 
 
             <!-- The terms under the name: the price as a figure (no icon, so it
-                 can't read as a feature row) with the hours as its subline,
-                 then Add across the column's full width with the bag at its
-                 end — one solid width, matching the feature rows below. -->
+                 can't read as a feature row) with the hours as its subline.
+                 Add comes after the feature rows — see there. -->
             <div class="mt-8">
               <div>
                 <!-- ⚠️ The figure alone, no tax: the basket and checkout add it. -->
                 <p class="text-3xl font-semibold tabular-nums text-ink-gray-9">{{ price }}</p>
                 <p class="mt-1 text-p-base text-ink-gray-6">{{ effortLine }}</p>
+                <p class="mt-1 text-p-base text-ink-gray-6">{{ hostingLineFor(region) }}</p>
               </div>
-            <div class="mt-4 flex items-center gap-2">
-              <!-- Adds to the basket and stays; once in, "In cart" — see
-                   `removeFromBasket`. -->
-              <Button
-                class="flex-1"
-                size="md"
-                :variant="inBasket ? 'subtle' : 'solid'"
-                :label="inBasket ? 'In cart' : 'Add to cart'"
-                @click="inBasket ? removeFromBasket() : addToBasket()"
-              >
-                <template v-if="inBasket" #prefix>
-                  <IconCheck class="size-4" />
-                </template>
-              </Button>
-
-              <!-- ⚠️ A BAG, not a cart: `shopping-cart` is the Buying module's
-                   mark. The count is the DEFAULT SLOT, not `label`: frappe-ui
-                   sets `aria-label` from `label`, so a label of "2" read "2". -->
-              <Button
-                size="md"
-                variant="subtle"
-                tooltip="Your packs"
-                :aria-label="basketCount ? `Your packs, ${basketCount} added` : 'Your packs'"
-                :icon="basketCount ? undefined : IconBag"
-                :aria-expanded="cartOpen"
-                @click="cartOpen = !cartOpen"
-              >
-                <template v-if="basketCount" #prefix>
-                  <IconBag class="size-4" aria-hidden="true" />
-                </template>
-                <span v-if="basketCount" class="tabular-nums">{{ basketCount }}</span>
-              </Button>
-            </div>
             </div>
 
-            <!-- What it gets you: five rows, each a plain line icon and one
+            <!-- What it gets you: three rows, each a plain line icon and one
                  sentence, ruled full width — no tiles, no heading. The icon
                  sits on the first line if a sentence wraps. See `highlights`
                  in `data/packs.js`. -->
-            <ul class="mt-8" aria-label="What this pack gets you">
+            <ul class="mt-4" aria-label="What this pack gets you">
               <li
                 v-for="h in pack.highlights"
                 :key="h.text"
@@ -445,12 +436,27 @@ const reviews = computed(() => (pack.value && REVIEWS[pack.value.value]) ?? [])
               >
                 <component
                   :is="HIGHLIGHT_ICONS[h.icon]"
-                  class="size-5 shrink-0 text-ink-gray-7"
+                  class="mt-0.5 size-4 shrink-0 text-ink-gray-7"
                   aria-hidden="true"
                 />
                 {{ h.text }}
               </li>
             </ul>
+
+            <!-- Add, after what the pack gets you: read, then buy. Across the
+                 column's full width. Adds to the basket and stays; once in,
+                 "In cart" — see `removeFromBasket`. -->
+            <Button
+              class="mt-4 w-full"
+              size="md"
+              :variant="inBasket ? 'subtle' : 'solid'"
+              :label="inBasket ? 'In cart' : 'Add to cart'"
+              @click="inBasket ? removeFromBasket() : addToBasket()"
+            >
+              <template v-if="inBasket" #prefix>
+                <IconCheck class="size-4" />
+              </template>
+            </Button>
 
             <section class="mt-10" aria-labelledby="pack-how">
               <h2 id="pack-how" class="text-base font-medium text-ink-gray-8">How it works</h2>
@@ -464,64 +470,57 @@ const reviews = computed(() => (pack.value && REVIEWS[pack.value.value]) ?? [])
           </div>
         </div>
 
-        <!-- ── Full scope ───────────────────────────────────────────────────
-             The spec sheet, at 800px, centred, under the buy area and before
-             the quotes. Each module's items in three groups: Setup,
-             Transactions, Reports. ⚠️ Two layouts under review — see
-             `scopeLayout`. -->
-        <!-- Placeholder while the scope is parked — see `SHOW_FULL_SCOPE`. -->
-        <div
-          v-if="!SHOW_FULL_SCOPE"
-          class="mx-auto mt-24 max-w-[800px] rounded-6 border border-dashed border-outline-gray-3 px-6 py-24 text-center"
+        <!-- ── What the sessions cover ───────────────────────────────────────
+             800px, in two columns from `md`: the heading on the left, scrolling
+             with the page, and the rows on the right — so a
+             closed row isn't an icon and a word on an 800px line. Rules
+             between the rows only. An open row's points run with commas —
+             see `commas`. -->
+        <section
+          class="mx-auto mt-36 max-w-[800px] md:grid md:grid-cols-[240px_minmax(0,1fr)] md:gap-12"
+          aria-labelledby="pack-scope"
         >
-          <p class="text-base font-medium text-ink-gray-7">Full scope goes here</p>
-          <p class="mx-auto mt-2 max-w-[520px] text-pretty text-p-sm text-ink-gray-6">
-            For developers: this section will be added once each module’s scope is locked. The
-            data is ready (<code>fullScope</code> in <code>data/packs.js</code>), and two candidate
-            layouts are in this file behind <code>SHOW_FULL_SCOPE</code>.
-          </p>
-        </div>
-        <section v-else class="mx-auto mt-24 max-w-[800px]" aria-labelledby="pack-scope">
-          <h2 id="pack-scope" class="text-lg font-semibold text-ink-gray-8">Full scope</h2>
-
-          <!-- Tabs: one module showing at a time, the first by default, so the
-               section is never a list of closed names. Its three groups are
-               filled cards, all as tall as the longest; stacked on a phone. -->
-          <template v-if="scopeLayout === 'tabs'">
-            <div class="mt-6 overflow-x-auto">
-              <TabButtons v-model="scopeTab" :options="scopeTabs" />
+          <div class="md:self-start md:pt-5">
+            <h2 id="pack-scope" class="text-lg font-semibold text-ink-gray-8">
+              What the sessions cover
+            </h2>
+            <p v-if="isErpnext" class="mt-2 text-p-base text-ink-gray-6">
+              Setup first, then each module, then your data and users.
+            </p>
+            <Button
+              class="mt-4"
+              variant="subtle"
+              label="Read the full terms"
+              @click="termsOpen = true"
+            />
+          </div>
+          <!-- HR and Payroll: two short modules, so no accordion — both open,
+               side by side, every point on its own line. -->
+          <div v-if="!isErpnext" class="mt-6 grid gap-8 sm:grid-cols-2 md:mt-0 md:pt-5">
+            <div v-for="m in scope" :key="m.key">
+              <h3 class="flex items-center gap-3 text-base font-semibold text-ink-gray-7">
+                <component :is="m.icon" class="size-4 shrink-0 text-ink-gray-6" aria-hidden="true" />
+                {{ m.label }}
+              </h3>
+              <ul class="mt-3 space-y-1.5 text-p-base text-ink-gray-7">
+                <li v-for="(point, i) in pointsOf(m)" :key="i">{{ point }}</li>
+              </ul>
             </div>
-            <template v-for="m in scope" :key="m.key">
-              <div v-if="m.key === scopeTab" class="mt-4 grid gap-2 sm:grid-cols-3">
-                <div
-                  v-for="k in SCOPE_KINDS.filter((kind) => m[kind.key].length)"
-                  :key="k.key"
-                  class="rounded-4 bg-surface-gray-1 p-4"
-                >
-                  <p class="text-sm font-medium text-ink-gray-5">{{ k.label }}</p>
-                  <ul class="mt-2 space-y-1.5 text-p-sm text-ink-gray-7">
-                    <li v-for="item in m[k.key]" :key="item">{{ item }}</li>
-                  </ul>
-                </div>
-              </div>
-            </template>
-          </template>
-
-          <!-- Cards: one bordered card per module, closed, any number open.
-               The card is the only box, so inside the groups are plain
-               labelled columns, no fill. -->
-          <AccordionRoot v-else :key="pack.value" type="multiple" class="mt-6 space-y-3">
-            <AccordionItem
-              v-for="m in scope"
-              :key="m.key"
-              :value="m.key"
-              class="group rounded-6 border border-outline-gray-1"
-            >
+          </div>
+          <AccordionRoot
+            v-else
+            :key="pack.value"
+            type="single"
+            collapsible
+            class="mt-4 divide-y divide-outline-gray-1 md:mt-0"
+          >
+            <AccordionItem v-for="m in scope" :key="m.key" :value="m.key" class="group py-5">
               <AccordionHeader as="h3">
                 <AccordionTrigger
-                  class="flex w-full items-center justify-between gap-4 rounded-6 px-5 py-4 text-left text-base font-medium text-ink-gray-8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-outline-gray-3"
+                  class="flex w-full items-center gap-3 rounded-4 text-left text-base font-semibold text-ink-gray-7 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-outline-gray-3"
                 >
-                  {{ m.label }}
+                  <component :is="m.icon" class="size-4 shrink-0 text-ink-gray-6" aria-hidden="true" />
+                  <span class="flex-1">{{ m.label }}</span>
                   <LucideMinus
                     class="hidden size-4 shrink-0 text-ink-gray-5 group-data-[state=open]:block"
                     aria-hidden="true"
@@ -533,37 +532,38 @@ const reviews = computed(() => (pack.value && REVIEWS[pack.value.value]) ?? [])
                 </AccordionTrigger>
               </AccordionHeader>
               <AccordionContent class="fc-accordion-content overflow-hidden">
-                <div class="grid gap-x-6 gap-y-5 px-5 pb-5 pt-1 sm:grid-cols-3">
-                  <div v-for="k in SCOPE_KINDS.filter((kind) => m[kind.key].length)" :key="k.key">
-                    <p class="text-sm font-medium text-ink-gray-5">{{ k.label }}</p>
-                    <ul class="mt-2 space-y-1.5 text-p-sm text-ink-gray-7">
-                      <li v-for="item in m[k.key]" :key="item">{{ item }}</li>
-                    </ul>
+                <div class="pt-3">
+                  <p v-if="m.sentence" class="text-p-base text-ink-gray-7">{{ m.sentence }}</p>
+                  <div v-else-if="m.lines" class="space-y-1.5 text-p-base text-ink-gray-7">
+                    <p v-for="(line, i) in m.lines" :key="i">{{ commas(line) }}</p>
                   </div>
+                  <p v-else-if="isProse(pointsOf(m))" class="text-p-base text-ink-gray-7">
+                    {{ commas(pointsOf(m)) }}
+                  </p>
+                  <ul v-else class="space-y-1.5 text-p-base text-ink-gray-7">
+                    <li v-for="(point, i) in pointsOf(m)" :key="i">{{ point }}</li>
+                  </ul>
                 </div>
               </AccordionContent>
             </AccordionItem>
           </AccordionRoot>
         </section>
+        <PackTermsDialog v-model:open="termsOpen" :region="region" agreed />
 
         <!-- ── Reviews ────────────────────────────────────────────────────
              The partner profile's review row (`PartnerReviewsSection`): who
              wrote it, then what they said. No rating or date: these are picked,
              not a feed. The reviews are placeholders —
              see `REVIEWS`. -->
-        <section v-if="reviews.length" class="mx-auto mt-24 max-w-[600px]" aria-label="What customers say">
-          <div class="divide-y divide-outline-gray-1">
-            <article v-for="r in reviews" :key="r.name" class="py-5">
-              <div class="flex items-start gap-3">
-                <!-- ⚠️ Placeholder: a plain circle, no initial — the person is
-                     invented. -->
-                <Avatar class="size-9 shrink-0" />
-                <div class="min-w-0 flex-1">
-                  <p class="text-base font-medium text-ink-gray-8">{{ r.name }}</p>
-                  <p class="mt-1 text-base text-ink-gray-6">{{ r.company }}</p>
-                </div>
-              </div>
-              <p class="mt-3 text-p-base text-ink-gray-7">{{ r.text }}</p>
+        <!-- 800px, the heading over the reviews two across — no rules; the
+             columns keep them apart. -->
+        <section v-if="reviews.length" class="mx-auto mt-48 max-w-[800px]" aria-labelledby="pack-reviews">
+          <h2 id="pack-reviews" class="text-lg font-semibold text-ink-gray-8">What customers say</h2>
+          <div class="mt-6 grid gap-x-8 gap-y-8 sm:grid-cols-2">
+            <article v-for="r in reviews" :key="r.name">
+              <p class="text-p-base text-ink-gray-7">{{ r.text }}</p>
+              <p class="mt-3 text-base font-medium text-ink-gray-8">{{ r.name }}</p>
+              <p class="mt-1 text-base text-ink-gray-6">{{ r.company }}</p>
             </article>
           </div>
         </section>
@@ -578,8 +578,5 @@ const reviews = computed(() => (pack.value && REVIEWS[pack.value.value]) ?? [])
              repeated here, so the shared lists have one place to drift from. -->
       </template>
     </div>
-    <template v-if="cartOpen && pack" #panel>
-      <PackCartPanel :region="region" @close="cartOpen = false" />
-    </template>
   </ConnectShell>
 </template>
