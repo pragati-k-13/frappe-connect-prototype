@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Button } from 'frappe-ui'
 import {
   AccordionContent,
@@ -20,6 +20,7 @@ import IconData from '~icons/lucide/database'
 import IconTrade from '~icons/lucide/arrow-right-left'
 import { appLogo } from '../data/apps'
 import IconCheck from '~icons/lucide/check'
+import IconBag from '~icons/lucide/shopping-bag'
 import IconRupee from '~icons/lucide/receipt-indian-rupee'
 import IconReconcile from '~icons/lucide/arrow-left-right'
 import IconStatements from '~icons/lucide/chart-line'
@@ -169,7 +170,13 @@ const addToBasket = () => {
 // state, same control, wherever a pack is shown.
 const removeFromBasket = () => pack.value && store.togglePack(pack.value.value)
 
-// The cart is the bag in the shell's bar, which goes to the cart page.
+// The cart sits beside Add, as the catalogue's sits beside its total: the
+// count changes next to the click that changed it. Always shown, so the row
+// doesn't jump when the first pack goes in.
+const router = useRouter()
+const viewCartLabel = computed(() =>
+  store.packs.length ? `View cart (${store.packs.length})` : 'View cart',
+)
 
 // The terms — price and hours — sit together under the name, beside Add, as
 // one statement of the deal.
@@ -291,50 +298,6 @@ const pointsOf = (m) => [...(m.flow ?? m.items), ...(m.reports ?? [])]
 const isProse = (points) => points.every((p) => p.length <= 32)
 const commas = (points) =>
   points.map((p, i) => (i && /^[A-Z][a-z]/.test(p) ? p[0].toLowerCase() + p.slice(1) : p)).join(', ')
-
-// What customers said about each pack, in the partner profile's review format.
-// ⚠️ PLACEHOLDER: every review, name and company below is INVENTED for the
-// mock. Replace with real, consented reviews before this ships. They credit
-// "the team", never Frappe, so they hold whoever implements the pack.
-const REVIEWS = {
-  'accounts-sales-purchase-stock': [
-    {
-      name: 'Priya Nair',
-      company: 'Nair Textiles Pvt Ltd',
-      text: 'We closed our first month in ERPNext with the bank reconciled and GST filed from it. Five sessions was enough to stop running two systems.',
-    },
-    {
-      name: 'Arjun Mehta',
-      company: 'Mehta Hardware Traders',
-      text: 'Quotes, orders and invoices now come off one record. Item setup took longer than planned because our masters were messy, but the team sorted them with us.',
-    },
-  ],
-  manufacturing: [
-    {
-      name: 'Rahul Deshmukh',
-      company: 'Deshmukh Auto Components',
-      text: 'Our BOMs lived in spreadsheets nobody trusted. By the last session, work orders were pulling materials from stock on their own.',
-    },
-    {
-      name: 'Kavita Rao',
-      company: 'Rao Packaging Industries',
-      text: 'Job cards per workstation were the win for us. Ten hours felt tight for five modules, so come with your data ready.',
-    },
-  ],
-  hrms: [
-    {
-      name: 'Anita Joseph',
-      company: 'Brightpath Services',
-      text: 'Payroll used to take us three days. Our first run took an afternoon, with every slip checked before it went out.',
-    },
-    {
-      name: 'Sameer Khan',
-      company: 'Khan Logistics',
-      text: 'Leave policies and shifts are set up the way we actually work. Salary structures needed a second pass, but it was done within the sessions.',
-    },
-  ],
-}
-const reviews = computed(() => (pack.value && REVIEWS[pack.value.value]) ?? [])
 </script>
 
 <template>
@@ -353,8 +316,6 @@ const reviews = computed(() => (pack.value && REVIEWS[pack.value.value]) ?? [])
     root-label="Starter Packs"
     root-to="/connect/packs"
     :crumb="pack ? pack.name : 'Starter Pack'"
-    :auth-cta="false"
-    cart
   >
     <div class="fc-page-wide py-8">
       <!-- No pack in the store: someone reached this by URL rather than by
@@ -443,20 +404,25 @@ const reviews = computed(() => (pack.value && REVIEWS[pack.value.value]) ?? [])
               </li>
             </ul>
 
-            <!-- Add, after what the pack gets you: read, then buy. Across the
-                 column's full width. Adds to the basket and stays; once in,
-                 "In cart" — see `removeFromBasket`. -->
-            <Button
-              class="mt-4 w-full"
-              size="md"
-              :variant="inBasket ? 'subtle' : 'solid'"
-              :label="inBasket ? 'In cart' : 'Add to cart'"
-              @click="inBasket ? removeFromBasket() : addToBasket()"
-            >
-              <template v-if="inBasket" #prefix>
-                <IconCheck class="size-4" />
-              </template>
-            </Button>
+            <!-- Add, after what the pack gets you: read, then buy. Adds to the
+                 basket and stays; once in, "In cart" — see `removeFromBasket`.
+                 Add takes the width; the cart is the subtle one beside it. -->
+            <div class="mt-4 flex gap-2">
+              <Button
+                class="flex-1"
+                size="md"
+                :variant="inBasket ? 'subtle' : 'solid'"
+                :label="inBasket ? 'In cart' : 'Add to cart'"
+                @click="inBasket ? removeFromBasket() : addToBasket()"
+              >
+                <template v-if="inBasket" #prefix>
+                  <IconCheck class="size-4" />
+                </template>
+              </Button>
+              <Button variant="subtle" size="md" :label="viewCartLabel" @click="router.push({ name: 'cart' })">
+                <template #prefix><IconBag class="size-4" aria-hidden="true" /></template>
+              </Button>
+            </div>
 
             <section class="mt-10" aria-labelledby="pack-how">
               <h2 id="pack-how" class="text-base font-medium text-ink-gray-8">How it works</h2>
@@ -494,24 +460,14 @@ const reviews = computed(() => (pack.value && REVIEWS[pack.value.value]) ?? [])
               @click="termsOpen = true"
             />
           </div>
-          <!-- HR and Payroll: two short modules, so no accordion — both open,
-               side by side, every point on its own line. -->
-          <div v-if="!isErpnext" class="mt-6 grid gap-8 sm:grid-cols-2 md:mt-0 md:pt-5">
-            <div v-for="m in scope" :key="m.key">
-              <h3 class="flex items-center gap-3 text-base font-semibold text-ink-gray-7">
-                <component :is="m.icon" class="size-4 shrink-0 text-ink-gray-6" aria-hidden="true" />
-                {{ m.label }}
-              </h3>
-              <ul class="mt-3 space-y-1.5 text-p-base text-ink-gray-7">
-                <li v-for="(point, i) in pointsOf(m)" :key="i">{{ point }}</li>
-              </ul>
-            </div>
-          </div>
+          <!-- HR and Payroll: the same rows, but both open from the start and
+               open together — two short modules closed would leave the
+               section empty. -->
           <AccordionRoot
-            v-else
             :key="pack.value"
-            type="single"
-            collapsible
+            :type="isErpnext ? 'single' : 'multiple'"
+            :collapsible="isErpnext"
+            :default-value="isErpnext ? undefined : scope.map((m) => m.key)"
             class="mt-4 divide-y divide-outline-gray-1 md:mt-0"
           >
             <AccordionItem v-for="m in scope" :key="m.key" :value="m.key" class="group py-5">
@@ -537,7 +493,8 @@ const reviews = computed(() => (pack.value && REVIEWS[pack.value.value]) ?? [])
                   <div v-else-if="m.lines" class="space-y-1.5 text-p-base text-ink-gray-7">
                     <p v-for="(line, i) in m.lines" :key="i">{{ commas(line) }}</p>
                   </div>
-                  <p v-else-if="isProse(pointsOf(m))" class="text-p-base text-ink-gray-7">
+                  <!-- HR and Payroll always as a sentence, long points and all. -->
+                  <p v-else-if="!isErpnext || isProse(pointsOf(m))" class="text-p-base text-ink-gray-7">
                     {{ commas(pointsOf(m)) }}
                   </p>
                   <ul v-else class="space-y-1.5 text-p-base text-ink-gray-7">
@@ -550,28 +507,9 @@ const reviews = computed(() => (pack.value && REVIEWS[pack.value.value]) ?? [])
         </section>
         <PackTermsDialog v-model:open="termsOpen" :region="region" agreed />
 
-        <!-- ── Reviews ────────────────────────────────────────────────────
-             The partner profile's review row (`PartnerReviewsSection`): who
-             wrote it, then what they said. No rating or date: these are picked,
-             not a feed. The reviews are placeholders —
-             see `REVIEWS`. -->
-        <!-- 800px, the heading over the reviews two across — no rules; the
-             columns keep them apart. -->
-        <section v-if="reviews.length" class="mx-auto mt-48 max-w-[800px]" aria-labelledby="pack-reviews">
-          <h2 id="pack-reviews" class="text-lg font-semibold text-ink-gray-8">What customers say</h2>
-          <div class="mt-6 grid gap-x-8 gap-y-8 sm:grid-cols-2">
-            <article v-for="r in reviews" :key="r.name">
-              <p class="text-p-base text-ink-gray-7">{{ r.text }}</p>
-              <p class="mt-3 text-base font-medium text-ink-gray-8">{{ r.name }}</p>
-              <p class="mt-1 text-base text-ink-gray-6">{{ r.company }}</p>
-            </article>
-          </div>
-        </section>
-
-
         <!-- Room under the last section; the closing Add row that sat here is
              gone, so the header's pair is the page's only one. -->
-        <div class="pb-24" aria-hidden="true" />
+        <div class="pb-16" aria-hidden="true" />
 
         <!-- How it works, True of every pack and the terms are on the
              recommendation screen, where the basket is checked out — not

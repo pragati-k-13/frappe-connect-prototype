@@ -3,7 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, Combobox, FormControl } from 'frappe-ui'
 import AuthShell from '../components/AuthShell.vue'
-import { COUNTRY_OPTIONS } from '../data/company'
+import { COUNTRY_OPTIONS_INDIA_ONLY, SELECTABLE_COUNTRY } from '../data/company'
 import { isEmail, resumeLineFor, useAuthExit } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 
@@ -46,7 +46,8 @@ const form = reactive({
   name: store.viewer.name ?? '',
   email: store.viewer.email ?? '',
   company: store.company.name || store.viewer.company || '',
-  country: store.company.country || 'India',
+  // India only for now — see `COUNTRY_OPTIONS_INDIA_ONLY`.
+  country: SELECTABLE_COUNTRY,
 })
 
 // Errors are only shown after a submit attempt. Validating as you type means
@@ -144,7 +145,7 @@ useAuthExit()
         label="Country"
         placeholder="Select a country"
         trigger="button"
-        :options="COUNTRY_OPTIONS"
+        :options="COUNTRY_OPTIONS_INDIA_ONLY"
         :error="errors.country"
       />
 

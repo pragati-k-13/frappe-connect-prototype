@@ -7,7 +7,6 @@ import NewProjectDialog from './NewProjectDialog.vue'
 import ProjectRow from './ProjectRow.vue'
 import PartnerList from './PartnerList.vue'
 import PartnerRow from './PartnerRow.vue'
-import IconPlus from '~icons/lucide/plus'
 import IconHeart from '~icons/lucide/heart'
 import IconComment from '~icons/lucide/message-square'
 import { EVENTS, POSTS, RESOURCES } from '../data/home'
@@ -63,6 +62,9 @@ const savedShown = computed(() => saved.value.slice(0, SAVED_SHOWN))
 // whichever screen it is started from.
 const creating = ref(false)
 const startSomething = () => (creating.value = true)
+// "New project" is in the shell's bar (`ConnectLandingPage`), which opens the
+// dialog this component owns.
+defineExpose({ startSomething })
 // Events lead with the date, split so the day can be the large figure.
 const eventDate = (iso) => {
   const d = new Date(`${iso}T00:00:00`)
@@ -92,11 +94,6 @@ const create = (details) => {
         <h1 class="text-2xl font-semibold text-ink-gray-8">{{ greeting }}</h1>
         <p class="mt-0.5 text-p-base text-ink-gray-6">{{ countLine }}</p>
       </div>
-      <!-- Only once there is a list to add to: with no projects, the empty
-           state's button below is the one thing this screen asks for. -->
-      <Button v-if="projects.length" variant="subtle" label="New project" @click="startSomething">
-        <template #prefix><IconPlus class="size-4" /></template>
-      </Button>
     </div>
 
     <!-- ── Projects ──────────────────────────────────────────────────── -->
@@ -107,15 +104,6 @@ const create = (details) => {
       <ProjectRow v-for="p in projects" :key="p.id" :project="p" card />
     </div>
 
-    <!-- The account that signed up and has not started anything. The line
-         under the greeting already says nothing is under way, so this only
-         says what to do about it. -->
-    <div v-else class="mt-5 flex flex-col items-start gap-4">
-      <p class="max-w-md text-p-base text-ink-gray-7">
-        Answer a few questions and we will recommend Starter Packs or a custom implementation.
-      </p>
-      <Button variant="solid" label="New project" @click="startSomething" />
-    </div>
 
     <!-- ── Saved partners ────────────────────────────────────────────── -->
     <!-- Hidden when empty: the bookmark on each partner is how this fills,

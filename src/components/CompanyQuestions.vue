@@ -4,7 +4,7 @@ import { Checkbox, Combobox, FormControl, MultiSelect, Radio, RadioGroup } from 
 import {
   APPS_OTHER,
   COMPANY_SIZES,
-  COUNTRY_OPTIONS,
+  COUNTRY_OPTIONS_INDIA_ONLY,
   CURRENT_APPS,
   OPERATIONS,
   PROBLEMS,
@@ -90,7 +90,7 @@ const toggleProblem = (value, on) => {
       placeholder="Select a country"
       trigger="button"
       required
-      :options="COUNTRY_OPTIONS"
+      :options="COUNTRY_OPTIONS_INDIA_ONLY"
       :error="errors.country"
     />
     <FormControl
