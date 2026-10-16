@@ -9,7 +9,12 @@ import {
   SettingsHeader,
   toast,
 } from 'frappe-ui'
-import { COMPANY_SIZES, COUNTRY_OPTIONS, SEGMENT_OPTIONS } from '../../data/company'
+import {
+  COMPANY_SIZES,
+  COUNTRY_OPTIONS_INDIA_ONLY,
+  SEGMENT_OPTIONS,
+  SELECTABLE_COUNTRY,
+} from '../../data/company'
 import { useConnectStore } from '../../stores/connect'
 
 // ⚠️ THE COMPANY, ASKED ONCE. Where it is based, how big and what industry
@@ -21,7 +26,8 @@ const store = useConnectStore()
 
 const saved = () => ({
   name: store.company.name || store.viewer.company,
-  country: store.company.country,
+  // India only for now — see `COUNTRY_OPTIONS_INDIA_ONLY`.
+  country: SELECTABLE_COUNTRY,
   employees: store.company.employees,
   segments: [...(store.company.segments ?? [])],
 })
@@ -56,7 +62,7 @@ const save = () => {
         placeholder="Select a country"
         trigger="button"
         required
-        :options="COUNTRY_OPTIONS"
+        :options="COUNTRY_OPTIONS_INDIA_ONLY"
       />
       <FormControl
         v-model="form.employees"

@@ -2,19 +2,20 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { Button, Dialog, FormControl, MultiSelect } from 'frappe-ui'
 import IconClose from '~icons/lucide/x'
-import IconCircleDashed from '~icons/lucide/circle-dashed'
 import IconDownload from '~icons/lucide/download'
 import { APPS_OTHER, COMPANY_SIZES, CURRENT_APPS, SEGMENT_OPTIONS } from '../data/company'
+import { SESSIONS_PER_PACK } from '../data/packs'
+import PackMark from './PackMark.vue'
 import { useConnectStore } from '../stores/connect'
 
 // Arriving on the project from payment, in two steps — and the company
 // questions on their own, from the task.
 //
-// ⚠️ STEP 1 IS THE MOMENT AND THE MAP. Razorpay has confirmed the payment;
-// this confirms the PROJECT — the check, what was bought in plain words — and
-// then says what happens next, the same three things the page lists, so the
-// page behind is familiar when the dialog closes. Kept short on purpose: a
-// text-only step gets skimmed past.
+// ⚠️ STEP 1 IS THE MOMENT AND THE RECEIPT. Razorpay has confirmed the payment;
+// this confirms the PROJECT — the check, then what was bought, as the cart
+// showed it. No price (the "Pay upfront" task and the invoice have it), and no
+// list of next steps: they are the task list right behind the dialog, and the button names
+// the first. (A welcome video from Frappe is planned for this step.)
 //
 // ⚠️ STEP 2 IS THE COMPANY TASK. Four questions, every one for preparing the
 // sessions: size, industry, what they run today, and anything to focus on
@@ -45,13 +46,6 @@ const booked = computed(() =>
   props.packs.length > 1
     ? 'Your Starter Packs are booked. Everything for them happens here.'
     : 'Your Starter Pack is booked. Everything for it happens here.',
-)
-const NEXT = computed(() =>
-  [
-    props.asksCompany && 'Tell us about your company',
-    'Schedule your kickoff call',
-    'Set up Frappe Cloud',
-  ].filter(Boolean),
 )
 
 const blank = () => ({
@@ -119,8 +113,8 @@ const close = () => emit('update:open', false)
            the button — where it was a centred header over a left-aligned list,
            two axes in one small dialog. -->
       <div v-if="step === 1">
-        <div class="fc-booked grid size-10 place-items-center rounded-full bg-surface-green-2">
-          <svg viewBox="0 0 24 24" class="size-5 text-ink-green-7" fill="none" aria-hidden="true">
+        <div class="fc-booked grid size-8 place-items-center rounded-full bg-surface-green-2">
+          <svg viewBox="0 0 24 24" class="size-4 text-ink-green-7" fill="none" aria-hidden="true">
             <path
               class="fc-booked-check"
               d="M5 12.5l4.5 4.5L19 7.5"
@@ -132,18 +126,22 @@ const close = () => emit('update:open', false)
           </svg>
         </div>
         <h2 class="mt-4 text-xl font-semibold text-ink-gray-8">{{ heading }}</h2>
-        <p class="mt-1.5 text-p-base text-ink-gray-6">{{ booked }}</p>
+        <p class="mt-1.5 text-pretty text-p-base text-ink-gray-6">{{ booked }}</p>
 
-        <!-- ⚠️ THE PAGE'S TASKS, NOT THIS DIALOG'S STEPS: the task list's own
-             dashed marks and no numbers, so the list reads as the to-do list
-             behind the dialog. Numbered, over a Continue, it read as three
-             screens still to come in here. -->
-        <p class="mt-6 text-base font-medium text-ink-gray-8">Your next steps</p>
-        <ul class="mt-3 space-y-3">
-          <li v-for="(item, i) in NEXT" :key="item" class="flex items-center gap-2.5 text-p-base">
-            <IconCircleDashed class="size-4 shrink-0 text-ink-gray-5" aria-hidden="true" />
-            <span :class="i === 0 ? 'font-medium text-ink-gray-8' : 'text-ink-gray-7'">{{ item }}</span>
-          </li>
+        <!-- What was booked, in the cart's own form: mark, name, hours. No
+             price — payment is confirmed already, on the "Pay upfront" task
+             and the invoice below. On the dialog's surface, no card; rules
+             between packs only. -->
+        <ul class="mt-6 divide-y divide-outline-gray-1">
+            <li v-for="p in packs" :key="p.value" class="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+              <PackMark :pack="p" size="md" />
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-base font-semibold text-ink-gray-8">{{ p.name }}</p>
+                <p class="mt-1 text-p-sm text-ink-gray-6">
+                  {{ p.hours }} hrs within {{ SESSIONS_PER_PACK }} sessions
+                </p>
+              </div>
+            </li>
         </ul>
 
         <!-- Stacked, both full width: the footer spans the dialog evenly under

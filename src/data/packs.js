@@ -1,9 +1,9 @@
 // The Starter Pack catalogue.
 //
 // Everything here except the non-India prices is REAL: the module-by-module
-// scope tables, what ships with every pack, what is strictly excluded and the
-// commercial and contractual terms come from "Starter Pack Scope Document –
-// India" (ERPNext & Frappe HR). That document is the contract a customer buys,
+// scope tables, what ships with every pack and what is strictly excluded come
+// from "Starter Pack Scope Document – India" (ERPNext & Frappe HR); the terms
+// come from the newer Starter Pack scope document (see `termsSectionsFor`). That document is the contract a customer buys,
 // so this file is the one place its wording lives; the pack detail modal
 // renders it rather than paraphrasing it.
 //
@@ -821,51 +821,84 @@ export const PACK_FIT_TESTS = PACK_BLOCKERS.map((e) => ({
   fits: BOTH_WAYS[e.label]?.fits ?? e.label,
 }))
 
-// Section 8.
-export const CUSTOMER_RESPONSIBILITIES = [
-  'Keep strictly to the scope',
-  'Nominate a project champion',
-  'Have your data ready',
-  'Approve internally without delay',
-  'Make your users available for training',
+// HOW IT WORKS, worded once for every screen that shows it: the catalogue
+// draws `title` and `body` in three columns, the cart's rail the `title`
+// alone, so each title has to stand on its own. The order is the flow as
+// built — payment, then the company questions on the project (a required
+// task before the kickoff), then the sessions.
+// ⚠️ "Guided", never "implemented": implementation and consulting are
+// partners' work, and the scope document sells onboarding.
+export const packStepsFor = (region = DEFAULT_REGION) => [
+  {
+    key: 'pay',
+    title: 'Pay Frappe upfront, at one fixed price',
+    body: `Plus ${pricingFor(region).tax}. Nothing in the pack's scope costs extra.`,
+  },
+  {
+    key: 'company',
+    title: 'Tell us about your company',
+    body: 'A few questions on your project, answered before the kickoff call.',
+  },
+  {
+    key: 'sessions',
+    title: 'Join live sessions with Frappe onboarding specialists',
+    body: 'Scheduled in advance, one module at a time.',
+  },
 ]
 
-// Sections 6 and 7, with the region-dependent figures left as functions so a
-// non-India reader isn't quoted rupees. The Frappe Cloud warranty threshold
-// stays in rupees because that's the plan price Frappe publishes.
-// ⚠️ GROUPED, because thirteen terms in one list is a wall nobody reads. The
-// terms dialog renders these as sections; `commercialTermsFor` flattens the
-// commercial ones back into the list the recommendation screen discloses, so
-// there is still one source for every line.
+// What the customer owes: attending on time is the scope document's term 3;
+// the project champion is kept by decision from the earlier document.
+export const CUSTOMER_RESPONSIBILITIES = [
+  'Nominate a project champion',
+  'Attend each session at its scheduled time',
+]
+
+// The "Terms & Conditions" of the new Starter Pack scope document, in its
+// order, plus payment in advance and tax, which it doesn't state. Extra
+// hours, validity, the user limit and the warranty threshold are not in it,
+// so they are not here.
+// ⚠️ Two terms are worded for the lineup, not copied. The document describes
+// one ERPNext pack of 5 one-hour sessions covering five modules; the packs
+// here differ in hours and modules, so these lines name "your pack" instead.
+// The eligibility figure is the same one the hosting line quotes.
+// ⚠️ GROUPED: the terms dialog renders these as sections; `commercialTermsFor`
+// flattens all but the customer's part back into one list for the
+// recommendation screen, so there is still one source for every line.
 export const termsSectionsFor = (region = DEFAULT_REGION) => {
-  const p = pricingFor(region)
+  const h = HOSTING_FROM[region] ?? HOSTING_FROM_USD
   return [
     {
-      key: 'payment',
-      label: 'Payment',
+      key: 'eligibility',
+      label: 'Eligibility',
+      lines: [`For Frappe Cloud customers on plans of ${money(h.amount, h)}/month and above`],
+    },
+    {
+      key: 'sessions',
+      label: 'Sessions',
       lines: [
-        // "to Frappe": a pack is bought from Frappe and implemented by
-        // Frappe's own team, so there is no partner to pay.
-        'Payment to Frappe in full, in advance',
-        `${p.tax} charged on top`,
-        `Extra hours beyond the pack: ${additionalHourRateFor(region)} per hour, plus ${p.tax}`,
+        "Your pack's hours are guided onboarding sessions, scheduled in advance",
+        "Missed sessions can't be rescheduled or carried forward, and count as used",
       ],
     },
     {
       key: 'scope',
-      label: 'Scope and validity',
+      label: 'Scope',
       lines: [
-        'Scope is limited to what the pack lists. Anything else is a change request, and more hours',
-        'Validity runs from the project start date',
-        'For businesses running fewer than 50 users',
+        'Covers the modules your pack lists, and their basic, standard features',
+        'Other modules and advanced features are outside the scope',
+        'Topics outside the scope can be explored through ERPNext documentation, videos and community resources, or with an ERPNext partner',
+        'Frappe decides whether a question, request or use case is in scope',
       ],
     },
     {
-      key: 'hosting',
-      label: 'Hosting',
+      key: 'payment',
+      label: 'Payment',
       lines: [
-        'Your Frappe Cloud subscription is billed separately',
-        'Product warranty applies on Frappe Cloud plans above ₹4,100 + GST a month',
+        // Not in the scope document, kept by decision: a pack is bought from
+        // Frappe and paid for at checkout, with tax added there.
+        'Payment to Frappe in full, in advance',
+        `${pricingFor(region).tax} charged on top`,
+        'Fees are non-refundable and non-transferable',
       ],
     },
     { key: 'responsibilities', label: 'What we need from you', lines: CUSTOMER_RESPONSIBILITIES },

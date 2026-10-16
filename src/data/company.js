@@ -32,6 +32,17 @@ export const COMPANY_STEPS = 3
 // the intake form reads.
 export { COUNTRY_OPTIONS }
 
+// ⚠️ INDIA ONLY, FOR NOW, on every form that asks the country — sign-up, the
+// company questions and settings. The full list still shows, so the forms
+// read as ones that will open to other markets, but only India can be picked:
+// Starter Packs are priced, taxed and scoped for India alone (see
+// `REGION_PRICING`). Lift it here and all three open together.
+export const SELECTABLE_COUNTRY = 'India'
+export const COUNTRY_OPTIONS_INDIA_ONLY = COUNTRY_OPTIONS.map((g) => ({
+  ...g,
+  options: g.options.map((o) => ({ ...o, disabled: o.value !== SELECTABLE_COUNTRY })),
+}))
+
 // ⚠️ PLACEHOLDER BANDS, invented — nothing in the repo defines sizes. The 50
 // matters more than it looks: Starter Packs are scoped "for businesses running
 // under 50 users", so this is the first answer that could tell someone the pack
@@ -126,7 +137,7 @@ export const PROBLEMS = [
 ]
 
 export const emptyCompanyForm = () => ({
-  country: '',
+  country: SELECTABLE_COUNTRY,
   employees: '',
   segments: [],
   apps: [],

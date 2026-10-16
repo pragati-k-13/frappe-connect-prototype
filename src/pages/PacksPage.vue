@@ -34,6 +34,7 @@ import {
   marketFor,
   DEFAULT_REGION,
   hostingLineFor,
+  packStepsFor,
 } from '../data/packs'
 import { INDUSTRIES } from '../data/quiz'
 
@@ -95,8 +96,8 @@ const heroPoints = ['Fixed price', '3x faster', 'Frappe-vetted']
 // document's wording — ⚠️ a line added or dropped there has to be added or
 // dropped here too.
 // ⚠️ PARKED: this section is being replaced. Until the new version is ready
-// it isn't rendered; a placeholder for developers stands in its place. Flip
-// this to bring the current version back.
+// it isn't rendered, and nothing stands in its place. Flip this to bring the
+// current version back.
 const SHOW_COVERAGE = false
 
 const coverage = [
@@ -114,23 +115,12 @@ const coverage = [
   },
 ]
 
-const steps = [
-  {
-    icon: LucideCreditCard,
-    title: 'Pay in full to Frappe upfront',
-    body: 'One fixed price, paid before work begins. Nothing in scope costs extra.',
-  },
-  {
-    icon: LucideCalendarCheck,
-    title: 'Schedule your kickoff call',
-    body: 'Meet your implementation team to confirm the scope and a start date.',
-  },
-  {
-    icon: LucideTimer,
-    title: 'Commit to the Sprint',
-    body: 'Done within five sessions, with your data and project champion ready.',
-  },
-]
+// The steps' words are `packStepsFor`, shared with the cart; only the icons
+// are this page's.
+const STEP_ICONS = { pay: LucideCreditCard, company: LucideCalendarCheck, sessions: LucideTimer }
+const steps = computed(() =>
+  packStepsFor(region.value).map((s) => ({ ...s, icon: STEP_ICONS[s.key] })),
+)
 
 
 // "What's included", in a dialog over the list — as on the recommendation
@@ -326,10 +316,10 @@ const viewCartLabel = computed(() =>
 </script>
 
 <template>
-  <!-- Nothing in the bar: no "Log in or create account" here; the cart is
-       where a visitor signs up. -->
-  <ConnectShell root-label="Starter Packs" root-to="/connect/packs" :auth-cta="false">
-    <div class="mx-auto w-full max-w-[800px] pb-36 pt-8">
+  <!-- The bar's "Log in or create account" stays: someone who already has an
+       account needs a way in before they reach the cart. -->
+  <ConnectShell root-label="Starter Packs" root-to="/connect/packs">
+    <div class="mx-auto w-full max-w-[800px] pb-24 pt-8">
       <!-- ── Hero ─────────────────────────────────────────────────────────
            Text left, video right, vertically centred on each other. Stacks
            below `md`. The price rail that used to sit beside the column is
@@ -393,8 +383,7 @@ const viewCartLabel = computed(() =>
              checked against the grid above it. -->
         <div class="mt-6 flex items-center justify-between gap-4">
           <div>
-            <p class="text-sm text-ink-gray-6">Total</p>
-            <p class="mt-1 text-2xl font-semibold tabular-nums text-ink-gray-9">{{ total }}</p>
+            <p class="text-2xl font-semibold tabular-nums text-ink-gray-9">{{ total }}</p>
             <p class="mt-1 text-p-sm text-ink-gray-6">{{ hostingLineFor(region) }}</p>
           </div>
           <Button variant="subtle" size="md" :label="viewCartLabel" @click="viewCart">
@@ -442,7 +431,7 @@ const viewCartLabel = computed(() =>
           Go live with ERPNext <em>now</em>
         </h2>
         <ol class="mt-8 grid gap-8 md:grid-cols-3">
-          <li v-for="step in steps" :key="step.title">
+          <li v-for="step in steps" :key="step.key">
             <component :is="step.icon" class="size-5 text-ink-gray-6" aria-hidden="true" />
             <h3 class="mt-4 text-base font-medium text-ink-gray-9">{{ step.title }}</h3>
             <p class="mt-1.5 text-pretty text-p-base text-ink-gray-6">{{ step.body }}</p>
@@ -483,17 +472,6 @@ const viewCartLabel = computed(() =>
            Two sections, not a two-sided card: a buyer reads what they get
            before what costs extra. Same shape as each other — an icon, a
            title and one line — so neither reads as fine print. -->
-      <!-- Placeholder while the section is parked — see `SHOW_COVERAGE`. -->
-      <div
-        v-if="!SHOW_COVERAGE"
-        class="mt-48 rounded-6 border border-dashed border-outline-gray-3 px-6 py-24 text-center"
-      >
-        <p class="text-base font-medium text-ink-gray-7">What every pack includes goes here</p>
-        <p class="mx-auto mt-2 max-w-[520px] text-pretty text-p-sm text-ink-gray-6">
-          For developers: this section will be replaced. The current version is in this file
-          behind <code>SHOW_COVERAGE</code>.
-        </p>
-      </div>
       <section
         v-for="group in SHOW_COVERAGE ? coverage : []"
         :key="group.key"

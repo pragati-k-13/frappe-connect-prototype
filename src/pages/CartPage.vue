@@ -5,18 +5,17 @@ import ConnectShell from '../components/ConnectShell.vue'
 import PackBasket from '../components/PackBasket.vue'
 import { Button } from 'frappe-ui'
 import { List, ListCell, ListRow } from 'frappe-ui/list'
-import IconCheck from '~icons/lucide/check'
-import IconHours from '~icons/lucide/clock'
-import IconModules from '~icons/lucide/boxes'
 import IconBag from '~icons/lucide/shopping-bag'
+import PackMark from '../components/PackMark.vue'
 import {
   STARTER_PACKS,
   packModules,
   priceFor,
   marketFor,
   DEFAULT_REGION,
+  packStepsFor,
+  SESSIONS_PER_PACK,
 } from '../data/packs'
-import { appLogo } from '../data/apps'
 import { useConnectStore } from '../stores/connect'
 import { basketReturnTo, useBasketReturn } from '../utils/auth'
 
@@ -49,13 +48,9 @@ const checkout = () => {
   router.push({ name: 'checkout' })
 }
 
-// One check for every reason: they're a list of what you get, and three
-// different pictures made three different kinds of thing out of it.
-const WHY = [
-  'Implemented by Frappe’s own team',
-  'Fixed price, fixed scope',
-  // No "Live in N days": the current scope document promises no timeline.
-]
+// What happens after paying, not why to buy: someone in the cart has already
+// decided. The catalogue's steps, titles only — see `packStepsFor`.
+const steps = computed(() => packStepsFor(region.value))
 </script>
 
 <template>
@@ -69,7 +64,7 @@ const WHY = [
         <div class="min-w-0" :class="!inCart.length && 'lg:col-span-2'">
           <!-- Only over line items: empty, the empty state's words are the
                heading. -->
-          <h1 v-if="inCart.length" class="text-2xl font-semibold text-ink-gray-8">Your cart</h1>
+          <h1 v-if="inCart.length" class="text-lg font-semibold text-ink-gray-7">Your cart</h1>
 
           <!-- ── Empty: the page is the empty state ────────────────────
                A gray bag over a few words, unframed, with the
@@ -98,7 +93,7 @@ const WHY = [
             <!-- frappe-ui's List, feed mode: logo, content, trailing. Static
                  rows (they carry their own Remove), so no hover surface and
                  no content inset; dividers start at the text edge. -->
-            <List class="mt-1 [--list-gap:0.75rem]">
+            <List class="mt-1 [--list-gap:1rem]">
               <ListRow
                 v-for="pack in inCart"
                 :key="pack.value"
@@ -107,22 +102,21 @@ const WHY = [
               >
                 <!-- `self-start` on each cell: List centres cells in the row,
                      and the logo, name and price should share a top edge. -->
+                <!-- ⚠️ THE ROW IS THE PAGE'S ANCHOR. A package in a gray box —
+                     the sidebar's mark for packs, see `PackMark` — is the
+                     heaviest shape in the column, and the name and price step
+                     up together. -->
                 <ListCell class="self-start">
-                  <img :src="appLogo(pack.apps[0])" alt="" class="size-8 object-contain" />
+                  <PackMark :pack="pack" />
                 </ListCell>
-                <!-- The anchor beside the total: the name a step up, then the
-                     pack's facts with the catalogue card's own icons, one
-                     lane — so the row reads as the card it was chosen from. -->
                 <ListCell class="self-start">
                   <div class="min-w-0">
-                    <h2 class="text-lg font-semibold text-ink-gray-7">{{ pack.name }}</h2>
-                    <p class="mt-2 flex items-start gap-2 text-p-sm text-ink-gray-6">
-                      <IconModules class="mt-0.5 size-4 shrink-0" />
-                      {{ packModules(pack) }}
-                    </p>
-                    <p class="mt-1 flex items-center gap-2 text-p-sm text-ink-gray-6">
-                      <IconHours class="size-4 shrink-0" />
-                      {{ pack.hours }} hrs of effort
+                    <h2 class="text-xl font-semibold text-ink-gray-8">{{ pack.name }}</h2>
+                    <!-- No icons: the box is the row's picture, and these
+                         lines say what they are. -->
+                    <p class="mt-1.5 text-p-sm text-ink-gray-6">{{ packModules(pack) }}</p>
+                    <p class="mt-1 text-p-sm text-ink-gray-6">
+                      {{ pack.hours }} hrs within {{ SESSIONS_PER_PACK }} sessions
                     </p>
                   </div>
                 </ListCell>
@@ -131,7 +125,7 @@ const WHY = [
                      name. `-mr-2` puts its text on the price's edge. -->
                 <ListCell class="self-start justify-end">
                   <div class="flex flex-col items-end">
-                    <p class="text-lg font-semibold tabular-nums text-ink-gray-7">
+                    <p class="text-xl font-semibold tabular-nums text-ink-gray-8">
                       {{ priceFor(pack, region) }}
                     </p>
                     <Button
@@ -158,17 +152,28 @@ const WHY = [
           <PackBasket :packs="store.packs" :region="region" require-terms @checkout="checkout" />
 
           <div class="rounded-6 border border-outline-gray-2 p-4">
-            <h2 class="text-p-base font-medium text-ink-gray-8">Why Starter Packs?</h2>
-            <ul class="mt-3 space-y-2">
+            <h2 class="text-p-base font-medium text-ink-gray-8">How it works</h2>
+            <!-- A line, not numbers: one dot per step on the first line of its
+                 text, joined by a 1px rule that runs from the first dot to
+                 the last — order without reading as a numbered list. The rule
+                 is each step's own, reaching down to the next step's dot
+                 (10px into the line + the 8px gap), so none follows the last. -->
+            <ol class="mt-3 space-y-2">
               <li
-                v-for="item in WHY"
-                :key="item"
-                class="flex items-center gap-2.5 text-p-sm text-ink-gray-7"
+                v-for="(step, i) in steps"
+                :key="step.key"
+                class="flex gap-2.5 text-p-sm text-ink-gray-6"
               >
-                <IconCheck class="size-4 shrink-0 text-ink-gray-6" />
-                {{ item }}
+                <span class="relative w-4 shrink-0" aria-hidden="true">
+                  <span
+                    v-if="i < steps.length - 1"
+                    class="absolute -bottom-[18px] left-[7.5px] top-[10px] border-l border-outline-gray-3"
+                  />
+                  <span class="absolute left-[5px] top-[7px] size-1.5 rounded-full bg-current text-ink-gray-4" />
+                </span>
+                {{ step.title }}
               </li>
-            </ul>
+            </ol>
           </div>
         </aside>
       </div>

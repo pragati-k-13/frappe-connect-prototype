@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { Dialog } from 'frappe-ui'
+import { Dialog, ScrollArea } from 'frappe-ui'
 import { termsSectionsFor } from '../data/packs'
 
 // The Starter Pack terms, read before they are agreed.
@@ -45,16 +45,20 @@ const actions = computed(() =>
     @update:model-value="emit('update:open', $event)"
   >
     <template #default>
-      <div class="space-y-6">
-        <section v-for="s in sections" :key="s.key">
-          <h4 class="text-base font-medium text-ink-gray-8">{{ s.label }}</h4>
-          <ul class="mt-2 list-disc space-y-1.5 ps-5 marker:text-ink-gray-4">
-            <li v-for="line in s.lines" :key="line" class="text-p-base text-ink-gray-7">
-              {{ line }}
-            </li>
-          </ul>
-        </section>
-      </div>
+      <!-- A ScrollArea, as in `PackScopeDialog`: the scrollbar shows on
+           scroll, not for as long as the dialog is open. -->
+      <ScrollArea class="fc-scroll-dialog -mr-4" viewport-class="pr-4">
+        <div class="space-y-6">
+          <section v-for="s in sections" :key="s.key">
+            <h4 class="text-base font-medium text-ink-gray-8">{{ s.label }}</h4>
+            <ul class="mt-2 list-disc space-y-1.5 ps-5 marker:text-ink-gray-4">
+              <li v-for="line in s.lines" :key="line" class="text-p-base text-ink-gray-7">
+                {{ line }}
+              </li>
+            </ul>
+          </section>
+        </div>
+      </ScrollArea>
     </template>
   </Dialog>
 </template>
