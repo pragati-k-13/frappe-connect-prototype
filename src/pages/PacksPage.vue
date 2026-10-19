@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, nextTick, reactive, ref } from 'vue'
 import { Button, FormControl, toast } from 'frappe-ui'
 import {
   AccordionContent,
@@ -200,6 +200,9 @@ const CURRENT_SOFTWARE = [
   'No system / Manual process',
   'Other',
 ]
+// Many at once: businesses often run two, like Tally beside spreadsheets.
+// `MultiSelect` reads `{ label, value }` only; bare strings list as nothing.
+const SOFTWARE_OPTIONS = CURRENT_SOFTWARE.map((label) => ({ label, value: label }))
 // `Combobox`, not `Select`: frappe-ui's `Select` renders no groups.
 const INDUSTRY_OPTIONS = INDUSTRIES.map((i) => ({
   group: i.label,
@@ -219,7 +222,9 @@ const STATE_OPTIONS = [
   { group: 'Outside India', hideLabel: true, options: ['Outside India'] },
 ]
 
-const EMPTY_QUESTION = {
+// A function, not a constant: `software` is an array, and a shared one would
+// carry one send's picks into the next form.
+const emptyQuestion = () => ({
   firstName: '',
   lastName: '',
   email: '',
@@ -227,14 +232,38 @@ const EMPTY_QUESTION = {
   company: '',
   designation: '',
   teamSize: '',
-  software: '',
+  software: [],
   industry: null,
   state: null,
   body: '',
+})
+const question = reactive(emptyQuestion())
+// Answered: a non-blank string, a non-empty list, or any picked value.
+const isAnswered = (v) =>
+  typeof v === 'string' ? Boolean(v.trim()) : Array.isArray(v) ? v.length > 0 : Boolean(v)
+// ⚠️ PROTOTYPE ONLY: focusing an empty form's first field fills it in, so the
+// sent state is one click away when trying the page out. Never on a form
+// somebody has started typing into.
+const DEMO_QUESTION = {
+  firstName: 'Priya',
+  lastName: 'Shah',
+  email: 'priya@shahtextiles.example',
+  // No +91: the field shows it as a prefix.
+  phone: '98200 12345',
+  company: 'Shah Textiles',
+  designation: 'Director/Head of Department',
+  teamSize: '51-200',
+  software: ['Tally', 'Spreadsheets (Excel / Google Sheets)'],
+  industry: 'Discrete Manufacturing',
+  state: 'Gujarat',
+  body: 'We run two units on Tally and spreadsheets. Stock across them never matches, and month-end takes a week.',
 }
-const question = reactive({ ...EMPTY_QUESTION })
+const fillDemoQuestion = () => {
+  const empty = !Object.values(question).some(isAnswered)
+  if (empty) Object.assign(question, DEMO_QUESTION)
+}
 const canSendQuestion = computed(() =>
-  Object.values(question).every((v) => (typeof v === 'string' ? v.trim() : v)),
+  Object.values(question).every(isAnswered),
 )
 // The button is never disabled; a send with a field empty says which ones.
 // "Talk to us" under the steps: down to the form, cursor in its first field.
@@ -242,30 +271,53 @@ const canSendQuestion = computed(() =>
 // shell's `overflow-hidden` content frame, which then sat 60px up and left a
 // blank band at the foot of the window. Only the page's own scroller moves.
 const contactForm = ref(null)
-const toContact = () => {
-  const form = contactForm.value
-  if (!form) return
-  let scroller = form.parentElement
+const contactSection = ref(null)
+const centreInScroller = (el) => {
+  let scroller = el.parentElement
   while (scroller && !/auto|scroll/.test(getComputedStyle(scroller).overflowY)) {
     scroller = scroller.parentElement
   }
-  if (scroller) {
-    const box = scroller.getBoundingClientRect()
-    const r = form.getBoundingClientRect()
-    scroller.scrollTo({
-      top: scroller.scrollTop + r.top - box.top - (box.height - r.height) / 2,
-      behavior: 'smooth',
-    })
-  }
-  form.querySelector('input')?.focus({ preventScroll: true })
+  if (!scroller) return
+  const box = scroller.getBoundingClientRect()
+  const r = el.getBoundingClientRect()
+  scroller.scrollTo({
+    top: scroller.scrollTop + r.top - box.top - (box.height - r.height) / 2,
+    behavior: 'smooth',
+  })
 }
-const sendQuestion = () => {
+// After a send there is no form, so "Talk to us" lands on the confirmation.
+const toContact = () => {
+  const target = contactForm.value ?? contactSection.value
+  if (!target) return
+  centreInScroller(target)
+  contactForm.value?.querySelector('input')?.focus({ preventScroll: true })
+}
+// ⚠️ A STAND-IN FOR THE REQUEST. Nothing is sent, but swapping the form for
+// the confirmation on the same frame as the click read as nothing having
+// happened, so the button spins for about as long as a real send would take.
+const SEND_DELAY = 900
+const sending = ref(false)
+// Animates the confirmation in on the send only, not on a return to the page.
+const justSent = ref(false)
+const sendQuestion = async () => {
+  if (sending.value) return
   if (!canSendQuestion.value) {
     toast.error('Fill in every field to send your message')
     return
   }
-  toast.success('Message sent', { description: 'Frappe will get back to you soon.' })
-  Object.assign(question, EMPTY_QUESTION)
+  sending.value = true
+  await new Promise((resolve) => setTimeout(resolve, SEND_DELAY))
+  sending.value = false
+  justSent.value = true
+  store.packsQuestionSentTo = question.email.trim()
+  Object.assign(question, emptyQuestion())
+  // The section shrinks by most of its height, which would leave the
+  // confirmation wherever the bottom of the form happened to be.
+  await nextTick()
+  if (contactSection.value) centreInScroller(contactSection.value)
+}
+const sendAnother = () => {
+  store.packsQuestionSentTo = null
 }
 const scopeOpen = ref(false)
 
@@ -408,17 +460,18 @@ const viewCartLabel = computed(() =>
       >
         <h2
           id="packs-talk"
-          class="text-balance text-3xl font-semibold tracking-tight text-ink-gray-9"
+          class="text-balance text-2xl font-semibold tracking-tight text-ink-gray-9"
         >
           The right pack is a 15-minute conversation away
         </h2>
-        <!-- A set break from `sm`: a slightly longer first line over a slightly
-             shorter second, neither lopsided nor two equal lines. Wraps freely
-             on a phone. -->
+        <!-- A consultation, not a pack picker, and nothing the form below
+             already asks. A set break from `sm`: a slightly longer first line
+             over a slightly shorter second, neither lopsided nor two equal
+             lines. Wraps freely on a phone. -->
         <p class="mt-3 text-pretty text-p-base text-ink-gray-6">
-          Tell us how you work today. Our team will call you
+          A specialist walks through how your business runs,
           <br class="hidden sm:block" />
-          and tell you which pack fits, or if none does.
+          what to set up first, and which pack gets you live fastest.
         </p>
         <Button class="mt-6" variant="subtle" size="md" label="Talk to our team" @click="toContact" />
       </section>
@@ -433,7 +486,7 @@ const viewCartLabel = computed(() =>
         <ol class="mt-8 grid gap-8 md:grid-cols-3">
           <li v-for="step in steps" :key="step.key">
             <component :is="step.icon" class="size-5 text-ink-gray-6" aria-hidden="true" />
-            <h3 class="mt-4 text-base font-medium text-ink-gray-9">{{ step.title }}</h3>
+            <h3 class="mt-4 text-pretty text-base font-medium text-ink-gray-9">{{ step.title }}</h3>
             <p class="mt-1.5 text-pretty text-p-base text-ink-gray-6">{{ step.body }}</p>
           </li>
         </ol>
@@ -529,129 +582,167 @@ const viewCartLabel = computed(() =>
            A question to Frappe, on the page: centred heading, the form and a
            solid send. frappe.io/contact's questions, India only — see the
            note on `question` in the script.
-           Nothing is sent in this prototype; the toast is what a sent message
-           would say. -->
-      <section class="mt-48 flex flex-col items-center text-center" aria-labelledby="packs-unsure">
-        <h2 id="packs-unsure" class="text-3xl font-semibold tracking-tight text-ink-gray-9">
-          Still unsure? Let’s talk.
-        </h2>
-        <!-- Two columns from `sm`: the person, then the business, then the
-             message across both. One column on a phone. -->
-        <form
-          ref="contactForm"
-          class="mt-6 w-full max-w-[640px] text-left"
-          novalidate
-          @submit.prevent="sendQuestion"
+           Nothing is sent in this prototype; the confirmation below is what a
+           sent message would show. -->
+      <section
+        ref="contactSection"
+        class="mt-48 flex flex-col items-center text-center"
+        aria-labelledby="packs-unsure"
+      >
+        <!-- ⚠️ SENT: THE FORM GIVES WAY TO THREE LINES, heading and all, since
+             "Still unsure?" has been answered. The promise is the heading, at
+             the size of the page's other section headings; one line says where
+             the copy went, the one detail worth checking for a typo. Sending
+             again is the uncommon path, so its button is subtle. -->
+        <div
+          v-if="store.packsQuestionSentTo"
+          class="flex flex-col items-center"
+          :class="justSent && 'fc-sent-enter'"
         >
-          <div class="grid gap-x-3 gap-y-4 sm:grid-cols-2">
-            <FormControl
-              v-model="question.firstName"
-              required
-              size="sm"
-              label="First name"
-              autocomplete="given-name"
-            />
-            <FormControl
-              v-model="question.lastName"
-              required
-              size="sm"
-              label="Last name"
-              autocomplete="family-name"
-            />
-            <FormControl
-              v-model="question.email"
-              required
-              type="email"
-              size="sm"
-              label="Email"
-              placeholder="name@company.com"
-              autocomplete="email"
-            />
-            <!-- India only (see the note on the script), so the code is fixed. -->
-            <FormControl
-              v-model="question.phone"
-              required
-              type="tel"
-              size="sm"
-              label="Phone number"
-              placeholder="98765 43210"
-              autocomplete="tel-national"
-            >
-              <template #prefix>
-                <span class="text-base text-ink-gray-5">+91</span>
-              </template>
-            </FormControl>
-          </div>
+          <h2 id="packs-unsure" class="text-balance text-2xl font-semibold tracking-tight text-ink-gray-9">
+            We’ll call you within one business day
+          </h2>
+          <p class="mt-2 text-balance text-p-base text-ink-gray-6">
+            We’ve sent a copy to
+            <span class="font-medium text-ink-gray-8">{{ store.packsQuestionSentTo }}</span>
+          </p>
+          <Button class="mt-5" variant="subtle" size="sm" label="Send another message" @click="sendAnother" />
+        </div>
+        <template v-else>
+          <h2 id="packs-unsure" class="text-3xl font-semibold tracking-tight text-ink-gray-9">
+            Still unsure? Let’s talk.
+          </h2>
+          <!-- Two columns from `sm`: the person, then the business, then the
+               message across both. One column on a phone. -->
+          <form
+            ref="contactForm"
+            class="mt-6 w-full max-w-[640px] text-left"
+            novalidate
+            @submit.prevent="sendQuestion"
+          >
+            <div class="grid gap-x-3 gap-y-4 sm:grid-cols-2">
+              <FormControl
+                v-model="question.firstName"
+                required
+                size="sm"
+                label="First name"
+                autocomplete="given-name"
+                @focusin="fillDemoQuestion"
+              />
+              <FormControl
+                v-model="question.lastName"
+                required
+                size="sm"
+                label="Last name"
+                autocomplete="family-name"
+              />
+              <FormControl
+                v-model="question.email"
+                required
+                type="email"
+                size="sm"
+                label="Email"
+                placeholder="name@company.com"
+                autocomplete="email"
+              />
+              <!-- India only (see the note on the script), so the code is fixed. -->
+              <FormControl
+                v-model="question.phone"
+                required
+                type="tel"
+                size="sm"
+                label="Phone number"
+                placeholder="98765 43210"
+                autocomplete="tel-national"
+                class="[&_input]:ps-12"
+              >
+                <!-- A rule after the code, and the input pushed past it: frappe-ui
+                     pads for a 16px icon, so "+91" ran straight into the number. -->
+                <template #prefix>
+                  <span class="flex h-4 items-center border-e border-outline-gray-3 pe-2 text-base text-ink-gray-5">
+                    +91
+                  </span>
+                </template>
+              </FormControl>
+            </div>
 
-          <div class="mt-6 grid gap-x-3 gap-y-4 sm:grid-cols-2">
-            <FormControl
-              v-model="question.company"
-              required
-              size="sm"
-              label="Company name"
-              autocomplete="organization"
-            />
-            <FormControl
-              v-model="question.designation"
-              required
-              type="select"
-              size="sm"
-              label="Designation"
-              placeholder="Select"
-              :options="DESIGNATIONS"
-            />
-            <FormControl
-              v-model="question.teamSize"
-              required
-              type="select"
-              size="sm"
-              label="Number of employees"
-              placeholder="Select"
-              :options="TEAM_SIZES"
-            />
-            <FormControl
-              v-model="question.software"
-              required
-              type="select"
-              size="sm"
-              label="Current software"
-              placeholder="Select"
-              :options="CURRENT_SOFTWARE"
-            />
-            <FormControl
-              v-model="question.industry"
-              required
-              type="combobox"
-              size="sm"
-              label="Industry"
-              placeholder="Search"
-              :options="INDUSTRY_OPTIONS"
-            />
-            <FormControl
-              v-model="question.state"
-              required
-              type="combobox"
-              size="sm"
-              label="State"
-              placeholder="Search"
-              :options="STATE_OPTIONS"
-            />
-          </div>
+            <div class="mt-6 grid gap-x-3 gap-y-4 sm:grid-cols-2">
+              <FormControl
+                v-model="question.company"
+                required
+                size="sm"
+                label="Company name"
+                autocomplete="organization"
+              />
+              <FormControl
+                v-model="question.designation"
+                required
+                type="select"
+                size="sm"
+                label="Designation"
+                placeholder="Select"
+                :options="DESIGNATIONS"
+              />
+              <FormControl
+                v-model="question.teamSize"
+                required
+                type="select"
+                size="sm"
+                label="Number of employees"
+                placeholder="Select"
+                :options="TEAM_SIZES"
+              />
+              <FormControl
+                v-model="question.software"
+                required
+                type="multiselect"
+                size="sm"
+                label="Current software"
+                placeholder="Select"
+                :options="SOFTWARE_OPTIONS"
+              />
+              <FormControl
+                v-model="question.industry"
+                required
+                type="combobox"
+                size="sm"
+                label="Industry"
+                placeholder="Search"
+                :options="INDUSTRY_OPTIONS"
+              />
+              <FormControl
+                v-model="question.state"
+                required
+                type="combobox"
+                size="sm"
+                label="State"
+                placeholder="Search"
+                :options="STATE_OPTIONS"
+              />
+            </div>
 
-          <FormControl
-            v-model="question.body"
-            class="mt-6"
-            required
-            type="textarea"
-            size="sm"
-            label="Tell us about your business and what isn’t working today"
-            placeholder="Scope, pricing, timelines, or which pack fits"
-            :rows="4"
-          />
-          <div class="mt-6 flex justify-center">
-            <Button variant="solid" size="md" type="submit" label="Send message" />
-          </div>
-        </form>
+            <FormControl
+              v-model="question.body"
+              class="mt-6"
+              required
+              type="textarea"
+              size="sm"
+              label="Tell us about your business and what isn’t working today"
+              placeholder="Scope, pricing, timelines, or which pack fits"
+              :rows="4"
+            />
+            <div class="mt-6 flex justify-center">
+              <Button
+                variant="solid"
+                size="md"
+                type="submit"
+                label="Send message"
+                loading-text="Sending…"
+                :loading="sending"
+              />
+            </div>
+          </form>
+        </template>
       </section>
     </div>
     <!-- Not opened from here while the cards link to the pack page; kept so

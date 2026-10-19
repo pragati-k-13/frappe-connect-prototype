@@ -29,7 +29,6 @@ import { Button, FormControl, toast } from 'frappe-ui'
 import SiteRail from '../components/SiteRail.vue'
 import officeMap from '../assets/office-map.png'
 import LucideArrowRight from '~icons/lucide/arrow-right'
-import LucideArrowUpRight from '~icons/lucide/arrow-up-right'
 import LucideChevronRight from '~icons/lucide/chevron-right'
 
 const router = useRouter()
@@ -45,12 +44,18 @@ const DOORS = [
     title: 'Need a custom implementation?',
     body: 'Send your requirements to the partners that fit.',
     to: { name: 'contact-partners' },
+    // Hidden for now; drop this line to bring the card back.
+    hidden: true,
   },
   {
     title: 'Need tech support?',
     body: 'If you are hosted on Frappe Cloud, raise a ticket on our support portal.',
+    href: 'https://support.frappe.io/',
   },
 ]
+
+// An outside link as is; an app route resolved to its URL.
+const doorHref = (door) => door.href ?? (door.to ? router.resolve(door.to).href : undefined)
 
 // The "anything else" form. All three are asked for, since a message nobody
 // can reply to is not a way to get in touch.
@@ -121,7 +126,7 @@ const OFFICE = [
                for everyone who came to write in.
                ⚠️ Tech support is the real page's own link to the support
                portal, which this prototype does not stand in for, so that card
-               does not navigate. -->
+               goes out to the live portal. -->
           <!-- A question rather than "Quick links": the cards below answer it,
                each in the visitor's words. Same style as the section title
                further down. -->
@@ -129,17 +134,17 @@ const OFFICE = [
             How can we help?
           </h2>
           <ul class="mt-4 flex flex-col gap-3">
-            <li v-for="door in DOORS" :key="door.title">
+            <li v-for="door in DOORS.filter((d) => !d.hidden)" :key="door.title">
               <!-- ⚠️ A NEW TAB, so this page stays where the visitor left it.
                    A new tab starts a fresh app, which is the state these
                    doors want anyway: no packs picked, an empty quiz. -->
               <component
-                :is="door.to ? 'a' : 'div'"
-                :href="door.to ? router.resolve(door.to).href : undefined"
-                :target="door.to ? '_blank' : undefined"
-                :rel="door.to ? 'noopener' : undefined"
+                :is="doorHref(door) ? 'a' : 'div'"
+                :href="doorHref(door)"
+                :target="doorHref(door) ? '_blank' : undefined"
+                :rel="doorHref(door) ? 'noopener' : undefined"
                 class="group flex w-full items-center gap-4 rounded-6 border border-outline-gray-2 p-5 text-left"
-                :class="door.to && 'transition-colors hover:bg-surface-gray-1'"
+                :class="doorHref(door) && 'transition-colors hover:border-outline-gray-4'"
               >
                 <span class="min-w-0 flex-1">
                   <span class="block text-[15px] font-medium text-ink-gray-8">{{ door.title }}</span>
@@ -147,12 +152,6 @@ const OFFICE = [
                     {{ door.body }}
                   </span>
                 </span>
-                <!-- Up-right: the mark for "opens in a new tab". -->
-                <LucideArrowUpRight
-                  v-if="door.to"
-                  class="size-4 shrink-0 text-ink-gray-5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
-                  aria-hidden="true"
-                />
               </component>
             </li>
           </ul>

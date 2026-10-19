@@ -457,6 +457,11 @@ export const useConnectStore = defineStore('connect', {
     // It is NOT post-quiz only: the quiz's India chip is a country, so the
     // question before the listing writes this field too (`toggleGeo`).
     filters: { search: '', app: null, countries: [] },
+    // The e-mail a question on the Packs page was sent from, or `null` before
+    // one is. Here rather than on the page so the confirmation is still there
+    // after a visit to another page; a refresh clears it, as it would for an
+    // anonymous visitor on the live site, where the e-mail is the record.
+    packsQuestionSentTo: null,
   }),
 
   getters: {

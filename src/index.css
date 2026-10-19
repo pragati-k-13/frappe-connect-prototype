@@ -637,3 +637,25 @@ textarea[data-slot='control'] {
     animation: none;
   }
 }
+
+/* The Packs page's sent confirmation, as it replaces the form. Seen once, and
+ * the page jumps by most of the form's height, so the three lines rise a few
+ * pixels into place, one after another, rather than being simply there. Only
+ * on the send itself: coming back to the page shows them still. */
+.fc-sent-enter > * {
+  animation: fc-sent-in 320ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+.fc-sent-enter > :nth-child(2) { animation-delay: 60ms; }
+.fc-sent-enter > :nth-child(3) { animation-delay: 120ms; }
+@keyframes fc-sent-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fc-sent-enter > * {
+    animation-name: fc-sent-fade;
+  }
+  @keyframes fc-sent-fade {
+    from { opacity: 0; }
+  }
+}

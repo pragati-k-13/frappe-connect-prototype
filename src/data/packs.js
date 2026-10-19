@@ -635,7 +635,11 @@ export const ERPNEXT_DATA = {
 // that pack and only what it adds.
 const joinLabels = (areas) => {
   const labels = areas.map((a) => PACK_SCOPE[a].label)
-  return labels.length < 2 ? labels.join('') : `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}`
+  // A no-break space ties "and" to the last label, so a wrap takes them down
+  // together rather than leaving "and" at the end of the first line.
+  return labels.length < 2
+    ? labels.join('')
+    : `${labels.slice(0, -1).join(', ')} and\u00a0${labels.at(-1)}`
 }
 export const packModules = (pack) => {
   const inner = STARTER_PACKS.find((p) => pack.supersedes?.includes(p.value))
@@ -823,7 +827,8 @@ export const PACK_FIT_TESTS = PACK_BLOCKERS.map((e) => ({
 
 // HOW IT WORKS, worded once for every screen that shows it: the catalogue
 // draws `title` and `body` in three columns, the cart's rail the `title`
-// alone, so each title has to stand on its own. The order is the flow as
+// alone, so each title has to stand on its own. One line each in the
+// catalogue's columns: a long title there wrapped beside a short one. The order is the flow as
 // built — payment, then the company questions on the project (a required
 // task before the kickoff), then the sessions.
 // ⚠️ "Guided", never "implemented": implementation and consulting are
@@ -831,7 +836,7 @@ export const PACK_FIT_TESTS = PACK_BLOCKERS.map((e) => ({
 export const packStepsFor = (region = DEFAULT_REGION) => [
   {
     key: 'pay',
-    title: 'Pay Frappe upfront, at one fixed price',
+    title: 'Pay a fixed price upfront',
     body: `Plus ${pricingFor(region).tax}. Nothing in the pack's scope costs extra.`,
   },
   {
@@ -841,8 +846,8 @@ export const packStepsFor = (region = DEFAULT_REGION) => [
   },
   {
     key: 'sessions',
-    title: 'Join live sessions with Frappe onboarding specialists',
-    body: 'Scheduled in advance, one module at a time.',
+    title: 'Join live onboarding sessions',
+    body: 'With Frappe specialists, scheduled in advance, one module at a time.',
   },
 ]
 
