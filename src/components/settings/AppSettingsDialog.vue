@@ -22,34 +22,32 @@ const open = defineModel('open', { type: Boolean, default: false })
 
 const store = useConnectStore()
 
-const groups = [
+// ⚠️ HIDDEN FOR NOW: Preferences (one theme row), Notifications (switches
+// for email nothing sends) and Users (one person, an inert Invite). Flip this
+// to bring them back. With two tabs left, the group labels — "User settings",
+// "Administration" — each headed one item, so the nav is one unlabelled list.
+const SHOW_ALL_TABS = false
+
+const allTabs = [
+  { label: 'Profile', value: 'profile', avatar: true, component: markRaw(ProfilePanel) },
   {
-    label: 'User settings',
-    tabs: [
-      { label: 'Profile', value: 'profile', avatar: true, component: markRaw(ProfilePanel) },
-      {
-        label: 'Preferences',
-        value: 'preferences',
-        icon: 'lucide-sliders-horizontal',
-        component: markRaw(PreferencesPanel),
-      },
-      {
-        label: 'Notifications',
-        value: 'notifications',
-        icon: 'lucide-bell',
-        component: markRaw(NotificationsPanel),
-      },
-    ],
+    label: 'Preferences',
+    value: 'preferences',
+    icon: 'lucide-sliders-horizontal',
+    component: markRaw(PreferencesPanel),
+    hidden: true,
   },
   {
-    label: 'Administration',
-    tabs: [
-      { label: 'Company', value: 'company', icon: 'lucide-building-2', component: markRaw(CompanyPanel) },
-      { label: 'Users', value: 'users', icon: 'lucide-users', component: markRaw(UsersPanel) },
-    ],
+    label: 'Notifications',
+    value: 'notifications',
+    icon: 'lucide-bell',
+    component: markRaw(NotificationsPanel),
+    hidden: true,
   },
+  { label: 'Company', value: 'company', icon: 'lucide-building-2', component: markRaw(CompanyPanel) },
+  { label: 'Users', value: 'users', icon: 'lucide-users', component: markRaw(UsersPanel), hidden: true },
 ]
-const tabs = groups.flatMap((g) => g.tabs)
+const tabs = allTabs.filter((t) => SHOW_ALL_TABS || !t.hidden)
 const tab = ref('profile')
 
 // Appearance applies to the whole page, so it is set here rather than in its
@@ -68,8 +66,8 @@ onUnmounted(() => dark.removeEventListener('change', applyTheme))
 <template>
   <SettingsDialog v-model:open="open" v-model:tab="tab">
     <SettingsSidebar>
-      <SettingsNavGroup v-for="group in groups" :key="group.label" :label="group.label">
-        <SettingsNavItem v-for="t in group.tabs" :key="t.value" :value="t.value">
+      <SettingsNavGroup>
+        <SettingsNavItem v-for="t in tabs" :key="t.value" :value="t.value">
           <template #prefix>
             <Avatar v-if="t.avatar" size="xs" :label="store.viewer.name" class="shrink-0" />
             <span v-else :class="[t.icon, 'size-4 shrink-0 text-ink-gray-6']" />

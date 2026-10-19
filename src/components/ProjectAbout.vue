@@ -74,6 +74,8 @@ const revertName = (e) => {
 const SHOW_HANDBOOK = false
 // Hidden for now too; flip back on to show it.
 const SHOW_CONTACT = false
+// The implementer row's Message button, hidden for now too.
+const SHOW_MESSAGE = false
 const HANDBOOK = 'https://frappe.io/handbook'
 
 const logo = computed(() => (props.partner ? logoFor(props.partner.id) : null))
@@ -134,9 +136,9 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
             shape="square"
             class="fc-logo-avatar -my-0.5 -ml-1"
           />
-          <span class="min-w-0 flex-1 truncate font-semibold text-ink-gray-7">{{ partner.name }}</span>
+          <span class="min-w-0 flex-1 truncate font-medium text-ink-gray-7">{{ partner.name }}</span>
           <div class="-my-0.5 flex shrink-0 gap-1.5">
-            <Tooltip text="Message">
+            <Tooltip v-if="SHOW_MESSAGE" text="Message">
               <Button size="xs" variant="subtle" aria-label="Message" @click="emit('message')">
                 <template #icon><IconMessage class="size-3.5" /></template>
               </Button>
