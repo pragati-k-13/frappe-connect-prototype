@@ -98,13 +98,13 @@ const cost = computed(() =>
 // ⚠️ THE LONGEST VALIDITY IN THE BASKET, the same figure the countdown runs
 // against — see `windowFor`.
 // A pack's timeline carries its sessions too: the days are how long the hours
-// last, the sessions how the work is delivered. "Up to": a ceiling, not a
-// count — see `SESSIONS_PER_PACK`. ⚠️ FIVE IN ALL, however many packs: the
+// last, the sessions how the work is delivered: five, stated as a count, not
+// a ceiling. ⚠️ FIVE IN ALL, however many packs: the
 // sessions don't add up per pack.
 const timeline = computed(() => {
   if (props.packs.length) {
     const days = Math.max(...props.packs.map((p) => p.validityDays))
-    return `${days} days, up to ${SESSIONS_PER_PACK} sessions`
+    return `Up to ${days} days, ${SESSIONS_PER_PACK} sessions`
   }
   return hired.value ? `${hired.value.weeks} weeks` : ''
 })
