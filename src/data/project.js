@@ -179,7 +179,7 @@ const hostingTasks = (prefix = '') => [
   }),
 ]
 
-// ⚠️ ONE STAGE, SIX TASKS IN ORDER, and it was two stages behind a progress
+// ⚠️ ONE STAGE, ITS TASKS IN ORDER, and it was two stages behind a progress
 // bar. A Starter Pack has one job for the customer before Frappe can start: agree the terms and get a paid Frappe Cloud site in place. Splitting
 // that into "steps" put a Continue button between the terms and the hosting
 // that did nothing but move a bar. The page draws the tasks as one accordion,
@@ -192,6 +192,10 @@ const hostingTasks = (prefix = '') => [
 //
 // `cta` is the label of the task's one button. `action` names what it does, as
 // everywhere else in this file.
+//
+// The kickoff task is off for now; flip this to bring it back. Its booking
+// dialog and `kickoffAt` are untouched.
+const SHOW_KICKOFF = false
 const PACK_STAGES = [
   {
     key: 'confirmed',
@@ -224,26 +228,25 @@ const PACK_STAGES = [
       }),
       // Booked in `BookSlotDialog`; the requested time is kept on the project
       // (`kickoffAt`) and shown once the task is done.
-      task('kickoff', 'Schedule your kickoff call', {
-        hint: (who) =>
-          `A 30-minute video call with ${who === 'Frappe' ? 'Frappe’s team' : who} to walk through your requirements and plan the implementation.`,
-        action: 'kickoff',
-        cta: 'Schedule',
-      }),
-      task('fc-login', 'Log in to Frappe Cloud using your Frappe login credentials', {
-        hint: 'Your ERPNext site will run on Frappe Cloud. Use the same Frappe account you checked out with. If you do not have one yet, you can create it on the login page.',
-        action: 'fc-login',
-        cta: 'Log in to Frappe Cloud',
-      }),
-      // One task, and it was two: billing then plan, which are one visit to
-      // Frappe Cloud — a plan cannot be bought without a payment method.
-      task('fc-plan', 'Add a payment method and set up a plan of at least ₹820/month', {
-        hint: 'Hosting is billed by Frappe Cloud, separately from the Starter Pack. Add your billing details and a payment method, then create a site on a plan of at least ₹820 a month, or add it to a server you already run.',
-        action: 'fc-plan',
-        cta: 'Open Frappe Cloud',
-      }),
-      task('site-url', 'Share the URL of your hosted site', {
-        hint: (who) => `${who} installs and configures ERPNext on this site.`,
+      // ⚠️ HIDDEN FOR NOW — see `SHOW_KICKOFF`.
+      ...(SHOW_KICKOFF
+        ? [
+            task('kickoff', 'Schedule your kickoff call', {
+              hint: (who) =>
+                `A 30-minute video call with ${who === 'Frappe' ? 'Frappe’s team' : who} to walk through your requirements and plan the implementation.`,
+              action: 'kickoff',
+              cta: 'Schedule',
+            }),
+          ]
+        : []),
+      // ⚠️ ONE TASK, and it was three: log in, add a plan, share the URL. They
+      // are one visit to Frappe Cloud, and only the URL is something this page
+      // can see — the other two ticked when their button opened a tab. The URL
+      // is the proof a paid site exists, so sharing it is what finishes this.
+      // `PackSetupTasks` puts the Open Frappe Cloud link at the end of the
+      // hint, keeping Share URL the row's one button.
+      task('site-url', 'Set up your ERPNext site on Frappe Cloud', {
+        hint: 'Sign in with the Frappe account you checked out with. Add a payment method, then create a site on a plan of at least ₹820/month, or on a server you already run. Hosting is billed by Frappe Cloud, separately from the pack.',
         action: 'site-url',
         cta: 'Share URL',
       }),

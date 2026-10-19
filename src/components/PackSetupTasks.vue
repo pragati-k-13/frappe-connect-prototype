@@ -11,7 +11,7 @@ import { Badge, Button, TextInput } from 'frappe-ui'
 import IconCheck from '~icons/lucide/check'
 import IconCircleDashed from '~icons/lucide/circle-dashed'
 import IconChevronDown from '~icons/lucide/chevron-down'
-import { isTaskDone } from '../data/project'
+import { FRAPPE_CLOUD_URL, isTaskDone } from '../data/project'
 
 // A Starter Pack's setup, as one list of tasks in the order they have to
 // happen.
@@ -24,7 +24,7 @@ import { isTaskDone } from '../data/project'
 //
 // ⚠️ ANY ROW CAN BE READ, ONLY THE CURRENT ONE CAN BE DONE. Later rows open to
 // show what is coming, with their button disabled: the order is real (there is
-// no plan to choose before there is a login), and a button that works out of
+// no kickoff before the company questions are answered), and a button that works out of
 // order would let the list say something happened that could not have.
 const props = defineProps({
   tasks: { type: Array, required: true },
@@ -75,7 +75,7 @@ const share = () => {
              nudged 2px down, so both sit on the FIRST line when a title wraps
              on a phone rather than centred between two. -->
         <AccordionTrigger
-          class="flex w-full items-start gap-2.5 py-5 text-left group-data-[state=open]:pb-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-outline-gray-3"
+          class="flex w-full items-start gap-2.5 py-5 text-left group-first:pt-0 group-data-[state=open]:pb-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-outline-gray-3"
         >
           <span
             v-if="isDone(t)"
@@ -94,7 +94,7 @@ const share = () => {
           <span class="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
             <span
               class="text-base font-medium leading-5"
-              :class="isDone(t) ? 'text-ink-gray-5 line-through' : 'text-ink-gray-7'"
+              :class="isDone(t) ? 'text-ink-gray-5 line-through' : 'text-ink-gray-8'"
             >
               {{ t.label }}
             </span>
@@ -126,6 +126,15 @@ const share = () => {
                   ? companySummary
                   : hintOf(t)
             }}
+            <!-- The site task's way to Frappe Cloud is a link, not a second
+                 button: Share URL stays the row's one action. -->
+            <a
+              v-if="t.action === 'site-url' && !isDone(t)"
+              :href="FRAPPE_CLOUD_URL"
+              target="_blank"
+              rel="noopener"
+              class="text-ink-gray-8 underline underline-offset-2 hover:text-ink-gray-9"
+            >Open Frappe Cloud</a>
           </p>
 
           <template v-if="!isDone(t) && t.cta">

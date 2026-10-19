@@ -25,7 +25,9 @@ const store = useConnectStore()
             <div class="truncate text-sm text-ink-gray-5">{{ store.viewer.email }}</div>
           </div>
         </div>
-        <Badge theme="gray" variant="solid" label="Admin" />
+        <!-- `justify-self-end`: a grid item stretches to its column, and a
+             badge should hug its label — on the Invite button's edge. -->
+        <Badge class="justify-self-end" theme="gray" variant="subtle" label="Admin" />
       </div>
     </div>
   </SettingsBody>

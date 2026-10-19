@@ -85,13 +85,19 @@ const modulesLine = computed(() => {
 // How they run today, as lines like the section after it: the operations
 // answer, then the systems they named. Lines, not a sentence, so the two
 // sections read the same way and neither ends in a stop the other lacks.
+//
+// ⚠️ A PACK ASKS ONLY WHAT YOU USE, not the operations ladder or what to fix —
+// so on a pack this is the systems line alone, and `problems` is empty.
 const today = computed(() => {
   const b = props.brief ?? {}
   return [
-    operationsLabel(b.operations),
+    packs.value ? '' : operationsLabel(b.operations),
     b.apps?.length ? `${props.own ? 'You use' : 'Uses'} ${listOf(b.apps)}` : '',
   ].filter(Boolean)
 })
+
+// A pack's one free-text answer: what the sessions should focus on. Optional.
+const focus = computed(() => (packs.value ? (props.brief?.focus ?? '').trim() : ''))
 
 // What they want fixed: its own section, one symptom per line. It shared a
 // paragraph with `today` behind a mid-sentence colon, which put two different
@@ -99,6 +105,7 @@ const today = computed(() => {
 // tell apart.
 const problems = computed(() => {
   const b = props.brief ?? {}
+  if (packs.value) return []
   return problemLabels(
     (b.problems ?? []).filter((p) => !(p === 'integration' && b.operations === 'disconnected')),
   )
@@ -194,6 +201,11 @@ const lookingFor = computed(() =>
           <ul class="flex flex-col gap-2 text-p-base text-ink-gray-6">
             <li v-for="p in problems" :key="p">{{ p }}</li>
           </ul>
+        </section>
+
+        <section v-if="focus" class="flex flex-col gap-2">
+          <h4 class="text-base font-medium text-ink-gray-8">Focus for the sessions</h4>
+          <p class="whitespace-pre-line text-p-base leading-relaxed text-ink-gray-6">{{ focus }}</p>
         </section>
 
         <section v-if="lookingFor" class="flex flex-col gap-2">

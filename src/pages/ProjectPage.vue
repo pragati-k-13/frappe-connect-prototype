@@ -30,7 +30,7 @@ import {
   stageOf,
   windowFor,
 } from '../data/project'
-import { sharedAnswers } from '../data/company'
+import { appsInUse, sharedAnswers } from '../data/company'
 import { useConnectStore } from '../stores/connect'
 import { useContactPartner } from '../utils/contact'
 
@@ -127,6 +127,19 @@ const brief = computed(() => {
   const sent = store.threads
     .flatMap((t) => t.messages ?? [])
     .find((m) => m.brief?.projectId === project.value?.id)?.brief
+  // ⚠️ A PACK'S ANSWERS COME AFTER ITS SNAPSHOT: the booking card is written
+  // at checkout, and the company questions are asked once paid. So the live
+  // answers go over it — the ones a pack asks, and nothing it no longer does.
+  if (sent && project.value?.service === 'pack') {
+    const company = project.value.answers ?? store.company
+    return {
+      ...sent,
+      employees: company.employees,
+      segments: company.segments,
+      apps: appsInUse(company),
+      focus: company.focus ?? '',
+    }
+  }
   if (sent) return sent
   const own = project.value?.brief
   if (!own?.scope) return null
@@ -239,9 +252,6 @@ const act = (task) => {
       return (paidOpen.value = true)
     case 'kickoff':
       return (kickoffOpen.value = true)
-    case 'fc-plan':
-      window.open(FRAPPE_CLOUD_URL, '_blank', 'noopener')
-      return tick(task.key)
     case 'fc-login':
       window.open(FRAPPE_CLOUD_URL, '_blank', 'noopener')
       return tick(task.key)
@@ -358,32 +368,20 @@ const complete = () => {
                recommendation carries its own, at the page's right edge, and
                centres its own column — so it is not capped here at all. -->
           <div v-else class="mx-auto w-full" :class="draft ? '' : 'max-w-[700px]'">
-            <!-- ⚠️ THE TITLE IS THE RAIL'S HEADING on a started project — the
-                 name heads the facts about it, and the column opens on the
-                 work. A draft has no rail, and below `lg` the rail stacks at
-                 the foot of the page, so both keep the title here. -->
-            <div v-if="!draft" class="flex items-start justify-between gap-4 lg:hidden">
-              <div class="min-w-0">
-                <div class="flex items-center gap-2">
-                  <h1 class="text-lg font-semibold text-ink-gray-8">{{ project.name }}</h1>
-                  <Badge v-if="draft" variant="subtle" theme="gray" size="md" label="Draft" />
-                </div>
-              </div>
-              <Dropdown v-if="menu.length" :options="menu" align="end">
-                <Button variant="subtle" aria-label="Project actions">
-                  <template #icon><IconMore class="size-4" /></template>
-                </Button>
-              </Dropdown>
-            </div>
+            <!-- ⚠️ NO TITLE HERE on a started project, at any width: the
+                 column opens on the work. The breadcrumb names the project,
+                 and the rail's Name row edits it — below `lg`, at the foot of
+                 the page. A title here, shown only when the rail stacked, sat
+                 directly under the breadcrumb saying the same thing. -->
 
             <!-- ⚠️ A STARTER PACK IS ONE LIST, not stages behind a progress bar
                  — see `PACK_STAGES`. Custom work keeps its stages. -->
             <template v-if="stage && project.service === 'pack'">
-              <div class="mt-10 lg:mt-0">
-                <h2 class="text-2xl font-semibold text-ink-gray-8">
-                  Set up your Starter Pack
-                </h2>
-                <div class="mt-4">
+              <!-- No heading: the list opens the column on its own. The space
+                   above it is the column's padding; the first row brings none
+                   of its own (see `PackSetupTasks`). -->
+              <div>
+                <div>
                   <PackSetupTasks
                     :tasks="stage.yours"
                     :project="project"
@@ -404,7 +402,7 @@ const complete = () => {
             </template>
 
             <template v-else-if="stage">
-              <div class="mt-10" :class="draft ? '' : 'lg:mt-0'">
+              <div :class="draft ? 'mt-10' : ''">
                 <ProjectStages :project="project" @act="act" @terms="termsOpen = true" />
               </div>
 

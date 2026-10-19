@@ -7,12 +7,12 @@ import IconReview from '~icons/lucide/star'
 import IconBook from '~icons/lucide/book-open'
 import IconContact from '~icons/lucide/message-square-text'
 import IconHelp from '~icons/lucide/circle-help'
+import IconExpand from '~icons/lucide/maximize-2'
 // Opens a dialog: a panel opening over the page — not a chevron (drilling
 // down) and not maximize (frappe-ui's image viewer uses it for full screen).
-import IconOpen from '~icons/lucide/panel-top-open'
 import { logoFor } from '../data/logos'
 import { isFrappe } from '../data/partners'
-import { checkoutFor } from '../data/packs'
+import { SESSIONS_PER_PACK, checkoutFor } from '../data/packs'
 import { serviceOf } from '../data/project'
 import { scopeSentence } from '../data/modules'
 
@@ -69,6 +69,13 @@ const revertName = (e) => {
   e.target.blur()
 }
 
+// ⚠️ HIDDEN FOR NOW: the handbook isn't ready to link to. Flip this back on
+// once it is; the row is still in the template.
+const SHOW_HANDBOOK = false
+// Hidden for now too; flip back on to show it.
+const SHOW_CONTACT = false
+// The implementer row's Message button, hidden for now too.
+const SHOW_MESSAGE = false
 const HANDBOOK = 'https://frappe.io/handbook'
 
 const logo = computed(() => (props.partner ? logoFor(props.partner.id) : null))
@@ -90,8 +97,15 @@ const cost = computed(() =>
 
 // ⚠️ THE LONGEST VALIDITY IN THE BASKET, the same figure the countdown runs
 // against — see `windowFor`.
+// A pack's timeline carries its sessions too: the days are how long the hours
+// last, the sessions how the work is delivered: five, stated as a count, not
+// a ceiling. ⚠️ FIVE IN ALL, however many packs: the
+// sessions don't add up per pack.
 const timeline = computed(() => {
-  if (props.packs.length) return `${Math.max(...props.packs.map((p) => p.validityDays))} days`
+  if (props.packs.length) {
+    const days = Math.max(...props.packs.map((p) => p.validityDays))
+    return `Up to ${days} days, ${SESSIONS_PER_PACK} sessions`
+  }
   return hired.value ? `${hired.value.weeks} weeks` : ''
 })
 
@@ -109,71 +123,78 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
 <template>
   <div>
     <section v-if="partner" class="border-b border-outline-gray-1 px-5 py-5">
-      <h3 class="text-base font-medium text-ink-gray-8">
-        {{ frappe ? 'Implemented by' : 'Partner' }}
-      </h3>
-<!-- ⚠️ THE PARTNER'S ACTIONS SIT ON THEIR ROW: message them, or open their
-           profile. The row itself is not a link — two named actions beat one
-           guess about what a click on a name does. Icon-only, so each carries a
-           tooltip and a label. -->
-      <div class="mt-4 flex items-center gap-3">
-        <Avatar
-          :image="logo"
-          :label="partner.name"
-          size="2xl"
-          shape="square"
-          class="fc-logo-avatar"
-        />
-        <p class="min-w-0 flex-1 truncate text-base text-ink-gray-8">{{ partner.name }}</p>
-        <div class="flex shrink-0 gap-1.5">
-          <!-- Labelled, so no tooltip: the word says what the icon meant. -->
-          <Button size="sm" variant="subtle" label="Message" @click="emit('message')">
-            <template #prefix><IconMessage class="size-3.5" /></template>
-          </Button>
-          <Tooltip v-if="!frappe" text="View profile">
-            <Button
-              size="xs"
-              variant="subtle"
-              aria-label="View profile"
-              :route="{ name: 'partner', params: { id: partner.id } }"
-            >
-              <template #icon><IconProfile class="size-3.5" /></template>
-            </Button>
-          </Tooltip>
-        </div>
-      </div>
-      <dl
-        v-if="packs.length || scopeLine || cost"
-        class="mt-4 grid grid-cols-[112px_minmax(0,1fr)] gap-y-3.5 text-base"
-      >
+      <!-- Who implements, what, and for how much. Who is the first row, keyed
+           like the rest. -->
+      <h3 class="text-base font-medium text-ink-gray-7">Implementation</h3>
+      <dl class="mt-4 grid grid-cols-[112px_minmax(0,1fr)] gap-y-3 text-base">
+        <dt class="self-center text-ink-gray-5">{{ frappe ? 'Implementer' : 'Partner' }}</dt>
+        <!-- ⚠️ THE PARTNER'S ACTIONS SIT ON THEIR ROW: message them, or open
+             their profile. The row itself is not a link — two named actions
+             beat one guess about what a click on a name does. Icon-only, so
+             each carries a tooltip and a label. The logo and buttons take
+             back their extra height (`-my-*`) so the row keeps the list's
+             rhythm; `-ml-1` takes back the logo's 4px inset so the mark sits
+             on the value column. -->
+        <dd class="flex min-w-0 items-center gap-1">
+          <Avatar
+            :image="logo"
+            :label="partner.name"
+            size="md"
+            shape="square"
+            class="fc-logo-avatar -my-0.5 -ml-1"
+          />
+          <span class="min-w-0 flex-1 truncate font-medium text-ink-gray-7">{{ partner.name }}</span>
+          <div class="-my-0.5 flex shrink-0 gap-1.5">
+            <Tooltip v-if="SHOW_MESSAGE" text="Message">
+              <Button size="xs" variant="subtle" aria-label="Message" @click="emit('message')">
+                <template #icon><IconMessage class="size-3.5" /></template>
+              </Button>
+            </Tooltip>
+            <Tooltip v-if="!frappe" text="View profile">
+              <Button
+                size="xs"
+                variant="subtle"
+                aria-label="View profile"
+                :route="{ name: 'partner', params: { id: partner.id } }"
+              >
+                <template #icon><IconProfile class="size-3.5" /></template>
+              </Button>
+            </Tooltip>
+          </div>
+        </dd>
         <template v-if="packs.length || scopeLine">
           <dt class="text-ink-gray-5">Scope of work</dt>
           <!-- ⚠️ WHAT THIS IMPLEMENTER IS DELIVERING — a partner, or Frappe
                on a pack — so it sits under them, and is where the fuller scope (modules and what is in each) will live.
                ⚠️ ONE LINK, NOT ONE PER PACK. Pack names are long and wrap in a
                112px column; the dialog it opens lists them. -->
-          <dd v-if="packs.length" class="min-w-0">
-            <!-- A value you can open: frappe-ui's ghost Button at `sm` (its 14px
-                 text matches the other values), with the overlay mark as its
-                 suffix. `-mx-2 -my-1` is the one override: it pulls the
-                 button's 8px padding and 28px height back so the text stays on
-                 the column and the row keeps its height. -->
-            <Button
-              variant="ghost"
-              size="sm"
-              class="-mx-2 -my-1 max-w-full"
-              :label="packs.length === 1 ? packs[0].name : `${packs.length} Starter Packs`"
-              @click="emit('scope')"
-            >
-              <template #suffix><IconOpen class="size-3.5 text-ink-gray-5" /></template>
-            </Button>
+          <!-- ⚠️ THE VALUE IS TEXT, THE WAY IN IS ITS OWN BUTTON: the packs by
+               name (or count) read as a fact like the rows around them, and
+               an icon-only ghost button beside it opens the scope — tooltip
+               and label, like the implementer row's. `-my-0.5` takes back the
+               24px button's extra height so the row keeps the list's rhythm. -->
+          <dd v-if="packs.length" class="flex min-w-0 items-center gap-1 text-ink-gray-7">
+            <span class="truncate">
+              {{ packs.length === 1 ? packs[0].name : `${packs.length} Starter Packs` }}
+            </span>
+            <Tooltip text="View scope">
+              <Button
+                size="xs"
+                variant="ghost"
+                class="-my-0.5 shrink-0"
+                aria-label="View scope"
+                @click="emit('scope')"
+              >
+                <template #icon><IconExpand class="size-3.5 text-ink-gray-5" /></template>
+              </Button>
+            </Tooltip>
           </dd>
-          <dd v-else class="text-ink-gray-8">{{ scopeLine }}</dd>
+          <dd v-else class="text-ink-gray-7">{{ scopeLine }}</dd>
         </template>
 
         <template v-if="cost">
           <dt class="text-ink-gray-5">Cost</dt>
-          <dd class="flex items-center gap-2 text-ink-gray-8">
+          <dd class="flex items-center gap-2 text-ink-gray-7">
             <span class="tabular-nums">{{ cost }}</span>
             <!-- A pack is paid at checkout; custom work is paid to the partner,
                  outside this product, so there is nothing to mark. -->
@@ -196,13 +217,13 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
     </section>
 
     <section class="border-b border-outline-gray-1 px-5 py-5">
-      <h3 class="text-base font-medium text-ink-gray-8">Project</h3>
-      <dl class="mt-4 grid grid-cols-[112px_minmax(0,1fr)] gap-y-3.5 text-base">
+      <h3 class="text-base font-medium text-ink-gray-7">Project</h3>
+      <dl class="mt-4 grid grid-cols-[112px_minmax(0,1fr)] gap-y-3 text-base">
         <!-- `-mx-2 -my-1.5` takes back the ghost input's padding and height,
              so its text starts on the value column and the row keeps the
              others' rhythm. -->
         <dt class="self-center text-ink-gray-5">Name</dt>
-        <dd class="-mx-2 -my-1.5 min-w-0">
+        <dd class="-mx-2 -my-1.5 min-w-0 [&_input]:truncate [&_input]:!text-ink-gray-7">
           <TextInput
             v-model="name"
             variant="ghost"
@@ -214,27 +235,28 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
         </dd>
         <template v-if="project.service">
           <dt class="text-ink-gray-5">Service</dt>
-          <dd class="text-ink-gray-8">{{ serviceOf(project.service)?.label }}</dd>
+          <dd class="text-ink-gray-7">{{ serviceOf(project.service)?.label }}</dd>
         </template>
-        <!-- What the business submitted, as it went out. -->
-        <template v-if="hasBrief">
+        <!-- What the business submitted, as it went out.
+             ⚠️ NOT ON A PACK: everything its requirements hold is already on
+             the page — the packs in Scope of work, the company answers in the
+             company task. A custom brief exists nowhere else, so it stays. -->
+        <template v-if="hasBrief && !packs.length">
           <dt class="text-ink-gray-5">Requirements</dt>
           <dd class="min-w-0">
             <Button
               variant="ghost"
               size="sm"
-              class="-mx-2 -my-1 max-w-full"
+              class="-mx-2 -my-1 max-w-full !text-ink-gray-7"
               label="View requirements"
               @click="emit('requirements')"
-            >
-              <template #suffix><IconOpen class="size-3.5 text-ink-gray-5" /></template>
-            </Button>
+            />
           </dd>
         </template>
 
         <template v-if="timeline || when">
           <dt class="text-ink-gray-5">Timeline</dt>
-          <dd class="text-ink-gray-8">
+          <dd class="text-ink-gray-7">
             <span v-if="timeline">{{ timeline }}</span>
             <span
               v-if="when && when.text !== timeline"
@@ -247,17 +269,17 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
         </template>
 
         <dt class="text-ink-gray-5">Created</dt>
-        <dd class="text-ink-gray-8">{{ created }}</dd>
+        <dd class="text-ink-gray-7">{{ created }}</dd>
       </dl>
     </section>
 
     <section class="px-5 py-5">
       <h3 class="text-base font-medium text-ink-gray-8">Resources</h3>
       <div class="-ms-2 mt-3 flex flex-col items-start gap-1">
-        <Button variant="ghost" label="Implementation handbook" :link="HANDBOOK">
+        <Button v-if="SHOW_HANDBOOK" variant="ghost" label="Implementation handbook" :link="HANDBOOK">
           <template #prefix><IconBook class="size-4 text-ink-gray-6" /></template>
         </Button>
-        <Button variant="ghost" label="Contact Frappe" route="/contact">
+        <Button v-if="SHOW_CONTACT" variant="ghost" label="Contact Frappe" route="/contact">
           <template #prefix><IconContact class="size-4 text-ink-gray-6" /></template>
         </Button>
         <Button variant="ghost" label="Give feedback" @click="emit('feedback')">
