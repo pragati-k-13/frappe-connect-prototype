@@ -133,6 +133,7 @@ const packBrief = (project, packs, company) => ({
   employees: company.employees,
   segments: company.segments,
   ...sharedAnswers(company),
+  focus: company.focus ?? '',
 })
 
 const snapshotBrief = (project, own, company) => ({
