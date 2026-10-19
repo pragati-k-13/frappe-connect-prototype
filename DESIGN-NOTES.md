@@ -1700,6 +1700,47 @@ name or a body.
   pushing high-bit entropy down. Verified after: zero identical lists across all 13
   partners, zero repeated names within a list.
 
+## The Packs page's question form, and frappe.io/contact's cards
+
+**A send replaces the form with three lines, heading and all.** "We'll call you within
+one business day", the e-mail the copy went to (the one detail worth checking for a
+typo), and a subtle "Send another message". No toast: a ten-field form that ends in a
+toast leaves the visitor in front of an empty form, unsure it went. "Still unsure? Let's
+talk." goes with the form, since it has been answered.
+
+**The button spins for 900ms first.** Nothing is sent, but swapping on the click's own
+frame read as nothing having happened. The confirmation then rises 6px into place, its
+lines 60ms apart, on the send only: coming back to the page shows it still. Reduced
+motion fades without moving.
+
+**The sent state lives in the store.** It survives moving between pages and not a
+refresh. On the live site an anonymous visitor's record is the confirmation e-mail, not
+the browser, so nothing is persisted.
+
+**Focusing an empty form's first name fills it in.** Prototype only, so the sent state
+is one click away in a review. Never on a form somebody has started.
+
+**Current software is a multiselect.** Businesses run two at once, Tally beside
+spreadsheets most often. frappe-ui's `MultiSelect` lists bare strings as nothing, so the
+options are `{ label, value }`.
+
+**The call panel is pitched as a consultation, packs first.** "A specialist walks
+through how your business runs, what to set up first, and which pack gets you live
+fastest." It asks nothing the form already asks, and never offers custom work as the
+other road: a pack first is always the advice.
+
+**Copy is cut to fit rather than wrapped to fit.** The three steps are one line each
+("Pay a fixed price upfront", "Join live onboarding sessions"), because two two-line
+titles beside a one-line one looked uneven. Headings that may wrap use `text-pretty`,
+which only stops a lone last word; `text-balance` evened the lines and looked set.
+"and" is tied to the last module with a no-break space, so a wrap takes them down
+together.
+
+**frappe.io/contact: two cards, outline on hover.** Custom implementation is hidden by a
+`hidden` flag, not deleted, to come back later. Tech support now links to
+support.frappe.io. No new-tab arrow, and hover darkens the outline instead of filling
+the card.
+
 ## Contacting a partner
 
 **Contact is gated on requirements, not on an account alone.** Pressing it opens

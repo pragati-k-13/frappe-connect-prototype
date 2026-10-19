@@ -200,6 +200,9 @@ const CURRENT_SOFTWARE = [
   'No system / Manual process',
   'Other',
 ]
+// Many at once: businesses often run two, like Tally beside spreadsheets.
+// `MultiSelect` reads `{ label, value }` only; bare strings list as nothing.
+const SOFTWARE_OPTIONS = CURRENT_SOFTWARE.map((label) => ({ label, value: label }))
 // `Combobox`, not `Select`: frappe-ui's `Select` renders no groups.
 const INDUSTRY_OPTIONS = INDUSTRIES.map((i) => ({
   group: i.label,
@@ -219,7 +222,9 @@ const STATE_OPTIONS = [
   { group: 'Outside India', hideLabel: true, options: ['Outside India'] },
 ]
 
-const EMPTY_QUESTION = {
+// A function, not a constant: `software` is an array, and a shared one would
+// carry one send's picks into the next form.
+const emptyQuestion = () => ({
   firstName: '',
   lastName: '',
   email: '',
@@ -227,12 +232,15 @@ const EMPTY_QUESTION = {
   company: '',
   designation: '',
   teamSize: '',
-  software: '',
+  software: [],
   industry: null,
   state: null,
   body: '',
-}
-const question = reactive({ ...EMPTY_QUESTION })
+})
+const question = reactive(emptyQuestion())
+// Answered: a non-blank string, a non-empty list, or any picked value.
+const isAnswered = (v) =>
+  typeof v === 'string' ? Boolean(v.trim()) : Array.isArray(v) ? v.length > 0 : Boolean(v)
 // ⚠️ PROTOTYPE ONLY: focusing an empty form's first field fills it in, so the
 // sent state is one click away when trying the page out. Never on a form
 // somebody has started typing into.
@@ -245,17 +253,17 @@ const DEMO_QUESTION = {
   company: 'Shah Textiles',
   designation: 'Director/Head of Department',
   teamSize: '51-200',
-  software: 'Tally',
+  software: ['Tally', 'Spreadsheets (Excel / Google Sheets)'],
   industry: 'Discrete Manufacturing',
   state: 'Gujarat',
   body: 'We run two units on Tally and spreadsheets. Stock across them never matches, and month-end takes a week.',
 }
 const fillDemoQuestion = () => {
-  const empty = Object.values(question).every((v) => !(typeof v === 'string' ? v.trim() : v))
+  const empty = !Object.values(question).some(isAnswered)
   if (empty) Object.assign(question, DEMO_QUESTION)
 }
 const canSendQuestion = computed(() =>
-  Object.values(question).every((v) => (typeof v === 'string' ? v.trim() : v)),
+  Object.values(question).every(isAnswered),
 )
 // The button is never disabled; a send with a field empty says which ones.
 // "Talk to us" under the steps: down to the form, cursor in its first field.
@@ -302,7 +310,7 @@ const sendQuestion = async () => {
   sending.value = false
   justSent.value = true
   store.packsQuestionSentTo = question.email.trim()
-  Object.assign(question, EMPTY_QUESTION)
+  Object.assign(question, emptyQuestion())
   // The section shrinks by most of its height, which would leave the
   // confirmation wherever the bottom of the form happened to be.
   await nextTick()
@@ -456,13 +464,14 @@ const viewCartLabel = computed(() =>
         >
           The right pack is a 15-minute conversation away
         </h2>
-        <!-- A set break from `sm`: a slightly longer first line over a slightly
-             shorter second, neither lopsided nor two equal lines. Wraps freely
-             on a phone. -->
+        <!-- A consultation, not a pack picker, and nothing the form below
+             already asks. A set break from `sm`: a slightly longer first line
+             over a slightly shorter second, neither lopsided nor two equal
+             lines. Wraps freely on a phone. -->
         <p class="mt-3 text-pretty text-p-base text-ink-gray-6">
-          Tell us how you work today. Our team will call you
+          A specialist walks through how your business runs,
           <br class="hidden sm:block" />
-          and tell you which pack fits, or if none does.
+          what to set up first, and which pack gets you live fastest.
         </p>
         <Button class="mt-6" variant="subtle" size="md" label="Talk to our team" @click="toContact" />
       </section>
@@ -477,7 +486,7 @@ const viewCartLabel = computed(() =>
         <ol class="mt-8 grid gap-8 md:grid-cols-3">
           <li v-for="step in steps" :key="step.key">
             <component :is="step.icon" class="size-5 text-ink-gray-6" aria-hidden="true" />
-            <h3 class="mt-4 text-base font-medium text-ink-gray-9">{{ step.title }}</h3>
+            <h3 class="mt-4 text-pretty text-base font-medium text-ink-gray-9">{{ step.title }}</h3>
             <p class="mt-1.5 text-pretty text-p-base text-ink-gray-6">{{ step.body }}</p>
           </li>
         </ol>
@@ -686,11 +695,11 @@ const viewCartLabel = computed(() =>
               <FormControl
                 v-model="question.software"
                 required
-                type="select"
+                type="multiselect"
                 size="sm"
                 label="Current software"
                 placeholder="Select"
-                :options="CURRENT_SOFTWARE"
+                :options="SOFTWARE_OPTIONS"
               />
               <FormControl
                 v-model="question.industry"
