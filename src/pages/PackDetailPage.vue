@@ -14,10 +14,6 @@ import shotSession from '../assets/packs/session.webp'
 import shotLaptop from '../assets/packs/laptop.webp'
 import shotDesk from '../assets/packs/desk.webp'
 import PackTermsDialog from '../components/PackTermsDialog.vue'
-import { SCOPE_ICONS } from '../scopeIcons'
-import IconSetup from '~icons/lucide/settings-2'
-import IconData from '~icons/lucide/database'
-import IconTrade from '~icons/lucide/arrow-right-left'
 import { appLogo } from '../data/apps'
 import IconCheck from '~icons/lucide/check'
 import IconBag from '~icons/lucide/shopping-bag'
@@ -41,12 +37,10 @@ import {
   packFacts,
   marketFor,
   DEFAULT_REGION,
-  PACK_SCOPE,
-  ERPNEXT_SETUP,
-  ERPNEXT_DATA,
   hostingLineFor,
 } from '../data/packs'
 import { useConnectStore } from '../stores/connect'
+import { commas, isProse, pointsOf, scopeRows } from '../packScope'
 
 // SCREEN — the pack you are about to buy.
 //
@@ -260,44 +254,15 @@ const HIGHLIGHT_ICONS = {
 // buy, stock, books, then make), Data and users. One level: the row names
 // alone say what the pack covers, and any row opens to its points, one per
 // line; a flow's steps are simply in order. Setup and Data and users are the
-// ERPNext document's, so the HR pack has its two modules only.
-const SCOPE_ORDER = ['selling', 'buying', 'inventory', 'accounting', 'manufacturing', 'hrms', 'payroll']
-// ⚠️ BUYING AND SELLING ARE ONE ROW: mirror flows, each orders to payment.
-// Inside, each flow keeps its own line, so the two "payment"s don't run
-// together as one list.
-const scope = computed(() => {
-  let modules = [...(pack.value?.areas ?? [])]
-    .sort((x, y) => SCOPE_ORDER.indexOf(x) - SCOPE_ORDER.indexOf(y))
-    .map((key) => ({ key, icon: SCOPE_ICONS[key], ...PACK_SCOPE[key] }))
-  const selling = modules.find((m) => m.key === 'selling')
-  const buying = modules.find((m) => m.key === 'buying')
-  if (selling && buying) {
-    modules = [
-      { key: 'trade', icon: IconTrade, label: 'Buying and selling', lines: [buying.flow, selling.flow] },
-      ...modules.filter((m) => m !== selling && m !== buying),
-    ]
-  }
-  if (!pack.value?.apps.includes('erpnext')) return modules
-  return [
-    { key: 'setup', icon: IconSetup, ...ERPNEXT_SETUP },
-    ...modules,
-    { key: 'data', icon: IconData, ...ERPNEXT_DATA },
-  ]
-})
-// An open row's points run as one line of names joined by commas, in order,
-// reports included. Names after the first lose their capital unless they're
-// an acronym. Long points stay one per line.
-// Setup and Data and users are written as a sentence (`sentence`).
+// ERPNext document's, so the HR pack has its two modules only. The rows and
+// how their points read are shared with the scope dialog — see `packScope.js`.
+const scope = computed(() => scopeRows(pack.value))
 // The left column under the heading: what order the rows run in, and the way
 // to the full terms — where the exclusions live now that the page doesn't
 // list them. The dialog opens for reading (`agreed`), so it offers no Agree;
 // agreeing is the cart's.
 const isErpnext = computed(() => !!pack.value?.apps.includes('erpnext'))
 const termsOpen = ref(false)
-const pointsOf = (m) => [...(m.flow ?? m.items), ...(m.reports ?? [])]
-const isProse = (points) => points.every((p) => p.length <= 32)
-const commas = (points) =>
-  points.map((p, i) => (i && /^[A-Z][a-z]/.test(p) ? p[0].toLowerCase() + p.slice(1) : p)).join(', ')
 </script>
 
 <template>

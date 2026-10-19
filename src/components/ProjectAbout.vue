@@ -7,12 +7,12 @@ import IconReview from '~icons/lucide/star'
 import IconBook from '~icons/lucide/book-open'
 import IconContact from '~icons/lucide/message-square-text'
 import IconHelp from '~icons/lucide/circle-help'
+import IconExpand from '~icons/lucide/maximize-2'
 // Opens a dialog: a panel opening over the page — not a chevron (drilling
 // down) and not maximize (frappe-ui's image viewer uses it for full screen).
-import IconOpen from '~icons/lucide/panel-top-open'
 import { logoFor } from '../data/logos'
 import { isFrappe } from '../data/partners'
-import { checkoutFor } from '../data/packs'
+import { SESSIONS_PER_PACK, checkoutFor } from '../data/packs'
 import { serviceOf } from '../data/project'
 import { scopeSentence } from '../data/modules'
 
@@ -97,8 +97,15 @@ const cost = computed(() =>
 
 // ⚠️ THE LONGEST VALIDITY IN THE BASKET, the same figure the countdown runs
 // against — see `windowFor`.
+// A pack's timeline carries its sessions too: the days are how long the hours
+// last, the sessions how the work is delivered. "Up to": a ceiling, not a
+// count — see `SESSIONS_PER_PACK`. ⚠️ FIVE IN ALL, however many packs: the
+// sessions don't add up per pack.
 const timeline = computed(() => {
-  if (props.packs.length) return `${Math.max(...props.packs.map((p) => p.validityDays))} days`
+  if (props.packs.length) {
+    const days = Math.max(...props.packs.map((p) => p.validityDays))
+    return `${days} days, up to ${SESSIONS_PER_PACK} sessions`
+  }
   return hired.value ? `${hired.value.weeks} weeks` : ''
 })
 
@@ -161,21 +168,26 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
                on a pack — so it sits under them, and is where the fuller scope (modules and what is in each) will live.
                ⚠️ ONE LINK, NOT ONE PER PACK. Pack names are long and wrap in a
                112px column; the dialog it opens lists them. -->
-          <dd v-if="packs.length" class="min-w-0">
-            <!-- A value you can open: frappe-ui's ghost Button at `sm` (its 14px
-                 text matches the other values), with the overlay mark as its
-                 suffix. `-mx-2 -my-1` is the one override: it pulls the
-                 button's 8px padding and 28px height back so the text stays on
-                 the column and the row keeps its height. -->
-            <Button
-              variant="ghost"
-              size="sm"
-              class="-mx-2 -my-1 max-w-full !text-ink-gray-7"
-              :label="packs.length === 1 ? packs[0].name : `${packs.length} Starter Packs`"
-              @click="emit('scope')"
-            >
-              <template #suffix><IconOpen class="size-3.5 text-ink-gray-5" /></template>
-            </Button>
+          <!-- ⚠️ THE VALUE IS TEXT, THE WAY IN IS ITS OWN BUTTON: the packs by
+               name (or count) read as a fact like the rows around them, and
+               an icon-only ghost button beside it opens the scope — tooltip
+               and label, like the implementer row's. `-my-0.5` takes back the
+               24px button's extra height so the row keeps the list's rhythm. -->
+          <dd v-if="packs.length" class="flex min-w-0 items-center gap-1 text-ink-gray-7">
+            <span class="truncate">
+              {{ packs.length === 1 ? packs[0].name : `${packs.length} Starter Packs` }}
+            </span>
+            <Tooltip text="View scope">
+              <Button
+                size="xs"
+                variant="ghost"
+                class="-my-0.5 shrink-0"
+                aria-label="View scope"
+                @click="emit('scope')"
+              >
+                <template #icon><IconExpand class="size-3.5 text-ink-gray-5" /></template>
+              </Button>
+            </Tooltip>
           </dd>
           <dd v-else class="text-ink-gray-7">{{ scopeLine }}</dd>
         </template>
@@ -225,8 +237,11 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
           <dt class="text-ink-gray-5">Service</dt>
           <dd class="text-ink-gray-7">{{ serviceOf(project.service)?.label }}</dd>
         </template>
-        <!-- What the business submitted, as it went out. -->
-        <template v-if="hasBrief">
+        <!-- What the business submitted, as it went out.
+             ⚠️ NOT ON A PACK: everything its requirements hold is already on
+             the page — the packs in Scope of work, the company answers in the
+             company task. A custom brief exists nowhere else, so it stays. -->
+        <template v-if="hasBrief && !packs.length">
           <dt class="text-ink-gray-5">Requirements</dt>
           <dd class="min-w-0">
             <Button
@@ -235,9 +250,7 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
               class="-mx-2 -my-1 max-w-full !text-ink-gray-7"
               label="View requirements"
               @click="emit('requirements')"
-            >
-              <template #suffix><IconOpen class="size-3.5 text-ink-gray-5" /></template>
-            </Button>
+            />
           </dd>
         </template>
 
