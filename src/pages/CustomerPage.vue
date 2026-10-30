@@ -20,6 +20,8 @@ import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
 import FollowUps from '../components/FollowUps.vue'
 import ActivityFeed from '../components/ActivityFeed.vue'
+import PanelSection from '../components/PanelSection.vue'
+import PanelField from '../components/PanelField.vue'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { CRMS, customerInvoices } from '../data/partnerAccount'
@@ -237,17 +239,17 @@ function requestSwitch() {
            tabs and the panels, not on this column. -->
       <div class="min-w-0 shrink-0 pb-6 lg:flex-1 lg:shrink lg:overflow-y-auto">
         <Tabs v-model="tab">
-          <!-- As in Frappe CRM: an icon with each tab, and the row as tall as
-               the top bar. -->
-          <TabList class="fc-tabs-scroll h-12 shrink-0 px-3 sm:px-5" size="md">
+          <!-- Frappe CRM's tabs: default size, an icon with each, and the row
+               as tall as the top bar. -->
+          <TabList class="fc-tabs-scroll h-12 shrink-0 px-3 sm:px-5">
             <TabTrigger v-if="narrow" value="details" label="Details" icon-left="lucide-panel-right" />
             <TabTrigger v-for="t in tabs" :key="t.value" :value="t.value" :label="t.label" :icon-left="t.icon" />
           </TabList>
 
-          <TabPanel value="sites" class="px-3 sm:px-5">
-            <div class="pt-6">
-              <div class="mb-3 flex items-center justify-between gap-3">
-              <h2 class="text-lg-semibold text-ink-gray-9">Sites</h2>
+          <TabPanel value="sites" class="px-3 sm:px-10">
+            <div>
+              <div class="mb-3 mt-3 flex items-center justify-between gap-3 sm:mb-4 sm:mt-8">
+              <h2 class="flex h-8 items-center text-2xl-semibold text-ink-gray-8">Sites</h2>
               <Button
                 v-if="sites.length && !partnerPays"
                 label="Open in Frappe Cloud"
@@ -280,10 +282,10 @@ function requestSwitch() {
             </div>
           </TabPanel>
 
-          <TabPanel value="invoices" class="px-3 sm:px-5">
-            <div class="pt-6">
-              <div class="mb-3 flex items-center justify-between gap-3">
-              <h2 class="text-lg-semibold text-ink-gray-9">Invoices</h2>
+          <TabPanel value="invoices" class="px-3 sm:px-10">
+            <div>
+              <div class="mb-3 mt-3 flex items-center justify-between gap-3 sm:mb-4 sm:mt-8">
+              <h2 class="flex h-8 items-center text-2xl-semibold text-ink-gray-8">Invoices</h2>
             </div>
               <p v-if="partnerPays" class="text-p-sm text-ink-gray-5">On your Frappe bill</p>
               <EmptyState v-if="!invoices.length" icon="lucide-receipt" title="No invoices yet" />
@@ -302,8 +304,8 @@ function requestSwitch() {
             </div>
           </TabPanel>
 
-          <TabPanel value="followups" class="px-3 sm:px-5">
-            <div class="pt-6">
+          <TabPanel value="followups" class="px-3 sm:px-10">
+            <div>
               <FollowUps
                 title="Follow-ups"
                 :items="followUps"
@@ -316,29 +318,29 @@ function requestSwitch() {
             </div>
           </TabPanel>
 
-          <TabPanel value="activity" class="px-3 sm:px-5">
-            <div class="pt-6">
-              <div class="mb-3 flex items-center justify-between gap-3">
-              <h2 class="text-lg-semibold text-ink-gray-9">Activity</h2>
+          <TabPanel value="activity" class="px-3 sm:px-10">
+            <div>
+              <div class="mb-3 mt-3 flex items-center justify-between gap-3 sm:mb-4 sm:mt-8">
+              <h2 class="flex h-8 items-center text-2xl-semibold text-ink-gray-8">Activity</h2>
             </div>
               <ActivityFeed :items="activity" />
             </div>
           </TabPanel>
 
-          <TabPanel value="notes" class="px-3 sm:px-5">
-            <div class="max-w-[640px] pt-6">
-              <div class="mb-3 flex items-center justify-between gap-3">
-              <h2 class="text-lg-semibold text-ink-gray-9">Notes</h2>
+          <TabPanel value="notes" class="px-3 sm:px-10">
+            <div class="max-w-[640px]">
+              <div class="mb-3 mt-3 flex items-center justify-between gap-3 sm:mb-4 sm:mt-8">
+              <h2 class="flex h-8 items-center text-2xl-semibold text-ink-gray-8">Notes</h2>
+              <Button variant="solid" label="Save notes" @click="saveNotes" />
             </div>
               <Textarea v-model="notes" :rows="8" placeholder="Anything your team should know about this customer" />
-              <Button class="mt-3" label="Save notes" @click="saveNotes" />
             </div>
           </TabPanel>
 
-          <TabPanel value="connect" class="px-3 sm:px-5">
-            <div class="pt-6">
-              <div class="mb-3 flex items-center justify-between gap-3">
-              <h2 class="text-lg-semibold text-ink-gray-9">Connect</h2>
+          <TabPanel value="connect" class="px-3 sm:px-10">
+            <div>
+              <div class="mb-3 mt-3 flex items-center justify-between gap-3 sm:mb-4 sm:mt-8">
+              <h2 class="flex h-8 items-center text-2xl-semibold text-ink-gray-8">Connect</h2>
             </div>
               <div>
                 <p class="text-sm text-ink-gray-5">Project</p>
@@ -350,105 +352,84 @@ function requestSwitch() {
       </div>
 
       <!-- ── The side panel ────────────────────────────────────────────── -->
+      <!-- Frappe CRM's side panel: 352px, a header block with who it is and
+           quick actions, then collapsible sections of label and value, edited
+           in place. -->
       <aside
         class="shrink-0 border-outline-gray-1 lg:block lg:w-[352px] lg:overflow-y-auto lg:border-l"
         :class="tab === 'details' ? 'block' : 'hidden'"
       >
-        <div class="flex items-center gap-3 px-3 py-5 sm:px-5">
-          <Avatar :label="c.name" size="2xl" shape="square" />
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-lg-semibold text-ink-gray-9">{{ c.name }}</p>
-            <div class="mt-1.5 flex items-center gap-1">
+        <div class="flex items-center gap-5 border-b border-outline-gray-1 p-5">
+          <Avatar :label="c.name" size="3xl" shape="square" />
+          <div class="flex min-w-0 flex-1 flex-col gap-2.5">
+            <p class="truncate text-3xl font-medium text-ink-gray-9">{{ c.name }}</p>
+            <div class="flex gap-1.5">
               <Button
                 v-if="c.email"
-                variant="ghost"
-                size="sm"
                 icon="lucide-mail"
                 :aria-label="`Email ${c.contact || c.name}`"
                 :tooltip="`Email ${c.contact || c.name}`"
                 :href="`mailto:${c.email}`"
               />
-              <Button variant="ghost" size="sm" icon="lucide-link" aria-label="Copy link" tooltip="Copy link" @click="copyLink" />
+              <Button icon="lucide-link" aria-label="Copy link" tooltip="Copy link" @click="copyLink" />
               <Dropdown v-if="moreMenu.length" :options="moreMenu">
-                <Button variant="ghost" size="sm" icon="lucide-ellipsis" aria-label="More actions" />
+                <Button icon="lucide-ellipsis" aria-label="More actions" />
               </Dropdown>
             </div>
           </div>
         </div>
 
-        <div class="divide-y divide-outline-gray-1 border-t border-outline-gray-1">
-          <!-- Contact and details: label and value side by side, as in Frappe
-               CRM, and edited in place. -->
-          <section v-for="group in [{ title: 'Contact', fields: CONTACT }, { title: 'Details', fields: DETAILS }]" :key="group.title" class="px-3 py-4 sm:px-5">
-            <h2 class="text-base font-medium text-ink-gray-8">{{ group.title }}</h2>
-            <dl class="mt-2 space-y-1">
-              <div v-for="f in group.fields" :key="f.key" class="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2">
-                <dt class="text-p-sm text-ink-gray-5">{{ f.label }}</dt>
-                <dd class="min-w-0">
-                  <TextInput
-                    v-if="editable"
-                    v-model="draft[f.key]"
-                    variant="ghost"
-                    :type="f.type ?? 'text'"
-                    :placeholder="`Add ${f.label.toLowerCase()}`"
-                    :aria-label="f.label"
-                    @blur="commit(f)"
-                    @keydown.enter="$event.target.blur()"
-                  />
-                  <p v-else class="truncate px-2 py-1.5 text-p-base text-ink-gray-8">{{ c[f.key] || '—' }}</p>
-                </dd>
-              </div>
-              <div class="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2" v-if="group.title === 'Details'">
-                <dt class="text-p-sm text-ink-gray-5">Source</dt>
-                <dd class="px-2 py-1.5 text-p-base text-ink-gray-8">{{ c.source === 'connect' ? 'Connect' : 'Added by you' }}</dd>
-              </div>
+        <div class="divide-y divide-outline-gray-1">
+          <PanelSection v-for="group in [{ title: 'Contact', fields: CONTACT }, { title: 'Details', fields: DETAILS }]" :key="group.title" :title="group.title">
+            <PanelField v-for="f in group.fields" :key="f.key" :label="f.label">
+              <TextInput
+                v-if="editable"
+                v-model="draft[f.key]"
+                variant="ghost"
+                :type="f.type ?? 'text'"
+                :placeholder="`Add ${f.label.toLowerCase()}`"
+                :aria-label="f.label"
+                @blur="commit(f)"
+                @keydown.enter="$event.target.blur()"
+              />
+              <span v-else class="truncate px-2">{{ c[f.key] || '—' }}</span>
+            </PanelField>
+            <template v-if="group.title === 'Details'">
+              <PanelField label="Source">
+                <span class="px-2">{{ c.source === 'connect' ? 'Connect' : 'Added by you' }}</span>
+              </PanelField>
               <!-- Phones only: the top bar has no room for the owner. -->
-              <div v-if="group.title === 'Details'" class="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2 sm:hidden">
-                <dt class="text-p-sm text-ink-gray-5">Owner</dt>
-                <dd>
-                  <Dropdown v-if="canEdit" :options="ownerMenu">
-                    <Button variant="ghost" :label="nameOf(c.owner)" icon-right="lucide-chevron-down" />
-                  </Dropdown>
-                  <span v-else class="px-2 py-1.5 text-p-base text-ink-gray-8">{{ nameOf(c.owner) }}</span>
-                </dd>
-              </div>
-            </dl>
-            <p v-if="group.title === 'Contact' && crm && canEdit" class="mt-2 text-p-sm text-ink-gray-5">
+              <PanelField class="sm:hidden" label="Owner">
+                <Dropdown v-if="canEdit" :options="ownerMenu">
+                  <Button variant="ghost" :label="nameOf(c.owner)" icon-right="lucide-chevron-down" />
+                </Dropdown>
+                <span v-else class="px-2">{{ nameOf(c.owner) }}</span>
+              </PanelField>
+            </template>
+            <p v-if="group.title === 'Contact' && crm && canEdit" class="px-3 text-p-sm text-ink-gray-5">
               Synced from {{ CRMS[crm.crm].label }}
             </p>
-          </section>
+          </PanelSection>
 
-          <section class="px-3 py-4 sm:px-5">
-            <h2 class="text-base font-medium text-ink-gray-8">Billing</h2>
-            <dl class="mt-2 space-y-1">
-              <div class="grid grid-cols-[6rem_minmax(0,1fr)] items-baseline gap-2">
-                <dt class="text-p-sm text-ink-gray-5">MRR</dt>
-                <dd class="px-2 py-1.5 text-p-base tabular-nums text-ink-gray-8">{{ c.mrr ? money(c.mrr, firm.currency) : '—' }}</dd>
-              </div>
-              <div class="grid grid-cols-[6rem_minmax(0,1fr)] items-baseline gap-2">
-                <dt class="text-p-sm text-ink-gray-5">Who pays</dt>
-                <dd class="px-2 py-1.5">
-                  <span class="text-p-base text-ink-gray-8">{{ partnerPays ? 'You' : 'The customer' }}</span>
-                  <span v-if="c.billingSwitch" class="mt-1 block text-p-sm text-ink-gray-5">You, once they confirm in Frappe Cloud</span>
-                  <Button
-                    v-else-if="!partnerPays && isOwner && c.stage !== 'churned' && c.linked"
-                    class="mt-2"
-                    size="sm"
-                    label="Switch to Partner pays"
-                    @click="switching = true"
-                  />
-                </dd>
-              </div>
-              <div class="grid grid-cols-[6rem_minmax(0,1fr)] items-baseline gap-2">
-                <dt class="text-p-sm text-ink-gray-5">Partner code</dt>
-                <dd class="px-2 py-1.5 text-p-base text-ink-gray-8">
-                  <template v-if="c.linked">Linked {{ longDate(c.linked) }}</template>
-                  <template v-else-if="c.codeShared">Shared {{ longDate(c.codeShared) }}, not linked yet</template>
-                  <template v-else>Not linked yet</template>
-                </dd>
-              </div>
-            </dl>
-          </section>
+          <PanelSection title="Billing">
+            <PanelField label="MRR">
+              <span class="px-2 tabular-nums">{{ c.mrr ? money(c.mrr, firm.currency) : '—' }}</span>
+            </PanelField>
+            <PanelField label="Who pays">
+              <span class="px-2">{{ partnerPays ? 'You' : 'The customer' }}</span>
+            </PanelField>
+            <p v-if="c.billingSwitch" class="px-3 text-p-sm text-ink-gray-5">You pay once they confirm in Frappe Cloud</p>
+            <div v-else-if="!partnerPays && isOwner && c.stage !== 'churned' && c.linked" class="px-3">
+              <Button label="Switch to Partner pays" @click="switching = true" />
+            </div>
+            <PanelField label="Partner code">
+              <span class="px-2">
+                <template v-if="c.linked">Linked {{ longDate(c.linked) }}</template>
+                <template v-else-if="c.codeShared">Shared {{ longDate(c.codeShared) }}, not linked yet</template>
+                <template v-else>Not linked yet</template>
+              </span>
+            </PanelField>
+          </PanelSection>
         </div>
       </aside>
     </div>

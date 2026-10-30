@@ -696,7 +696,9 @@ defineProps({
              composition puts a solid button against the crumbs and lets them
              touch. The current crumb truncates, so without this the ellipsis
              runs straight into the auth control at narrow widths. -->
-        <nav v-if="crumb" class="flex min-w-0 items-center pr-3" aria-label="Breadcrumb">
+        <!-- `#crumb` replaces the trailing label with a control, as Frappe
+             CRM puts its view switcher there ("Leads / To reply ▾"). -->
+        <nav v-if="crumb || $slots.crumb" class="flex min-w-0 items-center pr-3" aria-label="Breadcrumb">
           <RouterLink
             :to="rootTo"
             class="shrink-0 whitespace-nowrap rounded-4 px-0.5 py-1 text-lg-medium text-ink-gray-5 transition-colors hover:text-ink-gray-7"
@@ -704,12 +706,14 @@ defineProps({
             {{ rootLabel }}
           </RouterLink>
           <span class="mx-0.5 text-base text-ink-gray-4" aria-hidden="true">/</span>
-          <span
-            class="min-w-0 truncate px-0.5 py-1 text-lg-medium text-ink-gray-9"
-            aria-current="page"
-          >
-            {{ crumb }}
-          </span>
+          <slot name="crumb">
+            <span
+              class="min-w-0 truncate px-0.5 py-1 text-lg-medium text-ink-gray-9"
+              aria-current="page"
+            >
+              {{ crumb }}
+            </span>
+          </slot>
         </nav>
         <span v-else class="whitespace-nowrap px-0.5 py-1 text-lg-medium text-ink-gray-9">
           {{ rootLabel }}

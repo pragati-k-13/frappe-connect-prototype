@@ -36,9 +36,11 @@ const ICON = { Call: 'lucide-phone', Demo: 'lucide-presentation', Email: 'lucide
 
 <template>
   <div>
-    <div v-if="title" class="mb-3 flex items-center justify-between gap-3">
-      <h2 class="text-lg-semibold text-ink-gray-9">{{ title }}</h2>
-      <Button v-if="addable && items.length" icon-left="lucide-plus" label="Add follow-up" @click="start" />
+    <!-- Frappe CRM's tab title row: 32px down, the title large, the tab's one
+         solid action beside it. -->
+    <div v-if="title" class="mb-3 mt-3 flex items-center justify-between gap-3 sm:mb-4 sm:mt-8">
+      <h2 class="flex h-8 items-center text-2xl-semibold text-ink-gray-8">{{ title }}</h2>
+      <Button v-if="addable" variant="solid" icon-left="lucide-plus" label="Add follow-up" @click="start" />
     </div>
     <p v-if="title && syncedFrom && items.length" class="mb-2 text-sm text-ink-gray-5">Synced from {{ syncedFrom }}</p>
     <div v-else-if="!title && items.length && (addable || syncedFrom)" class="mb-2 flex items-center justify-between gap-3">
@@ -74,7 +76,7 @@ const ICON = { Call: 'lucide-phone', Demo: 'lucide-presentation', Email: 'lucide
       title="No follow-ups yet"
       :description="syncedFrom ? `They’ll show here from ${syncedFrom}.` : ''"
     >
-      <Button v-if="addable" label="Add follow-up" @click="start" />
+      <Button v-if="addable && !title" label="Add follow-up" @click="start" />
     </EmptyState>
 
     <FollowUpDialog v-model:open="open" :contact="contact" @add="emit('add', $event)" />

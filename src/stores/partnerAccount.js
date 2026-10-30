@@ -46,7 +46,9 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
   getters: {
     tier: () => useConnectStore().partnerTier,
     edits(state) {
-      return state.byTier[this.tier]
+      // A tier the demo doesn't know falls back to Bronze and up, rather than
+      // leaving every page reading `edits` from undefined.
+      return state.byTier[this.tier] ?? state.byTier['bronze-up']
     },
 
     customers() {
