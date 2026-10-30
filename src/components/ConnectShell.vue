@@ -133,6 +133,10 @@ const partnerRail = computed(() => {
   ].filter(Boolean)
   // Only Leads carries a count: replies are the one thing that can't wait.
   // The firm group gets a label; the work group, at the top, needs none.
+  // Four rows or fewer is one plain list: a list that short scans without
+  // groups, and a label over it would only say the obvious (a Member's
+  // Partnership, Team, Listing). Five or more keeps the two groups.
+  if (work.length + firm.length <= 4) return [{ items: [...work, ...firm] }]
   return [
     { items: work },
     { label: 'Your firm', items: firm },
