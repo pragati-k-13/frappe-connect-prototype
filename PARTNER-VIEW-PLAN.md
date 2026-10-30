@@ -83,6 +83,11 @@ yet sees one line saying the first audit is due before Bronze.
   links on its own: the customer enters the code in Frappe Cloud, and the partner approves or
   declines the request. The partner can also add a customer by hand before the site exists.
 
+**Partner code.** Sits in the Customers header, next to Add customer: the code with a Copy
+button, and Share, which copies a short message with the code and the steps to enter it in
+Frappe Cloud. The Add customer dialog ends on the same code and Share, since sharing it is the
+next step. An empty Customers list leads with it too.
+
 **Link requests.** Pending requests sit above the list, one row each: company, contact, the
 sites it covers, Approve and Decline. Approving adds the customer to the list. Declining
 removes the request and tells the customer.
@@ -315,3 +320,5 @@ member.
     ones.
 11. **Shared consultants.** Can a certificate count for two partners if a consultant works
     with both?
+12. **Partner code link.** Can Frappe Cloud take the code in a link, so a customer opens it and
+    the code is filled in? If so, Share copies the link instead of the steps.
