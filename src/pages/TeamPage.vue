@@ -136,24 +136,32 @@ function sendInvite() {
   toast.success(`Invite sent to ${invite.value.email}`)
 }
 
-const roling = ref(false)
-const roleFor = ref(null)
+// ── Member dialog ───────────────────────────────────────────────────────────
+// Clicking a row opens the person, as in the FC v2 demo: what they can do and
+// their certificate, then "Manage roles" switches the same dialog to editing.
+const memberOpen = ref(false)
+const memberMode = ref('view')
+const memberFor = ref(null)
 const roles = ref([])
-function startRoles(p) {
-  roleFor.value = p
+function openMember(p, mode = 'view') {
+  memberFor.value = p
   roles.value = [...p.roles]
-  roling.value = true
+  memberMode.value = mode
+  memberOpen.value = true
 }
+const startRoles = (p) => openMember(p, 'manage')
+const memberRoles = computed(() => ROLES.filter((r) => memberFor.value?.roles.includes(r.key)))
 const roleError = computed(() => {
   if (!roles.value.length) return 'Pick at least one role'
-  return roleFor.value?.roles.includes('owner') && !roles.value.includes('owner') && owners.value === 1
+  return memberFor.value?.roles.includes('owner') && !roles.value.includes('owner') && owners.value === 1
     ? 'Your firm needs an owner. Make someone else owner first.'
     : ''
 })
 function saveRoles() {
   if (roleError.value) return
-  account.setRoles(roleFor.value.id, [...roles.value])
-  roling.value = false
+  account.setRoles(memberFor.value.id, [...roles.value])
+  memberFor.value = account.team.find((p) => p.id === memberFor.value.id) ?? memberFor.value
+  memberMode.value = 'view'
   toast.success('Roles updated')
 }
 const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filter((x) => x !== r))
@@ -208,7 +216,7 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
             <ListHeaderCell><span class="sr-only">Actions</span></ListHeaderCell>
           </ListHeader>
           <ListRows :items="people" v-slot="{ item }">
-            <ListRow>
+            <ListRow @click="openMember(item)">
               <!-- Member: avatar + name + email -->
               <ListCell>
                 <div class="flex min-w-0 items-center gap-3">
@@ -258,7 +266,7 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
               <!-- More menu -->
               <ListCell class="justify-end">
                 <Dropdown v-if="isOwner" :options="menu(item)" align="end">
-                  <button class="grid size-7 place-items-center rounded-1 text-ink-gray-5 hover:bg-surface-gray-3 hover:text-ink-gray-7" :aria-label="`Actions for ${item.name}`">
+                  <button class="grid size-7 place-items-center rounded-1 text-ink-gray-5 hover:bg-surface-gray-3 hover:text-ink-gray-7" :aria-label="`Actions for ${item.name}`" @click.stop>
                     <span class="lucide-ellipsis-vertical size-4" aria-hidden="true" />
                   </button>
                 </Dropdown>
@@ -368,9 +376,53 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
       </form>
     </Dialog>
 
-    <!-- ── Change roles ─────────────────────────────────────────────────── -->
-    <Dialog v-model:open="roling" :title="`Roles for ${roleFor?.name ?? ''}`">
-      <div class="space-y-4">
+    <!-- ── Member: view roles and certificate, manage roles in one dialog ── -->
+    <Dialog v-model:open="memberOpen">
+      <template #title>
+        <div class="flex items-center gap-3">
+          <Avatar :label="memberFor?.name || ''" size="lg" />
+          <div>
+            <div class="text-xl font-semibold text-ink-gray-9">{{ memberFor?.name }}</div>
+            <div class="text-sm font-normal text-ink-gray-5">{{ memberFor?.email }}</div>
+          </div>
+        </div>
+      </template>
+
+      <!-- View mode: what they can do, and their certificate -->
+      <div v-if="memberMode === 'view' && memberFor" class="rounded-4 border border-outline-gray-2">
+        <div v-for="r in memberRoles" :key="r.key" class="flex items-center gap-3 border-b border-outline-alpha-gray-1 px-3 py-2.5 last:border-b-0">
+          <span class="grid size-6 shrink-0 place-items-center rounded-1" :class="r.key === 'owner' ? 'bg-surface-amber-2' : 'bg-surface-gray-2'">
+            <span class="size-3.5" :class="r.key === 'owner' ? 'lucide-shield text-ink-amber-8' : 'lucide-user text-ink-gray-5'" aria-hidden="true" />
+          </span>
+          <div class="min-w-0 flex-1">
+            <div class="truncate text-sm text-ink-gray-8">{{ r.label }}</div>
+            <div class="text-xs text-ink-gray-5">{{ r.desc }}</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 px-3 py-2.5">
+          <span class="grid size-6 shrink-0 place-items-center rounded-1 bg-surface-gray-2">
+            <span class="lucide-badge-check size-3.5 text-ink-gray-5" aria-hidden="true" />
+          </span>
+          <div class="min-w-0 flex-1">
+            <template v-if="memberFor.cert">
+              <div class="flex items-center gap-2">
+                <span class="truncate text-sm text-ink-gray-8">{{ memberFor.cert.name }} certificate</span>
+                <Badge v-if="STATUS[memberFor.status]" :theme="STATUS[memberFor.status].theme" variant="subtle" :label="STATUS[memberFor.status].label" />
+              </div>
+              <div class="text-xs text-ink-gray-5">
+                <template v-if="!memberFor.cert.full">Doesn’t count toward tier</template>
+                <template v-else-if="memberFor.status === 'expired'">Expired {{ longDate(memberFor.cert.expires) }}</template>
+                <template v-else>Until {{ longDate(memberFor.cert.expires) }}</template>
+              </div>
+            </template>
+            <div v-else class="text-sm text-ink-gray-8">Not certified</div>
+          </div>
+          <Button v-if="isOwner && !memberFor.cert" variant="ghost" size="sm" label="Link certificate" @click="memberOpen = false; startLink(memberFor)" />
+        </div>
+      </div>
+
+      <!-- Manage mode: role checkboxes -->
+      <div v-else-if="memberMode === 'manage'" class="space-y-3">
         <div class="space-y-2">
           <Checkbox
             v-for="(label, r) in ROLE_LABEL"
@@ -381,11 +433,17 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
           />
         </div>
         <p v-if="roleError" class="text-p-sm text-ink-red-7">{{ roleError }}</p>
-        <div class="flex justify-end gap-2 pt-2">
-          <Button label="Cancel" @click="roling = false" />
+      </div>
+
+      <template #actions>
+        <div v-if="memberMode === 'view'" class="flex justify-end">
+          <Button v-if="isOwner" variant="subtle" icon-left="lucide-shield" label="Manage roles" @click="memberMode = 'manage'" />
+        </div>
+        <div v-else class="flex justify-end gap-2">
+          <Button icon-left="lucide-arrow-left" label="Back" @click="memberMode = 'view'" />
           <Button variant="solid" label="Save" @click="saveRoles" />
         </div>
-      </div>
+      </template>
     </Dialog>
   </ConnectShell>
 </template>
