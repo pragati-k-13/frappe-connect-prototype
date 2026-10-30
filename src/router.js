@@ -154,6 +154,10 @@ const routes = [
   // Contributions and Billing became the two tabs of Invoices.
   { path: '/connect/partnership/contributions', redirect: { name: 'invoices', query: { tab: 'all' } } },
   { path: '/connect/billing', redirect: { name: 'invoices', query: { tab: 'bill' } } },
+  // Leads: Connect briefs as a list, each opening its own page, like Helpdesk
+  // tickets. The business side's inbox stays at /connect/messages.
+  { path: '/connect/leads', name: 'leads', component: () => import('./pages/LeadsPage.vue'), beforeEnter: asPartner },
+  { path: '/connect/leads/:id', name: 'lead', component: () => import('./pages/LeadPage.vue'), beforeEnter: asPartner },
   { path: '/connect/customers', name: 'customers', component: () => import('./pages/CustomersPage.vue'), beforeEnter: asPartner },
   { path: '/connect/customers/:id', name: 'customer', component: () => import('./pages/CustomerPage.vue'), beforeEnter: asPartner },
   { path: '/connect/invoices', name: 'invoices', component: () => import('./pages/InvoicesPage.vue'), beforeEnter: asPartner },

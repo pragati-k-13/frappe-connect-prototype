@@ -231,14 +231,17 @@ confirmed or replaced:
 ## 2. Customers
 
 **One record shape for leads and customers,** after Frappe CRM's deal page. Owner and stage sit
-in the top bar (in the thread header on Leads). A lead has no tabs: the thread is the page, and
-its follow-ups, activity and notes sit in the details panel. A customer's record is in tabs: Sites, Invoices, Follow-ups, Activity, Notes and,
+in the top bar (in the thread header on Leads). Leads work like Helpdesk tickets: a list
+(project, company, stage, assigned to, probability, updated; views To reply, Mine, Open,
+Closed; unread rows bold) that opens a lead page. The lead page has no tabs: one timeline holds
+the brief, the quote, replies, stage and owner changes, follow-ups and the team's notes, with
+Reply, Note and Log follow-up pinned under it, previous and next in the top bar, and a docked
+panel (lead, project, company). Notes never reach the business. A customer's record is in tabs: Sites, Invoices, Follow-ups, Activity, Notes and,
 if it came through Connect, Connect. A side panel holds the facts, edited in place and logged
 to Activity: contact (name, email, phone), details (industry, country, source; probability on
 leads), and billing on customers. Follow-ups are a call, demo, email or meeting with who was
-spoken to and notes; with a CRM synced they come from it and are read-only. Leads keep the
-inbox: the details panel docks beside the thread from 1440px and opens over it below. On a
-phone, the customer's panel is a Details tab.
+spoken to and notes; with a CRM synced they come from it and are read-only. On a phone, the
+customer's panel is a Details tab and the lead's opens from the top bar.
 
 **One list.** Customers arrive two ways, but the list doesn't split by source: where a
 customer came from doesn't change how the firm works with them.

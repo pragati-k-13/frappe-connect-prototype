@@ -5,6 +5,9 @@
 //
 // ⚠️ Invented, like the rest of the partner demo.
 
+// Leads are timed against now, like their threads in `partnerView.js`, so
+// events land between the messages they followed.
+const ago = (h) => Date.now() - h * 3_600_000
 const day = (iso, h = 10) => new Date(`${iso}T${String(h).padStart(2, '0')}:00:00`).getTime()
 
 export const FOLLOW_UP_MODES = ['Call', 'Demo', 'Email', 'Meeting']
@@ -12,11 +15,10 @@ export const FOLLOW_UP_MODES = ['Call', 'Demo', 'Email', 'Meeting']
 // `by` is a Team id; `spokeTo` is free text, since it's whoever picked up.
 const FOLLOW_UPS = {
   'pv-northwind': [
-    { id: 'f-nw-2', at: day('2026-10-29', 16), by: 'farhan-qureshi', mode: 'Call', spokeTo: 'Meera Iyer', notes: 'Walked through goods receipt. They want barcode labels printed at the dock, not the office.' },
-    { id: 'f-nw-1', at: day('2026-10-24', 11), by: 'farhan-qureshi', mode: 'Demo', spokeTo: 'Meera Iyer', notes: 'Stock entry and batch tracking. Asked about Tally opening balances.' },
+    { id: 'f-nw-1', at: ago(1), by: 'farhan-qureshi', mode: 'Call', spokeTo: 'Meera Iyer', notes: 'Walked through goods receipt. They want barcode labels printed at the dock, not the office.' },
   ],
   'pv-anonymous': [
-    { id: 'f-an-1', at: day('2026-10-27', 15), by: 'rahul-verma', mode: 'Email', spokeTo: '', notes: 'Sent the quote breakdown through Connect. No reply yet.' },
+    { id: 'f-an-1', at: ago(19), by: 'rahul-verma', mode: 'Email', spokeTo: '', notes: 'Quote breakdown sent through Connect. No reply yet.' },
   ],
   kestrel: [
     { id: 'f-ks-3', at: day('2026-10-21', 12), by: 'rahul-verma', mode: 'Meeting', spokeTo: 'Arjun Nair', notes: 'Quarterly review. Asked for a second warehouse next year.' },
@@ -34,18 +36,17 @@ const FOLLOW_UPS = {
 // `kind`: 'created' | 'change' (`field`, `from`, `to`) | 'note' (`text`).
 // `by` is a display name: Frappe and the customer act here too.
 const ACTIVITY = {
+  // A lead's thread already shows the brief arriving and the company sharing
+  // its details, so its activity is only what the team changed.
   'pv-northwind': [
-    { id: 'a-nw-1', at: day('2026-10-30', 4), by: 'Connect', kind: 'created', text: 'sent this brief' },
-    { id: 'a-nw-2', at: day('2026-10-30', 5), by: 'Farhan Qureshi', kind: 'change', field: 'Assigned to', from: 'Unassigned', to: 'Farhan Qureshi' },
-    { id: 'a-nw-3', at: day('2026-10-30', 6), by: 'Farhan Qureshi', kind: 'change', field: 'Stage', from: 'Open', to: 'Qualification' },
-    { id: 'a-nw-4', at: day('2026-10-30', 6), by: 'Farhan Qureshi', kind: 'change', field: 'Stage', from: 'Qualification', to: 'Proposal/Quotation' },
-    { id: 'a-nw-5', at: day('2026-10-30', 7), by: 'Meera Iyer', kind: 'note', text: 'shared their contact details' },
-    { id: 'a-nw-6', at: day('2026-10-30', 8), by: 'Farhan Qureshi', kind: 'change', field: 'Stage', from: 'Proposal/Quotation', to: 'Negotiation' },
+    { id: 'a-nw-1', at: ago(5.5), by: 'Farhan Qureshi', kind: 'change', field: 'Assigned to', from: 'Unassigned', to: 'Farhan Qureshi' },
+    { id: 'a-nw-2', at: ago(5), by: 'Farhan Qureshi', kind: 'change', field: 'Stage', from: 'Open', to: 'Qualification' },
+    { id: 'a-nw-3', at: ago(4.1), by: 'Farhan Qureshi', kind: 'change', field: 'Stage', from: 'Qualification', to: 'Proposal/Quotation' },
+    { id: 'a-nw-4', at: ago(2.5), by: 'Farhan Qureshi', kind: 'change', field: 'Stage', from: 'Proposal/Quotation', to: 'Negotiation' },
   ],
   'pv-anonymous': [
-    { id: 'a-an-1', at: day('2026-10-26', 9), by: 'Connect', kind: 'created', text: 'sent this brief' },
-    { id: 'a-an-2', at: day('2026-10-26', 11), by: 'Farhan Qureshi', kind: 'change', field: 'Assigned to', from: 'Unassigned', to: 'Rahul Verma' },
-    { id: 'a-an-3', at: day('2026-10-27', 14), by: 'Rahul Verma', kind: 'change', field: 'Stage', from: 'Open', to: 'Proposal/Quotation' },
+    { id: 'a-an-1', at: ago(27), by: 'Farhan Qureshi', kind: 'change', field: 'Assigned to', from: 'Unassigned', to: 'Rahul Verma' },
+    { id: 'a-an-2', at: ago(20.1), by: 'Rahul Verma', kind: 'change', field: 'Stage', from: 'Open', to: 'Proposal/Quotation' },
   ],
   kestrel: [
     { id: 'a-ks-1', at: day('2025-07-14', 10), by: 'Connect', kind: 'created', text: 'sent this brief' },

@@ -49,7 +49,7 @@ import AppSettingsDialog from './settings/AppSettingsDialog.vue'
 import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 import { firmFor, longDate, standingFor } from '../data/partnership'
-import { partnerThreads } from '../data/partnerView'
+import { needsReply, useLeads } from '../composables/useLeads'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import PartnerSettingsDialog from './settings/PartnerSettingsDialog.vue'
 import PartnerAccountDialog from './settings/PartnerAccountDialog.vue'
@@ -104,18 +104,19 @@ const inHome = computed(() => HOME_ROUTES.has(route.name))
 // person: link requests and expiring certificates are the owner's, an unpaid
 // invoice is finance's, unanswered leads are sales'.
 const account = usePartnerAccountStore()
+const leads = useLeads()
 const partnerRail = computed(() => {
   const role = store.partnerRole
   // Member is view-only: standing, the team, the profile and resources.
   const member = role === 'member'
   const beginner = store.partnerTier === 'beginner'
-  const waiting = beginner ? 0 : partnerThreads().filter((t) => !t.closed && t.messages.at(-1)?.from === 'them').length
+  const waiting = beginner ? 0 : leads.value.filter(needsReply).length
   const at = (...names) => names.includes(route.name)
   // Two groups: the work you do daily, then your firm. Leads leads, since it's
   // the most frequent visit. Resources isn't a place you work (it's links
   // out), so it lives in the header menu.
   const work = [
-    !member && role !== 'finance' && { label: 'Leads', to: '/connect/messages', icon: 'lucide-inbox', active: inMessages.value, count: waiting },
+    !member && role !== 'finance' && { label: 'Leads', to: '/connect/leads', icon: 'lucide-inbox', active: at('leads', 'lead'), count: waiting },
     !member && { label: 'Customers', to: '/connect/customers', icon: 'lucide-building-2', active: at('customers', 'customer') },
     !member && role !== 'sales' && { label: 'Invoices', to: '/connect/invoices', icon: 'lucide-receipt', active: at('invoices') },
   ].filter(Boolean)

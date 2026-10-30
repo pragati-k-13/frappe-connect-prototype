@@ -339,7 +339,6 @@ function requestSwitch() {
             <div class="pt-6">
               <div class="mb-3 flex items-center justify-between gap-3">
               <h2 class="text-lg-semibold text-ink-gray-9">Connect</h2>
-              <Button label="Open conversation" route="/connect/messages" />
             </div>
               <div>
                 <p class="text-sm text-ink-gray-5">Project</p>

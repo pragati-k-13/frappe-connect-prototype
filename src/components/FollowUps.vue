@@ -1,9 +1,9 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Button, Dialog, FormControl, Select, Textarea } from 'frappe-ui'
+import { Button } from 'frappe-ui'
 import { List, ListCell, ListRow, ListRows } from 'frappe-ui/list'
 import EmptyState from './EmptyState.vue'
-import { FOLLOW_UP_MODES } from '../data/records'
+import FollowUpDialog from './FollowUpDialog.vue'
 import { shortDate } from '../data/partnership'
 
 // The Follow-ups tab on a lead or a customer: each call, demo, email or
@@ -30,21 +30,7 @@ const nameOf = (id) => props.people.find((p) => p.id === id)?.name ?? 'Someone'
 const addable = computed(() => props.canAdd && !props.syncedFrom)
 
 const open = ref(false)
-const form = ref({})
-function start() {
-  form.value = { date: '2026-10-30', mode: 'Call', spokeTo: props.contact, notes: '' }
-  open.value = true
-}
-function save() {
-  emit('add', {
-    at: new Date(`${form.value.date}T12:00:00`).getTime(),
-    mode: form.value.mode,
-    spokeTo: form.value.spokeTo.trim(),
-    notes: form.value.notes.trim(),
-  })
-  open.value = false
-}
-const modeOptions = FOLLOW_UP_MODES.map((m) => ({ label: m, value: m }))
+const start = () => (open.value = true)
 const ICON = { Call: 'lucide-phone', Demo: 'lucide-presentation', Email: 'lucide-mail', Meeting: 'lucide-users' }
 </script>
 
@@ -91,22 +77,6 @@ const ICON = { Call: 'lucide-phone', Demo: 'lucide-presentation', Email: 'lucide
       <Button v-if="addable" label="Add follow-up" @click="start" />
     </EmptyState>
 
-    <Dialog
-      v-model:open="open"
-      title="Add follow-up"
-      :actions="[
-        { label: 'Cancel', onClick: ({ close }) => close() },
-        { label: 'Add', variant: 'solid', onClick: save },
-      ]"
-    >
-      <div class="space-y-4">
-        <div class="grid grid-cols-2 gap-3">
-          <FormControl v-model="form.date" type="date" label="Date" />
-          <Select v-model="form.mode" label="How" :options="modeOptions" />
-        </div>
-        <FormControl v-model="form.spokeTo" label="Spoke to" />
-        <Textarea v-model="form.notes" label="Notes" :rows="4" />
-      </div>
-    </Dialog>
+    <FollowUpDialog v-model:open="open" :contact="contact" @add="emit('add', $event)" />
   </div>
 </template>
