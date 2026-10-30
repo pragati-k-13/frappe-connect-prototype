@@ -64,12 +64,8 @@ function connect() {
         <FormControl v-model="url" label="Site URL" placeholder="https://crm.yourfirm.com" :error="errors.url" />
         <FormControl v-model="key" type="password" label="API key" :error="errors.key" />
       </div>
-      <SettingsRow
-        v-for="[status] in CRMS[crm].statuses"
-        :key="status"
-        :title="status"
-        description="Lead status in your CRM"
-      >
+      <p class="pt-2 text-sm text-ink-gray-5">Your CRM’s lead statuses, and the stage each one becomes</p>
+      <SettingsRow v-for="[status] in CRMS[crm].statuses" :key="status" :title="status">
         <Select v-model="mapping[status]" :options="stageOptions" class="w-48" />
       </SettingsRow>
       <div class="pt-4">

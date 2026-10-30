@@ -46,7 +46,10 @@ const base = computed(() => {
     city: 'Manama, Bahrain',
     address: null,
     tier: null,
-    pmm: 1,
+    pmm: '—',
+    countries: ['Bahrain'],
+    zone: null,
+    rate: 40,
     initials: 'LD',
     color: '#0ea5e9',
     certifications: [{ app: 'erpnext', members: 1 }],
@@ -188,7 +191,7 @@ watch(editing, (v) => v === null && (draft.value = {}))
 
       <!-- ── About ────────────────────────────────────────────────────── -->
       <ProfileSection
-        label="About"
+        label="Details"
         :editable="canEdit"
         @edit="edit('about')"
       >
@@ -215,7 +218,7 @@ watch(editing, (v) => v === null && (draft.value = {}))
     <!-- ── Plain edits: publish at once ─────────────────────────────────── -->
     <Dialog
       :open="editing !== null"
-      :title="{ header: 'Name and tagline', about: 'About', vision: 'Vision' }[editing] ?? ''"
+      :title="{ header: 'Name and tagline', about: 'Details', vision: 'Vision' }[editing] ?? ''"
       @update:open="(v) => !v && (editing = null)"
     >
       <div class="space-y-4">
