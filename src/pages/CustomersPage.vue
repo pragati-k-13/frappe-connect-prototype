@@ -122,7 +122,8 @@ function finishAdd() {
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <PartnerCode :code="firm.code" :firm="firm.name" />
-          <Button v-if="canAdd" variant="solid" label="Add customer" @click="startAdd" />
+          <!-- Subtle while a request is open: Approve is the one primary then. -->
+          <Button v-if="canAdd" :variant="openId ? 'subtle' : 'solid'" label="Add customer" @click="startAdd" />
         </div>
       </div>
 
@@ -146,7 +147,6 @@ function finishAdd() {
                 <span class="block truncate text-base text-ink-gray-8">{{ r.company }}</span>
                 <span class="mt-1 block truncate text-sm text-ink-gray-5">
                   {{ r.contact }} · {{ r.sites.length }} {{ r.sites.length === 1 ? 'site' : 'sites' }}
-                  <template v-if="r.matches"> · Matches a customer you added</template>
                 </span>
               </span>
             </ListCell>
@@ -183,7 +183,8 @@ function finishAdd() {
                 <span class="min-w-0">
                   <span class="block truncate text-base text-ink-gray-8">{{ item.name }}</span>
                   <span class="mt-1 block truncate text-sm text-ink-gray-5">
-                    {{ item.source === 'connect' ? 'Through Connect' : 'Your own' }}
+                    {{ item.source === 'connect' ? 'Through Connect' : 'Your own' }}<span class="sm:hidden">
+                      · {{ BILLING[item.billing] }}</span>
                     <template v-if="item.codeShared"> · Code shared {{ shortDate(item.codeShared) }}</template>
                     <template v-else-if="item.stage === 'onboarding' && !item.sites.length && !item.linkedSites">
                       · Not on Frappe Cloud yet

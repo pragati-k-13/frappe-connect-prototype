@@ -190,7 +190,7 @@ function requestSwitch() {
               {{ partnerPays ? 'Partner pays' : 'Customer pays' }}
             </dd>
             <dd v-if="c.billingSwitch" class="mt-1 text-sm text-ink-gray-5">
-              Partner pays from {{ longDate(c.billingSwitch.from) }}, waiting for the customer
+              Partner pays once the customer confirms in Frappe Cloud
             </dd>
             <dd v-else-if="!partnerPays && isOwner && c.stage !== 'churned' && c.linked" class="mt-2">
               <Button size="sm" label="Switch to Partner pays" @click="switching = true" />
@@ -210,10 +210,9 @@ function requestSwitch() {
 
     <Dialog v-if="c" v-model:open="switching" title="Switch to Partner pays?">
       <ul class="space-y-2 text-p-base text-ink-gray-7">
-        <li>Frappe bills you for {{ c.name }} from 1 Nov 2026, the next billing cycle.</li>
+        <li>Frappe bills you for {{ c.name }} once {{ c.contact || c.name }} confirms in Frappe Cloud.</li>
         <li>Your {{ discount }}% tier discount applies to it.</li>
         <li>You’ll see the monthly amount only, not their plans and invoices.</li>
-        <li>{{ c.contact || c.name }} confirms in Frappe Cloud before it changes.</li>
       </ul>
       <template #actions>
         <div class="flex justify-end gap-2">

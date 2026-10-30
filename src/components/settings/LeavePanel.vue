@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { Button, SettingsBody, SettingsHeader, dialog } from 'frappe-ui'
 import { useConnectStore } from '../../stores/connect'
 import { usePartnerAccountStore } from '../../stores/partnerAccount'
@@ -9,7 +9,6 @@ import { usePartnerAccountStore } from '../../stores/partnerAccount'
 // waits until that work is wrapped up. The list says what's left.
 const store = useConnectStore()
 const account = usePartnerAccountStore()
-const tried = ref(false)
 
 const linked = computed(() => account.customers.filter((c) => c.stage !== 'churned' && (c.linked || c.sites.length)))
 const partnerPays = computed(() => account.customers.filter((c) => c.billing === 'partner'))
@@ -26,8 +25,6 @@ const left = computed(() =>
 )
 
 function leave() {
-  tried.value = true
-  if (left.value.length) return
   dialog.danger({
     title: 'Leave the partnership?',
     message: 'Your listing comes down and your partner code stops working.',
@@ -40,17 +37,15 @@ function leave() {
   <SettingsHeader title="Leave the partnership" />
   <SettingsBody>
     <p class="text-p-base text-ink-gray-7">
-      Leaving removes your customer links, partner code, listing and open leads. Wrap up your work first.
+      Leaving removes your customer links, partner code, listing and open leads.
     </p>
-    <ul v-if="left.length" class="mt-4 divide-y divide-outline-gray-1">
-      <li v-for="item in left" :key="item" class="flex items-start gap-3 py-3">
-        <span class="lucide-circle mt-0.5 size-4 shrink-0 text-ink-gray-5" aria-hidden="true" />
-        <span class="text-base text-ink-gray-8">{{ item }}</span>
-      </li>
-    </ul>
-    <div class="mt-4 space-y-2">
-      <Button theme="red" label="Leave the partnership" @click="leave" />
-      <p v-if="tried && left.length" class="text-p-sm text-ink-red-7">Wrap up the items above first.</p>
-    </div>
+    <!-- Leaving waits until this is empty, so the button only shows then. -->
+    <template v-if="left.length">
+      <p class="mt-6 text-sm text-ink-gray-5">Still to wrap up</p>
+      <ul class="mt-2 divide-y divide-outline-gray-1">
+        <li v-for="item in left" :key="item" class="py-3 text-base text-ink-gray-8">{{ item }}</li>
+      </ul>
+    </template>
+    <Button v-else class="mt-4" theme="red" label="Leave" @click="leave" />
   </SettingsBody>
 </template>

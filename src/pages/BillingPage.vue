@@ -33,7 +33,8 @@ watch(month, () => (openId.value = null))
 const monthOptions = months.map((m) => ({ label: m.open ? `${m.label}, so far` : m.label, value: m.key }))
 const cur = computed(() => b.value.currency)
 
-const STATUS = { paid: { label: 'Paid', theme: 'green' }, unpaid: { label: 'Unpaid', theme: 'amber' } }
+// Unpaid has no badge: the alert above says it, with what it puts at risk.
+const STATUS = { paid: { label: 'Paid', theme: 'green' } }
 
 // The month's rows as a file, so the firm can bill each customer from its own
 // ERPNext. Only once the month is final.
@@ -69,12 +70,18 @@ const notReady = () => toast.info('Available once Frappe Cloud issues the invoic
         <div class="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p class="text-sm text-ink-gray-5">
-              {{ b.month.open ? 'You’ve paid so far this month' : `You paid for ${b.month.label}` }}
+              {{
+                b.month.open
+                  ? 'So far this month'
+                  : b.status === 'unpaid'
+                    ? `You owe for ${b.month.label}`
+                    : `You paid for ${b.month.label}`
+              }}
             </p>
             <p class="mt-1 text-2xl-semibold tabular-nums text-ink-gray-9">{{ money(b.total, cur) }}</p>
             <p v-if="b.discount" class="mt-1.5 text-sm text-ink-gray-5">After your {{ b.discount }}% tier discount</p>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2">
             <Select v-model="month" :options="monthOptions" class="w-48" />
             <Button
               icon-left="lucide-download"
@@ -123,7 +130,7 @@ const notReady = () => toast.info('Available once Frappe Cloud issues the invoic
             <ListHeaderCell>Customer</ListHeaderCell>
             <ListHeaderCell class="hidden justify-end sm:flex">Frappe billed</ListHeaderCell>
             <ListHeaderCell class="hidden justify-end sm:flex">Discount</ListHeaderCell>
-            <ListHeaderCell class="justify-end">You paid</ListHeaderCell>
+            <ListHeaderCell class="justify-end">You pay</ListHeaderCell>
           </ListHeader>
           <ListRows :items="b.rows" v-slot="{ item, value }">
             <ListRow :value="value" @click="openId = item.id">

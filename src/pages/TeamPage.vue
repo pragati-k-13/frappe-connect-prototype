@@ -166,6 +166,11 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
                 <span class="mt-1 block truncate text-sm text-ink-gray-5">
                   {{ item.invited && item.roles.length ? 'Invited' : item.email }}
                 </span>
+                <!-- Below sm the Certificate and Access columns fold in here. -->
+                <span class="mt-0.5 block truncate text-sm text-ink-gray-5 sm:hidden">
+                  {{ item.cert ? `${item.cert.name}${STATUS[item.status] ? `, ${STATUS[item.status].label.toLowerCase()}` : ''}` : 'Not certified' }}
+                  · {{ access(item) }}
+                </span>
               </span>
             </ListCell>
             <ListCell class="hidden min-w-0 sm:flex">
