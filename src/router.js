@@ -1,6 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useConnectStore } from './stores/connect'
 
+const asPartner = () => {
+  const store = useConnectStore()
+  if (store.role !== 'partner') store.setRole('partner')
+}
+
 // One route per screen in the handoff.
 //
 // `/partners` is the frappe.io partners page — the discovery surface, not part
@@ -136,6 +141,21 @@ const routes = [
     path: '/connect/messages',
     name: 'messages',
     component: () => import('./pages/MessagesPage.vue'),
+  },
+  // The partner's standing with Frappe, and the invoices behind its MRR.
+  // Partner-only screens, so arriving at one (a reload, a shared link) puts
+  // the demo on the partner side rather than drawing it in business chrome.
+  {
+    path: '/connect/partnership',
+    name: 'partnership',
+    component: () => import('./pages/PartnershipPage.vue'),
+    beforeEnter: asPartner,
+  },
+  {
+    path: '/connect/partnership/contributions',
+    name: 'contributions',
+    component: () => import('./pages/ContributionsPage.vue'),
+    beforeEnter: asPartner,
   },
   // The collaboration half of the product: everything the account is tracking.
   //

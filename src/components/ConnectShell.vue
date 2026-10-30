@@ -28,6 +28,7 @@ const collapsed = ref(true)
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
+  Alert,
   Badge,
   Button,
   PageHeader,
@@ -44,8 +45,7 @@ import FeedbackDialog from './FeedbackDialog.vue'
 import AppSettingsDialog from './settings/AppSettingsDialog.vue'
 import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
-import { PARTNERS } from '../data/partners'
-import { PARTNER_SELF } from '../data/partnerView'
+import { firmFor, longDate, standingFor } from '../data/partnership'
 
 const store = useConnectStore()
 const router = useRouter()
@@ -91,12 +91,15 @@ const inDirectory = computed(() => DIRECTORY_ROUTES.has(route.name))
 const HOME_ROUTES = new Set(['connect', 'recommendation'])
 const inHome = computed(() => HOME_ROUTES.has(route.name))
 
-const partnerSelfName = PARTNERS.find((p) => p.id === PARTNER_SELF.partnerId)?.name ?? ''
+const inPartnership = computed(() => route.name === 'partnership' || route.name === 'contributions')
 
-// The partner side has one screen so far, Messages, so it keeps the rail's
-// first group and none of the business destinations under it.
+// The partner side's firm and person follow the demo tier: Beginner is a
+// different firm. See `data/partnership.js`.
 const shellSubtitle = computed(() => {
-  if (store.role === 'partner') return `${PARTNER_SELF.person}, ${partnerSelfName}`
+  if (store.role === 'partner') {
+    const firm = firmFor(store.partnerTier)
+    return `${firm.person}, ${firm.name}`
+  }
   return store.signedIn ? store.viewer.name : undefined
 })
 
@@ -125,6 +128,14 @@ const shellSubtitle = computed(() => {
 // ⚠️ THE ONE PIECE OF STATE THIS SHELL OWNS THAT IS NOT NAVIGATION, and it is
 // here rather than on each page because the dialog has to be reachable from all
 // of them.
+// ⚠️ THE ONE BANNER THE PARTNER SIDE HAS. At risk is rare and serious, so it
+// shows on every partner screen rather than waiting for a visit to
+// Partnership. Everything else about standing waits for that visit.
+const atRisk = computed(() => {
+  if (store.role !== 'partner' || store.partnerTier === 'beginner') return null
+  return standingFor(store.partnerTier, store.partnershipState).risk ?? null
+})
+
 const feedback = ref(false)
 const settings = ref(false)
 
@@ -307,7 +318,24 @@ defineProps({
              control itself. -->
         <!-- Signed in only: a visitor has no threads and nothing to be notified
              of, so the pair would be two dead rows. -->
-        <nav v-if="store.signedIn" class="space-y-0.5">
+        <!-- The partner's rail. Only the areas that are built: the plan's rail
+             is Partnership, Customers, Billing, Messages, Team, Profile and
+             Resources, and a row for a screen that doesn't exist is a dead
+             end. -->
+        <nav v-if="store.role === 'partner'" class="space-y-0.5">
+          <Tooltip text="Partnership" side="right" :offset="8" :disabled="!collapsed">
+            <SidebarItem label="Partnership" to="/connect/partnership" :active="inPartnership">
+              <template #prefix><LucideHandshake class="size-4 text-ink-gray-6" /></template>
+            </SidebarItem>
+          </Tooltip>
+          <Tooltip text="Messages" side="right" :offset="8" :disabled="!collapsed">
+            <SidebarItem label="Messages" to="/connect/messages" :active="inMessages">
+              <template #prefix><LucideInbox class="size-4 text-ink-gray-6" /></template>
+            </SidebarItem>
+          </Tooltip>
+        </nav>
+
+        <nav v-else-if="store.signedIn" class="space-y-0.5">
           <!-- An inbox, not a message bubble. The bubble belongs to the Contact
                buttons that WRITE into this screen; this row is the pile those
                threads land in. `lucide-inbox` is frappe-ui's own choice for the
@@ -626,6 +654,16 @@ defineProps({
            That matters here and nowhere else: with a panel open the column's
            width changes without the window changing, so viewport breakpoints
            inside a page would answer the wrong question. See `index.css`. -->
+      <div
+        v-if="atRisk"
+        class="shrink-0 border-b border-outline-gray-1 px-3 py-2 sm:px-5"
+      >
+        <Alert
+          theme="amber"
+          :title="`${atRisk.criterion} are below ${atRisk.tier}. Fix by ${longDate(atRisk.fixBy)}, before the review on ${longDate(atRisk.review)}.`"
+          :primary-action="route.name === 'partnership' ? undefined : { label: 'View', onClick: () => router.push('/connect/partnership') }"
+        />
+      </div>
       <div class="flex min-h-0 flex-1">
         <!-- ⚠️ Two content regions, one slot. The default wraps the page in a
              ScrollArea and lets it be as tall as it likes; `flush` hands over

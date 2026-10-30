@@ -13,6 +13,8 @@ import IconBuilding from '~icons/lucide/building-2'
 import IconPanel from '~icons/lucide/panel-right'
 import IconClose from '~icons/lucide/x'
 import ConnectShell from '../components/ConnectShell.vue'
+import EmptyState from '../components/EmptyState.vue'
+import { useConnectStore } from '../stores/connect'
 import { List, ListCell, ListRow } from 'frappe-ui/list'
 import { PARTNERS } from '../data/partners'
 import { logoFor } from '../data/logos'
@@ -32,6 +34,10 @@ import { PARTNER_SELF, partnerThreads } from '../data/partnerView'
 //
 // Local state only. The role switch restarts the demo, so nothing the business
 // side does can reach this inbox, and the seed covers both states.
+// A Beginner isn't listed, so no brief reaches them: they find their own leads
+// until Bronze. See the plan's Messages section.
+const store = useConnectStore()
+
 const self = PARTNERS.find((p) => p.id === PARTNER_SELF.partnerId)
 const selfLogo = logoFor(PARTNER_SELF.partnerId)
 
@@ -147,7 +153,12 @@ watch(openId, () => {
 </script>
 
 <template>
-  <ConnectShell root-label="Messages" flush>
+  <ConnectShell v-if="store.partnerTier === 'beginner'" root-label="Messages">
+    <EmptyState icon="lucide-inbox" title="Leads from Connect start at Bronze">
+      <Button label="View milestones" route="/connect/partnership" />
+    </EmptyState>
+  </ConnectShell>
+  <ConnectShell v-else root-label="Messages" flush>
     <div class="relative flex min-h-0 min-w-0 flex-1">
       <!-- ── The inbox ──────────────────────────────────────────────────── -->
       <!-- Titled by PROJECT, not company: before shortlisting there is no

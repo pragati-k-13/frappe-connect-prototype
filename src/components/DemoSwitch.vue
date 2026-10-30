@@ -39,6 +39,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Button, Dropdown } from 'frappe-ui'
 import { emptyBrief } from '../data/custom'
 import { stagesFor } from '../data/project'
+import { PARTNERSHIP_STATES } from '../data/partnership'
 import { useConnectStore } from '../stores/connect'
 
 const store = useConnectStore()
@@ -60,7 +61,7 @@ function switchTo(role) {
   store.brief = emptyBrief()
   // The partner side has one screen, and the website is the business's front
   // door, not theirs. On this branch that door is frappe.io/contact.
-  router.push(role === 'partner' ? '/connect/messages' : '/contact')
+  router.push(role === 'partner' ? store.partnerHome : '/contact')
 }
 
 // ── Where the visitor arrives ───────────────────────────────────────────────
@@ -92,6 +93,20 @@ function setAccount(account) {
 const check = (role) => (store.role === role ? 'lucide-check' : 'lucide-minus')
 const checkAccount = (account) => (store.account === account ? 'lucide-check' : 'lucide-minus')
 const checkImplementer = (mode) => (store.packImplementer === mode ? 'lucide-check' : 'lucide-minus')
+const checkTier = (tier) => (store.partnerTier === tier ? 'lucide-check' : 'lucide-minus')
+const checkPartnerRole = (r) => (store.partnerRole === r ? 'lucide-check' : 'lucide-minus')
+const checkPartnership = (s) => (store.partnershipState === s ? 'lucide-check' : 'lucide-minus')
+
+// Tier and role each change where a partner lands, so switching either goes
+// there — the same arrival a real person of that tier and role would have.
+function setPartnerTier(tier) {
+  store.setPartnerTier(tier)
+  router.push(store.partnerHome)
+}
+function setPartnerRole(r) {
+  store.setPartnerRole(r)
+  router.push(store.partnerHome)
+}
 
 // ── The stage picker ───────────────────────────────────────────────────────
 // ⚠️ Only on a project's own page, and that is the whole design of it. A stage
@@ -136,7 +151,6 @@ const options = computed(() => [
       },
       {
         label: 'Partner',
-        // Messages only, so far: Software@Work's inbox. See `data/partnerView.js`.
         icon: check('partner'),
         onClick: () => switchTo('partner'),
       },
@@ -217,6 +231,43 @@ const options = computed(() => [
               onClick: () => setAccount('client'),
             },
           ],
+        },
+      ]
+    : []),
+  // The partner side's axes. Tier is the two versions of the product a partner
+  // sees; Silver and Gold differ from Bronze only in numbers. See
+  // `data/partnership.js`.
+  ...(store.role === 'partner'
+    ? [
+        {
+          group: 'Partner tier',
+          options: [
+            { label: 'Beginner', icon: checkTier('beginner'), onClick: () => setPartnerTier('beginner') },
+            { label: 'Bronze and up', icon: checkTier('bronze-up'), onClick: () => setPartnerTier('bronze-up') },
+          ],
+        },
+        {
+          group: 'Partner role',
+          options: [
+            { label: 'Owner', icon: checkPartnerRole('owner'), onClick: () => setPartnerRole('owner') },
+            { label: 'Sales', icon: checkPartnerRole('sales'), onClick: () => setPartnerRole('sales') },
+            { label: 'Finance', icon: checkPartnerRole('finance'), onClick: () => setPartnerRole('finance') },
+          ],
+        },
+      ]
+    : []),
+  // A tracker's states are its content, as with the project stage below: on
+  // Partnership only, and only from Bronze up, where there is a tier to keep
+  // and one to reach.
+  ...(store.role === 'partner' && store.partnerTier !== 'beginner' && route.name === 'partnership'
+    ? [
+        {
+          group: 'Partnership',
+          options: PARTNERSHIP_STATES.map((s) => ({
+            label: s.label,
+            icon: checkPartnership(s.key),
+            onClick: () => store.setPartnershipState(s.key),
+          })),
         },
       ]
     : []),
