@@ -1,13 +1,14 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Avatar, Badge, Button, Dialog, Dropdown, ScrollArea, Select, TabList, Tabs, TabTrigger, toast } from 'frappe-ui'
+import { Avatar, Badge, Button, Dialog, Dropdown, ScrollArea, Select, TabList, Tabs, TabTrigger, Textarea, toast } from 'frappe-ui'
 import { CommentKit, commentToolbar, Editor, EditorContent, EditorFixedMenu } from 'frappe-ui/editor'
 import IconBuilding from '~icons/lucide/building-2'
 import IconClose from '~icons/lucide/x'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
-import FollowUpDialog from '../components/FollowUpDialog.vue'
+import FollowUps from '../components/FollowUps.vue'
+import ActivityFeed from '../components/ActivityFeed.vue'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { PARTNERS } from '../data/partners'
@@ -20,12 +21,9 @@ import { CRMS, PRM_STAGES } from '../data/partnerAccount'
 import { PROBABILITY } from '../data/records'
 import { companyName, isClosed, queue, stageTheme, useLeads } from '../composables/useLeads'
 
-// SCREEN — one lead, laid out like a deal in Frappe CRM: tabs over one
-// timeline, a docked panel of facts on the right (the same shape as a
-// customer's), and the actions pinned under the timeline. The tabs are filters
-// of the same feed, not separate sections: Activity has everything — the
-// brief, the quote, replies, what the team changed, follow-ups and notes — and
-// the others narrow it to one kind, each with its own action.
+// SCREEN — one lead, the same shape as a customer: tabs (Messages,
+// Follow-ups, Activity, Notes) and a docked panel of facts on the right.
+// Messages opens first with the reply box always open under it.
 //
 // ⚠️ THE COMPANY CARD IS NOT A MESSAGE HERE. On the business side, shortlisting
 // posts the company's details into the thread as a card. A partner refers back
@@ -112,41 +110,24 @@ const stageMenu = computed(() => stageOptions.map((o) => ({ label: o.label, onCl
 const ownerMenu = computed(() => ownerOptions.value.map((o) => ({ label: o.label, onClick: () => setOwner(o.value) })))
 const probabilityOptions = PROBABILITY.map((p) => ({ label: p, value: p }))
 
-// ── The timeline ────────────────────────────────────────────────────────────
-// Messages, the team's notes, follow-ups and changes, oldest first.
-const MODE_ICON = { Call: 'lucide-phone', Demo: 'lucide-presentation', Email: 'lucide-mail', Meeting: 'lucide-users' }
-const timeline = computed(() => {
-  if (!lead.value) return []
-  const id = lead.value.id
-  return [
-    ...lead.value.messages.map((m) => ({ type: 'message', key: m.id, at: m.at, m })),
-    ...(lead.value.notes ?? []).map((n) => ({ type: 'note', key: n.id, at: n.at, n })),
-    ...account.followUpsOf(id).map((f) => ({ type: 'followup', key: f.id, at: f.at, f })),
-    ...account.activityOf(id).filter((e) => e.kind === 'change').map((e) => ({ type: 'change', key: e.id, at: e.at, e })),
-  ].sort((a, b) => a.at - b.at)
-})
-
 // ── Tabs ────────────────────────────────────────────────────────────────────
-// Follow-ups and Notes appear once there's one, so a fresh lead isn't a row
-// of empty tabs.
-const tab = ref('activity')
-const tabs = computed(() =>
-  [
-    { value: 'activity', label: 'Activity', icon: 'lucide-history' },
-    { value: 'messages', label: 'Messages', icon: 'lucide-message-square' },
-    timeline.value.some((i) => i.type === 'followup') && { value: 'followups', label: 'Follow-ups', icon: 'lucide-phone' },
-    timeline.value.some((i) => i.type === 'note') && { value: 'notes', label: 'Notes', icon: 'lucide-sticky-note' },
-  ].filter(Boolean),
-)
-const ONLY = { messages: 'message', followups: 'followup', notes: 'note' }
-const shown = computed(() => (tab.value === 'activity' ? timeline.value : timeline.value.filter((i) => i.type === ONLY[tab.value])))
-const tabLabel = computed(() => tabs.value.find((t) => t.value === tab.value)?.label ?? 'Activity')
-// Each tab's own action; Activity has all three.
-const actions = computed(() => ({
-  reply: ['activity', 'messages'].includes(tab.value),
-  note: ['activity', 'notes'].includes(tab.value),
-  followup: ['activity', 'followups'].includes(tab.value) && !crm.value,
-}))
+// The customer page's shape: Messages first, since replying is the job, then
+// Follow-ups, Activity and Notes. All four always show; each empty one says
+// what goes there.
+const TABS = [
+  { value: 'messages', label: 'Messages', icon: 'lucide-message-square' },
+  { value: 'followups', label: 'Follow-ups', icon: 'lucide-phone' },
+  { value: 'activity', label: 'Activity', icon: 'lucide-history' },
+  { value: 'notes', label: 'Notes', icon: 'lucide-sticky-note' },
+]
+const tab = ref('messages')
+
+const teamPeople = computed(() => account.team.map((p) => ({ id: p.id, name: p.name })))
+const followUps = computed(() => (lead.value ? account.followUpsOf(lead.value.id) : []))
+// The history: what the team changed. Newest last, as a timeline reads.
+const activity = computed(() => (lead.value ? account.activityOf(lead.value.id) : []))
+// The team's own notes, newest first. Never sent to the business.
+const notes = computed(() => [...(lead.value?.notes ?? [])].sort((a, b) => b.at - a.at))
 
 const time = (at) => {
   const d = new Date(at)
@@ -156,10 +137,9 @@ const time = (at) => {
     : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-// ── Composer: Reply, Note, Log follow-up ────────────────────────────────────
-// Helpdesk's Reply and Comment. A reply goes to the business; a note stays
-// with the team and never reaches them.
-const mode = ref(null)
+// ── Reply, always open under Messages ───────────────────────────────────────
+// Connect messages are short, so there's no click to open the box. It only
+// ever goes to the business: notes have their own tab.
 const draft = ref('')
 const composer = ref(null)
 const feed = ref(null)
@@ -169,37 +149,31 @@ const toBottom = () =>
     const el = feed.value?.$el?.querySelector('[data-reka-scroll-area-viewport]') ?? null
     if (el) el.scrollTop = el.scrollHeight
   })
-function startMode(m) {
-  mode.value = m
-  nextTick(() => composer.value?.editor?.commands?.focus?.())
-}
 function send() {
   if (composer.value?.isEmpty) return
-  if (mode.value === 'note') {
-    ;(lead.value.notes ??= []).push({ id: `note-${Date.now()}`, at: Date.now(), by: me.value, body: draft.value })
-  } else {
-    lead.value.messages.push({ id: `m-${Date.now()}`, from: 'you', kind: 'text', at: Date.now(), body: draft.value, by: me.value })
-  }
+  lead.value.messages.push({ id: `m-${Date.now()}`, from: 'you', kind: 'text', at: Date.now(), body: draft.value, by: me.value })
   draft.value = ''
-  mode.value = null
   toBottom()
 }
 const onKey = (e) => {
-  if (e.key === 'Escape') {
-    mode.value = null
-    return
-  }
   if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return
   e.preventDefault()
   e.stopPropagation()
   send()
 }
 
-const logging = ref(false)
+// ── Notes and follow-ups ────────────────────────────────────────────────────
+const noteDraft = ref('')
+function addNote() {
+  const body = noteDraft.value.trim()
+  if (!body) return
+  ;(lead.value.notes ??= []).push({ id: `note-${Date.now()}`, at: Date.now(), by: me.value, text: body })
+  noteDraft.value = ''
+  toast.success('Note added')
+}
 function addFollowUp(f) {
   account.addFollowUp(lead.value.id, { ...f, by: me.value })
-  toast.success('Follow-up logged')
-  toBottom()
+  toast.success('Follow-up added')
 }
 
 // ── The panel ───────────────────────────────────────────────────────────────
@@ -233,9 +207,10 @@ const companyRows = computed(() => {
 watch(
   () => route.params.id,
   () => {
-    mode.value = null
     sideOpen.value = false
-    tab.value = 'activity'
+    tab.value = 'messages'
+    draft.value = ''
+    noteDraft.value = ''
     toBottom()
   },
   { immediate: true },
@@ -295,92 +270,46 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
              top bar and running edge to edge. -->
         <Tabs v-model="tab" class="shrink-0">
           <TabList class="fc-tabs-scroll h-12 px-3 sm:px-5" size="md">
-            <TabTrigger v-for="t in tabs" :key="t.value" :value="t.value" :label="t.label" :icon-left="t.icon" />
+            <TabTrigger v-for="t in TABS" :key="t.value" :value="t.value" :label="t.label" :icon-left="t.icon" />
           </TabList>
         </Tabs>
         <ScrollArea ref="feed" class="min-h-0 flex-1">
           <div class="mx-auto max-w-[760px] px-5 py-6">
-            <h2 class="text-lg-semibold text-ink-gray-9">{{ tabLabel }}</h2>
-            <p v-if="tab !== 'followups' && tab !== 'notes'" class="mt-4 text-center text-p-sm text-ink-gray-5">
-              Sent to you and the other partners who match
-            </p>
-
-            <template v-for="item in shown" :key="item.key">
-              <!-- What the team changed: a line, like Helpdesk's status changes. -->
-              <div v-if="item.type === 'change'" class="mt-4 flex items-baseline gap-3">
-                <span class="flex w-8 shrink-0 justify-center" aria-hidden="true">
-                  <span class="size-1.5 rounded-full bg-surface-gray-5" />
-                </span>
-                <p class="min-w-0 flex-1 text-p-sm text-ink-gray-5">
-                  <span class="text-ink-gray-8">{{ item.e.by }}</span>{{ ' changed ' }}{{ item.e.field }}{{ ' ' }}<span
-                    class="text-ink-gray-8"
-                    >{{ item.e.from }}</span
-                  >{{ ' → ' }}<span class="text-ink-gray-8">{{ item.e.to }}</span>
-                </p>
-                <span class="shrink-0 text-p-xs text-ink-gray-5">{{ time(item.at) }}</span>
-              </div>
-
-              <!-- A follow-up logged. -->
-              <div v-else-if="item.type === 'followup'" class="mt-4 flex items-start gap-3">
-                <span class="flex w-8 shrink-0 justify-center pt-0.5" aria-hidden="true">
-                  <span :class="MODE_ICON[item.f.mode]" class="size-4 text-ink-gray-5" />
-                </span>
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-baseline gap-3">
-                    <p class="min-w-0 flex-1 text-p-sm text-ink-gray-5">
-                      <span class="text-ink-gray-8">{{ nameOf(item.f.by) }}</span>{{ ` logged a ${item.f.mode.toLowerCase()}` }}<template v-if="item.f.spokeTo">{{ ' with ' }}<span class="text-ink-gray-8">{{ item.f.spokeTo }}</span></template>
-                    </p>
-                    <span class="shrink-0 text-p-xs text-ink-gray-5">{{ time(item.at) }}</span>
-                  </div>
-                  <p v-if="item.f.notes" class="mt-1 text-p-base text-ink-gray-7">{{ item.f.notes }}</p>
-                </div>
-              </div>
-
-              <!-- The team's own note. Never sent to the business. -->
-              <div v-else-if="item.type === 'note'" class="mt-5 flex items-start gap-3">
-                <Avatar :label="nameOf(item.n.by)" size="xl" class="mt-0.5 shrink-0" />
-                <div class="min-w-0 flex-1 rounded-5 bg-surface-gray-2 px-3.5 py-3">
-                  <p class="flex flex-wrap items-baseline gap-x-1.5 text-p-sm">
-                    <span class="font-medium text-ink-gray-8">{{ nameOf(item.n.by) }}</span>
-                    <span class="text-ink-gray-5">·</span>
-                    <span class="text-ink-gray-5">Note, only your team sees it</span>
-                    <span class="text-ink-gray-5">·</span>
-                    <span class="text-ink-gray-5">{{ time(item.at) }}</span>
-                  </p>
-                  <div class="fc-message mt-1 text-p-base text-ink-gray-8" v-html="item.n.body" />
-                </div>
-              </div>
-
+            <!-- ── Messages ─────────────────────────────────────────── -->
+            <template v-if="tab === 'messages'">
+              <h2 class="text-lg-semibold text-ink-gray-9">Messages</h2>
+              <p class="mt-4 text-center text-p-sm text-ink-gray-5">Sent to you and the other partners who match</p>
+              <template v-for="m in lead.messages" :key="m.id">
               <!-- The moment the company became known. -->
-              <p v-else-if="item.m.kind === 'shared'" class="mt-6 text-center text-p-sm text-ink-gray-5">
+              <p v-if="m.kind === 'shared'" class="mt-6 text-center text-p-sm text-ink-gray-5">
                 <span class="text-ink-gray-7">{{ lead.company.name }}</span>
-                is interested in your quote and shared their contact details · {{ time(item.at) }}
+                is interested in your quote and shared their contact details · {{ time(m.at) }}
               </p>
 
               <div v-else class="mt-5 flex items-start gap-3">
                 <Avatar
-                  v-if="item.m.from === 'you' && selfLogo"
+                  v-if="m.from === 'you' && selfLogo"
                   :image="selfLogo"
                   :label="self.name"
                   size="xl"
                   shape="square"
                   class="fc-logo-avatar mt-0.5 shrink-0"
                 />
-                <Avatar v-else-if="item.m.from === 'you'" :label="self.name" size="xl" shape="square" class="mt-0.5 shrink-0" />
+                <Avatar v-else-if="m.from === 'you'" :label="self.name" size="xl" shape="square" class="mt-0.5 shrink-0" />
                 <Avatar v-else-if="lead.company" :label="lead.company.contact" size="xl" class="mt-0.5 shrink-0" />
                 <Avatar v-else size="xl" shape="square" class="mt-0.5 shrink-0" aria-hidden="true">
                   <IconBuilding class="size-full text-ink-gray-5" />
                 </Avatar>
                 <div class="min-w-0 flex-1">
                   <p class="flex flex-wrap items-baseline gap-x-1.5 text-p-sm">
-                    <span class="font-medium text-ink-gray-8">{{ authorOf(item.m) }}</span>
+                    <span class="font-medium text-ink-gray-8">{{ authorOf(m) }}</span>
                     <span class="text-ink-gray-5">·</span>
-                    <span class="text-ink-gray-5">{{ time(item.at) }}</span>
+                    <span class="text-ink-gray-5">{{ time(m.at) }}</span>
                   </p>
 
-                  <div v-if="item.m.kind === 'text'" class="fc-message mt-1 max-w-[560px] text-p-base text-ink-gray-8" v-html="item.m.body" />
+                  <div v-if="m.kind === 'text'" class="fc-message mt-1 max-w-[560px] text-p-base text-ink-gray-8" v-html="m.body" />
 
-                  <div v-else-if="item.m.kind === 'brief'" class="mt-1.5 w-full max-w-[560px] rounded-5 border border-outline-gray-2 p-3.5">
+                  <div v-else-if="m.kind === 'brief'" class="mt-1.5 w-full max-w-[560px] rounded-5 border border-outline-gray-2 p-3.5">
                     <p class="text-p-base font-medium text-ink-gray-8">{{ lead.project }}</p>
                     <p class="mt-1.5 line-clamp-2 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7">{{ lead.brief.scope }}</p>
                     <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -391,67 +320,86 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
                     </div>
                   </div>
 
-                  <div v-else-if="item.m.kind === 'bid'" class="mt-1.5 w-fit max-w-[560px] rounded-5 border border-outline-gray-2 p-3.5">
+                  <div v-else-if="m.kind === 'bid'" class="mt-1.5 w-fit max-w-[560px] rounded-5 border border-outline-gray-2 p-3.5">
                     <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                      <p class="text-p-lg font-semibold tabular-nums text-ink-gray-9">{{ item.m.bid.price }}</p>
-                      <p class="text-p-base text-ink-gray-6">about {{ item.m.bid.weeks }} weeks</p>
+                      <p class="text-p-lg font-semibold tabular-nums text-ink-gray-9">{{ m.bid.price }}</p>
+                      <p class="text-p-base text-ink-gray-6">about {{ m.bid.weeks }} weeks</p>
                     </div>
-                    <p class="mt-2 text-p-base leading-relaxed text-ink-gray-7">{{ item.m.bid.note }}</p>
+                    <p class="mt-2 text-p-base leading-relaxed text-ink-gray-7">{{ m.bid.note }}</p>
                     <!-- Once they're interested, the line under the quote says so. -->
                     <Badge v-if="!lead.company" class="mt-3" theme="gray" label="Waiting on their decision" />
                   </div>
                 </div>
               </div>
+              </template>
+            </template>
+
+            <!-- ── Follow-ups: calls, demos, emails and meetings held
+                 outside Connect, as the PRM records them. -->
+            <FollowUps
+              v-else-if="tab === 'followups'"
+              title="Follow-ups"
+              :items="followUps"
+              :people="teamPeople"
+              :contact="lead.company?.contact ?? ''"
+              :synced-from="crm ? CRMS[crm.crm].label : ''"
+              :can-add="canAct && !closed"
+              @add="addFollowUp"
+            />
+
+            <!-- ── Activity: the history, as on a customer ──────────── -->
+            <template v-else-if="tab === 'activity'">
+              <h2 class="mb-4 text-lg-semibold text-ink-gray-9">Activity</h2>
+              <ActivityFeed :items="activity" />
+            </template>
+
+            <!-- ── Notes: the team's own, never sent to the business ── -->
+            <template v-else>
+              <h2 class="text-lg-semibold text-ink-gray-9">Notes</h2>
+              <div v-if="canAct && !closed" class="mt-3">
+                <Textarea v-model="noteDraft" :rows="3" placeholder="Add a note for your team" />
+                <Button class="mt-2" label="Add note" :disabled="!noteDraft.trim()" @click="addNote" />
+              </div>
+              <ul v-if="notes.length" class="mt-4 divide-y divide-outline-gray-1">
+                <li v-for="n in notes" :key="n.id" class="flex items-start gap-3 py-3">
+                  <Avatar :label="nameOf(n.by)" size="md" class="mt-0.5 shrink-0" />
+                  <div class="min-w-0 flex-1">
+                    <p class="flex flex-wrap items-baseline gap-x-1.5 text-p-sm">
+                      <span class="font-medium text-ink-gray-8">{{ nameOf(n.by) }}</span>
+                      <span class="text-ink-gray-5">·</span>
+                      <span class="text-ink-gray-5">{{ time(n.at) }}</span>
+                    </p>
+                    <p class="mt-1 whitespace-pre-line text-p-base text-ink-gray-8">{{ n.text }}</p>
+                  </div>
+                </li>
+              </ul>
+              <EmptyState v-else-if="!canAct || closed" icon="lucide-sticky-note" title="No notes yet" />
             </template>
           </div>
         </ScrollArea>
 
-        <!-- ── Actions, pinned ──────────────────────────────────────────── -->
-        <div class="shrink-0 border-t border-outline-gray-1">
-          <p v-if="closed || !canAct" class="px-5 py-3 text-center text-p-sm text-ink-gray-5">
+        <!-- ── Reply, always open under Messages ───────────────────────── -->
+        <div v-if="tab === 'messages'" class="shrink-0">
+          <p v-if="closed || !canAct" class="border-t border-outline-gray-1 px-5 py-3 text-center text-p-sm text-ink-gray-5">
             {{ closed ? 'This lead is closed.' : 'Sales and your firm’s owner work on leads.' }}
           </p>
-
-          <div v-else-if="mode" class="mx-auto max-w-[760px] px-5 py-3">
-            <Editor
-              ref="composer"
-              v-model="draft"
-              :extensions="EXTENSIONS"
-              :placeholder="mode === 'note' ? 'Add a note for your team…' : 'Reply to the business…'"
-            >
+          <div v-else class="mx-auto w-full max-w-[760px] px-5 pb-4 pt-1">
+            <Editor ref="composer" v-model="draft" :extensions="EXTENSIONS" placeholder="Reply to the business…">
               <template #default="{ isEmpty }">
                 <div
-                  class="rounded-4 border border-outline-gray-2 p-2 focus-within:border-outline-gray-4"
-                  :class="mode === 'note' ? 'bg-surface-gray-2' : 'bg-surface-base'"
+                  class="group rounded-4 border border-transparent bg-surface-gray-2 p-2 transition-colors focus-within:border-outline-gray-4 focus-within:bg-surface-base focus-within:shadow-sm"
                   @keydown.capture="onKey"
                 >
-                  <EditorContent class="fc-composer max-h-40 min-h-12 overflow-y-auto px-1" />
+                  <EditorContent class="fc-composer max-h-40 min-h-6 overflow-y-auto px-1" />
+                  <!-- Always shown, so the box doesn't grow on focus and push the
+                       conversation up. -->
                   <div class="mt-2 flex items-center gap-2">
                     <EditorFixedMenu :items="commentToolbar" button-size="sm" />
-                    <Button class="ml-auto" variant="ghost" size="sm" label="Cancel" @click="mode = null" />
-                    <Button
-                      variant="solid"
-                      size="sm"
-                      :label="mode === 'note' ? 'Add note' : 'Send'"
-                      :disabled="isEmpty"
-                      @click="send"
-                    />
+                    <Button class="ml-auto" variant="subtle" size="sm" label="Send" icon-right="lucide-send-horizontal" :disabled="isEmpty" @click="send" />
                   </div>
                 </div>
               </template>
             </Editor>
-          </div>
-
-          <div v-else class="flex items-center gap-1 px-3 py-2">
-            <Button v-if="actions.reply" variant="ghost" icon-left="lucide-reply" label="Reply" @click="startMode('reply')" />
-            <Button v-if="actions.note" variant="ghost" icon-left="lucide-sticky-note" label="Note" @click="startMode('note')" />
-            <Button
-              v-if="actions.followup"
-              variant="ghost"
-              icon-left="lucide-phone"
-              label="Log follow-up"
-              @click="logging = true"
-            />
           </div>
         </div>
       </section>
@@ -570,7 +518,6 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
       </aside>
     </div>
 
-    <FollowUpDialog v-if="lead" v-model:open="logging" :contact="lead.company?.contact ?? ''" @add="addFollowUp" />
 
     <Dialog
       v-model:open="losing"

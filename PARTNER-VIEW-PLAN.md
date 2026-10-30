@@ -233,11 +233,11 @@ confirmed or replaced:
 **One record shape for leads and customers,** after Frappe CRM's deal page. Owner and stage sit
 in the top bar (in the thread header on Leads). Leads work like Helpdesk tickets: a list
 (project, company, stage, assigned to, probability, updated; views To reply, Mine, Open,
-Closed; unread rows bold) that opens a lead page. The lead page has CRM's tabs as filters of
-one timeline: Activity (the brief, the quote, replies, stage and owner changes, follow-ups and
-the team's notes), Messages, and Follow-ups and Notes once there is one. Each tab's action sits
-pinned under it (Reply, Note, Log follow-up), previous and next are in the top bar, and the
-docked panel has the customer panel's shape (lead, project, company). Notes never reach the business. A customer's record is in tabs: Sites, Invoices, Follow-ups, Activity, Notes and,
+Closed; unread rows bold) that opens a lead page. The lead page has the customer page's shape:
+tabs Messages (opens first, reply box always open, goes only to the business), Follow-ups
+(calls, demos, emails and meetings held outside Connect), Activity (what the team changed)
+and Notes (the team's own, never sent), with previous and next in the top bar and the same
+docked panel (lead, project, company). Notes never reach the business. A customer's record is in tabs: Sites, Invoices, Follow-ups, Activity, Notes and,
 if it came through Connect, Connect. A side panel holds the facts, edited in place and logged
 to Activity: contact (name, email, phone), details (industry, country, source; probability on
 leads), and billing on customers. Follow-ups are a call, demo, email or meeting with who was
