@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { Avatar, Button, Dropdown, Select, TabButtons, TextInput } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
@@ -7,7 +7,7 @@ import EmptyState from '../components/EmptyState.vue'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { PRM_STAGES } from '../data/partnerAccount'
-import { companyName, isClosed, lastAt, meFor, needsReply, queue, theirLast, useLeads } from '../composables/useLeads'
+import { companyName, isClosed, lastAt, meFor, needsReply, theirLast, useLeads } from '../composables/useLeads'
 
 // SCREEN — Leads, styled as Frappe CRM's list: the view switcher in the
 // breadcrumb, quick filters with Refresh, Filter, Sort and Columns beside
@@ -122,7 +122,6 @@ const rows = computed(() => {
     })
 })
 const page = computed(() => rows.value.slice(0, pageSize.value))
-watch(rows, (r) => (queue.value = r.map((t) => t.id)), { immediate: true })
 const filtered = computed(() => Boolean(query.value.trim() || stage.value || owner.value || probability.value))
 const clear = () => {
   query.value = ''

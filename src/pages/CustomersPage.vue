@@ -1,20 +1,23 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Avatar, Badge, Button, Dialog, Dropdown, FormControl, TextInput, dialog, toast } from 'frappe-ui'
+import { Avatar, Button, Dialog, Dropdown, FormControl, Select, TabButtons, TextInput, dialog, toast } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
 import PartnerCode from '../components/PartnerCode.vue'
-import PageIntro from '../components/PageIntro.vue'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
+import { customerInvoices } from '../data/partnerAccount'
 import { firmFor, money, shortDate } from '../data/partnership'
 
-// SCREEN — Customers: who the firm works with and what each brings in.
-// See PARTNER-VIEW-PLAN.md §2.
+// SCREEN — Customers, as Frappe CRM's list (and Leads): views in the
+// breadcrumb, quick filters with Refresh, Filter, Sort and Columns, a
+// full-width table, and a footer with page size and count. A customer row
+// opens the customer's page; its menu has the quick trips (open a site,
+// download the last invoice) so a peek needs no sheet. See PARTNER-VIEW-PLAN.md §2.
 //
-// Link requests sit above the list because they're waiting on the owner; a
-// request opens in the docked panel, where there's room to judge it.
+// Link requests are a view of their own. A request opens in the docked panel,
+// since approving one is a quick decision rather than a record to open.
 
 const store = useConnectStore()
 const account = usePartnerAccountStore()
@@ -23,32 +26,110 @@ const firm = computed(() => firmFor(store.partnerTier))
 const isOwner = computed(() => store.partnerRole === 'owner')
 const canAdd = computed(() => store.partnerRole !== 'finance')
 
-// ── The list ────────────────────────────────────────────────────────────────
-// One list: where a customer came from doesn't change how the firm works
-// with them, so the list doesn't split by source.
+// ── Views ───────────────────────────────────────────────────────────────────
+// One list of customers: where one came from doesn't change how the firm works
+// with them. Link requests wait on the owner, so they get their own view.
+const view = ref('all')
+const views = computed(() => [
+  { label: 'All customers', value: 'all', icon: 'lucide-building-2' },
+  { label: `Link requests${account.requests.length ? ` (${account.requests.length})` : ''}`, value: 'requests', icon: 'lucide-link' },
+])
+const current = computed(() => views.value.find((v) => v.value === view.value))
+const viewMenu = computed(() => views.value.map((v) => ({ label: v.label, icon: v.icon, onClick: () => (view.value = v.value) })))
+
+// ── Quick filters and controls ──────────────────────────────────────────────
 const query = ref('')
+const stage = ref('')
+const pays = ref('')
+const source = ref('')
+const stageOptions = [
+  { label: 'Any stage', value: '' },
+  { label: 'Onboarding', value: 'onboarding' },
+  { label: 'Live', value: 'live' },
+  { label: 'Churned', value: 'churned' },
+]
+const paysOptions = [
+  { label: 'Anyone pays', value: '' },
+  { label: 'Customer pays', value: 'customer' },
+  { label: 'Partner pays', value: 'partner' },
+]
+// Filter holds what the quick filters don't: where the customer came from.
+const filterMenu = computed(() =>
+  [['', 'Any source'], ['connect', 'Connect'], ['own', 'Added by you']].map(([v, l]) => ({
+    label: l,
+    icon: source.value === v ? 'lucide-check' : 'lucide-blank',
+    onClick: () => (source.value = v),
+  })),
+)
+const SORTS = [
+  { value: 'name', label: 'Name' },
+  { value: 'mrr', label: 'MRR' },
+  { value: 'linked', label: 'Linked' },
+]
+const sort = ref('name')
+const sortMenu = computed(() =>
+  SORTS.map((o) => ({ label: o.label, icon: sort.value === o.value ? 'lucide-check' : 'lucide-blank', onClick: () => (sort.value = o.value) })),
+)
+const COLUMNS = [
+  { key: 'contact', label: 'Contact', width: 'minmax(0,1fr)' },
+  { key: 'stage', label: 'Stage', width: '8rem' },
+  { key: 'pays', label: 'Who pays', width: '8rem' },
+  { key: 'owner', label: 'Owner', width: '10rem' },
+  { key: 'sites', label: 'Sites', width: '5rem' },
+  { key: 'mrr', label: 'MRR', width: '7rem' },
+]
+const shownCols = ref(COLUMNS.map((c) => c.key))
+const show = (k) => shownCols.value.includes(k)
+const columnsMenu = computed(() =>
+  COLUMNS.map((c) => ({
+    label: c.label,
+    icon: show(c.key) ? 'lucide-check' : 'lucide-blank',
+    onClick: () => (shownCols.value = show(c.key) ? shownCols.value.filter((k) => k !== c.key) : [...shownCols.value, c.key]),
+  })),
+)
+const gridColumns = computed(() => ({
+  base: ['minmax(0,1fr)', 'auto', '2rem'],
+  md: ['minmax(0,1.5fr)', ...COLUMNS.filter((c) => show(c.key)).map((c) => c.width), '2rem'],
+}))
+const PAGE_SIZES = [20, 50, 100].map((n) => ({ label: String(n), value: n }))
+const pageSize = ref(20)
+const refreshing = ref(false)
+function refresh() {
+  refreshing.value = true
+  setTimeout(() => (refreshing.value = false), 500)
+}
 
-// Link requests sit in the same list, at the top: a request is a customer
-// that hasn't linked yet. They open in the docked panel rather than a page,
-// since there's nothing to show until the owner approves.
-const shown = computed(() => {
+const rows = computed(() => {
   const q = query.value.trim().toLowerCase()
-  const hit = (name, contact) => !q || name.toLowerCase().includes(q) || contact?.toLowerCase().includes(q)
-  const requests = account.requests
-    .filter((r) => hit(r.company, r.contact))
-    .map((r) => ({ ...r, id: r.id, name: r.company, request: true }))
-  return [...requests, ...account.customers.filter((c) => hit(c.name, c.contact))]
+  return account.customers
+    .filter((c) => !q || c.name.toLowerCase().includes(q) || c.contact?.toLowerCase().includes(q))
+    .filter((c) => !stage.value || c.stage === stage.value)
+    .filter((c) => !pays.value || c.billing === pays.value)
+    .filter((c) => !source.value || c.source === source.value)
+    .sort((a, b) =>
+      sort.value === 'mrr' ? b.mrr - a.mrr : sort.value === 'linked' ? (b.linked ?? '').localeCompare(a.linked ?? '') : a.name.localeCompare(b.name),
+    )
 })
-
-// The customers' total. Partnership's MRR also counts the firm's own account.
-const total = computed(() => account.customers.reduce((sum, c) => sum + c.mrr, 0))
+const requestRows = computed(() => {
+  const q = query.value.trim().toLowerCase()
+  return account.requests.filter((r) => !q || r.company.toLowerCase().includes(q) || r.contact?.toLowerCase().includes(q))
+})
+const page = computed(() => rows.value.slice(0, pageSize.value))
+const filtered = computed(() => Boolean(query.value.trim() || stage.value || pays.value || source.value))
+const clear = () => {
+  query.value = ''
+  stage.value = ''
+  pays.value = ''
+  source.value = ''
+}
 
 const STAGE = {
-  onboarding: { label: 'Onboarding', theme: 'blue' },
-  live: { label: 'Live', theme: 'green' },
-  churned: { label: 'Churned', theme: 'gray' },
+  onboarding: { label: 'Onboarding', dot: 'bg-surface-blue-7' },
+  live: { label: 'Live', dot: 'bg-surface-green-7' },
+  churned: { label: 'Churned', dot: 'bg-surface-gray-5' },
 }
 const BILLING = { customer: 'Customer pays', partner: 'Partner pays' }
+const nameOf = (id) => account.team.find((p) => p.id === id)?.name
 
 // ── Link requests ───────────────────────────────────────────────────────────
 const openId = ref(null)
@@ -72,6 +153,7 @@ function handle(outcome, request = open.value) {
 // Removing a linked customer unlinks it: its MRR stops counting toward tier,
 // so it asks first. One added by hand that never linked is just deleted.
 const canEdit = computed(() => ['owner', 'sales'].includes(store.partnerRole))
+const seesInvoices = computed(() => store.partnerRole !== 'sales')
 function actionsFor(item) {
   if (item.request) {
     return isOwner.value
@@ -82,7 +164,19 @@ function actionsFor(item) {
       : []
   }
   const linked = Boolean(item.linked || item.sites.length)
+  const last = seesInvoices.value ? customerInvoices(store.partnerTier, store.partnershipState, item.name).find((i) => !i.open) : null
   return [
+    // The quick trips, so a look at one customer needs no page.
+    item.sites.length && item.billing !== 'partner' && {
+      label: 'Open in Frappe Cloud',
+      icon: 'lucide-external-link',
+      onClick: () => window.open('https://frappecloud.com/dashboard', '_blank', 'noopener'),
+    },
+    last && {
+      label: `Download ${last.month} invoice`,
+      icon: 'lucide-download',
+      onClick: () => toast.success(`${item.name}’s ${last.month} invoice downloaded`),
+    },
     canEdit.value && { label: 'Edit details', icon: 'lucide-pencil', onClick: () => startEdit(item) },
     isOwner.value && item.billing === 'customer' && linked && !item.billingSwitch && {
       label: 'Switch to Partner pays',
@@ -130,9 +224,6 @@ function saveEdit() {
   toast.success('Details saved')
 }
 
-// Only the figure the list doesn't already show: stages and requests are in
-// the rows themselves.
-const stats = computed(() => [{ label: 'MRR from customers', value: money(total.value, firm.value.currency) }])
 
 // ── Add customer ────────────────────────────────────────────────────────────
 // Saved as Onboarding, then the dialog ends on the partner code: sharing it
@@ -172,97 +263,167 @@ function finishAdd() {
 </script>
 
 <template>
-  <ConnectShell root-label="Customers">
-    <div class="fc-page-list py-8">
-      <PageIntro title="Businesses on your partner code" :stats="stats">
-        <template #actions>
-          <PartnerCode :code="firm.code" :firm="firm.name" />
-          <!-- Subtle while a request is open: Approve is the one primary then. -->
-          <Button v-if="canAdd" :variant="openId ? 'subtle' : 'solid'" label="Add customer" @click="startAdd" />
-        </template>
-      </PageIntro>
+  <ConnectShell root-label="Customers" root-to="/connect/customers" flush>
+    <!-- "Customers / All customers ▾", CRM's view switcher. -->
+    <template #crumb>
+      <Dropdown :options="viewMenu">
+        <Button variant="ghost" class="text-lg-medium text-nowrap" icon-right="lucide-chevron-down">
+          <template #prefix><span :class="current.icon" class="size-4" aria-hidden="true" /></template>
+          {{ current.label }}
+        </Button>
+      </Dropdown>
+    </template>
+    <!-- The firm's own code, the same for every customer, and Add customer as
+         the one solid button, where CRM puts Create. -->
+    <template #action>
+      <div class="flex items-center gap-2">
+        <div class="hidden md:block"><PartnerCode :code="firm.code" :firm="firm.name" /></div>
+        <!-- Subtle while a request is open: Approve is the one primary then. -->
+        <Button v-if="canAdd" class="hidden sm:inline-flex" :variant="openId ? 'subtle' : 'solid'" icon-left="lucide-plus" label="Add customer" @click="startAdd" />
+        <!-- Phones: icon only, so the view switcher keeps its room. -->
+        <Button v-if="canAdd" class="sm:hidden" :variant="openId ? 'subtle' : 'solid'" icon="lucide-plus" aria-label="Add customer" @click="startAdd" />
+      </div>
+    </template>
 
-      <section>
-        <div class="flex flex-wrap items-center gap-2">
-          <TextInput v-model="query" type="search" placeholder="Search customers" class="w-full sm:w-56">
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+      <!-- ── Quick filters and controls ────────────────────────────────── -->
+      <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 px-3 py-4 sm:px-5">
+        <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <TextInput v-model="query" type="search" placeholder="Customer or contact" class="w-full sm:w-56">
             <template #prefix><span class="lucide-search size-4 text-ink-gray-5" aria-hidden="true" /></template>
           </TextInput>
+          <template v-if="view === 'all'">
+            <Select v-model="stage" :options="stageOptions" class="min-w-36" aria-label="Stage" />
+            <Select v-model="pays" :options="paysOptions" class="min-w-36" aria-label="Who pays" />
+            <Button v-if="filtered" variant="ghost" label="Clear" @click="clear" />
+          </template>
         </div>
+        <div v-if="view === 'all'" class="flex flex-wrap items-center gap-2">
+          <span class="hidden h-5 border-l border-outline-gray-2 sm:block" aria-hidden="true" />
+          <Button icon="lucide-refresh-ccw" aria-label="Refresh" tooltip="Refresh" :loading="refreshing" @click="refresh" />
+          <Dropdown :options="filterMenu" align="end">
+            <Button label="Filter" icon-left="lucide-list-filter">
+              <template v-if="source" #suffix>
+                <span class="grid size-5 place-items-center rounded-4 bg-surface-base text-xs font-medium shadow-sm">1</span>
+              </template>
+            </Button>
+          </Dropdown>
+          <Dropdown :options="sortMenu" align="end">
+            <Button :label="SORTS.find((o) => o.value === sort).label" icon-left="lucide-arrow-down-up" />
+          </Dropdown>
+          <Dropdown :options="columnsMenu" align="end">
+            <Button label="Columns" icon-left="lucide-columns-3" />
+          </Dropdown>
+        </div>
+      </div>
 
-        <List
-          v-if="shown.length"
-          v-model:active="openId"
-          class="-mx-3 mt-4 list-row-px-3"
-          :columns="{ base: ['minmax(0,1fr)', '6rem', '2rem'], sm: ['minmax(0,1fr)', '8rem', '7rem', '7rem', '2rem'] }"
-          :row-height="56"
-        >
-          <ListHeader>
-            <ListHeaderCell>Customer</ListHeaderCell>
-            <ListHeaderCell class="hidden sm:flex">Billing</ListHeaderCell>
-            <ListHeaderCell class="hidden sm:flex">Stage</ListHeaderCell>
-            <ListHeaderCell class="justify-end">MRR</ListHeaderCell>
-            <ListHeaderCell><span class="sr-only">Actions</span></ListHeaderCell>
-          </ListHeader>
-          <ListRows :items="shown" v-slot="{ item }">
-            <ListRow v-if="item.request" :value="item.id" @click="openId = item.id">
-              <ListCell class="min-w-0 gap-3">
-                <Avatar :label="item.name" size="md" shape="square" />
-                <span class="min-w-0">
-                  <span class="block truncate text-base text-ink-gray-8">{{ item.name }}</span>
-                  <span class="mt-1 block truncate text-sm text-ink-gray-5">
-                    {{ item.contact }} · Entered your code {{ shortDate(item.at) }}
-                  </span>
-                </span>
-              </ListCell>
-              <ListCell class="hidden text-sm text-ink-gray-5 sm:flex">—</ListCell>
-              <ListCell class="hidden sm:flex">
-                <Badge theme="amber" variant="subtle" size="sm" label="Wants to link" />
-              </ListCell>
-              <ListCell class="justify-end text-ink-gray-5">—</ListCell>
-              <ListCell class="justify-end" @click.stop.prevent>
-                <Dropdown v-if="actionsFor(item).length" :options="actionsFor(item)" align="end">
-                  <Button variant="ghost" icon="lucide-ellipsis" :aria-label="`Actions for ${item.name}`" />
-                </Dropdown>
-              </ListCell>
-            </ListRow>
-            <ListRow v-else :to="`/connect/customers/${item.id}`">
-              <ListCell class="min-w-0 gap-3">
-                <Avatar :label="item.name" size="md" shape="square" />
-                <span class="min-w-0">
-                  <span class="block truncate text-base text-ink-gray-8">{{ item.name }}</span>
-                  <span class="mt-1 block truncate text-sm text-ink-gray-5">
-                    {{ item.contact }}<span class="sm:hidden"> · {{ BILLING[item.billing] }}</span>
-                    <template v-if="item.codeShared"> · Code shared {{ shortDate(item.codeShared) }}</template>
-                    <template v-else-if="item.stage === 'onboarding' && !item.sites.length && !item.linkedSites">
-                      · Not on Frappe Cloud yet
-                    </template>
-                  </span>
-                </span>
-              </ListCell>
-              <ListCell class="hidden text-sm text-ink-gray-7 sm:flex">{{ BILLING[item.billing] }}</ListCell>
-              <ListCell class="hidden sm:flex">
-                <Badge :theme="STAGE[item.stage].theme" variant="subtle" size="sm" :label="STAGE[item.stage].label" />
-              </ListCell>
-              <ListCell class="justify-end tabular-nums text-ink-gray-7">
-                {{ item.mrr ? money(item.mrr, firm.currency) : '—' }}
-              </ListCell>
-              <!-- Inside a row that links to the customer, so the menu stops
-                   the click from also opening the page. -->
-              <ListCell class="justify-end" @click.stop.prevent>
-                <Dropdown v-if="actionsFor(item).length" :options="actionsFor(item)" align="end">
-                  <Button variant="ghost" icon="lucide-ellipsis" :aria-label="`Actions for ${item.name}`" />
-                </Dropdown>
-              </ListCell>
-            </ListRow>
-          </ListRows>
-        </List>
-        <EmptyState
-          v-else
-          icon="lucide-building-2"
-          title="No customers match"
-          description="Try another search or filter."
-        />
-      </section>
+      <!-- ── The table, full width ─────────────────────────────────────── -->
+      <div class="min-h-0 flex-1 overflow-y-auto px-3 sm:px-5">
+        <!-- All customers -->
+        <template v-if="view === 'all'">
+          <List v-if="page.length" class="list-row-px-2" :columns="gridColumns" :row-height="40">
+            <ListHeader class="mb-2 rounded-4 bg-surface-gray-2 px-2">
+              <ListHeaderCell>Customer</ListHeaderCell>
+              <ListHeaderCell v-if="show('contact')" class="hidden md:flex">Contact</ListHeaderCell>
+              <ListHeaderCell v-if="show('stage')" class="hidden md:flex">Stage</ListHeaderCell>
+              <ListHeaderCell v-if="show('pays')" class="hidden md:flex">Who pays</ListHeaderCell>
+              <ListHeaderCell v-if="show('owner')" class="hidden md:flex">Owner</ListHeaderCell>
+              <ListHeaderCell v-if="show('sites')" class="hidden md:flex">Sites</ListHeaderCell>
+              <ListHeaderCell v-if="show('mrr')" class="hidden justify-end md:flex">MRR</ListHeaderCell>
+              <ListHeaderCell class="md:hidden"><span class="sr-only">Stage</span></ListHeaderCell>
+              <ListHeaderCell><span class="sr-only">Actions</span></ListHeaderCell>
+            </ListHeader>
+            <ListRows :items="page" v-slot="{ item }">
+              <ListRow :to="`/connect/customers/${item.id}`">
+                <ListCell class="min-w-0 gap-2">
+                  <Avatar :label="item.name" size="sm" shape="square" />
+                  <span class="truncate text-base text-ink-gray-9">{{ item.name }}</span>
+                </ListCell>
+                <ListCell v-if="show('contact')" class="hidden min-w-0 md:flex">
+                  <span class="truncate text-base text-ink-gray-7">{{ item.contact || '—' }}</span>
+                </ListCell>
+                <ListCell v-if="show('stage')" class="hidden min-w-0 gap-2 md:flex">
+                  <span :class="STAGE[item.stage].dot" class="size-2 shrink-0 rounded-full" aria-hidden="true" />
+                  <span class="truncate text-base text-ink-gray-7">{{ STAGE[item.stage].label }}</span>
+                </ListCell>
+                <ListCell v-if="show('pays')" class="hidden text-base text-ink-gray-7 md:flex">{{ BILLING[item.billing] }}</ListCell>
+                <ListCell v-if="show('owner')" class="hidden min-w-0 gap-2 md:flex">
+                  <template v-if="item.owner">
+                    <Avatar :label="nameOf(item.owner)" size="sm" />
+                    <span class="truncate text-base text-ink-gray-7">{{ nameOf(item.owner) }}</span>
+                  </template>
+                  <span v-else class="text-base text-ink-gray-5">—</span>
+                </ListCell>
+                <ListCell v-if="show('sites')" class="hidden text-base tabular-nums text-ink-gray-7 md:flex">
+                  {{ (item.sites.length || item.linkedSites?.length) ?? 0 }}
+                </ListCell>
+                <ListCell v-if="show('mrr')" class="hidden justify-end text-base tabular-nums text-ink-gray-7 md:flex">
+                  {{ item.mrr ? money(item.mrr, firm.currency) : '—' }}
+                </ListCell>
+                <!-- Phones: the stage as a dot beside the menu. -->
+                <ListCell class="md:hidden">
+                  <span :class="STAGE[item.stage].dot" class="size-2 rounded-full" :aria-label="STAGE[item.stage].label" />
+                </ListCell>
+                <!-- Inside a row that links to the customer, so the menu stops
+                     the click from also opening the page. -->
+                <ListCell class="justify-end" @click.stop.prevent>
+                  <Dropdown v-if="actionsFor(item).length" :options="actionsFor(item)" align="end">
+                    <Button variant="ghost" icon="lucide-ellipsis" :aria-label="`Actions for ${item.name}`" />
+                  </Dropdown>
+                </ListCell>
+              </ListRow>
+            </ListRows>
+          </List>
+          <EmptyState v-else icon="lucide-building-2" :title="filtered ? 'No customers match' : 'No customers yet'">
+            <Button v-if="filtered" label="Clear filters" @click="clear" />
+          </EmptyState>
+        </template>
+
+        <!-- Link requests: each opens in the docked panel. -->
+        <template v-else>
+          <List
+            v-if="requestRows.length"
+            v-model:active="openId"
+            class="list-row-px-2"
+            :columns="{ base: ['minmax(0,1fr)', '2rem'], md: ['minmax(0,1.5fr)', 'minmax(0,1fr)', '9rem', '6rem', '2rem'] }"
+            :row-height="40"
+          >
+            <ListHeader class="mb-2 rounded-4 bg-surface-gray-2 px-2">
+              <ListHeaderCell>Company</ListHeaderCell>
+              <ListHeaderCell class="hidden md:flex">Contact</ListHeaderCell>
+              <ListHeaderCell class="hidden md:flex">Entered your code</ListHeaderCell>
+              <ListHeaderCell class="hidden md:flex">Sites</ListHeaderCell>
+              <ListHeaderCell><span class="sr-only">Actions</span></ListHeaderCell>
+            </ListHeader>
+            <ListRows :items="requestRows" v-slot="{ item }">
+              <ListRow :value="item.id" @click="openId = item.id">
+                <ListCell class="min-w-0 gap-2">
+                  <Avatar :label="item.company" size="sm" shape="square" />
+                  <span class="truncate text-base text-ink-gray-9">{{ item.company }}</span>
+                </ListCell>
+                <ListCell class="hidden min-w-0 md:flex"><span class="truncate text-base text-ink-gray-7">{{ item.contact }}</span></ListCell>
+                <ListCell class="hidden text-base text-ink-gray-7 md:flex">{{ shortDate(item.at) }}</ListCell>
+                <ListCell class="hidden text-base tabular-nums text-ink-gray-7 md:flex">{{ item.sites.length }}</ListCell>
+                <ListCell class="justify-end" @click.stop.prevent>
+                  <Dropdown v-if="actionsFor({ ...item, name: item.company, request: true }).length" :options="actionsFor({ ...item, name: item.company, request: true })" align="end">
+                    <Button variant="ghost" icon="lucide-ellipsis" :aria-label="`Actions for ${item.company}`" />
+                  </Dropdown>
+                </ListCell>
+              </ListRow>
+            </ListRows>
+          </List>
+          <EmptyState v-else icon="lucide-link" title="No link requests" />
+        </template>
+      </div>
+
+      <!-- ── Footer, as CRM's ──────────────────────────────────────────── -->
+      <div class="flex shrink-0 items-center justify-between border-t border-outline-gray-1 px-3 py-2 sm:px-5">
+        <TabButtons v-if="view === 'all'" v-model="pageSize" :options="PAGE_SIZES" />
+        <span v-else />
+        <span class="text-base tabular-nums text-ink-gray-5">
+          {{ view === 'all' ? `${page.length} of ${rows.length}` : `${requestRows.length} of ${account.requests.length}` }}
+        </span>
+      </div>
     </div>
 
     <!-- ── A link request, docked ───────────────────────────────────────── -->

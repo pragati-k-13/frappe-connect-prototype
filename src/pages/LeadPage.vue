@@ -1,6 +1,6 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { Avatar, Badge, Button, Dialog, Dropdown, ScrollArea, Select, TabList, Tabs, TabTrigger, Textarea, toast } from 'frappe-ui'
 import { CommentKit, commentToolbar, Editor, EditorContent, EditorFixedMenu } from 'frappe-ui/editor'
 import IconBuilding from '~icons/lucide/building-2'
@@ -22,7 +22,7 @@ import { PARTNER_SELF, PRM_LOST_REASONS } from '../data/partnerView'
 import { CRMS, PRM_STAGES } from '../data/partnerAccount'
 import { PROBABILITY } from '../data/records'
 import { firmFor } from '../data/partnership'
-import { companyName, isClosed, meFor, queue, stageTheme, useLeads } from '../composables/useLeads'
+import { companyName, isClosed, meFor, stageTheme, useLeads } from '../composables/useLeads'
 
 // SCREEN — one lead, the same shape as a customer: tabs (Messages,
 // Follow-ups, Activity, Notes) and a docked panel of facts on the right.
@@ -34,7 +34,6 @@ import { companyName, isClosed, meFor, queue, stageTheme, useLeads } from '../co
 // live in the panel and the timeline keeps one line marking when they arrived.
 
 const route = useRoute()
-const router = useRouter()
 const store = useConnectStore()
 const account = usePartnerAccountStore()
 const leads = useLeads()
@@ -58,18 +57,6 @@ const me = computed(() => meFor(store))
 const nameOf = (id) => account.team.find((p) => p.id === id)?.name ?? 'Unassigned'
 const meName = computed(() => nameOf(me.value))
 const authorOf = (m) => (m.from === 'you' ? (m.by ? nameOf(m.by) : store.partnerTier === 'beginner' ? nameOf(me.value) : PARTNER_SELF.person) : (lead.value.company?.contact ?? companyName(lead.value)))
-
-// ── Previous and next ───────────────────────────────────────────────────────
-// Working through replies without going back to the list each time.
-const order = computed(() => {
-  const ids = queue.value.includes(lead.value?.id) ? queue.value : leads.value.filter((t) => isClosed(t) === closed.value).map((t) => t.id)
-  return ids.map((id) => leads.value.find((t) => t.id === id)).filter(Boolean)
-})
-const at = computed(() => order.value.findIndex((t) => t.id === lead.value?.id))
-const go = (step) => {
-  const next = order.value[at.value + step]
-  if (next) router.push(`/connect/leads/${next.id}`)
-}
 
 // ── Stage, owner, probability ───────────────────────────────────────────────
 // With a CRM connected, stages come from it and aren't set here.
@@ -258,8 +245,7 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
 
 <template>
   <ConnectShell root-label="Leads" root-to="/connect/leads" :crumb="lead?.project ?? 'Not found'" flush>
-    <!-- Owner and stage where Helpdesk and CRM put status; then previous and
-         next, to work through the list from here. -->
+    <!-- Owner and stage where Helpdesk and CRM put status. -->
     <template v-if="lead" #action>
       <div class="flex items-center gap-2">
         <div v-if="canAct" class="hidden items-center gap-2 sm:flex">
@@ -283,10 +269,6 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
         </div>
         <Badge v-else variant="subtle" :theme="stageTheme(lead.stage)" :label="lead.stage" />
         <Button class="lg:hidden" variant="ghost" icon="lucide-panel-right" aria-label="Details" @click="sideOpen = true" />
-        <div class="flex items-center">
-          <Button variant="ghost" icon="lucide-chevron-up" aria-label="Previous lead" :disabled="at <= 0" @click="go(-1)" />
-          <Button variant="ghost" icon="lucide-chevron-down" aria-label="Next lead" :disabled="at >= order.length - 1" @click="go(1)" />
-        </div>
       </div>
     </template>
 

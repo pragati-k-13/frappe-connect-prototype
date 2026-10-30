@@ -230,13 +230,21 @@ confirmed or replaced:
 
 ## 2. Customers
 
+**The list is Frappe CRM's, like Leads:** views in the breadcrumb (All customers, Link
+requests), quick filters (search, stage, who pays) with Refresh, Filter (source), Sort and
+Columns, a full-width table (customer, contact, stage, who pays, owner, sites, MRR), and a
+footer with page size and count. A row opens the customer's page; its menu carries the quick
+trips — open in Frappe Cloud, download the last invoice — so there's no peek sheet. Add customer
+is the solid button in the top bar, beside the firm's partner code. Link requests open in the
+docked panel.
+
 **One record shape for leads and customers,** after Frappe CRM's deal page. Owner and stage sit
 in the top bar (in the thread header on Leads). Leads work like Helpdesk tickets: a list
 (project, company, stage, assigned to, probability, updated; views To reply, Mine, Open,
 Closed; unread rows bold) that opens a lead page. The lead page has the customer page's shape:
 tabs Messages (opens first, reply box always open, goes only to the business), Follow-ups
 (calls, demos, emails and meetings held outside Connect), Activity (what the team changed)
-and Notes (the team's own, never sent), with previous and next in the top bar and the same
+and Notes (the team's own, never sent), with the same
 docked panel (lead, project, company). Notes never reach the business. A customer's record is in tabs: Sites, Invoices, Follow-ups, Activity, Notes and,
 if it came through Connect, Connect. A side panel holds the facts, edited in place and logged
 to Activity: contact (name, email, phone), details (industry, country, source; probability on

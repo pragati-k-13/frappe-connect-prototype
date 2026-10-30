@@ -34,7 +34,3 @@ export const meFor = (store) =>
   store.partnerTier === 'beginner'
     ? store.partnerRole === 'sales' ? 'yusuf-karim' : 'sana-malik'
     : store.partnerRole === 'sales' ? 'rahul-verma' : 'farhan-qureshi'
-
-// The list's rows in the order it last showed them, so previous and next on a
-// lead page step to the row above and below rather than through the seed.
-export const queue = ref([])
