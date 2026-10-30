@@ -278,7 +278,7 @@ function requestAudit() {
               <li v-for="m in s.managers" :key="m.email" class="flex items-center gap-2.5">
                 <Avatar :label="m.name" size="md" />
                 <span class="text-base text-ink-gray-8">{{ m.name }}</span>
-                <a :href="`mailto:${m.email}`" class="text-sm text-ink-blue-link hover:underline">Email</a>
+                <a :href="`mailto:${m.email}`" :aria-label="`Email ${m.name}`" class="text-sm text-ink-blue-link hover:underline">Email</a>
               </li>
             </ul>
           </section>

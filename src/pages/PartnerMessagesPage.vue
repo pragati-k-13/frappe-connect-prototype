@@ -94,6 +94,14 @@ watch(
 )
 const open = computed(() => threads.value.find((t) => t.id === openId.value) ?? null)
 
+// Below lg there's room for one pane: the list, then the thread on its own,
+// with a way back. Above it, list and thread sit side by side.
+const mobileThread = ref(false)
+const pick = (id) => {
+  openId.value = id
+  mobileThread.value = true
+}
+
 // Who the other side is, as far as this partner knows. Until shortlisting the
 // honest answer is nobody in particular.
 const companyName = (t) => t.company?.name ?? 'Anonymous company'
@@ -249,7 +257,10 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
       <!-- Titled by PROJECT, not company: before shortlisting there is no
            company name to show, and a list half of "Anonymous company" rows
            tells a partner nothing about which job each one is. -->
-      <aside class="flex w-[320px] shrink-0 flex-col border-r border-outline-gray-1">
+      <aside
+        class="w-full shrink-0 flex-col border-outline-gray-1 lg:flex lg:w-[320px] lg:border-r"
+        :class="mobileThread ? 'hidden' : 'flex'"
+      >
         <!-- The page's title lives here, with the views, since there's no top
              bar on this screen. Same 48px row height as the bar it replaces. -->
         <div class="shrink-0 px-3 pb-2">
@@ -272,7 +283,7 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
             :columns="['auto', 'minmax(0,1fr)']"
             divider="none"
           >
-            <ListRow v-for="t in ordered" :key="t.id" :value="t.id" class="py-3">
+            <ListRow v-for="t in ordered" :key="t.id" :value="t.id" class="py-3" @click="pick(t.id)">
               <ListCell>
                 <Avatar v-if="t.company" :label="t.company.name" size="2xl" shape="square" />
                 <Avatar v-else size="2xl" shape="square" aria-hidden="true">
@@ -304,8 +315,19 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
       </aside>
 
       <!-- ── The conversation ───────────────────────────────────────────── -->
-      <section v-if="open" class="flex min-h-0 min-w-0 flex-1 flex-col">
+      <section
+        v-if="open"
+        class="min-h-0 min-w-0 flex-1 flex-col lg:flex"
+        :class="mobileThread ? 'flex' : 'hidden'"
+      >
         <header class="flex shrink-0 items-center gap-3 border-b border-outline-gray-1 px-5 py-3">
+          <Button
+            class="-ml-2 lg:hidden"
+            variant="ghost"
+            icon="lucide-arrow-left"
+            aria-label="Back to leads"
+            @click="mobileThread = false"
+          />
           <Avatar v-if="open.company" :label="open.company.name" size="2xl" shape="square" />
           <Avatar v-else size="2xl" shape="square" aria-hidden="true">
             <IconBuilding class="size-full text-ink-gray-5" />

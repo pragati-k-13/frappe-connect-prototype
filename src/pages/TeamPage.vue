@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Avatar, Badge, Button, Checkbox, Dialog, Dropdown, FormControl, TabButtons, toast } from 'frappe-ui'
+import { Avatar, Badge, Button, Checkbox, Dialog, Dropdown, FormControl, TabButtons, toast, Tooltip } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import { useConnectStore } from '../stores/connect'
@@ -143,7 +143,13 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
 <template>
   <ConnectShell root-label="Team">
     <div class="fc-page-list py-8">
-      <div class="flex flex-wrap items-end justify-between gap-4">
+      <div class="flex items-center justify-between gap-4">
+        <TabButtons v-model="tab" :options="TABS" />
+        <Button v-if="isOwner" variant="solid" label="Invite" @click="startInvite" />
+      </div>
+
+      <!-- The count belongs to People: it's about who's certified. -->
+      <div v-if="tab === 'people'" class="mt-6">
         <div>
           <p class="text-sm text-ink-gray-5">Certified consultants</p>
           <p class="mt-1 text-2xl-semibold tabular-nums text-ink-gray-9">{{ counting }}</p>
@@ -152,10 +158,7 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
             {{ needed }}. Only full ERPNext or Framework certificates count.
           </p>
         </div>
-        <Button v-if="isOwner" variant="solid" label="Invite" @click="startInvite" />
       </div>
-
-      <TabButtons v-model="tab" :options="TABS" class="mt-6" />
 
       <List
         v-if="tab === 'people'"
@@ -226,7 +229,9 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
             </span>
           </ListCell>
           <ListCell class="gap-1">
-            <Avatar v-for="m in membersOf(r.key).slice(0, 4)" :key="m.id" :label="m.name" size="sm" />
+            <Tooltip v-for="m in membersOf(r.key).slice(0, 4)" :key="m.id" :text="m.name">
+              <Avatar :label="m.name" size="sm" :aria-label="m.name" />
+            </Tooltip>
             <span v-if="membersOf(r.key).length > 4" class="pl-1 text-sm text-ink-gray-5">+{{ membersOf(r.key).length - 4 }}</span>
             <span v-if="!membersOf(r.key).length" class="text-sm text-ink-gray-5">No one yet</span>
           </ListCell>
