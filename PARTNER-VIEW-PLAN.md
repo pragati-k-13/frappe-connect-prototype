@@ -290,8 +290,8 @@ and the main area for what changes over time.
 - **Main area, in tabs:**
   - **Sites:** name, plan, region, status, apps, monthly cost. Read-only, with "Open in Frappe
     Cloud". Partner-pays customers show plan and amount only.
-  - **Invoices:** Frappe Cloud invoices, read-only, with unpaid ones flagged. Customer-pays
-    customers only.
+  - **Invoices:** for Customer-pays customers, their Frappe Cloud invoices, read-only, with
+    unpaid ones flagged. For Partner-pays customers, the per-customer invoices from Billing.
   - **Connect:** the message thread and project, for customers who came through Connect.
   - **Notes:** the partner's own.
 - **Out of scope:** invoices the partner sends the customer for their own work. Partners do
@@ -320,14 +320,22 @@ pay Frappe on our customers' behalf, and what do we charge them for it? Frappe C
 Billing page doesn't break this down per customer, so Connect does.
 
 **One month at a time,** with a month picker. One row per Partner-pays customer: the amount
-Frappe billed for them, the tier discount taken off, and what the partner paid. Each row opens
-to that customer's servers and sites, each with its plan and amount. The month's total matches
-the partner's Frappe Cloud invoice, which it links to.
+Frappe billed for them, the tier discount taken off, and what the partner paid. Above the rows,
+the partner's own Frappe Cloud invoice for the month, whose total the rows add up to.
 
-- **The partner's invoice** shows the same split: customers, and their servers under each.
-- **A per-customer invoice** can be downloaded from each row, listing only that customer's
-  servers and sites, so the partner can pass it on or bill from it.
+**Invoices open in a docked aside**, the one Frappe Cloud v2 uses for invoices
+(`frappe-cloud-v2/src/pages/manage/CentralBillingPage.vue`). It sits to the right of the list,
+so Finance can step through customers without losing their place. In that repo it's written
+inline in the page, so Connect pulls it out into one shared component.
+
+- **A customer's row** opens their invoice: customer, month and status in the header, with
+  Email and Download as icons. The body lists that customer's servers and sites, each with its
+  plan and amount, then subtotal, tier discount and total. This is the per-customer invoice the
+  partner passes on or bills from.
+- **The partner's invoice** opens the same way, split by customer, with servers under each.
 - **Export as CSV,** so the partner can bill every customer from their own ERPNext.
+
+Partner-pays customers also show these invoices in the Invoices tab on their own page.
 
 Customer-pays customers aren't listed, since the partner pays nothing for them. If there are
 no Partner-pays customers, the page says so in one line and links to how billing modes work.
