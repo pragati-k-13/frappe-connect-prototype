@@ -127,25 +127,43 @@ site moves them to Live.
 
 This exists already and stays business-only. Every thread is a lead.
 
-**Leads, not a pipeline.** Most partners already run a CRM, so Connect doesn't copy the PRM
-portal's sales stages (Qualification, Follow Up, Demo, Proposal). It records only what Frappe
-needs back from a lead:
+**Stages are the PRM portal's**, so partners and Frappe's partner team keep one vocabulary,
+and a CRM sync maps onto stages Frappe already owns: Open, Qualification, Demo/Making,
+Proposal/Quotation, Follow Up, Negotiation, Ready to Close, Won, Lost, Junk, Closed.
 
-- **Source:** a brief through Connect, or a lead passed on by Frappe. Passed leads arrive with
-  the business named from the start, and show the Frappe person who passed them on.
-- **Outcome:** Open, Won or Lost. Won moves the business into Customers. Lost asks for a
-  reason, from the PRM portal's list ("Lost to competitor" and the rest).
+Most partners run a CRM and won't update stages on Connect by hand. So a stage is set, in
+order of preference, by what happens in Connect, then by a CRM sync, then by hand:
+
+| What happens                                        | Stage                            |
+| --------------------------------------------------- | -------------------------------- |
+| Brief reaches the partner, or Frappe passes a lead  | Open                             |
+| Partner sends a quote                               | Proposal/Quotation               |
+| Business shortlists the partner                     | Negotiation                      |
+| Business hires them, or links through the partner code | Won                           |
+| Business picks someone else                         | Lost, "Lost to competitor"       |
+| Brief withdrawn                                     | Lost or Closed, *to confirm*     |
+| Partner flags a brief as spam or not genuine        | Junk                             |
+
+Qualification, Demo/Making, Follow Up and Ready to Close have no event in Connect. They come
+from sync or by hand, and a lead can skip them. Lost always asks for a reason, from the
+portal's list.
+
+**Each lead also carries:**
+
+- **Source:** a brief through Connect, or passed on by Frappe. Passed leads arrive with the
+  business named from the start, and show the Frappe person who passed them on.
 - **What it asked about:** the brief, its industry, and the Starter Pack, if it picked one.
 
-Leads a partner finds on their own stay in their CRM. Connect sees them only once they link
-through the partner code, as customers.
+**Without a sync,** a passed lead that hasn't moved for a while gets one prompt, "Still working
+on this?", answered in one click. Leads a partner finds on their own stay in their CRM. Connect
+sees them only once they link through the partner code, as customers.
 
 The other changes:
 
 - Once a thread is won, the sidebar links to its customer record.
 - **Error paths to design:** a message fails to send (keep the draft and offer a retry); the
-  business hires someone else or withdraws the brief (the lead closes as Lost with that reason,
-  and the thread stays as a read-only record of the bid); a quote is sent after the brief
+  business hires someone else or withdraws the brief (the lead closes with that stage and
+  reason, and the thread stays as a read-only record of the bid); a quote is sent after the brief
   closed (block it and explain).
 - **Empty state:** a new partner with no briefs yet. Say what makes a brief reach them: their
   regions and industries, and the deal sizes and capacity on their profile.
@@ -201,3 +219,7 @@ and the partner gets a notice.
    it does, what the portal does today is the minimum this view must cover.
 8. **Switching to Partner pays.** Who starts it, the partner or the customer, and does the
    customer have to confirm in Frappe Cloud?
+9. **Closed and Junk.** How does Closed differ from Lost and Junk? A withdrawn brief needs
+   one of them.
+10. **CRM sync.** Which CRMs will Frappe support? Frappe CRM and ERPNext are the obvious first
+    ones.
