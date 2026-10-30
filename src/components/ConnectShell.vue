@@ -29,7 +29,9 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   Alert,
+  Avatar,
   Badge,
+  Dropdown,
   Button,
   PageHeader,
   ScrollArea,
@@ -50,6 +52,7 @@ import { billingFor } from '../data/partnerAccount'
 import { partnerThreads } from '../data/partnerView'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import PartnerSettingsDialog from './settings/PartnerSettingsDialog.vue'
+import PartnerAccountDialog from './settings/PartnerAccountDialog.vue'
 
 const store = useConnectStore()
 const router = useRouter()
@@ -111,23 +114,27 @@ const partnerRail = computed(() => {
   const unpaid = billingFor(store.partnerTier, store.partnershipState, '2026-09').status === 'unpaid' ? 1 : 0
   const certs = account.team.filter((p) => p.status === 'expiring' || p.status === 'expired').length
   const at = (...names) => names.includes(route.name)
-  return [
-    { label: 'Partnership', to: '/connect/partnership', icon: 'lucide-handshake', active: at('partnership', 'contributions') },
+  // Two groups: the work you do daily, then your firm. Leads leads, since it's
+  // the most frequent visit. Resources isn't a place you work (it's links
+  // out), so it lives in the header menu.
+  const work = [
+    !member && role !== 'finance' && { label: 'Leads', to: '/connect/messages', icon: 'lucide-inbox', active: inMessages.value, count: waiting },
     !member && { label: 'Customers', to: '/connect/customers', icon: 'lucide-building-2', active: at('customers', 'customer'), count: owner ? account.requests.length : 0 },
     !member && role !== 'sales' && { label: 'Billing', to: '/connect/billing', icon: 'lucide-wallet', active: at('billing'), count: role === 'finance' || owner ? unpaid : 0 },
-    !member && role !== 'finance' && { label: 'Leads', to: '/connect/messages', icon: 'lucide-inbox', active: inMessages.value, count: waiting },
-    { label: 'Team', to: '/connect/team', icon: 'lucide-users', active: at('team'), count: owner ? certs : 0 },
-    { label: 'Profile', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile') },
-    { label: 'Resources', to: '/connect/resources', icon: 'lucide-book-open', active: at('resources') },
   ].filter(Boolean)
+  const firm = [
+    { label: 'Partnership', to: '/connect/partnership', icon: 'lucide-handshake', active: at('partnership', 'contributions') },
+    { label: 'Team', to: '/connect/team', icon: 'lucide-users', active: at('team'), count: owner ? certs : 0 },
+    { label: 'Listing', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile') },
+  ]
+  return [work, firm].filter((g) => g.length)
 })
 
 // The partner side's firm and person follow the demo tier: Beginner is a
 // different firm. See `data/partnership.js`.
 const shellSubtitle = computed(() => {
   if (store.role === 'partner') {
-    const firm = firmFor(store.partnerTier)
-    return `${firm.person}, ${firm.name}`
+    return firmFor(store.partnerTier).name
   }
   return store.signedIn ? store.viewer.name : undefined
 })
@@ -169,33 +176,56 @@ const feedback = ref(false)
 const settings = ref(false)
 
 const partnerSettings = ref(false)
+const partnerAccount = ref(false)
+
+// ── The partner's footer: the signed-in person ──────────────────────────────
+// The header is the firm (its settings, its managers, help); the footer is
+// you (your settings, theme, log out), as on Frappe Cloud.
+const me = computed(() => account.edits.me ?? firmFor(store.partnerTier).person)
+const themeMenu = computed(() => ({
+  label: 'Theme',
+  icon: 'lucide-sun-moon',
+  submenu: [
+    ['Light', 'light'],
+    ['Dark', 'dark'],
+    ['System', 'system'],
+  ].map(([label, value]) => ({
+    label,
+    icon: store.preferences.theme === value ? 'lucide-check' : 'lucide-minus',
+    onClick: () => (store.preferences.theme = value),
+  })),
+}))
+const footerMenu = computed(() => [
+  { label: 'Your settings', icon: 'lucide-user-cog', onClick: () => (partnerAccount.value = true) },
+  themeMenu.value,
+  { label: 'Log out', icon: 'lucide-log-out', onClick: () => { store.setRole('business'); store.logOut(); router.push('/connect') } },
+])
+
 const logoMenu = computed(() => [
-  // The partner side has its own settings, and only the owner opens them.
+  // The firm's settings are the owner's. Partner managers open as a list to
+  // write to, rather than jumping to a section of a page.
   ...(store.role === 'partner'
     ? [
         ...(store.partnerRole === 'owner'
-          ? [{ label: 'Settings', icon: 'lucide-settings', onClick: () => (partnerSettings.value = true) }]
+          ? [{ label: 'Firm settings', icon: 'lucide-settings', onClick: () => (partnerSettings.value = true) }]
           : []),
-        { label: 'Partner managers', icon: 'lucide-life-buoy', onClick: () => router.push('/connect/partnership') },
+        {
+          label: 'Partner managers',
+          icon: 'lucide-life-buoy',
+          submenu: standingFor(store.partnerTier, store.partnershipState).managers.map((m) => ({
+            label: m.name,
+            icon: 'lucide-mail',
+            onClick: () => (window.location.href = `mailto:${m.email}`),
+          })),
+        },
+        { label: 'Help and resources', icon: 'lucide-book-open', onClick: () => router.push('/connect/resources') },
       ]
     : store.signedIn
       ? [{ label: 'Settings', icon: 'lucide-settings', onClick: () => (settings.value = true) }]
       : []),
-  // The theme lives here because the Preferences tab that held it is hidden,
-  // and this menu is on every screen. `AppSettingsDialog` applies it.
-  {
-    label: 'Theme',
-    icon: 'lucide-sun-moon',
-    submenu: [
-      ['Light', 'light'],
-      ['Dark', 'dark'],
-      ['System', 'system'],
-    ].map(([label, value]) => ({
-      label,
-      icon: store.preferences.theme === value ? 'lucide-check' : 'lucide-minus',
-      onClick: () => (store.preferences.theme = value),
-    })),
-  },
+  // On the business side the theme lives here, since that side has no footer
+  // menu. `AppSettingsDialog` applies it.
+  ...(store.role === 'partner' ? [] : [themeMenu.value]),
   { label: 'Give feedback', icon: 'lucide-message-square-quote', onClick: () => (feedback.value = true) },
   ...(store.signedIn ? [{ label: 'Log out', icon: 'lucide-log-out', onClick: logOut }] : []),
 ])
@@ -376,23 +406,36 @@ defineProps({
              of, so the pair would be two dead rows. -->
         <!-- The partner's rail, filtered by role (see `partnerRail`). The count
              beside a row is what's waiting on this person there. -->
-        <nav v-if="store.role === 'partner'" class="space-y-0.5">
-          <Tooltip
-            v-for="item in partnerRail"
-            :key="item.to"
-            :text="item.label"
-            side="right"
-            :offset="8"
-            :disabled="!collapsed"
-          >
-            <SidebarItem :label="item.label" :to="item.to" :active="item.active">
-              <template #prefix><span :class="item.icon" class="size-4 text-ink-gray-6" aria-hidden="true" /></template>
-              <template v-if="item.count" #suffix>
-                <span class="mr-2 text-xs tabular-nums text-ink-gray-5">{{ item.count }}</span>
-              </template>
-            </SidebarItem>
-          </Tooltip>
-        </nav>
+        <template v-if="store.role === 'partner'">
+          <!-- Groups split by a gap, no labels, like the business rail. -->
+          <nav v-for="(group, gi) in partnerRail" :key="gi" class="space-y-0.5" :class="gi > 0 && 'mt-4'">
+            <Tooltip
+              v-for="item in group"
+              :key="item.to"
+              :text="item.label"
+              side="right"
+              :offset="8"
+              :disabled="!collapsed"
+            >
+              <SidebarItem :label="item.label" :to="item.to" :active="item.active">
+                <!-- Collapsed, the count can't show, so a dot keeps the signal. -->
+                <template #prefix>
+                  <span class="relative grid place-items-center">
+                    <span :class="item.icon" class="size-4 text-ink-gray-6" aria-hidden="true" />
+                    <span
+                      v-if="item.count && collapsed"
+                      class="absolute -right-1 -top-1 size-1.5 rounded-full bg-surface-blue-7"
+                      aria-hidden="true"
+                    />
+                  </span>
+                </template>
+                <template v-if="item.count" #suffix>
+                  <span class="mr-2 text-xs tabular-nums text-ink-gray-5">{{ item.count }}</span>
+                </template>
+              </SidebarItem>
+            </Tooltip>
+          </nav>
+        </template>
 
         <nav v-else-if="store.signedIn" class="space-y-0.5">
           <!-- An inbox, not a message bubble. The bubble belongs to the Contact
@@ -559,11 +602,28 @@ defineProps({
         </nav>
 
       </ScrollArea>
+      <!-- The partner's footer: you. -->
+      <div v-if="store.role === 'partner'" class="shrink-0 px-2 pb-2">
+        <Dropdown :options="footerMenu" side="top" align="start">
+          <button
+            type="button"
+            class="flex w-full items-center gap-2 rounded-4 p-1.5 text-left transition-colors hover:bg-surface-gray-2"
+            :class="collapsed && 'justify-center'"
+          >
+            <Avatar :label="me" size="sm" />
+            <template v-if="!collapsed">
+              <span class="min-w-0 flex-1 truncate text-sm text-ink-gray-8">{{ me }}</span>
+              <span class="lucide-chevrons-up-down size-4 shrink-0 text-ink-gray-5" aria-hidden="true" />
+            </template>
+          </button>
+        </Dropdown>
+      </div>
     </Sidebar>
 
     <FeedbackDialog v-model:open="feedback" />
     <AppSettingsDialog v-model:open="settings" />
     <PartnerSettingsDialog v-model:open="partnerSettings" />
+    <PartnerAccountDialog v-model:open="partnerAccount" />
 
     <div class="relative flex min-w-0 flex-1 flex-col">
       <!-- ── Collapse handle ──────────────────────────────────────────────

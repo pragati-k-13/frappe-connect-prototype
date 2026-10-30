@@ -29,6 +29,8 @@ const blank = () => ({
   profile: {},
   media: [],
   logoReview: null,
+  // The signed-in person's name, once they change it in their settings.
+  me: null,
 })
 
 export const usePartnerAccountStore = defineStore('partnerAccount', {

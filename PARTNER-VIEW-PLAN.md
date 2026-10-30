@@ -5,15 +5,20 @@ areas on the rail, plus Settings. Each area answers one question a partner comes
 
 | Rail item   | The partner's question                                     |
 | ----------- | ---------------------------------------------------------- |
-| Partnership | Where do we stand with Frappe, and what gets us up a tier? |
+| Leads       | Which leads are waiting on us?                             |
 | Customers   | Who are we working with, and what does each one bring in?  |
 | Billing     | What did we pay Frappe for our customers, and what do we bill them? |
-| Leads       | Which leads are waiting on us?                             |
+| Partnership | Where do we stand with Frappe, and what gets us up a tier? |
 | Team        | Who is on the team, who is certified, and who can do what? |
-| Profile     | What does a business see when it finds us?                 |
-| Resources   | What has Frappe given us to sell and deliver with?         |
+| Listing     | What does a business see when it finds us?                 |
 
-Settings (CRM sync) opens as a dialog, not a rail item.
+The rail is two groups split by a gap: daily work (Leads, Customers, Billing), then the firm
+(Partnership, Team, Listing). Each role sees only its own rows. Resources is links out, not a
+place you work, so it sits in the header menu as "Help and resources", with Firm settings and
+Partner managers. The sidebar's footer is the signed-in person: their settings, theme and log
+out. Collapsed, a row with something waiting shows a dot.
+
+Firm settings (CRM sync, leaving) open as a dialog, not a rail item.
 
 **Who uses it.** Partner firms aren't one person. The owner sets the firm up (profile, team,
 audits, CRM sync) and checks standing about monthly. Sales works leads every day and writes to

@@ -125,7 +125,7 @@ watch(editing, (v) => v === null && (draft.value = {}))
 </script>
 
 <template>
-  <ConnectShell root-label="Profile">
+  <ConnectShell root-label="Listing">
     <template #action>
       <Button
         v-if="!beginner"
