@@ -109,9 +109,10 @@ const notReady = () => toast.info('Available once Frappe Cloud issues the invoic
                 <span class="mt-1 block text-sm tabular-nums text-ink-gray-5">{{ b.invoice }}</span>
               </span>
             </ListCell>
+            <!-- No total here: the figure at the top of the page is it. -->
             <ListCell class="gap-3">
               <Badge v-if="STATUS[b.status]" :theme="STATUS[b.status].theme" variant="subtle" size="sm" :label="STATUS[b.status].label" />
-              <span class="tabular-nums text-ink-gray-8">{{ money(b.total, cur) }}</span>
+              <span class="lucide-chevron-right size-4 text-ink-gray-5" aria-hidden="true" />
             </ListCell>
           </ListRow>
         </List>

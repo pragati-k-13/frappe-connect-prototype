@@ -84,7 +84,7 @@ const STATUS = {
            anyone opens this page is to see what makes it up. -->
       <PageIntro
         title="What counts toward your tier"
-        :stats="[{ label: monthMeta.open ? 'MRR this month so far' : `MRR for ${monthMeta.label}`, value: money(total, firm.currency) }]"
+        :stats="[{ label: 'MRR', value: money(total, firm.currency) }]"
       >
         <template #actions>
           <Select v-model="month" :options="monthOptions" class="w-48" />

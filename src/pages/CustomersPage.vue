@@ -130,11 +130,9 @@ function saveEdit() {
   toast.success('Details saved')
 }
 
-const stats = computed(() => [
-  { label: 'MRR from customers', value: money(total.value, firm.value.currency) },
-  { label: 'Live', value: String(account.customers.filter((c) => c.stage === 'live').length) },
-  ...(account.requests.length ? [{ label: 'Waiting to link', value: String(account.requests.length) }] : []),
-])
+// Only the figure the list doesn't already show: stages and requests are in
+// the rows themselves.
+const stats = computed(() => [{ label: 'MRR from customers', value: money(total.value, firm.value.currency) }])
 
 // ── Add customer ────────────────────────────────────────────────────────────
 // Saved as Onboarding, then the dialog ends on the partner code: sharing it
