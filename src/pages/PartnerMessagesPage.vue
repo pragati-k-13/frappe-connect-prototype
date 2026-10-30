@@ -1,6 +1,6 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
-import { Avatar, Badge, Button, ScrollArea } from 'frappe-ui'
+import { Avatar, Badge, Button, Dialog, ScrollArea, Select, TabButtons, toast } from 'frappe-ui'
 import {
   CommentKit,
   commentToolbar,
@@ -21,7 +21,9 @@ import { logoFor } from '../data/logos'
 import { budgetLabel, criteriaLines } from '../data/custom'
 import { answerRows } from '../data/company'
 import { scopeSentence } from '../data/modules'
-import { PARTNER_SELF, partnerThreads } from '../data/partnerView'
+import { PARTNER_SELF, PRM_LOST_REASONS, partnerThreads } from '../data/partnerView'
+import { CRMS, PRM_STAGES } from '../data/partnerAccount'
+import { usePartnerAccountStore } from '../stores/partnerAccount'
 
 // SCREEN — Messages, from the partner's side.
 //
@@ -41,12 +43,56 @@ const store = useConnectStore()
 const self = PARTNERS.find((p) => p.id === PARTNER_SELF.partnerId)
 const selfLogo = logoFor(PARTNER_SELF.partnerId)
 
+const account = usePartnerAccountStore()
 const threads = ref(partnerThreads())
-const openId = ref(threads.value[0]?.id ?? null)
-const open = computed(() => threads.value.find((t) => t.id === openId.value) ?? null)
 
+// ── Views ───────────────────────────────────────────────────────────────────
+// This is the landing screen for Sales, so it has to stay calm: leads only,
+// and by default only the ones where the firm owes the next move. Finished
+// leads leave the default view; Won ones live on as customers.
+const CLOSED = ['Won', 'Lost', 'Junk', 'Closed']
+const isClosed = (t) => CLOSED.includes(t.stage)
+const needsReply = (t) => !isClosed(t) && t.messages.at(-1)?.from === 'them'
+
+// Who "Mine" means: the person the demo role stands for, from Team.
+const me = computed(() => (store.partnerRole === 'sales' ? 'rahul-verma' : 'farhan-qureshi'))
+
+const view = ref('needs')
+const VIEWS = computed(() => [
+  // No count here: the rail's Messages row already shows it.
+  { label: 'To reply', value: 'needs' },
+  { label: 'Mine', value: 'mine' },
+  { label: 'Open', value: 'open' },
+  { label: 'Closed', value: 'closed' },
+])
+
+// Only the business moves a row: order by their last message, not ours, and
+// not by a stage change. "Needs reply" goes oldest waiting first, since that's
+// the order to answer in.
+const theirLast = (t) => [...t.messages].reverse().find((m) => m.from === 'them' || m.from === 'frappe')?.at ?? 0
 const lastAt = (t) => t.messages.at(-1)?.at ?? 0
-const ordered = computed(() => [...threads.value].sort((a, b) => lastAt(b) - lastAt(a)))
+const ordered = computed(() => {
+  const list = threads.value.filter((t) =>
+    view.value === 'needs'
+      ? needsReply(t)
+      : view.value === 'mine'
+        ? !isClosed(t) && t.owner === me.value
+        : view.value === 'open'
+          ? !isClosed(t)
+          : isClosed(t),
+  )
+  return list.sort((a, b) => (view.value === 'needs' ? theirLast(a) - theirLast(b) : theirLast(b) - theirLast(a)))
+})
+
+const openId = ref(null)
+watch(
+  ordered,
+  (list) => {
+    if (!list.some((t) => t.id === openId.value)) openId.value = list[0]?.id ?? null
+  },
+  { immediate: true },
+)
+const open = computed(() => threads.value.find((t) => t.id === openId.value) ?? null)
 
 // Who the other side is, as far as this partner knows. Until shortlisting the
 // honest answer is nobody in particular.
@@ -54,8 +100,46 @@ const companyName = (t) => t.company?.name ?? 'Anonymous company'
 const authorOf = (t, m) =>
   m.from === 'you' ? PARTNER_SELF.person : (t.company?.contact ?? companyName(t))
 
-const status = (t) =>
-  t.company ? { label: 'Interested', theme: 'green' } : { label: 'Quoted', theme: 'blue' }
+// The stage, with colour only where it says the lead is finished.
+const stageTheme = (stage) => ({ Won: 'green', Lost: 'red', Junk: 'gray', Closed: 'gray' })[stage] ?? 'blue'
+const sourceLabel = (t) => (t.source === 'frappe' ? 'Passed by Frappe' : 'Through Connect')
+
+// ── The lead ────────────────────────────────────────────────────────────────
+// With a CRM connected, stages come from it and aren't set here.
+const crm = computed(() => account.edits.crm)
+const people = computed(() =>
+  account.team
+    .filter((p) => p.roles.includes('sales') || p.roles.includes('owner'))
+    .map((p) => ({ label: p.name, value: p.id })),
+)
+const ownerOptions = computed(() => [{ label: 'Unassigned', value: 'none' }, ...people.value])
+const stageOptions = PRM_STAGES.filter((s) => s !== 'Won').map((s) => ({ label: s, value: s }))
+
+// Lost always asks why, from the PRM portal's list.
+const losing = ref(false)
+const lostReason = ref(PRM_LOST_REASONS[0])
+function setStage(stage) {
+  if (stage === 'Lost') {
+    lostReason.value = PRM_LOST_REASONS[0]
+    losing.value = true
+    return
+  }
+  open.value.stage = stage
+  if (CLOSED.includes(stage)) open.value.closed = { stage }
+}
+function confirmLost() {
+  open.value.stage = 'Lost'
+  open.value.closed = { stage: 'Lost', reason: lostReason.value }
+  losing.value = false
+  toast.success('Marked as lost')
+}
+function setOwner(id) {
+  open.value.owner = id === 'none' ? null : id
+}
+function stillWorking() {
+  open.value.stalled = false
+  toast.success('Thanks. Frappe can see it’s still open.')
+}
 
 const preview = (t) => {
   const m = t.messages.at(-1)
@@ -150,6 +234,7 @@ watch(openId, () => {
   sideOpen.value = false
   toBottom()
 })
+const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
 </script>
 
 <template>
@@ -165,7 +250,17 @@ watch(openId, () => {
            company name to show, and a list half of "Anonymous company" rows
            tells a partner nothing about which job each one is. -->
       <aside class="flex w-[320px] shrink-0 flex-col border-r border-outline-gray-1">
-        <ScrollArea class="min-h-0 flex-1">
+        <div class="shrink-0 px-3 pb-2 pt-3">
+          <TabButtons v-model="view" :options="VIEWS" class="w-full" fluid />
+        </div>
+        <EmptyState
+          v-if="!ordered.length"
+          :icon="view === 'needs' ? 'lucide-check-check' : 'lucide-inbox'"
+          :title="view === 'needs' ? 'All caught up' : view === 'closed' ? 'No closed leads' : 'No leads here'"
+        >
+          <Button v-if="view === 'needs'" label="View open leads" @click="view = 'open'" />
+        </EmptyState>
+        <ScrollArea v-else class="min-h-0 flex-1">
           <!-- frappe-ui's List in feed mode, the same shape as the company's
                inbox. `v-model:active` is the open thread. -->
           <List
@@ -190,15 +285,13 @@ watch(openId, () => {
                     <span class="shrink-0 text-p-xs text-ink-gray-5">{{ time(lastAt(t)) }}</span>
                   </span>
                   <span class="mt-0.5 flex items-center gap-1.5">
-                    <Badge
-                      variant="subtle"
-                      size="sm"
-                      :theme="status(t).theme"
-                      :label="status(t).label"
-                    />
+                    <Badge variant="subtle" size="sm" :theme="stageTheme(t.stage)" :label="t.stage" />
                     <span class="min-w-0 flex-1 truncate text-p-sm text-ink-gray-5">
                       {{ preview(t) }}
                     </span>
+                  </span>
+                  <span v-if="t.source === 'frappe'" class="mt-0.5 block truncate text-p-xs text-ink-gray-5">
+                    {{ sourceLabel(t) }}
                   </span>
                 </span>
               </ListCell>
@@ -227,7 +320,7 @@ watch(openId, () => {
 
         <ScrollArea ref="feed" class="min-h-0 flex-1">
           <div class="px-5 py-6">
-            <p class="text-center text-p-sm text-ink-gray-5">
+            <p v-if="open.source === 'connect'" class="text-center text-p-sm text-ink-gray-5">
               Sent to you and the other partners who match
             </p>
 
@@ -235,7 +328,10 @@ watch(openId, () => {
               <!-- The moment the company became known. A line, not a card:
                    the details themselves are in the sidebar, and this only has
                    to say that they arrived and when. -->
-              <p v-if="m.kind === 'shared'" class="mt-6 text-center text-p-sm text-ink-gray-5">
+              <p v-if="m.kind === 'passed'" class="text-center text-p-sm text-ink-gray-5">
+                {{ open.frappeOwner }} at Frappe passed on {{ open.company.name }} · {{ time(m.at) }}
+              </p>
+              <p v-else-if="m.kind === 'shared'" class="mt-6 text-center text-p-sm text-ink-gray-5">
                 <span class="text-ink-gray-7">{{ open.company.name }}</span>
                 is interested in your quote and shared their contact details · {{ time(m.at) }}
                 <button
@@ -333,7 +429,11 @@ watch(openId, () => {
           </div>
         </ScrollArea>
 
-        <div class="shrink-0 px-5 pb-4 pt-1">
+        <!-- A closed lead stays as a record of the bid, read-only. -->
+        <p v-if="isClosed(open)" class="shrink-0 border-t border-outline-gray-1 px-5 py-4 text-center text-p-sm text-ink-gray-5">
+          {{ open.stage }}{{ open.closed?.reason ? `: ${open.closed.reason.toLowerCase()}` : '' }}. This conversation is closed.
+        </p>
+        <div v-else class="shrink-0 px-5 pb-4 pt-1">
           <Editor
             ref="composer"
             v-model="draft"
@@ -392,6 +492,53 @@ watch(openId, () => {
         </div>
         <ScrollArea class="min-h-0 flex-1">
           <div class="space-y-8 px-5 pb-6">
+            <!-- ── The lead: what Frappe needs back, and who has it ────────── -->
+            <section>
+              <h3 class="text-p-base font-medium text-ink-gray-8">Lead</h3>
+              <div
+                v-if="open.stalled && !crm && !isClosed(open)"
+                class="mt-3 rounded-6 bg-surface-gray-1 p-3"
+              >
+                <p class="text-p-base text-ink-gray-8">Still working on this?</p>
+                <div class="mt-2 flex gap-2">
+                  <Button size="sm" label="Yes" @click="stillWorking" />
+                  <Button size="sm" label="Mark as lost" @click="setStage('Lost')" />
+                </div>
+              </div>
+              <dl class="mt-3 space-y-3">
+                <div>
+                  <dt class="text-p-sm text-ink-gray-5">Stage</dt>
+                  <dd class="mt-1">
+                    <template v-if="crm || isClosed(open)">
+                      <span class="text-p-base text-ink-gray-8">
+                        {{ open.stage }}{{ open.closed?.reason ? `, ${open.closed.reason.toLowerCase()}` : '' }}
+                      </span>
+                      <span v-if="crm && !isClosed(open)" class="mt-0.5 block text-p-sm text-ink-gray-5">
+                        Synced from {{ CRMS[crm.crm].label }}
+                      </span>
+                    </template>
+                    <Select v-else :model-value="open.stage" :options="stageOptions" @update:model-value="setStage" />
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-p-sm text-ink-gray-5">Assigned to</dt>
+                  <dd class="mt-1">
+                    <Select
+                      :model-value="open.owner ?? 'none'"
+                      :options="ownerOptions"
+                      @update:model-value="setOwner"
+                    />
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-p-sm text-ink-gray-5">Source</dt>
+                  <dd class="mt-0.5 text-p-base text-ink-gray-8">
+                    {{ sourceLabel(open) }}<template v-if="open.frappeOwner">, by {{ open.frappeOwner }}</template>
+                  </dd>
+                </div>
+              </dl>
+            </section>
+
             <section>
               <h3 class="text-p-base font-medium text-ink-gray-8">Project</h3>
               <!-- No project name: the thread header above says it. -->
@@ -432,5 +579,18 @@ watch(openId, () => {
         </ScrollArea>
       </aside>
     </div>
+
+    <Dialog v-model:open="losing" title="Mark as lost">
+      <div class="space-y-4">
+        <div>
+          <p class="mb-1.5 text-sm text-ink-gray-6">Why was it lost?</p>
+          <Select v-model="lostReason" :options="reasonOptions" />
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <Button label="Cancel" @click="losing = false" />
+          <Button variant="solid" label="Mark as lost" @click="confirmLost" />
+        </div>
+      </div>
+    </Dialog>
   </ConnectShell>
 </template>

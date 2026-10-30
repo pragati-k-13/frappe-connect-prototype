@@ -105,7 +105,7 @@ const partnerRail = computed(() => {
   const role = store.partnerRole
   const owner = role === 'owner'
   const beginner = store.partnerTier === 'beginner'
-  const waiting = beginner ? 0 : partnerThreads().filter((t) => t.messages.at(-1)?.from === 'them').length
+  const waiting = beginner ? 0 : partnerThreads().filter((t) => !t.closed && t.messages.at(-1)?.from === 'them').length
   const unpaid = billingFor(store.partnerTier, store.partnershipState, '2026-09').status === 'unpaid' ? 1 : 0
   const certs = account.team.filter((p) => p.status === 'expiring' || p.status === 'expired').length
   const at = (...names) => names.includes(route.name)
