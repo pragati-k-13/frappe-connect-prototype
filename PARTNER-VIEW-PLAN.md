@@ -148,7 +148,9 @@ it here in the PRM portal's Overview.
 
 **Contributions.** Behind the MRR row: every invoice that makes up MRR, across all customers.
 Columns: customer, month, invoice, status, amount, currency, and whether it counts toward MRR.
-Filters for month and status. The month's total matches the MRR figure.
+Filters for month and status. The month's total matches the MRR figure. An invoice opens in
+the docked aside (the same one as Billing): its sites and servers with amounts, the total, and
+for an invoice in another currency, what it counts toward MRR as and at which day's rate.
 
 - The current month shows as "This month so far", since its invoices are still accruing.
   The PRM portal's Draft and Empty statuses look like a quirk of that portal and aren't
@@ -235,7 +237,9 @@ Frappe Cloud. The Add customer dialog ends on the same code and Share, since sha
 next step. An empty Customers list leads with it too.
 
 **Link requests.** Pending requests sit above the list, one row each: company, contact, the
-sites it covers, Approve and Decline. Approving adds the customer to the list. Declining
+sites it covers, Approve and Decline. A row opens in the docked aside with what the owner needs
+to judge it: the contact, every site and server it covers with plan and region, and the match
+to a customer added by hand, with Approve and Decline at the bottom. Approving adds the customer to the list. Declining
 removes the request and tells the customer. Each gets a few seconds to undo, rather than an
 "Are you sure?" dialog: approving by mistake exposes a stranger's invoices, and declining sends
 a rejection. Only the owner can act on requests, and gets an email when one arrives.
