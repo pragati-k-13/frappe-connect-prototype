@@ -266,7 +266,11 @@ export const contributionsFor = (tier, monthKey, state = 'working') => {
     const split = sites.map(([name, plan], j) => ({
       name,
       plan,
-      amount: j === sites.length - 1 ? amount - Math.round((amount * 0.3) * (sites.length - 1)) : Math.round(amount * 0.3),
+      // The main site carries most of the bill; the rest share 30% of it.
+      amount:
+        j === 0
+          ? amount - (sites.length - 1) * Math.round((amount * 0.3) / (sites.length - 1 || 1))
+          : Math.round((amount * 0.3) / (sites.length - 1)),
     }))
     const converted =
       currency === firm.currency
