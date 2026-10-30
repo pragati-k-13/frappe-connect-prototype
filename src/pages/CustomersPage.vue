@@ -27,12 +27,16 @@ const canAdd = computed(() => store.partnerRole !== 'finance')
 // with them, so the list doesn't split by source.
 const query = ref('')
 
+// Link requests sit in the same list, at the top: a request is a customer
+// that hasn't linked yet. They open in the docked panel rather than a page,
+// since there's nothing to show until the owner approves.
 const shown = computed(() => {
   const q = query.value.trim().toLowerCase()
-  return account.customers.filter(
-    (c) =>
-      (!q || c.name.toLowerCase().includes(q) || c.contact?.toLowerCase().includes(q)),
-  )
+  const hit = (name, contact) => !q || name.toLowerCase().includes(q) || contact?.toLowerCase().includes(q)
+  const requests = account.requests
+    .filter((r) => hit(r.company, r.contact))
+    .map((r) => ({ ...r, id: r.id, name: r.company, request: true }))
+  return [...requests, ...account.customers.filter((c) => hit(c.name, c.contact))]
 })
 
 // The customers' total, and what the firm's own account adds to reach the
@@ -122,34 +126,6 @@ function finishAdd() {
         </div>
       </div>
 
-      <!-- ── Link requests ────────────────────────────────────────────── -->
-      <section v-if="account.requests.length" class="mt-10">
-        <h2 class="text-lg-semibold text-ink-gray-8">Link requests</h2>
-        <List
-          v-model:active="openId"
-          class="-mx-3 mt-3 list-row-px-3"
-          :columns="['minmax(0,1fr)', 'auto']"
-          :row-height="56"
-        >
-          <ListRow
-            v-for="r in account.requests"
-            :key="r.id"
-            :value="r.id"
-            @click="openId = r.id"
-          >
-            <ListCell class="min-w-0">
-              <span class="min-w-0">
-                <span class="block truncate text-base text-ink-gray-8">{{ r.company }}</span>
-                <span class="mt-1 block truncate text-sm text-ink-gray-5">
-                  {{ r.contact }} · {{ r.sites.length }} {{ r.sites.length === 1 ? 'site' : 'sites' }}
-                </span>
-              </span>
-            </ListCell>
-            <ListCell class="text-sm text-ink-gray-5">{{ shortDate(r.at) }}</ListCell>
-          </ListRow>
-        </List>
-      </section>
-
       <!-- ── Customers ────────────────────────────────────────────────── -->
       <section class="mt-10">
         <div class="flex flex-wrap items-center gap-2">
@@ -160,6 +136,7 @@ function finishAdd() {
 
         <List
           v-if="shown.length"
+          v-model:active="openId"
           class="-mx-3 mt-4 list-row-px-3"
           :columns="{ base: ['minmax(0,1fr)', '7rem'], sm: ['minmax(0,1fr)', '8rem', '7rem', '7rem'] }"
           :row-height="56"
@@ -171,7 +148,23 @@ function finishAdd() {
             <ListHeaderCell class="justify-end">MRR</ListHeaderCell>
           </ListHeader>
           <ListRows :items="shown" v-slot="{ item }">
-            <ListRow :to="`/connect/customers/${item.id}`">
+            <ListRow v-if="item.request" :value="item.id" @click="openId = item.id">
+              <ListCell class="min-w-0 gap-3">
+                <Avatar :label="item.name" size="md" shape="square" />
+                <span class="min-w-0">
+                  <span class="block truncate text-base text-ink-gray-8">{{ item.name }}</span>
+                  <span class="mt-1 block truncate text-sm text-ink-gray-5">
+                    {{ item.contact }} · Entered your code {{ shortDate(item.at) }}
+                  </span>
+                </span>
+              </ListCell>
+              <ListCell class="hidden text-sm text-ink-gray-5 sm:flex">—</ListCell>
+              <ListCell class="hidden sm:flex">
+                <Badge theme="amber" variant="subtle" size="sm" label="Wants to link" />
+              </ListCell>
+              <ListCell class="justify-end text-ink-gray-5">—</ListCell>
+            </ListRow>
+            <ListRow v-else :to="`/connect/customers/${item.id}`">
               <ListCell class="min-w-0 gap-3">
                 <Avatar :label="item.name" size="md" shape="square" />
                 <span class="min-w-0">

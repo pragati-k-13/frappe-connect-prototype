@@ -243,8 +243,9 @@ button, and Share, which copies a short message with the code and the steps to e
 Frappe Cloud. The Add customer dialog ends on the same code and Share, since sharing it is the
 next step. An empty Customers list leads with it too.
 
-**Link requests.** Pending requests sit above the list, one row each: company, contact, the
-sites it covers, Approve and Decline. A row opens in the docked aside with what the owner needs
+**Link requests.** In the same list, at the top: a request is a customer that hasn't linked
+yet. Each row has the company and contact, and "Wants to link" in the Stage column; it opens in
+the docked panel rather than a customer page. A row opens in the docked aside with what the owner needs
 to judge it: the contact, every site and server it covers with plan and region, and the match
 to a customer added by hand, with Approve and Decline at the bottom. Approving adds the customer to the list. Declining
 removes the request and tells the customer. Each gets a few seconds to undo, rather than an
@@ -433,8 +434,8 @@ without ever signing in.
 
 **List:** name, email, certifications (ERPNext, Framework, or a single module), status and
 expiry. A column says whether each person counts toward tier, so a single-module certificate
-reads as "Doesn't count toward tier" rather than looking like a missing one. The count at the
-top matches the consultants row on Partnership.
+reads as "Doesn't count toward tier" rather than looking like a missing one. The count lives on
+Partnership, not here: the rows already say who counts.
 
 **Access and roles** are columns on the same rows: No access, or one or more of Owner, Sales
 and Finance. Inviting someone sets their access and roles. Ownership can be handed to someone

@@ -6,7 +6,7 @@ import ConnectShell from '../components/ConnectShell.vue'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { ROLES, ROLE_LABEL } from '../data/partnerAccount'
-import { TIERS, longDate, nextTier, standingFor } from '../data/partnership'
+import { longDate } from '../data/partnership'
 
 // SCREEN — Team: everyone at the firm, each with at least one role, and the
 // roles themselves. Shaped like Frappe Cloud's team page (People and Roles).
@@ -21,13 +21,6 @@ const store = useConnectStore()
 const account = usePartnerAccountStore()
 const isOwner = computed(() => store.partnerRole === 'owner')
 
-const standing = computed(() => standingFor(store.partnerTier, store.partnershipState))
-const counting = computed(() => account.team.filter((p) => p.counts).length)
-// What the count is measured against: the current tier's floor, or Bronze's
-// for a Beginner.
-const needed = computed(() =>
-  store.partnerTier === 'beginner' ? TIERS.bronze.consultants : (nextTier(standing.value.tier) ?? TIERS.gold).consultants,
-)
 const owners = computed(() => account.team.filter((p) => p.roles.includes('owner')).length)
 
 const STATUS = {
@@ -148,17 +141,6 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
         <Button v-if="isOwner" variant="solid" label="Invite" @click="startInvite" />
       </div>
 
-      <!-- The count belongs to People: it's about who's certified. -->
-      <div v-if="tab === 'people'" class="mt-6">
-        <div>
-          <p class="text-sm text-ink-gray-5">Certified consultants</p>
-          <p class="mt-1 text-2xl-semibold tabular-nums text-ink-gray-9">{{ counting }}</p>
-          <p class="mt-1.5 text-sm text-ink-gray-5">
-            {{ store.partnerTier === 'beginner' ? 'Bronze' : (nextTier(standing.tier) ?? TIERS.gold).label }} needs
-            {{ needed }}. Only full ERPNext or Framework certificates count.
-          </p>
-        </div>
-      </div>
 
       <List
         v-if="tab === 'people'"
