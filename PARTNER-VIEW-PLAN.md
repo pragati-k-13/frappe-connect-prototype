@@ -73,27 +73,49 @@ certification, PMM from the last audit.
 - **Through Connect.** A business enters the list when it **shortlists** the partner's quote.
   That is the moment its name is shared. An anonymous brief stays in Messages, because it is a
   lead and not a customer yet, and listing it would show a row with no name.
-- **The partner's own.** These come from the partner's Frappe Cloud partner code. A site
-  billed under the code appears on its own. The partner can also add a customer by hand
-  before the site exists.
+- **The partner's own.** These come from the partner's Frappe Cloud partner code. Nothing
+  links on its own: the customer enters the code in Frappe Cloud, and the partner approves or
+  declines the request. The partner can also add a customer by hand before the site exists.
 
-**Columns:** customer, source, stage, Frappe Cloud sites, MRR contribution, last activity.
-Connect stages follow the existing project stages: Shortlisted → Hired → Live. Own customers
-are Onboarding → Live → Churned.
+**Link requests.** Pending requests sit above the list, one row each: company, contact, the
+sites it covers, Approve and Decline. Approving adds the customer to the list. Declining
+removes the request and tells the customer.
 
-**Detail:** contacts, sites with plan and MRR, a link to the message thread (Connect), a link
-to the project (once hired), and the partner's own notes. The MRR total sits next to the
-list's MRR column and matches the figure on Partnership. If the two disagree, one of them is
-wrong.
+**Two billing modes.** Each linked customer has one, and it sets what the partner can see:
+
+| Mode            | Who pays Frappe Cloud | Counts toward tier | Commission | Partner sees                     |
+| --------------- | --------------------- | ------------------ | ---------- | -------------------------------- |
+| Linked          | The customer          | Yes                | No         | The customer's plans and invoices |
+| Paid by partner | The partner           | Yes                | Yes        | The monthly invoice amount only   |
+
+**Columns:** customer, source, billing mode, stage, Frappe Cloud sites, MRR contribution, last
+activity. Connect stages follow the existing project stages: Shortlisted → Hired → Live. Own
+customers are Onboarding → Live → Churned. The MRR total sits next to the list's MRR column and
+matches the figure on Partnership. If the two disagree, one of them is wrong.
+
+**Customer detail page**
+
+- **Header:** company, contact, billing mode, stage, MRR contribution.
+- **Sites:** name, plan, region, status, apps, monthly cost. Read-only, with "Open in Frappe
+  Cloud". Paid-by-partner customers show plan and amount only.
+- **Invoices:** Frappe Cloud invoices, read-only, with unpaid ones flagged. Linked customers
+  only.
+- **Connect:** the message thread and project, for customers who came through Connect.
+- **Notes:** the partner's own.
+- **Out of scope:** invoices the partner sends the customer for their own work. Partners do
+  that in their own ERPNext.
 
 **Adding a customer (happy path):** company name and contact email → saved as Onboarding with
-"Not on Frappe Cloud yet" → the partner shares their partner code → the first billed site
-links them up and they move to Live.
+"Not on Frappe Cloud yet" → the partner shares their partner code → the customer enters it in
+Frappe Cloud → the request shows under Link requests → the partner approves → the first billed
+site moves them to Live.
 
 **Error paths**
 
 - The site is already billed under another partner's code: explain who to contact, and don't
   change who it is billed under.
+- A link request from a company the partner doesn't recognise: Decline is the safe default,
+  and nothing about the customer's account is shown until the partner approves.
 - A duplicate (same company or email already in the list): open the existing record instead.
 - A site is suspended or a customer cancels: their MRR stops counting. If that brings the
   partner below their tier floor, Partnership shows At risk and the customer row links to it.
@@ -121,7 +143,7 @@ form.
 | --------------------------------------------------------- | ----------------------------------------- | ------------------------- |
 | Logo, tagline, about, website, address, contacts          | Case studies and stories                  | Tier and PMM              |
 | Industries, regions, work style                           | Client logos                              | Certified consultants     |
-| Deal sizes taken, and whether they're taking work this quarter | Quoted figures and claims ("200+ go-lives") | Reviews and ratings   |
+| Deal sizes taken, and whether they're taking work this quarter | Quoted figures and claims ("200+ live customers") | Reviews and ratings   |
 | Pricing, media gallery                                    |                                           |                           |
 
 Deal sizes and capacity come from the gap that DESIGN-NOTES already names. They are what lets
@@ -157,3 +179,6 @@ and the partner gets a notice.
    or only an admin?
 5. **Reviews.** Can a partner reply publicly to a review?
 6. **Review time.** How long does a profile review take? It goes in the "In review" copy.
+7. **The PRM portal.** Frappe already runs one: Partnerships > Overview, Contributions (linked
+   customers' invoices and plans), leads and certified members. Does Connect replace it? If
+   it does, what the portal does today is the minimum this view must cover.
