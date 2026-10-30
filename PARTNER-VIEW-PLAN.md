@@ -147,8 +147,8 @@ one block, so no partner learns about the wait at the last step:
 - When to request it: once the other criteria are within reach, with the start-by date that
   follows from the lead time. A Beginner sees this from their first visit, next to the
   milestones, not only after $300.
-- At Gold, there's no next tier, so the block shows when the next audit to keep Gold is due,
-  once Frappe confirms that audits recur.
+- At Gold, there's no next tier. Gold is re-audited to keep it, so the block shows when the
+  next audit is due and when to request it.
 
 Open design decision: the review suggested folding this block into the PMM criterion row,
 one line when the audit is far off and expanding once it's within reach. Not settled.
@@ -230,6 +230,24 @@ Silver, 25% at Gold) on what they pay for Partner-pays customers. There's no sep
 A business can't pick a billing mode before it has hired anyone, so every link starts as
 Customer pays. A link request never asks for a mode. Moving to Partner pays is a later step,
 once the two have agreed it between themselves.
+
+**Switching to Partner pays (proposed; open question 8).** The owner starts it, and the
+customer confirms, since their billing moves away from them:
+
+1. On the customer's page, the owner picks Switch to Partner pays. The dialog says what
+   changes and from when: the partner is billed from the next billing cycle (with its date),
+   the tier discount applies, and the partner will see the monthly amount only, no longer the
+   customer's plans and invoices.
+2. The customer gets an email and confirms in Frappe Cloud (*outside*).
+3. Meanwhile the customer's row and side panel show "Partner pays from 1 Dec, waiting for
+   the customer".
+4. Confirmed: the switch happens when the cycle starts. Billing lists the customer from that
+   month.
+5. Declined, or no answer by the cycle date: the customer stays on Customer pays, the owner is
+   told, and can ask again.
+
+Switching back works the same way the other way round, and the customer has to add a payment
+method in Frappe Cloud before it takes effect.
 
 **Columns** (searchable, like every list here): customer, source, billing mode, stage, Frappe Cloud sites, MRR contribution, last
 activity. Both sources share one set of stages: Onboarding → Live → Churned. A Connect customer
@@ -483,6 +501,19 @@ roles live on Team.
   wins over a CRM status.
 - **Status:** connected, with the last sync time, or paused with the reason.
 
+**Leaving the partnership.** The last row in Settings. Leaving removes everything: customer
+links, the partner code, the listing and open leads. Partners usually have contracts with
+customers, so Connect doesn't let them leave with work still open. Leave the partnership
+first shows what has to be wrapped up:
+
+- Customers still linked: each is unlinked, or handed over to another partner by the customer.
+- Partner-pays customers: switched back to Customer pays first, so no customer is left unbilled.
+- Open leads: closed with a reason.
+- Projects through Connect still running.
+
+Once the list is empty, the owner confirms, and the agreement ends. The listing comes down and
+the partner code stops working.
+
 **Error paths**
 
 - The URL or key is wrong: say which, and don't save the connection.
@@ -546,11 +577,10 @@ Who acts is in brackets. *Outside* means the step happens outside Connect.
 
 **Flows still missing**
 
-- Switching a customer to Partner pays: waits on open question 8.
-- Handing over ownership: on Team, the owner passes the role to someone else first.
 - Frappe changing the rubric: waits on open question 17.
-- Re-auditing Gold: waits on open question 15.
-- Leaving the partnership: waits on open question 16.
+
+Covered elsewhere: switching to Partner pays (Customers), handing over ownership (Team),
+re-auditing Gold (the audit block), leaving the partnership (Settings).
 
 ## Review findings
 
@@ -576,8 +606,8 @@ sections above. These are left open:
 7. **The PRM portal.** Frappe already runs one: Partnerships > Overview, Contributions (linked
    customers' invoices and plans), leads and certified members. Does Connect replace it? If
    it does, what the portal does today is the minimum this view must cover.
-8. **Switching to Partner pays.** Who starts it, the partner or the customer, and does the
-   customer have to confirm in Frappe Cloud?
+8. **Switching to Partner pays.** The plan proposes the owner starts it and the customer
+   confirms in Frappe Cloud. Confirm, or say how it works today.
 9. **Closed and Junk.** How does Closed differ from Lost and Junk? A withdrawn brief needs
    one of them.
 10. **CRM sync.** Which CRMs will Frappe support? Frappe CRM and ERPNext are the obvious first
@@ -593,8 +623,9 @@ sections above. These are left open:
     answer is a one-line change. Also: does Beginner get an FC discount, and a time limit?
 14. **How Frappe converts currency today.** The PRM portal already totals INR and USD invoices
     into one figure. Use the same method, whatever it is.
-15. **Recurring audits.** Is a tier re-audited on a schedule to keep it, or only when moving up?
-16. **Leaving the partnership.** When a partner ends the agreement or is removed, what happens
-    to its customers' links, its listing and its open leads?
+15. **Gold re-audits.** Gold is re-audited to keep it. How often? Are Bronze and Silver
+    re-audited too?
+16. **Being removed.** Leaving is designed (Settings). If Frappe removes a partner instead,
+    do the same wrap-up rules apply?
 17. **Changing the rubric.** When Frappe changes the thresholds, how much notice do partners
     get? Partnership would show the new figure and the date it applies from.
