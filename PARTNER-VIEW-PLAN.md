@@ -116,6 +116,10 @@ certification, PMM from the last audit. The consultants row links to Team, and t
 links to Contributions. Under the MRR figure, last month's sits as one line ("Last month
 ₹4,94,395"), which says whether the partner is growing or slipping.
 
+**Partner manager.** Partners reach Frappe's partner managers directly. Partnership shows
+theirs, with name and email, as the one place to raise anything about standing, audits or
+figures. It's an email link, not a channel inside Connect.
+
 **Partner code.** On Partnership too, with Copy and Share, because partners already look for
 it here in the PRM portal's Overview.
 
@@ -188,9 +192,9 @@ confirmed or replaced:
   Never show ₹0.
 - The audit request fails, or a request is already open: say which, and keep the existing
   request visible.
-- The partner disagrees with a figure. Messaging is for businesses only, so this links to
-  Frappe support (support.frappe.io, to confirm) with what to include: the partner code, the
-  figure, and the month. There is no in-app dispute.
+- The partner disagrees with a figure. Messaging is for businesses only, so this links to the
+  partner manager's email, with what to include: the partner code, the figure, and the month.
+  There is no in-app dispute.
 
 ## 2. Customers
 
@@ -421,8 +425,8 @@ and the row returns to Certified.
 **Error paths**
 
 - No certificate matches the ID or email: say so, and keep what was typed.
-- The certificate is already counted by another partner: don't link it, and point to Frappe
-  support.
+- The certificate is already counted by another partner: don't link it, and point to the
+  partner manager.
 - The name on the certificate differs from the team member's: show both and ask to confirm.
 - A consultant leaves or a certificate expires: the row moves to Expired or is removed, and if
   that drops the count below the current tier's threshold, Partnership shows At risk and links
@@ -554,7 +558,7 @@ Who acts is in brackets. *Outside* means the step happens outside Connect.
 - **B. Certifications** (Employee, Owner): the employee applies, pays and passes on Frappe
   School (*outside*) → the owner links the certificate → certified, and the public count goes
   up. A single-module certificate shows "Doesn't count toward tier". One already counted by
-  another partner → Frappe support. Expiring → Team badge → renewed on Frappe School → the
+  another partner → the partner manager. Expiring → Team badge → renewed on Frappe School → the
   owner links the new one.
 - **C. Moving up a tier** (Owner, Frappe): start-by date shows → request the audit →
   "Waiting for Frappe to schedule it" → scheduled, with an email → audit → PMM level recorded →
@@ -567,8 +571,8 @@ Who acts is in brackets. *Outside* means the step happens outside Connect.
   Frappe owner's name → Sales works it → stages from Connect, CRM or by hand → without a sync,
   one "Still working on this?" prompt after it stalls → Won or Lost with a reason → Frappe's
   owner sees the outcome. From Bronze up only.
-- **G. Disputing a figure** (Owner): figure looks wrong → Frappe support, with the partner code,
-  the figure and the month (*outside*) → Frappe corrects it → the figure updates with a new
+- **G. Disputing a figure** (Owner): figure looks wrong → email the partner manager, with the
+  partner code, the figure and the month (*outside*) → Frappe corrects it → the figure updates with a new
   sync time.
 - **H. Monthly billing** (Frappe, Finance): month closes → Frappe Cloud invoices the partner
   for Partner-pays customers, minus the tier discount → Billing marks the month final →
@@ -596,8 +600,7 @@ sections above. These are left open:
 
 1. **Losing a tier.** Frappe has no rule yet. Confirm or replace the one proposed under
    Partnership (3-month average, quarterly review, 60 days to replace a consultant).
-2. **Where partner disputes go.** The plan uses support.frappe.io for disputed figures and
-   claimed certificates. Is there a partner-specific route?
+2. **Partner managers.** Does every partner have one assigned, so Partnership can name them?
 3. **Audit lead time.** The Bronze doc says 30 days, the Silver and Gold docs 60.
 4. **Roles.** Do Owner, Sales and Finance match how partner firms work?
 5. **Reviews.** Can a partner reply publicly to a review?
