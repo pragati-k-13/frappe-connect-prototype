@@ -131,9 +131,18 @@ certification, PMM from the last audit. The consultants row links to Team, and t
 links to Contributions. Under the MRR figure, last month's sits as one line ("Last month
 ₹4,94,395"), which says whether the partner is growing or slipping.
 
-**Partner manager.** Partners reach Frappe's partner managers directly. Partnership shows
-theirs, with name and email, as the one place to raise anything about standing, audits or
-figures. It's an email link, not a channel inside Connect.
+**Partner managers.** Partners reach Frappe's partner managers directly, and a firm can have
+more than one (for example one for the partnership, one for audits). They're shown in three
+places:
+
+- **Partnership, in an aside:** each manager's name, photo, what they handle, and email. This
+  is their home.
+- **Where a problem comes up:** a disputed figure on Contributions, a certificate claimed by
+  another partner on Team, a declined audit. The error links straight to the manager who
+  handles it, with what to include.
+- **The account menu:** "Partner managers", so they're reachable from any page.
+
+Each is an email link, not a channel inside Connect.
 
 **Partner code.** On Partnership too, with Copy and Share, because partners already look for
 it here in the PRM portal's Overview.
@@ -312,9 +321,14 @@ pay Frappe on our customers' behalf, and what do we charge them for it? Frappe C
 Billing page doesn't break this down per customer, so Connect does.
 
 **One month at a time,** with a month picker. One row per Partner-pays customer: the amount
-Frappe billed for them, the tier discount taken off, and what the partner paid. The month's
-total matches the partner's Frappe Cloud invoice, which it links to. Export as CSV, so the
-partner can bill each customer from their own ERPNext.
+Frappe billed for them, the tier discount taken off, and what the partner paid. Each row opens
+to that customer's servers and sites, each with its plan and amount. The month's total matches
+the partner's Frappe Cloud invoice, which it links to.
+
+- **The partner's invoice** shows the same split: customers, and their servers under each.
+- **A per-customer invoice** can be downloaded from each row, listing only that customer's
+  servers and sites, so the partner can pass it on or bill from it.
+- **Export as CSV,** so the partner can bill every customer from their own ERPNext.
 
 Customer-pays customers aren't listed, since the partner pays nothing for them. If there are
 no Partner-pays customers, the page says so in one line and links to how billing modes work.
@@ -462,6 +476,19 @@ form.
 
 **Case studies are submitted on frappe.io, not in Connect.** The profile shows them as they
 appear in the directory, with a link to submit or change them there.
+
+**Media.** Assume partners will upload poor images and video, and poor logos of their own
+customers. The editor helps fix them at upload, before anything is saved:
+
+- **Client logos:** enter the customer's website and Connect fetches its logo, so the partner
+  doesn't have to find a file. Uploads get the background removed and are shown at one height
+  and in one tone on the page, so a mixed set still reads as one row. A logo too small or
+  blurry to show cleanly is flagged with what's wrong ("Too small: use at least 200 px wide").
+- **Photos:** crop to the shapes the page uses, with the crop shown on the actual card. Low
+  resolution is flagged. Large files are compressed without asking.
+- **Video:** trim, pick the cover frame, and compress. A length limit, stated on the upload.
+- **Preview:** every change shows on the page as a business will see it before saving.
+- Client logos still go to Frappe for review, which also catches what the checks miss.
 
 Deal sizes and capacity come from the gap that DESIGN-NOTES already names. They are what lets
 a business's budget actually narrow who receives a brief.
@@ -615,7 +642,7 @@ sections above. These are left open:
 
 1. **Losing a tier.** Frappe has no rule yet. Confirm or replace the one proposed under
    Partnership (3-month average, quarterly review, 60 days to replace a consultant).
-2. **Partner managers.** Does every partner have one assigned, so Partnership can name them?
+2. **Partner managers.** Which managers is each partner assigned, and what does each handle?
 3. **Audit lead time.** The Bronze doc says 30 days, the Silver and Gold docs 60.
 4. **Roles.** Do Owner, Sales and Finance match how partner firms work?
 5. **Reviews.** Can a partner reply publicly to a review?
