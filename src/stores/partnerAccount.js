@@ -5,6 +5,7 @@ import {
   linkRequestsFor,
   teamFor,
 } from '../data/partnerAccount'
+import { activitySeed, customerFacts, followUpsSeed } from '../data/records'
 
 // What the partner changes in the demo: customers added and approved, link
 // requests handled, billing switches, notes, the team, the CRM connection.
@@ -34,6 +35,9 @@ const blank = () => ({
   logoReview: null,
   // The signed-in person's name, once they change it in their settings.
   me: null,
+  // Per lead or customer id: follow-ups logged, activity recorded here.
+  followUps: {},
+  activity: {},
 })
 
 export const usePartnerAccountStore = defineStore('partnerAccount', {
@@ -73,10 +77,20 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
         .filter((c) => !this.edits.removedCustomers.includes(c.id))
         .map((c) => ({
         ...c,
+        ...customerFacts(c.id),
         ...(this.edits.customerEdits[c.id] ?? {}),
         billingSwitch: this.edits.billing[c.id] ?? null,
         notes: this.edits.notes[c.id] ?? '',
       }))
+    },
+
+    // Newest first, seeds and what was added here together.
+    followUpsOf() {
+      return (id) => [...(this.edits.followUps[id] ?? []), ...followUpsSeed(id)].sort((a, b) => b.at - a.at)
+    },
+    // Oldest first, as a timeline reads.
+    activityOf() {
+      return (id) => [...activitySeed(id), ...(this.edits.activity[id] ?? [])].sort((a, b) => a.at - b.at)
     },
 
     requests() {
@@ -136,6 +150,12 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
     },
     cancelBillingSwitch(id) {
       delete this.edits.billing[id]
+    },
+    addFollowUp(id, f) {
+      ;(this.edits.followUps[id] ??= []).unshift({ id: `f-${Date.now()}`, ...f })
+    },
+    log(id, entry) {
+      ;(this.edits.activity[id] ??= []).push({ id: `a-${Date.now()}-${Math.random()}`, at: Date.now(), ...entry })
     },
     setNotes(id, text) {
       this.edits.notes[id] = text

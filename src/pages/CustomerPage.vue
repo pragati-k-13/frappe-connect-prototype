@@ -1,19 +1,37 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { Avatar, Badge, Button, Dialog, TabList, TabPanel, Tabs, TabTrigger, Textarea, toast } from 'frappe-ui'
+import { useRoute, useRouter } from 'vue-router'
+import {
+  Avatar,
+  Badge,
+  Button,
+  Dialog,
+  Dropdown,
+  TabList,
+  TabPanel,
+  Tabs,
+  TabTrigger,
+  Textarea,
+  TextInput,
+  dialog,
+  toast,
+} from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
+import FollowUps from '../components/FollowUps.vue'
+import ActivityFeed from '../components/ActivityFeed.vue'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
-import { customerInvoices } from '../data/partnerAccount'
+import { CRMS, customerInvoices } from '../data/partnerAccount'
 import { TIERS, firmFor, longDate, money } from '../data/partnership'
 
-// SCREEN — one customer, laid out like a deal in Frappe CRM: a side panel with
-// the facts, and the main area, in tabs, for what changes over time.
-// See PARTNER-VIEW-PLAN.md §2.
+// SCREEN — one customer, laid out like a deal in Frappe CRM: owner and stage
+// in the top bar, the record in tabs, and a side panel of facts you edit in
+// place. The same tabs a lead has (Follow-ups, Activity, Notes), so a lead
+// that's won keeps its history. See PARTNER-VIEW-PLAN.md §2.
 
 const route = useRoute()
+const router = useRouter()
 const store = useConnectStore()
 const account = usePartnerAccountStore()
 const firm = computed(() => firmFor(store.partnerTier))
@@ -21,24 +39,58 @@ const firm = computed(() => firmFor(store.partnerTier))
 const c = computed(() => account.customers.find((x) => x.id === route.params.id) ?? null)
 
 const isOwner = computed(() => store.partnerRole === 'owner')
+const canEdit = computed(() => ['owner', 'sales'].includes(store.partnerRole))
 const seesInvoices = computed(() => store.partnerRole !== 'sales')
 const partnerPays = computed(() => c.value?.billing === 'partner')
+const crm = computed(() => account.edits.crm)
 
+// Who's acting, for the activity log.
+const me = computed(() => (store.partnerRole === 'sales' ? 'rahul-verma' : store.partnerTier === 'beginner' ? 'sana-malik' : 'farhan-qureshi'))
+const nameOf = (id) => account.team.find((p) => p.id === id)?.name ?? 'Unassigned'
+const meName = computed(() => nameOf(me.value))
+const teamPeople = computed(() => account.team.map((p) => ({ id: p.id, name: p.name })))
+
+// ── Top bar: owner and stage ────────────────────────────────────────────────
 const STAGE = {
   onboarding: { label: 'Onboarding', theme: 'blue' },
   live: { label: 'Live', theme: 'green' },
   churned: { label: 'Churned', theme: 'gray' },
 }
+function change(field, label, from, to, display = (v) => v) {
+  if (from === to) return
+  account.editCustomer(c.value.id, { [field]: to })
+  account.log(c.value.id, { by: meName.value, kind: 'change', field: label, from: display(from) || 'Not set', to: display(to) || 'Not set' })
+}
+const stageMenu = computed(() =>
+  Object.entries(STAGE).map(([value, s]) => ({
+    label: s.label,
+    onClick: () => change('stage', 'Stage', c.value.stage, value, (v) => STAGE[v]?.label),
+  })),
+)
+const ownerMenu = computed(() =>
+  account.team
+    .filter((p) => p.roles.includes('sales') || p.roles.includes('owner'))
+    .map((p) => ({ label: p.name, onClick: () => change('owner', 'Owner', c.value.owner, p.id, nameOf) })),
+)
 
 // ── Tabs ────────────────────────────────────────────────────────────────────
 const tabs = computed(() =>
   [
     { value: 'sites', label: 'Sites' },
     seesInvoices.value && { value: 'invoices', label: 'Invoices' },
-    c.value?.source === 'connect' && { value: 'connect', label: 'Connect' },
+    { value: 'followups', label: 'Follow-ups' },
+    { value: 'activity', label: 'Activity' },
     { value: 'notes', label: 'Notes' },
+    c.value?.source === 'connect' && { value: 'connect', label: 'Connect' },
   ].filter(Boolean),
 )
+// On a phone the side panel is a tab of its own, so the record comes first
+// rather than a screen of facts above it.
+const PHONE = '(max-width: 1023px)'
+const mq = typeof window !== 'undefined' ? window.matchMedia(PHONE) : null
+const narrow = ref(mq?.matches ?? false)
+mq?.addEventListener('change', (e) => (narrow.value = e.matches))
+watch(narrow, (v) => !v && tab.value === 'details' && (tab.value = 'sites'))
 const tab = ref('sites')
 watch(() => route.params.id, () => (tab.value = 'sites'))
 
@@ -50,12 +102,93 @@ const invoices = computed(() =>
   c.value ? customerInvoices(store.partnerTier, store.partnershipState, c.value.name) : [],
 )
 
+const followUps = computed(() => (c.value ? account.followUpsOf(c.value.id) : []))
+function addFollowUp(f) {
+  account.addFollowUp(c.value.id, { ...f, by: me.value })
+  account.log(c.value.id, { by: meName.value, kind: 'note', text: `logged a ${f.mode.toLowerCase()}${f.spokeTo ? ` with ${f.spokeTo}` : ''}` })
+  toast.success('Follow-up added')
+}
+
+// A customer with no recorded history still has the moment it linked.
+const activity = computed(() => {
+  if (!c.value) return []
+  const list = account.activityOf(c.value.id)
+  if (list.length || !c.value.linked) return list
+  return [
+    { id: 'linked', at: new Date(`${c.value.linked}T10:00:00`).getTime(), by: c.value.contact || c.value.name, kind: 'note', text: 'linked their sites to your partner code' },
+    ...(account.edits.activity[c.value.id] ?? []),
+  ]
+})
+
 // ── Notes ───────────────────────────────────────────────────────────────────
 const notes = ref('')
 watch(c, (v) => (notes.value = v?.notes ?? ''), { immediate: true })
 const saveNotes = () => {
   account.setNotes(c.value.id, notes.value)
   toast.success('Notes saved', { id: 'notes-saved' })
+}
+
+// ── Side panel: fields edited in place ──────────────────────────────────────
+// Saved on blur, each change logged. Read-only for finance and members, and
+// for anything a synced CRM owns.
+const CONTACT = [
+  { key: 'contact', label: 'Name' },
+  { key: 'email', label: 'Email', type: 'email' },
+  { key: 'phone', label: 'Phone', type: 'tel' },
+]
+const DETAILS = [
+  { key: 'industry', label: 'Industry' },
+  { key: 'country', label: 'Country' },
+]
+const draft = ref({})
+watch(c, (v) => (draft.value = v ? Object.fromEntries([...CONTACT, ...DETAILS].map((f) => [f.key, v[f.key] ?? ''])) : {}), {
+  immediate: true,
+})
+const editable = computed(() => canEdit.value && !crm.value)
+function commit(f) {
+  const to = draft.value[f.key].trim()
+  if (f.key === 'email' && to && !/^\S+@\S+\.\S+$/.test(to)) {
+    toast.error('Enter a valid email')
+    draft.value[f.key] = c.value[f.key] ?? ''
+    return
+  }
+  if (f.key === 'contact' && !to) {
+    draft.value[f.key] = c.value[f.key] ?? ''
+    return
+  }
+  change(f.key, f.label === 'Name' ? 'Contact' : f.label, c.value[f.key] ?? '', to)
+}
+
+// ── Quick actions ───────────────────────────────────────────────────────────
+function copyLink() {
+  navigator.clipboard?.writeText(window.location.href)
+  toast.success('Link copied')
+}
+const linked = computed(() => Boolean(c.value?.linked || c.value?.sites.length))
+const moreMenu = computed(() =>
+  [
+    isOwner.value && linked.value && { label: 'Unlink', icon: 'lucide-unlink', theme: 'red', onClick: unlink },
+    canEdit.value && !linked.value && { label: 'Delete', icon: 'lucide-trash-2', theme: 'red', onClick: remove },
+  ].filter(Boolean),
+)
+function unlink() {
+  const { id, name } = c.value
+  dialog.danger({
+    title: `Unlink ${name}?`,
+    message: 'Their MRR stops counting toward your tier, and you lose sight of their sites and invoices.',
+    confirmLabel: 'Unlink',
+    onConfirm: () => {
+      account.removeCustomer(id)
+      router.push('/connect/customers')
+      toast.success(`${name} unlinked`)
+    },
+  })
+}
+function remove() {
+  const { id, name } = c.value
+  account.removeCustomer(id)
+  router.push('/connect/customers')
+  toast.success(`${name} deleted`, { action: { label: 'Undo', onClick: () => account.restoreCustomer(id) } })
 }
 
 // ── Switching to Partner pays ───────────────────────────────────────────────
@@ -65,26 +198,45 @@ const switching = ref(false)
 const discount = computed(() => TIERS[store.partnerTier === 'beginner' ? 'bronze' : 'silver'].discount)
 function requestSwitch() {
   account.requestPartnerPays(c.value.id)
+  account.log(c.value.id, { by: meName.value, kind: 'note', text: 'asked the customer to switch to Partner pays' })
   switching.value = false
   toast.success(`Sent to ${c.value.contact || c.value.name} to confirm`)
 }
 </script>
 
 <template>
-  <ConnectShell root-label="Customers" root-to="/connect/customers" :crumb="c?.name ?? 'Not found'">
-    <EmptyState
-      v-if="!c"
-      icon="lucide-building-2"
-      title="This customer isn’t in your list"
-    >
+  <!-- `flush`: the page scrolls its two columns itself, so the side panel's
+       border runs the full height instead of stopping where its content does. -->
+  <ConnectShell root-label="Customers" root-to="/connect/customers" :crumb="c?.name ?? 'Not found'" flush>
+    <!-- Owner and stage, where Frappe CRM puts them. -->
+    <template v-if="c" #action>
+      <div class="flex items-center gap-2">
+        <!-- On a phone the owner is in Details; the bar keeps the stage. -->
+        <div v-if="canEdit" class="hidden sm:block">
+          <Dropdown :options="ownerMenu" align="end">
+            <Button variant="subtle" :aria-label="`Owner: ${nameOf(c.owner)}`">
+              <template #prefix><Avatar v-if="c.owner" :label="nameOf(c.owner)" size="xs" /></template>
+              {{ c.owner ? nameOf(c.owner) : 'Assign' }}
+            </Button>
+          </Dropdown>
+        </div>
+        <Dropdown v-if="canEdit" :options="stageMenu" align="end">
+          <Button variant="subtle" icon-right="lucide-chevron-down" :label="STAGE[c.stage].label" />
+        </Dropdown>
+        <Badge v-else variant="subtle" :theme="STAGE[c.stage].theme" :label="STAGE[c.stage].label" />
+      </div>
+    </template>
+
+    <EmptyState v-if="!c" icon="lucide-building-2" title="This customer isn’t in your list">
       <Button label="All customers" route="/connect/customers" />
     </EmptyState>
 
-    <div v-else class="flex min-h-full flex-col-reverse lg:flex-row">
+    <div v-else class="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
       <!-- ── The main area ─────────────────────────────────────────────── -->
-      <div class="min-w-0 flex-1 px-3 py-6 sm:px-5">
+      <div class="min-w-0 shrink-0 px-3 py-4 sm:px-5 lg:flex-1 lg:shrink lg:overflow-y-auto">
         <Tabs v-model="tab">
-          <TabList variant="underline">
+          <TabList class="overflow-x-auto">
+            <TabTrigger v-if="narrow" value="details" label="Details" />
             <TabTrigger v-for="t in tabs" :key="t.value" :value="t.value" :label="t.label" />
           </TabList>
 
@@ -124,9 +276,7 @@ function requestSwitch() {
 
           <TabPanel value="invoices">
             <div class="pt-4">
-              <p v-if="partnerPays" class="text-p-sm text-ink-gray-5">
-                Billed to you. These are the per-customer invoices from Billing.
-              </p>
+              <p v-if="partnerPays" class="text-p-sm text-ink-gray-5">On your Frappe bill</p>
               <EmptyState v-if="!invoices.length" icon="lucide-receipt" title="No invoices yet" />
               <ul v-else class="divide-y divide-outline-gray-1" :class="partnerPays && 'mt-3'">
                 <li v-for="inv in invoices" :key="inv.id" class="flex items-center justify-between gap-4 py-3">
@@ -143,6 +293,32 @@ function requestSwitch() {
             </div>
           </TabPanel>
 
+          <TabPanel value="followups">
+            <div class="pt-4">
+              <FollowUps
+                :items="followUps"
+                :people="teamPeople"
+                :contact="c.contact"
+                :synced-from="crm ? CRMS[crm.crm].label : ''"
+                :can-add="canEdit"
+                @add="addFollowUp"
+              />
+            </div>
+          </TabPanel>
+
+          <TabPanel value="activity">
+            <div class="pt-5">
+              <ActivityFeed :items="activity" />
+            </div>
+          </TabPanel>
+
+          <TabPanel value="notes">
+            <div class="max-w-[640px] space-y-3 pt-4">
+              <Textarea v-model="notes" :rows="8" placeholder="Anything your team should know about this customer" />
+              <Button label="Save notes" @click="saveNotes" />
+            </div>
+          </TabPanel>
+
           <TabPanel value="connect">
             <div class="space-y-4 pt-4">
               <div>
@@ -152,59 +328,110 @@ function requestSwitch() {
               <Button label="Open conversation" route="/connect/messages" />
             </div>
           </TabPanel>
-
-          <TabPanel value="notes">
-            <div class="space-y-3 pt-4">
-              <Textarea v-model="notes" :rows="8" placeholder="Anything your team should know about this customer" />
-              <Button label="Save notes" @click="saveNotes" />
-            </div>
-          </TabPanel>
         </Tabs>
       </div>
 
       <!-- ── The side panel ────────────────────────────────────────────── -->
-      <aside class="shrink-0 border-b border-outline-gray-1 px-3 py-6 sm:px-5 lg:w-80 lg:border-b-0 lg:border-l">
-        <div class="flex items-center gap-3">
-          <Avatar :label="c.name" size="xl" shape="square" />
-          <div class="min-w-0">
+      <aside
+        class="shrink-0 border-outline-gray-1 lg:block lg:w-[352px] lg:overflow-y-auto lg:border-l"
+        :class="tab === 'details' ? 'block' : 'hidden'"
+      >
+        <div class="flex items-center gap-3 px-3 py-5 sm:px-5">
+          <Avatar :label="c.name" size="2xl" shape="square" />
+          <div class="min-w-0 flex-1">
             <p class="truncate text-lg-semibold text-ink-gray-9">{{ c.name }}</p>
-            <Badge class="mt-1" :theme="STAGE[c.stage].theme" variant="subtle" size="sm" :label="STAGE[c.stage].label" />
+            <div class="mt-1.5 flex items-center gap-1">
+              <Button
+                v-if="c.email"
+                variant="ghost"
+                size="sm"
+                icon="lucide-mail"
+                :aria-label="`Email ${c.contact || c.name}`"
+                :tooltip="`Email ${c.contact || c.name}`"
+                :href="`mailto:${c.email}`"
+              />
+              <Button variant="ghost" size="sm" icon="lucide-link" aria-label="Copy link" tooltip="Copy link" @click="copyLink" />
+              <Dropdown v-if="moreMenu.length" :options="moreMenu">
+                <Button variant="ghost" size="sm" icon="lucide-ellipsis" aria-label="More actions" />
+              </Dropdown>
+            </div>
           </div>
         </div>
 
-        <dl class="mt-6 divide-y divide-outline-gray-1">
-          <div class="py-3">
-            <dt class="text-sm text-ink-gray-5">Contact</dt>
-            <dd class="mt-1 text-base text-ink-gray-8">{{ c.contact || '—' }}</dd>
-            <dd v-if="c.email" class="mt-0.5 truncate text-sm text-ink-gray-5">{{ c.email }}</dd>
-          </div>
-          <div class="py-3">
-            <dt class="text-sm text-ink-gray-5">MRR</dt>
-            <dd class="mt-1 text-base tabular-nums text-ink-gray-8">
-              {{ c.mrr ? money(c.mrr, firm.currency) : '—' }}
-            </dd>
-          </div>
-          <div class="py-3">
-            <dt class="text-sm text-ink-gray-5">Billing</dt>
-            <dd class="mt-1 text-base text-ink-gray-8">
-              {{ partnerPays ? 'Partner pays' : 'Customer pays' }}
-            </dd>
-            <dd v-if="c.billingSwitch" class="mt-1 text-sm text-ink-gray-5">
-              Partner pays once the customer confirms in Frappe Cloud
-            </dd>
-            <dd v-else-if="!partnerPays && isOwner && c.stage !== 'churned' && c.linked" class="mt-2">
-              <Button size="sm" label="Switch to Partner pays" @click="switching = true" />
-            </dd>
-          </div>
-          <div class="py-3">
-            <dt class="text-sm text-ink-gray-5">Partner code</dt>
-            <dd class="mt-1 text-base text-ink-gray-8">
-              <template v-if="c.linked">Linked {{ longDate(c.linked) }}</template>
-              <template v-else-if="c.codeShared">Shared {{ longDate(c.codeShared) }}, not linked yet</template>
-              <template v-else>Not linked yet</template>
-            </dd>
-          </div>
-        </dl>
+        <div class="divide-y divide-outline-gray-1 border-t border-outline-gray-1">
+          <!-- Contact and details: label and value side by side, as in Frappe
+               CRM, and edited in place. -->
+          <section v-for="group in [{ title: 'Contact', fields: CONTACT }, { title: 'Details', fields: DETAILS }]" :key="group.title" class="px-3 py-4 sm:px-5">
+            <h2 class="text-base font-medium text-ink-gray-8">{{ group.title }}</h2>
+            <dl class="mt-2 space-y-1">
+              <div v-for="f in group.fields" :key="f.key" class="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2">
+                <dt class="text-p-sm text-ink-gray-5">{{ f.label }}</dt>
+                <dd class="min-w-0">
+                  <TextInput
+                    v-if="editable"
+                    v-model="draft[f.key]"
+                    variant="ghost"
+                    :type="f.type ?? 'text'"
+                    :placeholder="`Add ${f.label.toLowerCase()}`"
+                    :aria-label="f.label"
+                    @blur="commit(f)"
+                    @keydown.enter="$event.target.blur()"
+                  />
+                  <p v-else class="truncate px-2 py-1.5 text-p-base text-ink-gray-8">{{ c[f.key] || '—' }}</p>
+                </dd>
+              </div>
+              <div class="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2" v-if="group.title === 'Details'">
+                <dt class="text-p-sm text-ink-gray-5">Source</dt>
+                <dd class="px-2 py-1.5 text-p-base text-ink-gray-8">{{ c.source === 'connect' ? 'Connect' : 'Added by you' }}</dd>
+              </div>
+              <!-- Phones only: the top bar has no room for the owner. -->
+              <div v-if="group.title === 'Details'" class="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2 sm:hidden">
+                <dt class="text-p-sm text-ink-gray-5">Owner</dt>
+                <dd>
+                  <Dropdown v-if="canEdit" :options="ownerMenu">
+                    <Button variant="ghost" :label="nameOf(c.owner)" icon-right="lucide-chevron-down" />
+                  </Dropdown>
+                  <span v-else class="px-2 py-1.5 text-p-base text-ink-gray-8">{{ nameOf(c.owner) }}</span>
+                </dd>
+              </div>
+            </dl>
+            <p v-if="group.title === 'Contact' && crm && canEdit" class="mt-2 text-p-sm text-ink-gray-5">
+              Synced from {{ CRMS[crm.crm].label }}
+            </p>
+          </section>
+
+          <section class="px-3 py-4 sm:px-5">
+            <h2 class="text-base font-medium text-ink-gray-8">Billing</h2>
+            <dl class="mt-2 space-y-1">
+              <div class="grid grid-cols-[6rem_minmax(0,1fr)] items-baseline gap-2">
+                <dt class="text-p-sm text-ink-gray-5">MRR</dt>
+                <dd class="px-2 py-1.5 text-p-base tabular-nums text-ink-gray-8">{{ c.mrr ? money(c.mrr, firm.currency) : '—' }}</dd>
+              </div>
+              <div class="grid grid-cols-[6rem_minmax(0,1fr)] items-baseline gap-2">
+                <dt class="text-p-sm text-ink-gray-5">Who pays</dt>
+                <dd class="px-2 py-1.5">
+                  <span class="text-p-base text-ink-gray-8">{{ partnerPays ? 'You' : 'The customer' }}</span>
+                  <span v-if="c.billingSwitch" class="mt-1 block text-p-sm text-ink-gray-5">You, once they confirm in Frappe Cloud</span>
+                  <Button
+                    v-else-if="!partnerPays && isOwner && c.stage !== 'churned' && c.linked"
+                    class="mt-2"
+                    size="sm"
+                    label="Switch to Partner pays"
+                    @click="switching = true"
+                  />
+                </dd>
+              </div>
+              <div class="grid grid-cols-[6rem_minmax(0,1fr)] items-baseline gap-2">
+                <dt class="text-p-sm text-ink-gray-5">Partner code</dt>
+                <dd class="px-2 py-1.5 text-p-base text-ink-gray-8">
+                  <template v-if="c.linked">Linked {{ longDate(c.linked) }}</template>
+                  <template v-else-if="c.codeShared">Shared {{ longDate(c.codeShared) }}, not linked yet</template>
+                  <template v-else>Not linked yet</template>
+                </dd>
+              </div>
+            </dl>
+          </section>
+        </div>
       </aside>
     </div>
 

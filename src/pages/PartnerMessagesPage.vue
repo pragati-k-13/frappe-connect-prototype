@@ -1,6 +1,22 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
-import { Avatar, Badge, Button, Dialog, ScrollArea, Select, TabButtons, TextInput, toast } from 'frappe-ui'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import {
+  Avatar,
+  Badge,
+  Button,
+  Dialog,
+  Dropdown,
+  ScrollArea,
+  Select,
+  TabButtons,
+  TabList,
+  TabPanel,
+  Tabs,
+  TabTrigger,
+  TextInput,
+  Textarea,
+  toast,
+} from 'frappe-ui'
 import {
   CommentKit,
   commentToolbar,
@@ -14,6 +30,9 @@ import IconPanel from '~icons/lucide/panel-right'
 import IconClose from '~icons/lucide/x'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
+import FollowUps from '../components/FollowUps.vue'
+import ActivityFeed from '../components/ActivityFeed.vue'
+import { PROBABILITY } from '../data/records'
 import { useConnectStore } from '../stores/connect'
 import { List, ListCell, ListRow } from 'frappe-ui/list'
 import { PARTNERS } from '../data/partners'
@@ -130,23 +149,72 @@ const stageOptions = PRM_STAGES.filter((s) => s !== 'Won').map((s) => ({ label: 
 // Lost always asks why, from the PRM portal's list.
 const losing = ref(false)
 const lostReason = ref(PRM_LOST_REASONS[0])
+// Who's acting, for the activity log.
+const meName = computed(() => account.team.find((p) => p.id === me.value)?.name ?? 'You')
+const nameOf = (id) => account.team.find((p) => p.id === id)?.name ?? 'Unassigned'
+const logChange = (field, from, to) =>
+  account.log(open.value.id, { by: meName.value, kind: 'change', field, from, to })
+
 function setStage(stage) {
+  if (stage === open.value.stage) return
   if (stage === 'Lost') {
     lostReason.value = PRM_LOST_REASONS[0]
     losing.value = true
     return
   }
+  logChange('Stage', open.value.stage, stage)
   open.value.stage = stage
   if (CLOSED.includes(stage)) open.value.closed = { stage }
 }
 function confirmLost() {
+  logChange('Stage', open.value.stage, 'Lost')
   open.value.stage = 'Lost'
   open.value.closed = { stage: 'Lost', reason: lostReason.value }
   losing.value = false
   toast.success('Marked as lost')
 }
 function setOwner(id) {
-  open.value.owner = id === 'none' ? null : id
+  const next = id === 'none' ? null : id
+  if (next === open.value.owner) return
+  logChange('Assigned to', nameOf(open.value.owner), nameOf(next))
+  open.value.owner = next
+}
+function setProbability(p) {
+  logChange('Probability', open.value.probability ?? 'Not set', p)
+  open.value.probability = p
+}
+// Pickers for the thread header, the way Frappe CRM puts status and owner.
+const stageMenu = computed(() => stageOptions.map((o) => ({ label: o.label, onClick: () => setStage(o.value) })))
+const ownerMenu = computed(() => ownerOptions.value.map((o) => ({ label: o.label, onClick: () => setOwner(o.value) })))
+const probabilityOptions = PROBABILITY.map((p) => ({ label: p, value: p }))
+
+// ── Tabs ────────────────────────────────────────────────────────────────────
+// Messages first: replies are what can't wait. Follow-ups and Activity are the
+// PRM's record of the lead; Notes is the team's own.
+const TABS = [
+  { value: 'messages', label: 'Messages' },
+  { value: 'followups', label: 'Follow-ups' },
+  { value: 'activity', label: 'Activity' },
+  { value: 'notes', label: 'Notes' },
+]
+const tab = ref('messages')
+const followUps = computed(() => (open.value ? account.followUpsOf(open.value.id) : []))
+const activity = computed(() => (open.value ? account.activityOf(open.value.id) : []))
+const teamPeople = computed(() => account.team.map((p) => ({ id: p.id, name: p.name })))
+function addFollowUp(f) {
+  account.addFollowUp(open.value.id, { ...f, by: me.value })
+  account.log(open.value.id, { by: meName.value, kind: 'note', text: `logged a ${f.mode.toLowerCase()}${f.spokeTo ? ` with ${f.spokeTo}` : ''}` })
+  toast.success('Follow-up added')
+}
+const notes = ref('')
+watch(
+  () => open.value?.id,
+  (id) => (notes.value = id ? (account.edits.notes[id] ?? '') : ''),
+  { immediate: true },
+)
+function saveNotes() {
+  account.setNotes(open.value.id, notes.value)
+  toast.success('Notes saved', { id: 'notes-saved' })
 }
 
 const preview = (t) => {
@@ -175,6 +243,7 @@ const projectRows = computed(() => {
     { label: 'Modules', value: scopeSentence(b.modules) },
     { label: 'Budget', value: budgetLabel(b.budget) },
     { label: 'Industry', value: b.segments?.[0] ?? '' },
+    { label: 'Country', value: b.country ?? '' },
     { label: 'Size', value: b.employees ? `${b.employees} people` : '' },
     ...answerRows(b),
   ].filter((r) => r.value)
@@ -196,12 +265,22 @@ const companyRows = computed(() => {
     { label: 'Name', value: c.name },
     { label: 'Contact', value: c.contact },
     { label: 'Email', value: c.email },
+    { label: 'Phone', value: c.phone },
   ].filter((r) => r.value)
 })
 
-// Always beside the thread from `xl`; below that there is no room for three
-// columns, so it opens over the conversation from the header.
-const sideOpen = ref(false)
+// The details panel. From 1440px there's room for list, thread and panel side
+// by side, so it starts open there and pushes the thread over. Below that it
+// starts closed and opens over the thread, since docked it would leave the
+// thread under 400px. Either way it stays as the partner left it.
+const WIDE = '(min-width: 1440px)'
+const mq = typeof window !== 'undefined' ? window.matchMedia(WIDE) : null
+const wide = ref(mq?.matches ?? true)
+const onWide = (e) => (wide.value = e.matches)
+mq?.addEventListener('change', onWide)
+onBeforeUnmount(() => mq?.removeEventListener('change', onWide))
+const sideOpen = ref(wide.value)
+watch(wide, (v) => (sideOpen.value = v))
 
 // ── Composer ────────────────────────────────────────────────────────────────
 const draft = ref('')
@@ -239,7 +318,9 @@ const onKey = (e) => {
 }
 
 watch(openId, () => {
-  sideOpen.value = false
+  // Over the thread, the panel belongs to the lead it was opened on.
+  if (!wide.value) sideOpen.value = false
+  tab.value = 'messages'
   toBottom()
 })
 const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
@@ -321,7 +402,7 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
         class="min-h-0 min-w-0 flex-1 flex-col lg:flex"
         :class="mobileThread ? 'flex' : 'hidden'"
       >
-        <header class="flex shrink-0 items-center gap-3 border-b border-outline-gray-1 px-5 py-3">
+        <header class="flex shrink-0 items-center gap-3 px-5 pb-1 pt-3">
           <Button
             class="-ml-2 lg:hidden"
             variant="ghost"
@@ -337,12 +418,43 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
             <p class="truncate text-base font-medium text-ink-gray-8">{{ open.project }}</p>
             <p class="mt-0.5 truncate text-p-sm text-ink-gray-5">{{ companyName(open) }}</p>
           </div>
-          <div class="xl:hidden">
-            <Button variant="subtle" size="sm" label="Details" @click="sideOpen = true">
-              <template #prefix><IconPanel class="size-4" /></template>
-            </Button>
+          <!-- Owner and stage, where Frappe CRM puts them. On a phone they're
+               in the details panel instead. -->
+          <div class="hidden shrink-0 items-center gap-2 sm:flex">
+            <Dropdown :options="ownerMenu" align="end">
+              <Button variant="subtle" size="sm" :aria-label="`Assigned to ${nameOf(open.owner)}`">
+                <template #prefix><Avatar v-if="open.owner" :label="nameOf(open.owner)" size="xs" /></template>
+                {{ open.owner ? nameOf(open.owner) : 'Assign' }}
+              </Button>
+            </Dropdown>
+            <Badge
+              v-if="crm || isClosed(open)"
+              variant="subtle"
+              :theme="stageTheme(open.stage)"
+              :label="open.stage"
+              :title="crm && !isClosed(open) ? `Synced from ${CRMS[crm.crm].label}` : undefined"
+            />
+            <Dropdown v-else :options="stageMenu" align="end">
+              <Button variant="subtle" size="sm" icon-right="lucide-chevron-down" :label="open.stage" />
+            </Dropdown>
           </div>
+          <Button
+            :variant="sideOpen ? 'subtle' : 'ghost'"
+            :aria-label="sideOpen ? 'Hide details' : 'Show details'"
+            :tooltip="sideOpen ? 'Hide details' : 'Show details'"
+            :aria-pressed="sideOpen"
+            @click="sideOpen = !sideOpen"
+          >
+            <template #icon><IconPanel class="size-4" /></template>
+          </Button>
         </header>
+
+        <Tabs v-model="tab" class="flex min-h-0 flex-1 flex-col">
+          <TabList class="shrink-0 overflow-x-auto px-5">
+            <TabTrigger v-for="t in TABS" :key="t.value" :value="t.value" :label="t.label" />
+          </TabList>
+
+          <TabPanel value="messages" class="min-h-0 flex-1 flex-col data-[state=active]:flex">
 
         <ScrollArea ref="feed" class="min-h-0 flex-1">
           <div class="px-5 py-6">
@@ -358,8 +470,9 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
                 <span class="text-ink-gray-7">{{ open.company.name }}</span>
                 is interested in your quote and shared their contact details · {{ time(m.at) }}
                 <button
+                  v-if="!sideOpen"
                   type="button"
-                  class="ml-1 text-ink-gray-7 underline underline-offset-2 xl:hidden"
+                  class="ml-1 text-ink-gray-7 underline underline-offset-2"
                   @click="sideOpen = true"
                 >
                   View
@@ -489,6 +602,30 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
             </template>
           </Editor>
         </div>
+          </TabPanel>
+
+          <TabPanel value="followups" class="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+            <FollowUps
+              :items="followUps"
+              :people="teamPeople"
+              :contact="open.company?.contact ?? ''"
+              :synced-from="crm ? CRMS[crm.crm].label : ''"
+              :can-add="!isClosed(open)"
+              @add="addFollowUp"
+            />
+          </TabPanel>
+
+          <TabPanel value="activity" class="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+            <ActivityFeed :items="activity" />
+          </TabPanel>
+
+          <TabPanel value="notes" class="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+            <div class="max-w-[640px] space-y-3">
+              <Textarea v-model="notes" :rows="8" placeholder="Anything your team should know about this lead" />
+              <Button label="Save notes" @click="saveNotes" />
+            </div>
+          </TabPanel>
+        </Tabs>
       </section>
 
       <!-- ── The sidebar ────────────────────────────────────────────────── -->
@@ -498,20 +635,14 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
            a partner that more is coming and what brings it. -->
       <aside
         v-if="open"
-        class="w-[320px] shrink-0 flex-col border-l border-outline-gray-1 bg-surface-base"
-        :class="
-          sideOpen
-            ? 'absolute inset-y-0 right-0 z-10 flex shadow-lg xl:static xl:shadow-none'
-            : 'hidden xl:flex'
-        "
+        class="w-full shrink-0 flex-col border-l border-outline-gray-1 bg-surface-base sm:w-[320px]"
+        :class="!sideOpen ? 'hidden' : wide ? 'flex' : 'absolute inset-y-0 right-0 z-10 flex shadow-lg'"
       >
         <div class="flex shrink-0 items-center justify-between px-5 pb-3 pt-3">
           <h2 class="text-base font-medium text-ink-gray-8">Details</h2>
-          <div class="xl:hidden">
-            <Button variant="ghost" size="sm" aria-label="Close details" @click="sideOpen = false">
-              <template #icon><IconClose class="size-4" /></template>
-            </Button>
-          </div>
+          <Button variant="ghost" size="sm" aria-label="Close details" @click="sideOpen = false">
+            <template #icon><IconClose class="size-4" /></template>
+          </Button>
         </div>
         <ScrollArea class="min-h-0 flex-1">
           <div class="space-y-8 px-5 pb-6">
@@ -519,7 +650,7 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
             <section>
               <h3 class="text-p-base font-medium text-ink-gray-8">Lead</h3>
               <dl class="mt-3 space-y-3">
-                <div>
+                <div class="sm:hidden">
                   <dt class="text-p-sm text-ink-gray-5">Stage</dt>
                   <dd class="mt-1">
                     <template v-if="crm || isClosed(open)">
@@ -533,13 +664,26 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
                     <Select v-else :model-value="open.stage" :options="stageOptions" @update:model-value="setStage" />
                   </dd>
                 </div>
-                <div>
+                <div class="sm:hidden">
                   <dt class="text-p-sm text-ink-gray-5">Assigned to</dt>
                   <dd class="mt-1">
                     <Select
                       :model-value="open.owner ?? 'none'"
                       :options="ownerOptions"
                       @update:model-value="setOwner"
+                    />
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-p-sm text-ink-gray-5">Probability</dt>
+                  <dd class="mt-1">
+                    <span v-if="crm || isClosed(open)" class="text-p-base text-ink-gray-8">{{ open.probability ?? '—' }}</span>
+                    <Select
+                      v-else
+                      :model-value="open.probability"
+                      :options="probabilityOptions"
+                      placeholder="Not set"
+                      @update:model-value="setProbability"
                     />
                   </dd>
                 </div>

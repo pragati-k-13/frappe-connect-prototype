@@ -47,6 +47,7 @@ export const partnerThreads = () => [
     id: 'pv-northwind',
     stage: 'Negotiation',
     owner: 'farhan-qureshi',
+    probability: 'Warm',
     project: 'Warehouse barcode workflow',
     brief: {
       scope:
@@ -70,6 +71,7 @@ export const partnerThreads = () => [
       name: 'Northwind',
       contact: 'Meera Iyer',
       email: 'meera@northwind.example',
+      phone: '+91 98200 55731',
     },
     messages: [
       { id: 'n1', from: 'them', kind: 'brief', at: hoursAgo(6) },
