@@ -1,6 +1,6 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
-import { Avatar, Badge, Button, Dialog, ScrollArea, Select, TabButtons, toast } from 'frappe-ui'
+import { Avatar, Badge, Button, Dialog, ScrollArea, Select, TabButtons, TextInput, toast } from 'frappe-ui'
 import {
   CommentKit,
   commentToolbar,
@@ -71,8 +71,13 @@ const VIEWS = computed(() => [
 // the order to answer in.
 const theirLast = (t) => [...t.messages].reverse().find((m) => m.from === 'them')?.at ?? 0
 const lastAt = (t) => t.messages.at(-1)?.at ?? 0
+const query = ref('')
+const matches = (t) => {
+  const q = query.value.trim().toLowerCase()
+  return !q || t.project.toLowerCase().includes(q) || t.company?.name.toLowerCase().includes(q)
+}
 const ordered = computed(() => {
-  const list = threads.value.filter((t) =>
+  const list = threads.value.filter((t) => matches(t)).filter((t) =>
     view.value === 'needs'
       ? needsReply(t)
       : view.value === 'mine'
@@ -261,13 +266,16 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
         <div class="shrink-0 px-3 pb-2">
           <h1 class="flex h-12 items-center px-2 text-lg-medium text-ink-gray-9">Leads</h1>
           <TabButtons v-model="view" :options="VIEWS" class="w-full" fluid />
+          <TextInput v-model="query" type="search" placeholder="Search leads" class="mt-2 w-full">
+            <template #prefix><span class="lucide-search size-4 text-ink-gray-5" aria-hidden="true" /></template>
+          </TextInput>
         </div>
         <EmptyState
           v-if="!ordered.length"
           :icon="view === 'needs' ? 'lucide-check-check' : 'lucide-inbox'"
-:title="{ needs: 'All caught up', mine: 'None assigned to you', open: 'No open leads', closed: 'No closed leads' }[view]"
+:title="query.trim() ? 'No leads match' : { needs: 'All caught up', mine: 'None assigned to you', open: 'No open leads', closed: 'No closed leads' }[view]"
         >
-          <Button v-if="view === 'needs'" label="View open leads" @click="view = 'open'" />
+          <Button v-if="view === 'needs' && !query.trim()" label="View open leads" @click="view = 'open'" />
         </EmptyState>
         <ScrollArea v-else class="min-h-0 flex-1">
           <!-- frappe-ui's List in feed mode, the same shape as the company's

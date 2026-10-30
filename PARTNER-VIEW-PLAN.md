@@ -7,12 +7,12 @@ areas on the rail, plus Settings. Each area answers one question a partner comes
 | ----------- | ---------------------------------------------------------- |
 | Leads       | Which leads are waiting on us?                             |
 | Customers   | Who are we working with, and what does each one bring in?  |
-| Billing     | What did we pay Frappe for our customers, and what do we bill them? |
+| Invoices    | What counts toward tier, and what did we pay Frappe for our customers? |
 | Partnership | Where do we stand with Frappe, and what gets us up a tier? |
 | Team        | Who is on the team, who is certified, and who can do what? |
 | Listing     | What does a business see when it finds us?                 |
 
-The rail is two groups: daily work (Leads, Customers, Billing) with no label, then the firm
+The rail is two groups: daily work (Leads, Customers, Invoices) with no label, then the firm
 (Partnership, Team, Listing) under "Your firm". Each role sees only its own rows. Resources is links out, not a
 place you work, so it sits in the header menu as "Help and resources", with Firm settings and
 Partner managers. The sidebar's footer is the signed-in person: their settings, theme and log
@@ -125,7 +125,7 @@ Finance people create Frappe Cloud accounts they otherwise never need.
 
 **Beginner.** The milestone checklist is the anchor: the five milestones in order, done ones
 ticked with their date, the next one highlighted with what it takes ("1 more certification",
-"$140 more MRR"). Each links to where it's done: certifications to Team, MRR to Contributions.
+"$140 more MRR"). Each links to where it's done: certifications to Team, MRR to Invoices, All customers.
 The partner code sits right below it, since linking a first customer is how MRR starts.
 
 **Bronze and up.** The current tier with its benefits (discount, listing type). Then one row
@@ -133,7 +133,7 @@ per criterion for the **next** tier: MRR, certified consultants, PMM level and e
 Each row shows where the partner is, the threshold, and the gap ("₹41,000 more MRR"). Each
 row also names its source and how fresh it is: MRR from Frappe Cloud billing, consultants from
 certification, PMM from the last audit. The consultants row links to Team, and the MRR row
-links to Contributions. Under the MRR figure, last month's sits as one line ("Last month
+links to Invoices (All customers). Under the MRR figure, last month's sits as one line ("Last month
 ₹4,94,395"), which says whether the partner is growing or slipping.
 
 **Partner managers.** Partners reach Frappe's partner managers directly, and a firm can have
@@ -142,7 +142,7 @@ They're shown in three places:
 
 - **Partnership, as one line near the end:** each manager's name, photo and an email link. Not a
   column of their own: they're who to write to, not something to read every visit.
-- **Where a problem comes up:** a disputed figure on Contributions, a certificate claimed by
+- **Where a problem comes up:** a disputed figure on Invoices, a certificate claimed by
   another partner on Team, a declined audit. The error links to the firm's partner managers,
   with what to include.
 - **The account menu:** "Partner managers", so they're reachable from any page.
@@ -152,7 +152,7 @@ Each is an email link, not a channel inside Connect.
 **Partner code.** On Partnership too, with Copy and Share, because partners already look for
 it here in the PRM portal's Overview.
 
-**Contributions.** Behind the MRR row: every invoice that makes up MRR, across all customers.
+**Invoices, All customers.** Behind the MRR row: every invoice that makes up MRR, across all customers.
 Columns: customer, month, invoice, status, amount, currency, and whether it counts toward MRR.
 Filters for month and status. The month's total matches the MRR figure. An invoice opens in
 the docked aside (the same one as Billing): its sites and servers with amounts, the total, and
@@ -185,8 +185,9 @@ one block, so no partner learns about the wait at the last step:
 - At Gold, there's no next tier. Gold is re-audited to keep it, so the block shows when the
   next audit is due and when to request it.
 
-Open design decision: the review suggested folding this block into the PMM criterion row,
-one line when the audit is far off and expanding once it's within reach. Not settled.
+Settled: the audit lives in the PMM criterion row. Its meta line says where the audit stands
+(needed and the lead time, requested, or scheduled), and the Request audit button appears in
+that row once everything but PMM is met. For a Beginner, the Bronze milestone carries it.
 
 **Audit history.** Below the criteria, one row per past audit: date, auditor, the PMM level it
 gave, the tier that followed, and the report. The newest sits first. A partner with no audits
@@ -292,7 +293,7 @@ method in Frappe Cloud before it takes effect.
 activity. Both sources share one set of stages: Onboarding → Live → Churned. A Connect customer
 is Onboarding while its project runs. The MRR total sits next to the list's MRR column and
 matches the figure on Partnership. If the two disagree, one of them is wrong. Partnership,
-this total and Contributions show the same last-updated time, so a mismatch is easy to spot.
+this total and Invoices show the same last-updated time, so a mismatch is easy to spot.
 
 **Customer detail page.** Laid out like a deal in Frappe CRM: a side panel with the facts,
 and the main area for what changes over time.
@@ -324,10 +325,11 @@ site moves them to Live.
 - A site is suspended or a customer cancels: their MRR stops counting. If that brings the
   partner below their tier floor, Partnership shows At risk and the customer row links to it.
 
-## 3. Billing
+## 3. Invoices
 
-The partner's own money, for whoever does the accounts. Contributions (on Partnership) is
-Frappe's view: what counts toward tier. Billing answers the accountant's question: what did we
+One page, two tabs, both Frappe Cloud invoices by customer and month. **All customers** (was
+Contributions) is Frappe's view: every linked customer's invoice, what counts toward tier;
+Partnership's MRR row opens it. **Paid by you** (was Billing) answers the accountant's question: what did we
 pay Frappe on our customers' behalf, and what do we charge them for it? Frappe Cloud's own
 Billing page doesn't break this down per customer, so Connect does.
 
@@ -450,12 +452,12 @@ and Roles, like Frappe Cloud's.
 | Action                                                | Owner | Sales | Finance | Member |
 | ----------------------------------------------------- | ----- | ----- | ------- | ------ |
 | See Partnership, Team, Profile, Resources             | Yes   | Yes   | Yes     | Yes    |
-| See Contributions                                     | Yes   | No    | Yes     | No     |
+| See Invoices, All customers                           | Yes   | No    | Yes     | No     |
 | See Customers                                         | Yes   | Yes   | Yes     | No     |
 | Add customers and notes                               | Yes   | Yes   | No      | No     |
 | See a customer's invoices                             | Yes   | No    | Yes     | No     |
 | Approve or decline link requests                      | Yes   | No    | No      | No     |
-| See and export Billing                                | Yes   | No    | Yes     | No     |
+| See and export Invoices, Paid by you                  | Yes   | No    | Yes     | No     |
 | Reply to leads, send quotes, change lead stages       | Yes   | Yes   | No      | No     |
 | Request an audit                                      | Yes   | No    | No      | No     |
 | Edit the profile                                      | Yes   | No    | No      | No     |
@@ -507,7 +509,8 @@ customers. The editor helps fix them at upload, before anything is saved:
   blurry to show cleanly is flagged with what's wrong ("Too small: use at least 200 px wide").
 - **Photos:** crop to the shapes the page uses, with the crop shown on the actual card. Low
   resolution is flagged. Large files are compressed without asking.
-- **Video:** trim, pick the cover frame, and compress. A length limit, stated on the upload.
+- **Video:** pick the cover frame by scrubbing, and compress. No trimming: a length limit,
+  stated on the upload, does that job.
 - **Preview:** every change shows on the page as a business will see it before saving.
 - Client logos still go to Frappe for review, which also catches what the checks miss.
 

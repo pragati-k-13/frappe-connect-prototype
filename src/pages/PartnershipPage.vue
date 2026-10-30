@@ -20,8 +20,8 @@ import {
 // a tier. See PARTNER-VIEW-PLAN.md §1.
 //
 // One anchor per tier. A Beginner's is the milestone checklist; from Bronze up
-// it is the next tier's criteria. Everything else on the page (the audit, the
-// code, the history) supports that one block and sits lighter than it.
+// it is the next tier's criteria, with the audit in the PMM row. Everything
+// else on the page (the code, the history) supports that one block and sits lighter than it.
 
 const store = useConnectStore()
 
@@ -58,7 +58,7 @@ const criteria = computed(() => {
         `Last month ${money(s.value.mrr.lastMonth)}`,
         `Updated ${s.value.mrr.updated}`,
       ].filter(Boolean),
-      to: canSeeContributions.value ? '/connect/partnership/contributions' : null,
+      to: canSeeContributions.value ? '/connect/invoices?tab=all' : null,
     },
     {
       key: 'consultants',
@@ -69,12 +69,15 @@ const criteria = computed(() => {
       meta: [risk?.criterion === 'Certified consultants' ? risk.detail : 'From Frappe School certificates'],
       to: '/connect/team',
     },
+    // The audit lives in this row: PMM only moves through one, so where the
+    // audit stands is where PMM stands.
     {
       key: 'pmm',
       label: 'PMM level',
       value: `${s.value.pmm} of ${n.pmm}`,
       met: s.value.pmm >= n.pmm,
-      meta: [],
+      meta: [auditLine.value],
+      audit: true,
     },
     {
       key: 'eligibility',
@@ -101,10 +104,12 @@ const milestones = computed(() => {
   const firstOpen = list.findIndex((m) => !m.done)
   return list.map((m, i) => ({
     ...m,
+    // The audit's lead time sits on the milestone that needs it.
+    todo: m.key === 'bronze' ? `PMM ${TIERS.bronze.pmm} audit, requested ${TIERS.bronze.leadDays} days ahead` : m.todo,
     next: i === firstOpen,
     route:
       m.to === 'contributions' && canSeeContributions.value
-        ? '/connect/partnership/contributions'
+        ? '/connect/invoices?tab=all'
         : m.to === 'team'
           ? '/connect/team'
           : null,
@@ -112,10 +117,17 @@ const milestones = computed(() => {
 })
 
 // ── The audit ───────────────────────────────────────────────────────────────
-// Always shown, so nobody learns about the wait at the last step. Its tier is
+// Always on the PMM row, so nobody learns about the wait at the last step. Its tier is
 // the next one; at Gold it would be the re-audit to keep Gold.
 const auditTier = computed(() => next.value ?? tier.value)
 const audit = computed(() => s.value.audit ?? { status: 'none' })
+
+const auditLine = computed(() => {
+  const a = audit.value
+  if (a.status === 'requested') return `Audit requested ${shortDate(a.requested)}, waiting for Frappe to schedule it`
+  if (a.status === 'scheduled') return `Audit on ${longDate(a.date)} with ${a.auditor}`
+  return `Needs an audit, requested ${auditTier.value.leadDays} days ahead`
+})
 
 function requestAudit() {
   store.setPartnershipState('requested')
@@ -198,6 +210,10 @@ function requestAudit() {
                       <span v-if="c.meta.length" class="mt-1.5 block text-sm text-ink-gray-5">
                         {{ c.meta.join(' · ') }}
                       </span>
+                      <span v-if="c.audit && readyForAudit && audit.status === 'none'" class="mt-3 block">
+                        <Button v-if="canRequestAudit" variant="solid" label="Request audit" @click="requestAudit" />
+                        <span v-else class="text-sm text-ink-gray-5">Your firm’s owner can request it</span>
+                      </span>
                     </span>
                     <span
                       v-if="c.to"
@@ -218,39 +234,9 @@ function requestAudit() {
             <PartnerCode class="mt-3" :code="s.firm.code" :firm="s.firm.name" />
           </section>
 
-          <!-- ── The audit ───────────────────────────────────────────────── -->
-          <section>
-            <h2 class="text-lg-semibold text-ink-gray-8">Audit</h2>
-            <p class="mt-3 text-p-base text-ink-gray-7">
-              {{ auditTier.label }} needs PMM {{ auditTier.pmm }}. Request the audit at least
-              {{ auditTier.leadDays }} days before you expect to move up.
-            </p>
-
-            <div class="mt-3 text-p-sm text-ink-gray-5">
-              <template v-if="audit.status === 'requested'">
-                Requested {{ shortDate(audit.requested) }}. Waiting for Frappe to schedule it.
-              </template>
-              <template v-else-if="audit.status === 'scheduled'">
-                Scheduled for {{ longDate(audit.date) }} with {{ audit.auditor }}.
-              </template>
-              <template v-else-if="readyForAudit">Everything but PMM is met.</template>
-              <template v-else>Not requested.</template>
-            </div>
-
-            <div v-if="readyForAudit && audit.status === 'none'" class="mt-4">
-              <Button
-                v-if="canRequestAudit"
-                variant="solid"
-                label="Request audit"
-                @click="requestAudit"
-              />
-              <p v-else class="text-p-sm text-ink-gray-5">Your firm’s owner can request it.</p>
-            </div>
-          </section>
-
           <!-- ── Audit history ───────────────────────────────────────────── -->
-          <!-- Absent until there is one: the audit section above already says
-               the first is needed for Bronze. -->
+          <!-- Absent until there is one: the PMM row (or Bronze milestone)
+               already says the first is needed. -->
           <section v-if="s.audits.length">
             <h2 class="text-lg-semibold text-ink-gray-8">Audit history</h2>
             <ul class="mt-3 divide-y divide-outline-gray-1">

@@ -100,7 +100,7 @@ const inHome = computed(() => HOME_ROUTES.has(route.name))
 
 // ── The partner's rail ──────────────────────────────────────────────────────
 // Each role sees the areas it works in (the roles table in the plan): Sales
-// has no Billing, Finance has no Messages. Counts are what waits on THIS
+// has no Invoices, Finance has no Messages. Counts are what waits on THIS
 // person: link requests and expiring certificates are the owner's, an unpaid
 // invoice is finance's, unanswered leads are sales'.
 const account = usePartnerAccountStore()
@@ -117,10 +117,10 @@ const partnerRail = computed(() => {
   const work = [
     !member && role !== 'finance' && { label: 'Leads', to: '/connect/messages', icon: 'lucide-inbox', active: inMessages.value, count: waiting },
     !member && { label: 'Customers', to: '/connect/customers', icon: 'lucide-building-2', active: at('customers', 'customer') },
-    !member && role !== 'sales' && { label: 'Billing', to: '/connect/billing', icon: 'lucide-wallet', active: at('billing') },
+    !member && role !== 'sales' && { label: 'Invoices', to: '/connect/invoices', icon: 'lucide-receipt', active: at('invoices') },
   ].filter(Boolean)
   const firm = [
-    { label: 'Partnership', to: '/connect/partnership', icon: 'lucide-handshake', active: at('partnership', 'contributions') },
+    { label: 'Partnership', to: '/connect/partnership', icon: 'lucide-handshake', active: at('partnership') },
     { label: 'Team', to: '/connect/team', icon: 'lucide-users', active: at('team') },
     { label: 'Listing', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile') },
   ]
@@ -413,7 +413,7 @@ defineProps({
         <template v-if="store.role === 'partner'">
           <!-- Groups split by a gap, no labels, like the business rail. -->
           <nav v-for="(group, gi) in partnerRail" :key="gi" class="space-y-0.5" :class="gi > 0 && 'mt-4'">
-            <SidebarLabel v-if="group.label" :label="group.label" />
+            <SidebarLabel v-if="group.label" divider>{{ group.label }}</SidebarLabel>
             <Tooltip
               v-for="item in group.items"
               :key="item.to"

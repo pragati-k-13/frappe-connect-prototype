@@ -1,8 +1,9 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Avatar, Badge, Button, Checkbox, Dialog, Dropdown, FormControl, TabButtons, toast, Tooltip } from 'frappe-ui'
+import { Avatar, Badge, Button, Checkbox, Dialog, Dropdown, FormControl, TabButtons, TextInput, toast, Tooltip } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
+import EmptyState from '../components/EmptyState.vue'
 import PageIntro from '../components/PageIntro.vue'
 import { firmFor } from '../data/partnership'
 import { useConnectStore } from '../stores/connect'
@@ -32,6 +33,11 @@ const STATUS = {
 }
 
 const tab = ref('people')
+const query = ref('')
+const people = computed(() => {
+  const q = query.value.trim().toLowerCase()
+  return account.team.filter((p) => !q || p.name.toLowerCase().includes(q) || p.email?.toLowerCase().includes(q))
+})
 const TABS = [
   { label: 'People', value: 'people' },
   { label: 'Roles', value: 'roles' },
@@ -145,9 +151,13 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
       </PageIntro>
       <TabButtons v-model="tab" :options="TABS" />
 
+      <TextInput v-if="tab === 'people'" v-model="query" type="search" placeholder="Search people" class="mt-6 w-full sm:w-56">
+        <template #prefix><span class="lucide-search size-4 text-ink-gray-5" aria-hidden="true" /></template>
+      </TextInput>
 
+      <EmptyState v-if="tab === 'people' && !people.length" icon="lucide-users" title="No one matches" />
       <List
-        v-if="tab === 'people'"
+        v-else-if="tab === 'people'"
         class="-mx-3 mt-4 list-row-px-3"
         :columns="{ base: ['minmax(0,1fr)', 'auto'], sm: ['minmax(0,1fr)', '11rem', '8rem', 'auto'] }"
         :row-height="60"
@@ -158,7 +168,7 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
           <ListHeaderCell class="hidden sm:flex">Roles</ListHeaderCell>
           <ListHeaderCell><span class="sr-only">Actions</span></ListHeaderCell>
         </ListHeader>
-        <ListRows :items="account.team" v-slot="{ item }">
+        <ListRows :items="people" v-slot="{ item }">
           <ListRow>
             <ListCell class="min-w-0 gap-3">
               <Avatar :label="item.name" size="md" />
