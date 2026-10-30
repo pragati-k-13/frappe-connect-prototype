@@ -104,6 +104,8 @@ const account = usePartnerAccountStore()
 const partnerRail = computed(() => {
   const role = store.partnerRole
   const owner = role === 'owner'
+  // Member is view-only: standing, the team, the profile and resources.
+  const member = role === 'member'
   const beginner = store.partnerTier === 'beginner'
   const waiting = beginner ? 0 : partnerThreads().filter((t) => !t.closed && t.messages.at(-1)?.from === 'them').length
   const unpaid = billingFor(store.partnerTier, store.partnershipState, '2026-09').status === 'unpaid' ? 1 : 0
@@ -111,9 +113,9 @@ const partnerRail = computed(() => {
   const at = (...names) => names.includes(route.name)
   return [
     { label: 'Partnership', to: '/connect/partnership', icon: 'lucide-handshake', active: at('partnership', 'contributions') },
-    { label: 'Customers', to: '/connect/customers', icon: 'lucide-building-2', active: at('customers', 'customer'), count: owner ? account.requests.length : 0 },
-    role !== 'sales' && { label: 'Billing', to: '/connect/billing', icon: 'lucide-wallet', active: at('billing'), count: role === 'finance' || owner ? unpaid : 0 },
-    role !== 'finance' && { label: 'Messages', to: '/connect/messages', icon: 'lucide-inbox', active: inMessages.value, count: waiting },
+    !member && { label: 'Customers', to: '/connect/customers', icon: 'lucide-building-2', active: at('customers', 'customer'), count: owner ? account.requests.length : 0 },
+    !member && role !== 'sales' && { label: 'Billing', to: '/connect/billing', icon: 'lucide-wallet', active: at('billing'), count: role === 'finance' || owner ? unpaid : 0 },
+    !member && role !== 'finance' && { label: 'Leads', to: '/connect/messages', icon: 'lucide-inbox', active: inMessages.value, count: waiting },
     { label: 'Team', to: '/connect/team', icon: 'lucide-users', active: at('team'), count: owner ? certs : 0 },
     { label: 'Profile', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile') },
     { label: 'Resources', to: '/connect/resources', icon: 'lucide-book-open', active: at('resources') },
@@ -266,6 +268,9 @@ defineProps({
   // composer stays put at the bottom. A page that scrolls as one document
   // wants the default.
   flush: { type: Boolean, default: false },
+  // No top bar. For a screen whose own columns carry its title (Leads), where
+  // a 48px row with one word in it is wasted.
+  bare: { type: Boolean, default: false },
   // Off where the page carries its own sign-up — the cart, whose Sign up sits
   // under the total. Two ways into one account, one in the chrome and one in
   // the page, split the click.
@@ -606,7 +611,7 @@ defineProps({
            divider — it's the edge of the chrome, marking where the fixed bar
            ends and the scrolling content begins. Without it, content scrolls up
            against nothing. -->
-      <PageHeader class="shrink-0">
+      <PageHeader v-if="!bare" class="shrink-0">
         <!-- "Partners" alone on the list screens; a breadcrumb once you're
              inside one. `crumb` is the trailing label, and "Partners" becomes
              the link back — the profile is a level down, so the bar is where

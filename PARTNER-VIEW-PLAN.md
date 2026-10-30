@@ -8,7 +8,7 @@ areas on the rail, plus Settings. Each area answers one question a partner comes
 | Partnership | Where do we stand with Frappe, and what gets us up a tier? |
 | Customers   | Who are we working with, and what does each one bring in?  |
 | Billing     | What did we pay Frappe for our customers, and what do we bill them? |
-| Messages    | Which leads are waiting on us?                             |
+| Leads       | Which leads are waiting on us?                             |
 | Team        | Who is on the team, who is certified, and who can do what? |
 | Profile     | What does a business see when it finds us?                 |
 | Resources   | What has Frappe given us to sell and deliver with?         |
@@ -135,7 +135,8 @@ links to Contributions. Under the MRR figure, last month's sits as one line ("La
 more than one. There's no rule for who handles what, so they're listed together, not by topic.
 They're shown in three places:
 
-- **Partnership, in an aside:** each manager's name, photo and email. This is their home.
+- **Partnership, as one line near the end:** each manager's name, photo and an email link. Not a
+  column of their own: they're who to write to, not something to read every visit.
 - **Where a problem comes up:** a disputed figure on Contributions, a certificate claimed by
   another partner on Team, a declined audit. The error links to the firm's partner managers,
   with what to include.
@@ -437,20 +438,24 @@ else, and the last owner can't be removed.
 
 **Roles:**
 
-| Action                                                | Owner | Sales | Finance |
-| ----------------------------------------------------- | ----- | ----- | ------- |
-| See Partnership, Team, Profile, Resources             | Yes   | Yes   | Yes     |
-| See Contributions                                     | Yes   | No    | Yes     |
-| See Customers                                         | Yes   | Yes   | Yes     |
-| Add customers and notes                               | Yes   | Yes   | No      |
-| See a customer's invoices                             | Yes   | No    | Yes     |
-| Approve or decline link requests                      | Yes   | No    | No      |
-| See and export Billing                                | Yes   | No    | Yes     |
-| Reply to leads, send quotes, change lead stages       | Yes   | Yes   | No      |
-| Request an audit                                      | Yes   | No    | No      |
-| Edit the profile                                      | Yes   | No    | No      |
-| Invite people, change roles, link certificates        | Yes   | No    | No      |
-| Open Settings                                         | Yes   | No    | No      |
+Every person has at least one role, as on Frappe Cloud's team page. Member is view-only, for
+consultants who count toward tier but don't work leads or money. Team has two tabs, People
+and Roles, like Frappe Cloud's.
+
+| Action                                                | Owner | Sales | Finance | Member |
+| ----------------------------------------------------- | ----- | ----- | ------- | ------ |
+| See Partnership, Team, Profile, Resources             | Yes   | Yes   | Yes     | Yes    |
+| See Contributions                                     | Yes   | No    | Yes     | No     |
+| See Customers                                         | Yes   | Yes   | Yes     | No     |
+| Add customers and notes                               | Yes   | Yes   | No      | No     |
+| See a customer's invoices                             | Yes   | No    | Yes     | No     |
+| Approve or decline link requests                      | Yes   | No    | No      | No     |
+| See and export Billing                                | Yes   | No    | Yes     | No     |
+| Reply to leads, send quotes, change lead stages       | Yes   | Yes   | No      | No     |
+| Request an audit                                      | Yes   | No    | No      | No     |
+| Edit the profile                                      | Yes   | No    | No      | No     |
+| Invite people, change roles, link certificates        | Yes   | No    | No      | No     |
+| Open Settings                                         | Yes   | No    | No      | No     |
 
 **Certifications.** Employees apply for and take their exams on their own, on Frappe School.
 Connect doesn't apply, pay or reimburse. The partner only **links a certificate** to the firm:
@@ -644,8 +649,6 @@ re-auditing Gold (the audit block), leaving the partnership (Settings).
 From two reviews (the sitemap and the partner–Frappe flows). Applied ones are in the
 sections above. These are left open:
 
-- **Rename Messages to Leads.** The list holds leads, and the PRM portal calls them Leads.
-  Beginners also see a "Messages" page that says leads start at Bronze. Not decided.
 - **Audit mechanics in the PMM row** rather than a separate block. Not decided.
 - **Handing a passed lead back to Frappe.** Left out by decision.
 

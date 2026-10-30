@@ -1,17 +1,18 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Avatar, Badge, Button, Checkbox, Dialog, Dropdown, FormControl, toast } from 'frappe-ui'
+import { Avatar, Badge, Button, Checkbox, Dialog, Dropdown, FormControl, TabButtons, toast } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
-import { ROLE_LABEL } from '../data/partnerAccount'
+import { ROLES, ROLE_LABEL } from '../data/partnerAccount'
 import { TIERS, longDate, nextTier, standingFor } from '../data/partnership'
 
-// SCREEN — Team: everyone at the firm in one list. Who counts toward the
-// consultants criterion, and who can sign in with what role. A page rather
-// than a Settings tab, because adding a colleague is one task whether they
-// need a certificate, access, or both. See PARTNER-VIEW-PLAN.md §5.
+// SCREEN — Team: everyone at the firm, each with at least one role, and the
+// roles themselves. Shaped like Frappe Cloud's team page (People and Roles).
+// Who counts toward the consultants criterion shows on the People tab. A page
+// rather than a Settings tab, because adding a colleague is one task whether
+// they need a certificate, a role, or both. See PARTNER-VIEW-PLAN.md §5.
 //
 // Employees take exams on Frappe School themselves; the firm only LINKS a
 // certificate here. No applying, paying or reimbursing in Connect.
@@ -35,12 +36,18 @@ const STATUS = {
   expired: { label: 'Expired', theme: 'red' },
 }
 
-const access = (p) => (p.roles.length ? p.roles.map((r) => ROLE_LABEL[r]).join(', ') : 'No access')
+const tab = ref('people')
+const TABS = [
+  { label: 'People', value: 'people' },
+  { label: 'Roles', value: 'roles' },
+]
+const access = (p) => p.roles.map((r) => ROLE_LABEL[r]).join(', ')
+const membersOf = (role) => account.team.filter((p) => p.roles.includes(role))
 
 function menu(p) {
   return [
     { label: 'Link certificate', icon: 'lucide-badge-check', onClick: () => startLink(p) },
-    { label: 'Change access', icon: 'lucide-key-round', onClick: () => startRoles(p) },
+    { label: 'Change roles', icon: 'lucide-key-round', onClick: () => startRoles(p) },
     {
       label: 'Remove',
       icon: 'lucide-trash-2',
@@ -91,10 +98,10 @@ function saveLink() {
 
 // ── Invite and access ───────────────────────────────────────────────────────
 const inviting = ref(false)
-const invite = ref({ name: '', email: '', roles: [] })
+const invite = ref({ name: '', email: '', roles: ['member'] })
 const inviteErrors = ref({})
 function startInvite() {
-  invite.value = { name: '', email: '', roles: [] }
+  invite.value = { name: '', email: '', roles: ['member'] }
   inviteErrors.value = {}
   inviting.value = true
 }
@@ -102,11 +109,12 @@ function sendInvite() {
   const e = {}
   if (!invite.value.name.trim()) e.name = 'Enter their name'
   if (!/^\S+@\S+\.\S+$/.test(invite.value.email.trim())) e.email = 'Enter a valid email, like name@company.com'
+  if (!invite.value.roles.length) e.roles = 'Pick at least one role'
   inviteErrors.value = e
   if (Object.keys(e).length) return
   account.invite({ ...invite.value, name: invite.value.name.trim(), email: invite.value.email.trim() })
   inviting.value = false
-  toast.success(invite.value.roles.length ? `Invite sent to ${invite.value.email}` : `${invite.value.name} added`)
+  toast.success(`Invite sent to ${invite.value.email}`)
 }
 
 const roling = ref(false)
@@ -117,16 +125,17 @@ function startRoles(p) {
   roles.value = [...p.roles]
   roling.value = true
 }
-const roleError = computed(() =>
-  roleFor.value?.roles.includes('owner') && !roles.value.includes('owner') && owners.value === 1
+const roleError = computed(() => {
+  if (!roles.value.length) return 'Pick at least one role'
+  return roleFor.value?.roles.includes('owner') && !roles.value.includes('owner') && owners.value === 1
     ? 'Your firm needs an owner. Make someone else owner first.'
-    : '',
-)
+    : ''
+})
 function saveRoles() {
   if (roleError.value) return
   account.setRoles(roleFor.value.id, [...roles.value])
   roling.value = false
-  toast.success('Access updated')
+  toast.success('Roles updated')
 }
 const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filter((x) => x !== r))
 </script>
@@ -143,18 +152,21 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
             {{ needed }}. Only full ERPNext or Framework certificates count.
           </p>
         </div>
-        <Button v-if="isOwner" variant="solid" label="Add person" @click="startInvite" />
+        <Button v-if="isOwner" variant="solid" label="Invite" @click="startInvite" />
       </div>
 
+      <TabButtons v-model="tab" :options="TABS" class="mt-6" />
+
       <List
-        class="-mx-3 mt-6 list-row-px-3"
+        v-if="tab === 'people'"
+        class="-mx-3 mt-4 list-row-px-3"
         :columns="{ base: ['minmax(0,1fr)', 'auto'], sm: ['minmax(0,1fr)', '11rem', '8rem', 'auto'] }"
         :row-height="60"
       >
         <ListHeader>
           <ListHeaderCell>Person</ListHeaderCell>
           <ListHeaderCell class="hidden sm:flex">Certificate</ListHeaderCell>
-          <ListHeaderCell class="hidden sm:flex">Access</ListHeaderCell>
+          <ListHeaderCell class="hidden sm:flex">Roles</ListHeaderCell>
           <ListHeaderCell><span class="sr-only">Actions</span></ListHeaderCell>
         </ListHeader>
         <ListRows :items="account.team" v-slot="{ item }">
@@ -164,7 +176,7 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
               <span class="min-w-0">
                 <span class="block truncate text-base text-ink-gray-8">{{ item.name }}</span>
                 <span class="mt-1 block truncate text-sm text-ink-gray-5">
-                  {{ item.invited && item.roles.length ? 'Invited' : item.email }}
+                  {{ item.invited ? 'Invited' : item.email }}
                 </span>
                 <!-- Below sm the Certificate and Access columns fold in here. -->
                 <span class="mt-0.5 block truncate text-sm text-ink-gray-5 sm:hidden">
@@ -187,7 +199,9 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
                 </span>
               </span>
             </ListCell>
-            <ListCell class="hidden text-sm text-ink-gray-7 sm:flex">{{ access(item) }}</ListCell>
+            <ListCell class="hidden flex-wrap gap-1 sm:flex">
+              <Badge v-for="r in item.roles" :key="r" theme="gray" variant="subtle" size="sm" :label="ROLE_LABEL[r]" />
+            </ListCell>
             <ListCell>
               <Dropdown v-if="isOwner" :options="menu(item)" align="end">
                 <Button variant="ghost" icon="lucide-ellipsis" :aria-label="`Actions for ${item.name}`" />
@@ -195,6 +209,28 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
             </ListCell>
           </ListRow>
         </ListRows>
+      </List>
+
+      <!-- ── Roles: what each is for, and who has it ─────────────────────── -->
+      <List
+        v-else
+        class="-mx-3 mt-4 list-row-px-3"
+        :columns="['minmax(0,1fr)', 'auto']"
+        :row-height="60"
+      >
+        <ListRow v-for="r in ROLES" :key="r.key">
+          <ListCell class="min-w-0">
+            <span class="min-w-0">
+              <span class="block text-base text-ink-gray-8">{{ r.label }}</span>
+              <span class="mt-1 block truncate text-sm text-ink-gray-5">{{ r.desc }}</span>
+            </span>
+          </ListCell>
+          <ListCell class="gap-1">
+            <Avatar v-for="m in membersOf(r.key).slice(0, 4)" :key="m.id" :label="m.name" size="sm" />
+            <span v-if="membersOf(r.key).length > 4" class="pl-1 text-sm text-ink-gray-5">+{{ membersOf(r.key).length - 4 }}</span>
+            <span v-if="!membersOf(r.key).length" class="text-sm text-ink-gray-5">No one yet</span>
+          </ListCell>
+        </ListRow>
       </List>
     </div>
 
@@ -222,12 +258,12 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
     </Dialog>
 
     <!-- ── Add person ───────────────────────────────────────────────────── -->
-    <Dialog v-model:open="inviting" title="Add person">
+    <Dialog v-model:open="inviting" title="Invite">
       <form class="space-y-4" @submit.prevent="sendInvite">
         <FormControl v-model="invite.name" label="Name" required :error="inviteErrors.name" />
         <FormControl v-model="invite.email" type="email" label="Email" placeholder="name@company.com" required :error="inviteErrors.email" />
         <fieldset>
-          <legend class="text-sm text-ink-gray-6">Connect access</legend>
+          <legend class="text-sm text-ink-gray-6">Roles</legend>
           <div class="mt-2 space-y-2">
             <Checkbox
               v-for="(label, r) in ROLE_LABEL"
@@ -237,17 +273,17 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
               @update:model-value="(on) => (invite.roles = toggleRole(invite.roles, r, on))"
             />
           </div>
-          <p class="mt-2 text-p-sm text-ink-gray-5">Leave all unticked to list someone without access.</p>
+          <p v-if="inviteErrors.roles" class="mt-2 text-p-sm text-ink-red-7">{{ inviteErrors.roles }}</p>
         </fieldset>
         <div class="flex justify-end gap-2 pt-2">
           <Button label="Cancel" @click="inviting = false" />
-          <Button variant="solid" type="submit" :label="invite.roles.length ? 'Send invite' : 'Add'" />
+          <Button variant="solid" type="submit" label="Send invite" />
         </div>
       </form>
     </Dialog>
 
-    <!-- ── Change access ────────────────────────────────────────────────── -->
-    <Dialog v-model:open="roling" :title="`Access for ${roleFor?.name ?? ''}`">
+    <!-- ── Change roles ─────────────────────────────────────────────────── -->
+    <Dialog v-model:open="roling" :title="`Roles for ${roleFor?.name ?? ''}`">
       <div class="space-y-4">
         <div class="space-y-2">
           <Checkbox

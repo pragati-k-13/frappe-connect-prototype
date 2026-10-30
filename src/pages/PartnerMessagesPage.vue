@@ -238,19 +238,22 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
 </script>
 
 <template>
-  <ConnectShell v-if="store.partnerTier === 'beginner'" root-label="Messages">
+  <ConnectShell v-if="store.partnerTier === 'beginner'" root-label="Leads">
     <EmptyState icon="lucide-inbox" title="Leads from Connect start at Bronze">
       <Button label="View milestones" route="/connect/partnership" />
     </EmptyState>
   </ConnectShell>
-  <ConnectShell v-else root-label="Messages" flush>
+  <ConnectShell v-else root-label="Leads" flush bare>
     <div class="relative flex min-h-0 min-w-0 flex-1">
       <!-- ── The inbox ──────────────────────────────────────────────────── -->
       <!-- Titled by PROJECT, not company: before shortlisting there is no
            company name to show, and a list half of "Anonymous company" rows
            tells a partner nothing about which job each one is. -->
       <aside class="flex w-[320px] shrink-0 flex-col border-r border-outline-gray-1">
-        <div class="shrink-0 px-3 pb-2 pt-3">
+        <!-- The page's title lives here, with the views, since there's no top
+             bar on this screen. Same 48px row height as the bar it replaces. -->
+        <div class="shrink-0 px-3 pb-2">
+          <h1 class="flex h-12 items-center px-2 text-lg-medium text-ink-gray-9">Leads</h1>
           <TabButtons v-model="view" :options="VIEWS" class="w-full" fluid />
         </div>
         <EmptyState

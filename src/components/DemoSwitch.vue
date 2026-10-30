@@ -252,6 +252,7 @@ const options = computed(() => [
             { label: 'Owner', icon: checkPartnerRole('owner'), onClick: () => setPartnerRole('owner') },
             { label: 'Sales', icon: checkPartnerRole('sales'), onClick: () => setPartnerRole('sales') },
             { label: 'Finance', icon: checkPartnerRole('finance'), onClick: () => setPartnerRole('finance') },
+            { label: 'Member', icon: checkPartnerRole('member'), onClick: () => setPartnerRole('member') },
           ],
         },
       ]

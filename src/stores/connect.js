@@ -244,7 +244,7 @@ export const useConnectStore = defineStore('connect', {
     // The partner side's two demo axes, and the Partnership page's state. Not
     // cleared by `reset()`, same as `role`: they say which demo you're in.
     //   partnerTier   'beginner' | 'bronze-up' — see `data/partnership.js`
-    //   partnerRole   'owner' | 'sales' | 'finance' — sets landing and actions
+    //   partnerRole   'owner' | 'sales' | 'finance' | 'member' — sets landing and actions
     //   partnershipState  one of PARTNERSHIP_STATES; Bronze and up only
     partnerTier: 'bronze-up',
     partnerRole: 'owner',
@@ -736,7 +736,7 @@ export const useConnectStore = defineStore('connect', {
       this.partnershipState = 'working'
     },
     setPartnerRole(role) {
-      if (!['owner', 'sales', 'finance'].includes(role)) return
+      if (!['owner', 'sales', 'finance', 'member'].includes(role)) return
       this.partnerRole = role
     },
     setPartnershipState(state) {

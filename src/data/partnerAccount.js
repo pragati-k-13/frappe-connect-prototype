@@ -118,17 +118,18 @@ export const billingFor = (tier, state, monthKey) => {
 }
 
 // ── Team ────────────────────────────────────────────────────────────────────
-// `roles` is empty for someone with no Connect access. `cert` is the linked
-// certificate, if any: `full` says it counts toward tier.
+// Every person has at least one role, as on Frappe Cloud's team page. A
+// consultant who only needs to count toward tier is a Member (view-only).
+// `cert` is the linked certificate, if any: `full` says it counts toward tier.
 const SILVER_TEAM = [
   { name: 'Farhan Qureshi', email: 'farhan@softwarework.example', roles: ['owner'], cert: { name: 'ERPNext', full: true, issued: '2022-06-14', expires: '2027-06-14' } },
   { name: 'Anuja Deshmukh', email: 'anuja@softwarework.example', roles: ['owner'], cert: { name: 'ERPNext', full: true, issued: '2021-03-02', expires: '2027-03-02' } },
   { name: 'Rahul Verma', email: 'rahul@softwarework.example', roles: ['sales'], cert: null },
   { name: 'Ishita Bose', email: 'ishita@softwarework.example', roles: ['finance'], cert: null },
-  { name: 'Manoj Pillai', email: 'manoj@softwarework.example', roles: [], cert: { name: 'Framework', full: true, issued: '2023-11-20', expires: '2026-12-20' } },
-  { name: 'Sneha Rao', email: 'sneha@softwarework.example', roles: [], cert: { name: 'ERPNext', full: true, issued: '2024-01-09', expires: '2027-01-09' } },
+  { name: 'Manoj Pillai', email: 'manoj@softwarework.example', roles: ['member'], cert: { name: 'Framework', full: true, issued: '2023-11-20', expires: '2026-12-20' } },
+  { name: 'Sneha Rao', email: 'sneha@softwarework.example', roles: ['member'], cert: { name: 'ERPNext', full: true, issued: '2024-01-09', expires: '2027-01-09' } },
   { name: 'Aakash Gupta', email: 'aakash@softwarework.example', roles: ['sales'], cert: { name: 'ERPNext', full: true, issued: '2024-08-17', expires: '2027-08-17' } },
-  { name: 'Pooja Shetty', email: 'pooja@softwarework.example', roles: [], cert: { name: 'Accounting module', full: false, issued: '2025-02-11', expires: '2027-02-11' } },
+  { name: 'Pooja Shetty', email: 'pooja@softwarework.example', roles: ['member'], cert: { name: 'Accounting module', full: false, issued: '2025-02-11', expires: '2027-02-11' } },
 ]
 
 const BEGINNER_TEAM = [
@@ -156,7 +157,15 @@ export const teamFor = (tier, state) => {
   })
 }
 
-export const ROLE_LABEL = { owner: 'Owner', sales: 'Sales', finance: 'Finance' }
+export const ROLE_LABEL = { owner: 'Owner', sales: 'Sales', finance: 'Finance', member: 'Member' }
+
+// What each role is for, in the Roles tab. The full table is in the plan.
+export const ROLES = [
+  { key: 'owner', label: 'Owner', desc: 'Everything, including the team, audits, link requests and settings' },
+  { key: 'sales', label: 'Sales', desc: 'Leads, quotes and customers' },
+  { key: 'finance', label: 'Finance', desc: 'Billing, Contributions and customer invoices' },
+  { key: 'member', label: 'Member', desc: 'View-only: standing, team, profile and resources' },
+]
 
 // ── CRM sync ────────────────────────────────────────────────────────────────
 // Prefilled mappings for the two CRMs Frappe makes. Status names are each

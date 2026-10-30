@@ -37,7 +37,7 @@ const currency = computed(() => s.value.mrr.currency)
 
 // Who can do what (see the roles table in the plan). Contributions is Frappe's
 // view of the money, for the owner and finance; the audit is the owner's call.
-const canSeeContributions = computed(() => store.partnerRole !== 'sales')
+const canSeeContributions = computed(() => ['owner', 'finance'].includes(store.partnerRole))
 const canRequestAudit = computed(() => store.partnerRole === 'owner')
 
 // ── Bronze and up: the next tier's criteria ─────────────────────────────────
@@ -125,8 +125,8 @@ function requestAudit() {
 
 <template>
   <ConnectShell root-label="Partnership">
-    <div class="fc-page-wide py-8">
-      <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_16rem]">
+    <div class="fc-page-list py-8">
+      <div>
         <div class="min-w-0 space-y-10">
           <!-- ── The anchor ───────────────────────────────────────────── -->
           <section>
@@ -269,6 +269,20 @@ function requestAudit() {
             </ul>
           </section>
 
+          <!-- ── Partner managers ────────────────────────────────────────
+               A line, not a column: they're who to write to, not something
+               to read every visit. Also in the account menu. -->
+          <section>
+            <h2 class="text-lg-semibold text-ink-gray-8">Partner managers</h2>
+            <ul class="mt-3 flex flex-wrap gap-x-8 gap-y-3">
+              <li v-for="m in s.managers" :key="m.email" class="flex items-center gap-2.5">
+                <Avatar :label="m.name" size="md" />
+                <span class="text-base text-ink-gray-8">{{ m.name }}</span>
+                <a :href="`mailto:${m.email}`" class="text-sm text-ink-blue-link hover:underline">Email</a>
+              </li>
+            </ul>
+          </section>
+
           <!-- Bronze and up: the code sits last. They know where it is. -->
           <section v-if="!beginner">
             <h2 class="text-lg-semibold text-ink-gray-8">Partner code</h2>
@@ -276,24 +290,6 @@ function requestAudit() {
           </section>
         </div>
 
-        <!-- ── Partner managers ─────────────────────────────────────────── -->
-        <aside class="min-w-0">
-          <h2 class="text-sm text-ink-gray-5">Partner managers</h2>
-          <ul class="mt-3 space-y-4">
-            <li v-for="m in s.managers" :key="m.email" class="flex items-center gap-3">
-              <Avatar :label="m.name" size="lg" />
-              <span class="min-w-0">
-                <span class="block truncate text-base text-ink-gray-8">{{ m.name }}</span>
-                <a
-                  :href="`mailto:${m.email}`"
-                  class="mt-0.5 block truncate text-sm text-ink-blue-link hover:underline"
-                >
-                  {{ m.email }}
-                </a>
-              </span>
-            </li>
-          </ul>
-        </aside>
       </div>
     </div>
   </ConnectShell>
