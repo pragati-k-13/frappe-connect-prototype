@@ -157,6 +157,35 @@ function send() {
   draft.value = ''
   toBottom()
 }
+// A card's own Reply quotes it into the box, as Helpdesk does.
+const plain = (html) => {
+  const el = document.createElement('div')
+  el.innerHTML = html ?? ''
+  return el.textContent.trim()
+}
+const escape = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+function quoteReply(m) {
+  draft.value = `<blockquote><p>${escape(plain(m.body))}</p></blockquote><p></p>`
+  nextTick(() => composer.value?.editor?.commands?.focus?.('end'))
+}
+// Says it copied only once it has.
+const copy = (text, done) =>
+  navigator.clipboard
+    ? navigator.clipboard.writeText(text).then(() => toast.success(done), () => toast.error('Couldn’t copy'))
+    : toast.error('Couldn’t copy')
+const messageMenu = (m) => [
+  {
+    label: 'Copy text',
+    icon: 'lucide-copy',
+    onClick: () => copy(plain(m.body), 'Copied'),
+  },
+  {
+    label: 'Copy link',
+    icon: 'lucide-link',
+    onClick: () => copy(`${window.location.href.split('#')[0]}#msg-${m.id}`, 'Link copied'),
+  },
+]
+
 const onKey = (e) => {
   if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return
   e.preventDefault()
@@ -289,7 +318,7 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
                 is interested in your quote and shared their contact details · {{ time(m.at) }}
               </p>
 
-              <div v-else class="mt-5 flex items-start gap-3">
+              <div v-else :id="`msg-${m.id}`" class="mt-5 flex items-start gap-3">
                 <Avatar
                   v-if="m.from === 'you' && selfLogo"
                   :image="selfLogo"
@@ -303,16 +332,40 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
                 <Avatar v-else size="xl" shape="square" class="mt-0.5 shrink-0" aria-hidden="true">
                   <IconBuilding class="size-full text-ink-gray-5" />
                 </Avatar>
-                <div class="min-w-0 flex-1">
+                <!-- A reply, as Helpdesk draws one: a full-width card with who
+                     and when on its header row, and its own actions on the
+                     right. Kept light — a thin border, no band behind the
+                     header — since Connect replies are short. -->
+                <div v-if="m.kind === 'text'" class="min-w-0 flex-1 rounded-5 border border-outline-gray-2">
+                  <div class="flex items-center gap-1.5 py-1 pl-3 pr-1">
+                    <span class="truncate text-p-sm font-medium text-ink-gray-8">{{ authorOf(m) }}</span>
+                    <span class="text-p-sm text-ink-gray-5">·</span>
+                    <span class="shrink-0 text-p-sm text-ink-gray-5">{{ time(m.at) }}</span>
+                    <div class="ml-auto flex shrink-0 items-center">
+                      <Button
+                        v-if="canAct && !closed"
+                        variant="ghost"
+                        icon="lucide-reply"
+                        aria-label="Reply to this message"
+                        tooltip="Reply"
+                        @click="quoteReply(m)"
+                      />
+                      <Dropdown :options="messageMenu(m)" align="end">
+                        <Button variant="ghost" icon="lucide-ellipsis" aria-label="More actions" />
+                      </Dropdown>
+                    </div>
+                  </div>
+                  <div class="fc-message px-3 pb-3 text-p-base text-ink-gray-8" v-html="m.body" />
+                </div>
+
+                <div v-else class="min-w-0 flex-1">
                   <p class="flex flex-wrap items-baseline gap-x-1.5 text-p-sm">
                     <span class="font-medium text-ink-gray-8">{{ authorOf(m) }}</span>
                     <span class="text-ink-gray-5">·</span>
                     <span class="text-ink-gray-5">{{ time(m.at) }}</span>
                   </p>
 
-                  <div v-if="m.kind === 'text'" class="fc-message mt-1 max-w-[560px] text-p-base text-ink-gray-8" v-html="m.body" />
-
-                  <div v-else-if="m.kind === 'brief'" class="mt-1.5 w-full max-w-[560px] rounded-5 border border-outline-gray-2 p-3.5">
+                  <div v-if="m.kind === 'brief'" class="mt-1.5 w-full rounded-5 border border-outline-gray-2 p-3.5">
                     <p class="text-p-base font-medium text-ink-gray-8">{{ lead.project }}</p>
                     <p class="mt-1.5 line-clamp-2 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7">{{ lead.brief.scope }}</p>
                     <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -323,7 +376,7 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
                     </div>
                   </div>
 
-                  <div v-else-if="m.kind === 'bid'" class="mt-1.5 w-fit max-w-[560px] rounded-5 border border-outline-gray-2 p-3.5">
+                  <div v-else-if="m.kind === 'bid'" class="mt-1.5 w-full rounded-5 border border-outline-gray-2 p-3.5">
                     <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
                       <p class="text-p-lg font-semibold tabular-nums text-ink-gray-9">{{ m.bid.price }}</p>
                       <p class="text-p-base text-ink-gray-6">about {{ m.bid.weeks }} weeks</p>
