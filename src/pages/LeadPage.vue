@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Avatar, Badge, Button, Dialog, Dropdown, ScrollArea, Select, toast } from 'frappe-ui'
+import { Avatar, Badge, Button, Dialog, Dropdown, ScrollArea, Select, TabList, Tabs, TabTrigger, toast } from 'frappe-ui'
 import { CommentKit, commentToolbar, Editor, EditorContent, EditorFixedMenu } from 'frappe-ui/editor'
 import IconBuilding from '~icons/lucide/building-2'
 import IconClose from '~icons/lucide/x'
@@ -20,10 +20,12 @@ import { CRMS, PRM_STAGES } from '../data/partnerAccount'
 import { PROBABILITY } from '../data/records'
 import { companyName, isClosed, queue, stageTheme, useLeads } from '../composables/useLeads'
 
-// SCREEN — one lead, laid out like a Helpdesk ticket: one timeline in the
-// middle, a docked panel of facts on the right, and the actions pinned under
-// the timeline. No tabs: the brief, the quote, the replies, what the team
-// changed, the follow-ups and the team's own notes all read in one feed.
+// SCREEN — one lead, laid out like a deal in Frappe CRM: tabs over one
+// timeline, a docked panel of facts on the right (the same shape as a
+// customer's), and the actions pinned under the timeline. The tabs are filters
+// of the same feed, not separate sections: Activity has everything — the
+// brief, the quote, replies, what the team changed, follow-ups and notes — and
+// the others narrow it to one kind, each with its own action.
 //
 // ⚠️ THE COMPANY CARD IS NOT A MESSAGE HERE. On the business side, shortlisting
 // posts the company's details into the thread as a card. A partner refers back
@@ -124,6 +126,28 @@ const timeline = computed(() => {
   ].sort((a, b) => a.at - b.at)
 })
 
+// ── Tabs ────────────────────────────────────────────────────────────────────
+// Follow-ups and Notes appear once there's one, so a fresh lead isn't a row
+// of empty tabs.
+const tab = ref('activity')
+const tabs = computed(() =>
+  [
+    { value: 'activity', label: 'Activity', icon: 'lucide-history' },
+    { value: 'messages', label: 'Messages', icon: 'lucide-message-square' },
+    timeline.value.some((i) => i.type === 'followup') && { value: 'followups', label: 'Follow-ups', icon: 'lucide-phone' },
+    timeline.value.some((i) => i.type === 'note') && { value: 'notes', label: 'Notes', icon: 'lucide-sticky-note' },
+  ].filter(Boolean),
+)
+const ONLY = { messages: 'message', followups: 'followup', notes: 'note' }
+const shown = computed(() => (tab.value === 'activity' ? timeline.value : timeline.value.filter((i) => i.type === ONLY[tab.value])))
+const tabLabel = computed(() => tabs.value.find((t) => t.value === tab.value)?.label ?? 'Activity')
+// Each tab's own action; Activity has all three.
+const actions = computed(() => ({
+  reply: ['activity', 'messages'].includes(tab.value),
+  note: ['activity', 'notes'].includes(tab.value),
+  followup: ['activity', 'followups'].includes(tab.value) && !crm.value,
+}))
+
 const time = (at) => {
   const d = new Date(at)
   const today = new Date().toDateString() === d.toDateString()
@@ -211,10 +235,15 @@ watch(
   () => {
     mode.value = null
     sideOpen.value = false
+    tab.value = 'activity'
     toBottom()
   },
   { immediate: true },
 )
+function copyLink() {
+  navigator.clipboard?.writeText(window.location.href)
+  toast.success('Link copied')
+}
 const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
 </script>
 
@@ -262,11 +291,21 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
     <div v-else class="relative flex min-h-0 min-w-0 flex-1">
       <!-- ── The timeline ─────────────────────────────────────────────── -->
       <section class="flex min-h-0 min-w-0 flex-1 flex-col">
+        <!-- As on a customer: an icon with each tab, the row as tall as the
+             top bar and running edge to edge. -->
+        <Tabs v-model="tab" class="shrink-0">
+          <TabList class="fc-tabs-scroll h-12 px-3 sm:px-5" size="md">
+            <TabTrigger v-for="t in tabs" :key="t.value" :value="t.value" :label="t.label" :icon-left="t.icon" />
+          </TabList>
+        </Tabs>
         <ScrollArea ref="feed" class="min-h-0 flex-1">
           <div class="mx-auto max-w-[760px] px-5 py-6">
-            <p class="text-center text-p-sm text-ink-gray-5">Sent to you and the other partners who match</p>
+            <h2 class="text-lg-semibold text-ink-gray-9">{{ tabLabel }}</h2>
+            <p v-if="tab !== 'followups' && tab !== 'notes'" class="mt-4 text-center text-p-sm text-ink-gray-5">
+              Sent to you and the other partners who match
+            </p>
 
-            <template v-for="item in timeline" :key="item.key">
+            <template v-for="item in shown" :key="item.key">
               <!-- What the team changed: a line, like Helpdesk's status changes. -->
               <div v-if="item.type === 'change'" class="mt-4 flex items-baseline gap-3">
                 <span class="flex w-8 shrink-0 justify-center" aria-hidden="true">
@@ -404,10 +443,10 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
           </div>
 
           <div v-else class="flex items-center gap-1 px-3 py-2">
-            <Button variant="ghost" icon-left="lucide-reply" label="Reply" @click="startMode('reply')" />
-            <Button variant="ghost" icon-left="lucide-sticky-note" label="Note" @click="startMode('note')" />
+            <Button v-if="actions.reply" variant="ghost" icon-left="lucide-reply" label="Reply" @click="startMode('reply')" />
+            <Button v-if="actions.note" variant="ghost" icon-left="lucide-sticky-note" label="Note" @click="startMode('note')" />
             <Button
-              v-if="!crm"
+              v-if="actions.followup"
               variant="ghost"
               icon-left="lucide-phone"
               label="Log follow-up"
@@ -418,50 +457,72 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
       </section>
 
       <!-- ── The panel ─────────────────────────────────────────────────── -->
-      <!-- The project first, because it is there from the first message; the
-           company under it, because it arrives later and only if they choose.
+      <!-- The same shape as a customer's: who it is with quick actions, then
+           sections of label and value. The project first, because it is there
+           from the first message; the company after, because it arrives later
+           and only if they choose.
            ⚠️ The empty company section is kept, not hidden: it is what tells
            a partner that more is coming and what brings it. -->
       <aside
         class="w-full shrink-0 flex-col border-l border-outline-gray-1 bg-surface-base sm:w-[352px] lg:static lg:flex lg:shadow-none"
         :class="sideOpen ? 'absolute inset-y-0 right-0 z-10 flex shadow-lg' : 'hidden'"
       >
-        <div class="flex shrink-0 items-center justify-between px-5 pt-3 lg:hidden">
-          <h2 class="text-base font-medium text-ink-gray-8">Details</h2>
-          <Button variant="ghost" size="sm" aria-label="Close details" @click="sideOpen = false">
-            <template #icon><IconClose class="size-4" /></template>
-          </Button>
-        </div>
-        <ScrollArea class="min-h-0 flex-1">
-          <div class="space-y-8 px-5 py-5">
-            <section>
-              <h3 class="text-p-base font-medium text-ink-gray-8">Lead</h3>
-              <dl class="mt-3 space-y-3">
+        <div class="min-h-0 flex-1 overflow-y-auto">
+          <div class="flex items-center gap-3 px-5 py-5">
+            <Avatar v-if="lead.company" :label="lead.company.name" size="2xl" shape="square" />
+            <Avatar v-else size="2xl" shape="square" aria-hidden="true">
+              <IconBuilding class="size-full text-ink-gray-5" />
+            </Avatar>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-lg-semibold text-ink-gray-9">{{ companyName(lead) }}</p>
+              <div class="mt-1.5 flex items-center gap-1">
+                <Button
+                  v-if="lead.company?.email"
+                  variant="ghost"
+                  size="sm"
+                  icon="lucide-mail"
+                  :aria-label="`Email ${lead.company.contact}`"
+                  :tooltip="`Email ${lead.company.contact}`"
+                  :href="`mailto:${lead.company.email}`"
+                />
+                <Button variant="ghost" size="sm" icon="lucide-link" aria-label="Copy link" tooltip="Copy link" @click="copyLink" />
+              </div>
+            </div>
+            <Button class="self-start lg:hidden" variant="ghost" size="sm" aria-label="Close details" @click="sideOpen = false">
+              <template #icon><IconClose class="size-4" /></template>
+            </Button>
+          </div>
+
+          <div class="divide-y divide-outline-gray-1 border-t border-outline-gray-1">
+            <section class="px-5 py-4">
+              <h2 class="text-base font-medium text-ink-gray-8">Lead</h2>
+              <dl class="mt-2 space-y-1">
                 <!-- Phones only: the top bar has no room for these. -->
-                <div class="sm:hidden">
+                <div class="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2 sm:hidden">
                   <dt class="text-p-sm text-ink-gray-5">Stage</dt>
-                  <dd class="mt-1">
-                    <span v-if="crm || !canAct" class="text-p-base text-ink-gray-8">{{ lead.stage }}</span>
-                    <Select v-else :model-value="lead.stage" :options="stageOptions" @update:model-value="setStage" />
+                  <dd>
+                    <span v-if="crm || !canAct" class="block px-2 py-1.5 text-p-base text-ink-gray-8">{{ lead.stage }}</span>
+                    <Select v-else variant="ghost" :model-value="lead.stage" :options="stageOptions" @update:model-value="setStage" />
                   </dd>
                 </div>
-                <div class="sm:hidden">
+                <div class="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2 sm:hidden">
                   <dt class="text-p-sm text-ink-gray-5">Assigned to</dt>
-                  <dd class="mt-1">
-                    <span v-if="closed || !canAct" class="text-p-base text-ink-gray-8">{{ nameOf(lead.owner) }}</span>
-                    <Select v-else :model-value="lead.owner ?? 'none'" :options="ownerOptions" @update:model-value="setOwner" />
+                  <dd>
+                    <span v-if="closed || !canAct" class="block px-2 py-1.5 text-p-base text-ink-gray-8">{{ nameOf(lead.owner) }}</span>
+                    <Select v-else variant="ghost" :model-value="lead.owner ?? 'none'" :options="ownerOptions" @update:model-value="setOwner" />
                   </dd>
                 </div>
-                <div v-if="closed && lead.closed?.reason">
+                <div v-if="closed && lead.closed?.reason" class="grid grid-cols-[6rem_minmax(0,1fr)] items-baseline gap-2">
                   <dt class="text-p-sm text-ink-gray-5">Reason</dt>
-                  <dd class="mt-0.5 text-p-base text-ink-gray-8">{{ lead.closed.reason }}</dd>
+                  <dd class="px-2 py-1.5 text-p-base text-ink-gray-8">{{ lead.closed.reason }}</dd>
                 </div>
-                <div>
+                <div class="grid grid-cols-[6rem_minmax(0,1fr)] items-center gap-2">
                   <dt class="text-p-sm text-ink-gray-5">Probability</dt>
-                  <dd class="mt-1">
-                    <span v-if="crm || closed || !canAct" class="text-p-base text-ink-gray-8">{{ lead.probability ?? '—' }}</span>
+                  <dd>
+                    <span v-if="crm || closed || !canAct" class="block px-2 py-1.5 text-p-base text-ink-gray-8">{{ lead.probability ?? '—' }}</span>
                     <Select
                       v-else
+                      variant="ghost"
                       :model-value="lead.probability"
                       :options="probabilityOptions"
                       placeholder="Not set"
@@ -469,31 +530,35 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
                     />
                   </dd>
                 </div>
+                <div class="grid grid-cols-[6rem_minmax(0,1fr)] items-baseline gap-2">
+                  <dt class="text-p-sm text-ink-gray-5">Source</dt>
+                  <dd class="px-2 py-1.5 text-p-base text-ink-gray-8">Connect</dd>
+                </div>
               </dl>
               <p v-if="crm && !closed" class="mt-2 text-p-sm text-ink-gray-5">Synced from {{ CRMS[crm.crm].label }}</p>
             </section>
 
-            <section>
-              <h3 class="text-p-base font-medium text-ink-gray-8">Project</h3>
+            <section class="px-5 py-4">
+              <h2 class="text-base font-medium text-ink-gray-8">Project</h2>
               <p class="mt-2 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7">{{ lead.brief.scope }}</p>
-              <dl class="mt-4 space-y-3">
-                <div v-for="row in projectRows" :key="row.label">
+              <dl class="mt-3 space-y-1">
+                <div v-for="row in projectRows" :key="row.label" class="grid grid-cols-[6rem_minmax(0,1fr)] items-baseline gap-2">
                   <dt class="text-p-sm text-ink-gray-5">{{ row.label }}</dt>
-                  <dd class="mt-0.5 text-p-base text-ink-gray-8">{{ row.value }}</dd>
+                  <dd class="px-2 py-1.5 text-p-base text-ink-gray-8">{{ row.value }}</dd>
                 </div>
               </dl>
-              <p class="mt-4 text-p-sm text-ink-gray-5">What they asked for</p>
+              <p class="mt-3 text-p-sm text-ink-gray-5">What they asked for</p>
               <ul class="mt-1.5 space-y-1">
                 <li v-for="line in criteria" :key="line.text" class="text-p-base text-ink-gray-7">{{ line.text }}</li>
               </ul>
             </section>
 
-            <section>
-              <h3 class="text-p-base font-medium text-ink-gray-8">Company</h3>
-              <dl v-if="companyRows.length" class="mt-2 space-y-3">
-                <div v-for="row in companyRows" :key="row.label">
+            <section class="px-5 py-4">
+              <h2 class="text-base font-medium text-ink-gray-8">Company</h2>
+              <dl v-if="companyRows.length" class="mt-2 space-y-1">
+                <div v-for="row in companyRows" :key="row.label" class="grid grid-cols-[6rem_minmax(0,1fr)] items-baseline gap-2">
                   <dt class="text-p-sm text-ink-gray-5">{{ row.label }}</dt>
-                  <dd class="mt-0.5 break-words text-p-base text-ink-gray-8">{{ row.value }}</dd>
+                  <dd class="break-words px-2 py-1.5 text-p-base text-ink-gray-8">{{ row.value }}</dd>
                 </div>
               </dl>
               <p v-else class="mt-2 text-p-base leading-relaxed text-ink-gray-6">
@@ -501,7 +566,7 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
               </p>
             </section>
           </div>
-        </ScrollArea>
+        </div>
       </aside>
     </div>
 
