@@ -15,23 +15,43 @@ areas on the rail, plus Settings. Each area answers one question a partner comes
 
 Settings (CRM sync) opens as a dialog, not a rail item.
 
-**The landing screen depends on tier.** A Beginner lands on Partnership: they have no listing
-and no leads yet, and the milestone checklist is their next step. Bronze and up land on
-Messages, because leads are the work that can't wait and standing changes slowly (MRR monthly,
-audits yearly). Standing still reaches them where they are:
+**Who uses it.** Partner firms aren't one person. The owner sets the firm up (profile, team,
+audits, CRM sync) and checks standing about monthly. Sales works leads every day and writes to
+businesses on the firm's behalf. Finance checks what the firm paid Frappe and bills customers
+onward. These are the three roles (see Team), and a small firm gives one person all three.
 
-- **Rail badges** where something needs action: leads waiting on a reply (Messages), link
-  requests (Customers), certificates expiring (Team).
+**The landing screen depends on tier and role.** A Beginner lands on Partnership whatever their
+role: they have no listing and no leads yet, and the milestone checklist is their next step.
+From Bronze up, each role lands where its work is:
+
+| Role    | Lands on    | Because                                              |
+| ------- | ----------- | ---------------------------------------------------- |
+| Owner   | Partnership | Standing, audits and the team are theirs to run      |
+| Sales   | Messages    | Leads are the work that can't wait                   |
+| Finance | Billing     | What was paid for customers, and what to bill them   |
+
+The landing changes once, at Bronze, with a one-time notice so it doesn't feel like the app
+moved. Standing still reaches people where they are:
+
+- **Rail badges** where something needs action, shown to the role that can act: leads waiting
+  on a reply (Messages, Sales), link requests (Customers, Owner), certificates expiring (Team,
+  Owner), an unpaid invoice (Billing, Finance).
 - **A banner across the app** only for At risk. It is rare and serious, so it can't depend on
   a visit to Partnership.
 
 A Home dashboard collecting all of this was ruled out: every block on it would repeat another
 area, and nothing on it would be the anchor.
 
-**Demo switcher.** The Demo menu's Partner side gets a tier choice: **Beginner** and **Bronze
-and up**. Those are the two versions of the product a partner sees: milestones or criteria on
-Partnership, a different landing screen, and a directory listing or none. Silver and Gold
-differ from Bronze only in numbers, so one seeded Bronze-and-up partner covers them.
+**Demo switcher.** The Demo menu's Partner side gets two choices:
+
+- **Tier:** Beginner, or Bronze and up. Those are the two versions of the product a partner
+  sees: milestones or criteria on Partnership, and a directory listing or none. Silver and Gold
+  differ from Bronze only in numbers, so one seeded Bronze-and-up partner covers them.
+- **Role:** Owner, Sales or Finance. It sets the landing screen, the badges and what can be
+  done.
+
+An Applicant state (signed up, not yet a partner) may join the tier choice once the onboarding
+designs are in (see Onboarding).
 
 ## The tier rubric
 
@@ -63,6 +83,23 @@ the partner sees the same ones:
 ⚠️ The prototype knows only gold, silver and bronze (`data/partners.js`, `TierIcon.vue`), and
 PMM is derived from tier there. Beginner needs to be added, and PMM needs to become its own
 field, since it is a criterion with its own audit and not a label for the tier.
+
+## 0. Onboarding
+
+Interested companies sign up and track their application in Connect. Ready designs exist for
+this and will be shared, so this section only fixes the steps and states; the screens follow
+those designs.
+
+1. Sign up, with company details.
+2. Apply to be a partner. The application shows its status: submitted, in review, or a decision.
+3. Frappe reviews it. A rejection arrives by email with the reason, and the application page
+   says so.
+4. Accept the partner agreement. It can't be skipped.
+5. Create or link the firm's Frappe Cloud account, since every tier needs one billing $100 a
+   month.
+6. The partner code is issued and the firm becomes a Beginner. The owner lands on Partnership,
+   with the milestones, the audit mechanics and the partner code.
+7. Invite the team on Team.
 
 ## 1. Partnership
 
@@ -100,13 +137,21 @@ one block, so no partner learns about the wait at the last step:
 
 - What the audit checks: the PMM level the next tier needs, linked to the PMM criteria.
 - The lead time for the next tier: 30 days before Bronze, 60 before Silver and Gold.
-- Where the partner is with it: not requested, requested, scheduled (date and auditor), in
-  progress, or done (the level it gave).
+- Where the partner is with it: not requested, requested ("waiting for Frappe to schedule
+  it", with no promised duration), scheduled (date and auditor; the owner gets an email when the
+  date is set), in progress, or done (the level it gave).
+- If Frappe declines or defers the request, the reason shows here and the owner can request
+  again later.
+- If the audit gives the PMM level but another criterion has slipped since, the tier stays
+  where it is and the block names the gap.
 - When to request it: once the other criteria are within reach, with the start-by date that
   follows from the lead time. A Beginner sees this from their first visit, next to the
   milestones, not only after $300.
 - At Gold, there's no next tier, so the block shows when the next audit to keep Gold is due,
   once Frappe confirms that audits recur.
+
+Open design decision: the review suggested folding this block into the PMM criterion row,
+one line when the audit is far off and expanding once it's within reach. Not settled.
 
 **Audit history.** Below the criteria, one row per past audit: date, auditor, the PMM level it
 gave, the tier that followed, and the report. The newest sits first. A partner with no audits
@@ -122,7 +167,20 @@ yet sees one line saying the first audit is due before Bronze.
   prepare.
 - **At risk.** A criterion for the *current* tier has dropped below its threshold: MRR below
   the floor, or a certified consultant who left or whose certificate lapsed. Name the
-  criterion, and show the date of the next review if there is one.
+  criterion and the review date. Fixing it isn't instant (a new customer has to link, and
+  MRR syncs later), so the state says it clears at the next Frappe Cloud sync.
+
+**Losing a tier: a proposed rule.** Frappe hasn't set one, so the plan proposes this, to be
+confirmed or replaced:
+
+- **MRR counts as a 3-month average,** so one bad month doesn't put a partner at risk.
+- **At risk** starts when the 3-month average falls below the current tier's floor, or when
+  the certified count drops below its threshold. The owner gets an email and the banner shows.
+- **Consultants:** the partner has 60 days to certify or link a replacement.
+- **Review at each quarter's end.** Still below then, the tier drops one step. The owner gets an
+  email saying what changed: the discount from the next invoice, the listing, and the landing.
+- **Dropping to Beginner:** open Connect threads stay so the partner can finish them, new briefs
+  stop, and the listing goes back to unlisted.
 
 **Error paths**
 
@@ -130,8 +188,9 @@ yet sees one line saying the first audit is due before Bronze.
   Never show ₹0.
 - The audit request fails, or a request is already open: say which, and keep the existing
   request visible.
-- The partner disagrees with a figure. Messaging is for businesses only, so this links to the
-  partner support desk. There is no in-app dispute.
+- The partner disagrees with a figure. Messaging is for businesses only, so this links to
+  Frappe support (support.frappe.io, to confirm) with what to include: the partner code, the
+  figure, and the month. There is no in-app dispute.
 
 ## 2. Customers
 
@@ -150,7 +209,13 @@ next step. An empty Customers list leads with it too.
 
 **Link requests.** Pending requests sit above the list, one row each: company, contact, the
 sites it covers, Approve and Decline. Approving adds the customer to the list. Declining
-removes the request and tells the customer.
+removes the request and tells the customer. Each gets a few seconds to undo, rather than an
+"Are you sure?" dialog: approving by mistake exposes a stranger's invoices, and declining sends
+a rejection. Only the owner can act on requests, and gets an email when one arrives.
+
+If the request matches a customer added by hand (same email or company), the row says so:
+"Matches Acme, added 3 Oct". A customer added by hand shows "Code shared on 3 Oct" until their
+request arrives, so the wait is visible.
 
 **Two billing modes.** Each linked customer has one, and it sets what the partner can see:
 
@@ -166,10 +231,11 @@ A business can't pick a billing mode before it has hired anyone, so every link s
 Customer pays. A link request never asks for a mode. Moving to Partner pays is a later step,
 once the two have agreed it between themselves.
 
-**Columns:** customer, source, billing mode, stage, Frappe Cloud sites, MRR contribution, last
+**Columns** (searchable, like every list here): customer, source, billing mode, stage, Frappe Cloud sites, MRR contribution, last
 activity. Both sources share one set of stages: Onboarding → Live → Churned. A Connect customer
 is Onboarding while its project runs. The MRR total sits next to the list's MRR column and
-matches the figure on Partnership. If the two disagree, one of them is wrong.
+matches the figure on Partnership. If the two disagree, one of them is wrong. Partnership,
+this total and Contributions show the same last-updated time, so a mismatch is easy to spot.
 
 **Customer detail page.** Laid out like a deal in Frappe CRM: a side panel with the facts,
 and the main area for what changes over time.
@@ -222,6 +288,8 @@ no Partner-pays customers, the page says so in one line and links to how billing
   the invoice is final.
 - A customer moved between billing modes during the month: split their row by dates, so the
   amounts still add up to the invoice.
+- The partner's invoice is unpaid: Billing flags it and names the customers whose sites are
+  affected, since an unpaid invoice leads to suspension, lost MRR and then At risk.
 
 ## 4. Messages
 
@@ -290,8 +358,8 @@ The other changes:
 
 ## 5. Team
 
-Everyone at the firm in one list: who counts toward the consultants criterion, who is working
-toward it, and who can sign in to Connect with what role. It's a page, not part of the Settings
+Everyone at the firm in one list: who counts toward the consultants criterion, and who can
+sign in to Connect with what role. It's a page, not part of the Settings
 dialog, because adding a colleague is one task whether they need a certificate, access, or
 both. A person doesn't need Connect access to be listed: a consultant can count toward tier
 without ever signing in.
@@ -301,41 +369,42 @@ expiry. A column says whether each person counts toward tier, so a single-module
 reads as "Doesn't count toward tier" rather than looking like a missing one. The count at the
 top matches the consultants row on Partnership.
 
-**Access and role** are columns on the same rows: No access, Member or Admin. Inviting someone
-sets their access and role; their certifications can be added in the same step or later. The
-last admin can't be removed or made a member.
+**Access and roles** are columns on the same rows: No access, or one or more of Owner, Sales
+and Finance. Inviting someone sets their access and roles. Ownership can be handed to someone
+else, and the last owner can't be removed.
 
-**Certification statuses:** Certified, Applied (exam not taken yet), Expiring (within 60
-days), Expired, and Not certified.
+**Roles:**
 
-**Roles.** Two, set per person on Team:
+| Action                                                | Owner | Sales | Finance |
+| ----------------------------------------------------- | ----- | ----- | ------- |
+| See Partnership, Team, Profile, Resources             | Yes   | Yes   | Yes     |
+| See Contributions                                     | Yes   | No    | Yes     |
+| See Customers                                         | Yes   | Yes   | Yes     |
+| Add customers and notes                               | Yes   | Yes   | No      |
+| See a customer's invoices                             | Yes   | No    | Yes     |
+| Approve or decline link requests                      | Yes   | No    | No      |
+| See and export Billing                                | Yes   | No    | Yes     |
+| Reply to leads, send quotes, change lead stages       | Yes   | Yes   | No      |
+| Request an audit                                      | Yes   | No    | No      |
+| Edit the profile                                      | Yes   | No    | No      |
+| Invite people, change roles, link certificates        | Yes   | No    | No      |
+| Open Settings                                         | Yes   | No    | No      |
 
-| Action                                                    | Admin | Member |
-| --------------------------------------------------------- | ----- | ------ |
-| See Partnership, Customers, Messages, Team, Resources, Profile | Yes | Yes  |
-| Reply to leads, send quotes, change lead stages           | Yes   | Yes    |
-| Add customers and notes                                   | Yes   | Yes    |
-| Approve or decline link requests                          | Yes   | No     |
-| Request an audit                                          | Yes   | No     |
-| Edit the profile and submit it for review                 | Yes   | No     |
-| Invite people, change roles, add certifications           | Yes   | No     |
-| Open Settings                                             | Yes   | No     |
+**Certifications.** Employees apply for and take their exams on their own, on Frappe School.
+Connect doesn't apply, pay or reimburse. The partner only **links a certificate** to the firm:
+enter the certificate ID, or the email the person took the exam with, and Connect shows the
+match (name, certification, date) before saving. That lists the person as certified. The
+public profile shows the firm's certifications as a count.
 
-**Two ways to add a certification:**
-
-- **Link an existing certificate.** Enter the certificate ID, or the email the person took the
-  exam with. Connect looks it up and shows the match (name, certification, date) before
-  saving.
-- **Apply on their behalf.** Pick the person (or add them by name and email) and the
-  certification. They get an email to book and take the exam, and the row shows Applied until
-  they pass. The employee pays the exam fee and the partner reimburses them outside Connect,
-  so applying involves no payment step.
+**Certification statuses:** Certified, Expiring (within 60 days, with a Team badge), Expired,
+and Not certified. When a certificate is renewed on Frappe School, the owner links the new one
+and the row returns to Certified.
 
 **Error paths**
 
 - No certificate matches the ID or email: say so, and keep what was typed.
-- The certificate is already counted by another partner: don't link it, and point to the
-  partner support desk.
+- The certificate is already counted by another partner: don't link it, and point to Frappe
+  support.
 - The name on the certificate differs from the team member's: show both and ask to confirm.
 - A consultant leaves or a certificate expires: the row moves to Expired or is removed, and if
   that drops the count below the current tier's threshold, Partnership shows At risk and links
@@ -347,19 +416,22 @@ The partner edits their **own directory page**, laid out as a business sees it (
 `PartnerProfilePage`), with an Edit control on each section. Edits are not done in a separate
 form.
 
-| Publishes instantly                                       | Goes to Frappe for review                 | Read-only (set by Frappe) |
+| Publishes instantly                                       | Goes to Frappe for review                 | Read-only in Connect      |
 | --------------------------------------------------------- | ----------------------------------------- | ------------------------- |
-| Logo, tagline, about, website, address, contacts          | Case studies and stories                  | Tier and PMM              |
-| Industries, regions, work style                           | Client logos                              | Certified consultants     |
-| Deal sizes taken, and whether they're taking work this quarter | Quoted figures and claims ("200+ live customers") | Reviews and ratings   |
-| Pricing, media gallery                                    |                                           |                           |
+| Logo, tagline, about, website, address, contacts          | Client logos                              | Tier and PMM              |
+| Industries, regions, work style                           | Quoted figures and claims ("200+ live customers") | Certification count |
+| Deal sizes taken, and whether they're taking work this quarter |                                      | Reviews and ratings       |
+| Pricing, media gallery                                    |                                           | Case studies (submitted on frappe.io) |
+
+**Case studies are submitted on frappe.io, not in Connect.** The profile shows them as they
+appear in the directory, with a link to submit or change them there.
 
 Deal sizes and capacity come from the gap that DESIGN-NOTES already names. They are what lets
 a business's budget actually narrow who receives a brief.
 
-**Review flow (happy path):** edit a case study → Submit for review → the section shows
-"In review" while the directory keeps the live version → Frappe approves it → it goes live
-and the partner gets a notice.
+**Review flow (happy path):** edit client logos or a claim → Submit for review → the section
+shows "In review" while the directory keeps the live version → Frappe approves it → it goes
+live and the owner gets a notice.
 
 **Error paths**
 
@@ -375,7 +447,8 @@ and the partner gets a notice.
   found through Frappe's own listing, and the listing is what Bronze earns. Their page still
   works by link: a Beginner can send it to prospects they find themselves, with the partner
   code on it. The editor says once, at the top, that it's unlisted until Bronze, with Copy
-  link. Bronze makes the same page public.
+  link. Bronze makes the same page public, so reaching Bronze first prompts the owner to check
+  the page before it goes live.
 
 ## 7. Resources
 
@@ -397,13 +470,14 @@ comes from: Frappe's existing channels, not a new one in Connect.
 
 ## 8. Settings
 
-A `SettingsDialog`, opened from the account menu. Admins only. It holds CRM sync; users and
+A `SettingsDialog`, opened from the account menu. Owner only. It holds CRM sync; users and
 roles live on Team.
 
 **CRM sync.** Connect the firm's CRM so lead stages stay in one place:
 
-- **Connect:** pick the CRM, enter its site URL and API key, then map its lead statuses to the
-  PRM stages. The mapping is set once and can be changed later.
+- **Connect:** pick the CRM, enter its site URL and API key, then check the mapping of its lead
+  statuses to the PRM stages. For Frappe CRM and ERPNext the mapping comes prefilled. It can be
+  changed later.
 - **What syncs:** Connect pushes a lead once the business is named, so an anonymous brief stays
   in Connect. Stage changes come back from the CRM. Won from the partner code link always
   wins over a CRM status.
@@ -417,17 +491,88 @@ roles live on Team.
 - The CRM stops responding: sync pauses, the last sync time stays visible, and stages set in
   Connect keep working.
 
+## 9. Flows
+
+Who acts is in brackets. *Outside* means the step happens outside Connect.
+
+**Working in Connect**
+
+1. **Beginner to Bronze** (Owner): Partnership milestones → an employee certifies on Frappe
+   School (*outside*) → link the certificate on Team → share the partner code → approve the
+   link request on Customers → $100 and $300 tick on Partnership → request the audit → Bronze
+   → check the profile before it goes public → one-time notice that the landing changes.
+2. **Lead to customer** (Sales): brief in "Needs reply" → reply, send a quote → shortlisted →
+   hired, Won → customer on Customers as Onboarding → Live. Not chosen → Lost, "Lost to
+   competitor", thread kept read-only.
+3. **Link an own customer** (Owner, Sales): add the customer → share the partner code ("Code
+   shared on" shows) → customer enters it in Frappe Cloud (*outside*) → link request, matched
+   to the customer added by hand → Owner approves, with undo → Customer pays, first site → Live.
+   Decline → request removed, customer told.
+4. **Edit the profile** (Owner): plain details go live at once. Client logos or a claim →
+   Submit for review → In review → approved, live. Rejected → reason on the section, draft
+   kept. Case studies → frappe.io (*outside*).
+5. **Recover from At risk** (Owner): consultant leaves or the 3-month MRR average drops →
+   banner and email → Partnership names the criterion and review date → fix it on Team or
+   Customers → clears at the next sync. Still below at the quarter's review → the tier drops.
+6. **Connect a CRM** (Owner): Settings → CRM sync → URL and API key → check the prefilled
+   mapping → connected, with the last sync time → leads show "Synced from CRM".
+
+**Working with Frappe**
+
+- **A. Becoming a partner:** see Onboarding.
+- **B. Certifications** (Employee, Owner): the employee applies, pays and passes on Frappe
+  School (*outside*) → the owner links the certificate → certified, and the public count goes
+  up. A single-module certificate shows "Doesn't count toward tier". One already counted by
+  another partner → Frappe support. Expiring → Team badge → renewed on Frappe School → the
+  owner links the new one.
+- **C. Moving up a tier** (Owner, Frappe): start-by date shows → request the audit →
+  "Waiting for Frappe to schedule it" → scheduled, with an email → audit → PMM level recorded →
+  new tier, discount from the next invoice, listing updates. Declined or deferred → reason
+  shown, request later. PMM met but another criterion slipped → tier holds, gap named.
+- **D. Slipping a tier** (Owner, Frappe): see the proposed rule under Partnership.
+- **E. Profile review** (Owner, Frappe): client logos and claims, as in flow 4. Case studies
+  are reviewed on frappe.io.
+- **F. A lead passed by Frappe** (Frappe, Sales): Frappe passes it → "Passed by Frappe" with the
+  Frappe owner's name → Sales works it → stages from Connect, CRM or by hand → without a sync,
+  one "Still working on this?" prompt after it stalls → Won or Lost with a reason → Frappe's
+  owner sees the outcome. From Bronze up only.
+- **G. Disputing a figure** (Owner): figure looks wrong → Frappe support, with the partner code,
+  the figure and the month (*outside*) → Frappe corrects it → the figure updates with a new
+  sync time.
+- **H. Monthly billing** (Frappe, Finance): month closes → Frappe Cloud invoices the partner
+  for Partner-pays customers, minus the tier discount → Billing marks the month final →
+  export → bill customers from ERPNext (*outside*). Unpaid → Billing flags it and names the
+  affected customers.
+
+**Flows still missing**
+
+- Switching a customer to Partner pays: waits on open question 8.
+- Handing over ownership: on Team, the owner passes the role to someone else first.
+- Frappe changing the rubric: waits on open question 17.
+- Re-auditing Gold: waits on open question 15.
+- Leaving the partnership: waits on open question 16.
+
+## Review findings
+
+From two reviews (the sitemap and the partner–Frappe flows). Applied ones are in the
+sections above. These are left open:
+
+- **Rename Messages to Leads.** The list holds leads, and the PRM portal calls them Leads.
+  Beginners also see a "Messages" page that says leads start at Bronze. Not decided.
+- **Audit mechanics in the PMM row** rather than a separate block. Not decided.
+- **Handing a passed lead back to Frappe.** Left out by decision.
+
 ## Open questions for Frappe
 
-1. **Losing a tier.** Is there a grace period or a review date, or does the tier drop as soon
-   as MRR does? The At risk state depends on the answer.
-2. **MRR window.** Is it the current month, or a trailing average? This decides whether one
-   bad month means At risk.
+1. **Losing a tier.** Frappe has no rule yet. Confirm or replace the one proposed under
+   Partnership (3-month average, quarterly review, 60 days to replace a consultant).
+2. **Where partner disputes go.** The plan uses support.frappe.io for disputed figures and
+   claimed certificates. Is there a partner-specific route?
 3. **Audit lead time.** The Bronze doc says 30 days, the Silver and Gold docs 60.
-4. **Team permissions.** Do the Admin and Member roles in Settings match how partner firms
-   work?
+4. **Roles.** Do Owner, Sales and Finance match how partner firms work?
 5. **Reviews.** Can a partner reply publicly to a review?
-6. **Review time.** How long does a profile review take? It goes in the "In review" copy.
+6. **Review time.** How long does a review of client logos or claims take? It goes in the
+   "In review" copy.
 7. **The PRM portal.** Frappe already runs one: Partnerships > Overview, Contributions (linked
    customers' invoices and plans), leads and certified members. Does Connect replace it? If
    it does, what the portal does today is the minimum this view must cover.
@@ -449,3 +594,7 @@ roles live on Team.
 14. **How Frappe converts currency today.** The PRM portal already totals INR and USD invoices
     into one figure. Use the same method, whatever it is.
 15. **Recurring audits.** Is a tier re-audited on a schedule to keep it, or only when moving up?
+16. **Leaving the partnership.** When a partner ends the agreement or is removed, what happens
+    to its customers' links, its listing and its open leads?
+17. **Changing the rubric.** When Frappe changes the thresholds, how much notice do partners
+    get? Partnership would show the new figure and the date it applies from.
