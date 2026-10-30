@@ -70,9 +70,8 @@ certification, PMM from the last audit.
 
 **One list, two sources**, with a filter for each:
 
-- **Through Connect.** A business enters the list when it **shortlists** the partner's quote.
-  That is the moment its name is shared. An anonymous brief stays in Messages, because it is a
-  lead and not a customer yet, and listing it would show a row with no name.
+- **Through Connect.** A business enters the list when it **hires** the partner. Until then it
+  is a lead and stays in Messages, even after it shortlists the partner and its name is shared.
 - **The partner's own.** These come from the partner's Frappe Cloud partner code. Nothing
   links on its own: the customer enters the code in Frappe Cloud, and the partner approves or
   declines the request. The partner can also add a customer by hand before the site exists.
@@ -83,23 +82,27 @@ removes the request and tells the customer.
 
 **Two billing modes.** Each linked customer has one, and it sets what the partner can see:
 
-| Mode            | Who pays Frappe Cloud | Counts toward tier | Commission | Partner sees                     |
-| --------------- | --------------------- | ------------------ | ---------- | -------------------------------- |
-| Linked          | The customer          | Yes                | No         | The customer's plans and invoices |
-| Paid by partner | The partner           | Yes                | Yes        | The monthly invoice amount only   |
+| Mode          | Who pays Frappe Cloud | Counts toward tier | Commission | Partner sees                      |
+| ------------- | --------------------- | ------------------ | ---------- | --------------------------------- |
+| Customer pays | The customer          | Yes                | No         | The customer's plans and invoices |
+| Partner pays  | The partner           | Yes                | Yes        | The monthly invoice amount only   |
+
+A business can't pick a billing mode before it has hired anyone, so every link starts as
+Customer pays. A link request never asks for a mode. Moving to Partner pays is a later step,
+once the two have agreed it between themselves.
 
 **Columns:** customer, source, billing mode, stage, Frappe Cloud sites, MRR contribution, last
-activity. Connect stages follow the existing project stages: Shortlisted → Hired → Live. Own
-customers are Onboarding → Live → Churned. The MRR total sits next to the list's MRR column and
+activity. Both sources share one set of stages: Onboarding → Live → Churned. A Connect customer
+is Onboarding while its project runs. The MRR total sits next to the list's MRR column and
 matches the figure on Partnership. If the two disagree, one of them is wrong.
 
 **Customer detail page**
 
 - **Header:** company, contact, billing mode, stage, MRR contribution.
 - **Sites:** name, plan, region, status, apps, monthly cost. Read-only, with "Open in Frappe
-  Cloud". Paid-by-partner customers show plan and amount only.
-- **Invoices:** Frappe Cloud invoices, read-only, with unpaid ones flagged. Linked customers
-  only.
+  Cloud". Partner-pays customers show plan and amount only.
+- **Invoices:** Frappe Cloud invoices, read-only, with unpaid ones flagged. Customer-pays
+  customers only.
 - **Connect:** the message thread and project, for customers who came through Connect.
 - **Notes:** the partner's own.
 - **Out of scope:** invoices the partner sends the customer for their own work. Partners do
@@ -119,17 +122,31 @@ site moves them to Live.
 - A duplicate (same company or email already in the list): open the existing record instead.
 - A site is suspended or a customer cancels: their MRR stops counting. If that brings the
   partner below their tier floor, Partnership shows At risk and the customer row links to it.
-- A Connect business picks another partner: the row moves to Closed with a "Not chosen" note
-  rather than disappearing, so the partner has a record of the bid.
 
 ## 3. Messages
 
-This exists already and stays business-only. The changes:
+This exists already and stays business-only. Every thread is a lead.
 
-- Once a thread is named (shortlisted), the sidebar links to its customer record.
+**Leads, not a pipeline.** Most partners already run a CRM, so Connect doesn't copy the PRM
+portal's sales stages (Qualification, Follow Up, Demo, Proposal). It records only what Frappe
+needs back from a lead:
+
+- **Source:** a brief through Connect, or a lead passed on by Frappe. Passed leads arrive with
+  the business named from the start, and show the Frappe person who passed them on.
+- **Outcome:** Open, Won or Lost. Won moves the business into Customers. Lost asks for a
+  reason, from the PRM portal's list ("Lost to competitor" and the rest).
+- **What it asked about:** the brief, its industry, and the Starter Pack, if it picked one.
+
+Leads a partner finds on their own stay in their CRM. Connect sees them only once they link
+through the partner code, as customers.
+
+The other changes:
+
+- Once a thread is won, the sidebar links to its customer record.
 - **Error paths to design:** a message fails to send (keep the draft and offer a retry); the
-  business hires someone else or withdraws the brief (the thread becomes read-only and says
-  why); a quote is sent after the brief closed (block it and explain).
+  business hires someone else or withdraws the brief (the lead closes as Lost with that reason,
+  and the thread stays as a read-only record of the bid); a quote is sent after the brief
+  closed (block it and explain).
 - **Empty state:** a new partner with no briefs yet. Say what makes a brief reach them: their
   regions and industries, and the deal sizes and capacity on their profile.
 
@@ -182,3 +199,5 @@ and the partner gets a notice.
 7. **The PRM portal.** Frappe already runs one: Partnerships > Overview, Contributions (linked
    customers' invoices and plans), leads and certified members. Does Connect replace it? If
    it does, what the portal does today is the minimum this view must cover.
+8. **Switching to Partner pays.** Who starts it, the partner or the customer, and does the
+   customer have to confirm in Frappe Cloud?
