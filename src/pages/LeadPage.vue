@@ -271,7 +271,7 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
         <!-- Frappe CRM's tabs: default size, an icon with each, the row as tall
              as the top bar and running edge to edge. -->
         <Tabs v-model="tab" class="shrink-0">
-          <TabList class="fc-tabs-scroll h-12 px-3 sm:px-5">
+          <TabList class="fc-tabs-scroll h-11 px-3 sm:px-5">
             <TabTrigger v-for="t in TABS" :key="t.value" :value="t.value" :label="t.label" :icon-left="t.icon" />
           </TabList>
         </Tabs>
@@ -280,8 +280,8 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
           <div class="px-3 pb-6 sm:px-10">
             <!-- ── Messages ─────────────────────────────────────────── -->
             <template v-if="tab === 'messages'">
-              <div class="mb-3 mt-3 flex items-center justify-between sm:mb-4 sm:mt-8"><h2 class="flex h-8 items-center text-2xl-semibold text-ink-gray-8">Messages</h2></div>
-              <p class="text-center text-p-sm text-ink-gray-5">Sent to you and the other partners who match</p>
+              <!-- No title: the tab says it, and the conversation is the page. -->
+              <p class="mt-6 text-center text-p-sm text-ink-gray-5">Sent to you and the other partners who match</p>
               <template v-for="m in lead.messages" :key="m.id">
               <!-- The moment the company became known. -->
               <p v-if="m.kind === 'shared'" class="mt-6 text-center text-p-sm text-ink-gray-5">

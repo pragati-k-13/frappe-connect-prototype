@@ -241,7 +241,7 @@ function requestSwitch() {
         <Tabs v-model="tab">
           <!-- Frappe CRM's tabs: default size, an icon with each, and the row
                as tall as the top bar. -->
-          <TabList class="fc-tabs-scroll h-12 shrink-0 px-3 sm:px-5">
+          <TabList class="fc-tabs-scroll h-11 shrink-0 px-3 sm:px-5">
             <TabTrigger v-if="narrow" value="details" label="Details" icon-left="lucide-panel-right" />
             <TabTrigger v-for="t in tabs" :key="t.value" :value="t.value" :label="t.label" :icon-left="t.icon" />
           </TabList>

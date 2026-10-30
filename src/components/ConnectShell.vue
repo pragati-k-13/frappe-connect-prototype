@@ -50,6 +50,7 @@ import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 import { firmFor, longDate, standingFor } from '../data/partnership'
 import { needsReply, useLeads } from '../composables/useLeads'
+import LeadsIcon from './icons/LeadsIcon.vue'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import PartnerSettingsDialog from './settings/PartnerSettingsDialog.vue'
 import PartnerAccountDialog from './settings/PartnerAccountDialog.vue'
@@ -112,19 +113,20 @@ const partnerRail = computed(() => {
   const beginner = store.partnerTier === 'beginner'
   const waiting = beginner ? 0 : leads.value.filter(needsReply).length
   const at = (...names) => names.includes(route.name)
-  // Two groups: the work you do daily, then your firm. Leads leads, since it's
-  // the most frequent visit. Resources isn't a place you work (it's links
+  // Two groups: the work you do daily, then your firm. Resources isn't a place you work (it's links
   // out), so it lives in the header menu.
   const work = [
-    !member && role !== 'finance' && { label: 'Leads', to: '/connect/leads', icon: 'lucide-inbox', active: at('leads', 'lead'), count: waiting },
-    !member && { label: 'Customers', to: '/connect/customers', icon: 'lucide-building-2', active: at('customers', 'customer') },
-    !member && role !== 'sales' && { label: 'Invoices', to: '/connect/invoices', icon: 'lucide-receipt', active: at('invoices') },
-  ].filter(Boolean)
-  const firm = [
+    // Partnership first: it's where most roles land.
     { label: 'Partnership', to: '/connect/partnership', icon: 'lucide-handshake', active: at('partnership') },
+    !member && role !== 'finance' && { label: 'Leads', to: '/connect/leads', iconComp: LeadsIcon, active: at('leads', 'lead'), count: waiting },
+    !member && { label: 'Customers', to: '/connect/customers', icon: 'lucide-building-2', active: at('customers', 'customer') },
+  ].filter(Boolean)
+  // Invoices is the firm's money with Frappe, so it sits with the firm.
+  const firm = [
+    !member && role !== 'sales' && { label: 'Invoices', to: '/connect/invoices', icon: 'lucide-receipt', active: at('invoices') },
     { label: 'Team', to: '/connect/team', icon: 'lucide-users', active: at('team') },
     { label: 'Listing', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile') },
-  ]
+  ].filter(Boolean)
   // Only Leads carries a count: replies are the one thing that can't wait.
   // The firm group gets a label; the work group, at the top, needs none.
   return [
@@ -427,7 +429,8 @@ defineProps({
                 <!-- Collapsed, the count can't show, so a dot keeps the signal. -->
                 <template #prefix>
                   <span class="relative grid place-items-center">
-                    <span :class="item.icon" class="size-4 text-ink-gray-6" aria-hidden="true" />
+                    <component :is="item.iconComp" v-if="item.iconComp" class="size-4 text-ink-gray-6" aria-hidden="true" />
+                    <span v-else :class="item.icon" class="size-4 text-ink-gray-6" aria-hidden="true" />
                     <span
                       v-if="item.count && collapsed"
                       class="absolute -right-1 -top-1 size-1.5 rounded-full bg-surface-blue-7"
@@ -677,7 +680,9 @@ defineProps({
            divider — it's the edge of the chrome, marking where the fixed bar
            ends and the scrolling content begins. Without it, content scrolls up
            against nothing. -->
-      <PageHeader v-if="!bare" class="shrink-0">
+      <!-- 44px, Frappe CRM's bar height on this scale (CRM's 42px isn't a
+           step here). `!` because PageHeader carries its own `min-h-12`. -->
+      <PageHeader v-if="!bare" class="!min-h-11 h-11 shrink-0">
         <!-- "Partners" alone on the list screens; a breadcrumb once you're
              inside one. `crumb` is the trailing label, and "Partners" becomes
              the link back — the profile is a level down, so the bar is where

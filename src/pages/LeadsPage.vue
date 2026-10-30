@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Avatar, Button, Dropdown, Select, TextInput } from 'frappe-ui'
+import { Avatar, Button, Dropdown, Select, TabButtons, TextInput } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -10,8 +10,8 @@ import { PRM_STAGES } from '../data/partnerAccount'
 import { companyName, isClosed, lastAt, needsReply, queue, theirLast, useLeads } from '../composables/useLeads'
 
 // SCREEN — Leads, styled as Frappe CRM's list: the view switcher in the
-// breadcrumb, a row of quick filters, then a full-width table and a footer
-// count. A row opens the lead's own page. See PARTNER-VIEW-PLAN.md, Leads.
+// breadcrumb, quick filters with Refresh, Filter, Sort and Columns beside
+// them, then a full-width table and a footer with page size and count. A row opens the lead's own page. See PARTNER-VIEW-PLAN.md, Leads.
 //
 // No Create: every lead here is a Connect brief. A Beginner isn't listed, so
 // no brief reaches them until Bronze.
@@ -47,6 +47,53 @@ const ownerOptions = computed(() => [
   ...account.team.filter((p) => p.roles.includes('sales') || p.roles.includes('owner')).map((p) => ({ label: p.name, value: p.id })),
 ])
 
+// ── Filter, sort, columns, page size: CRM's controls ───────────────────────
+// Filter holds what the quick filters don't: probability.
+const probability = ref('')
+const filterMenu = computed(() =>
+  ['', 'Hot', 'Warm', 'Cold'].map((p) => ({
+    label: p || 'Any probability',
+    icon: probability.value === p ? 'lucide-check' : 'lucide-blank',
+    onClick: () => (probability.value = p),
+  })),
+)
+const SORTS = [
+  { value: 'reply', label: 'Last reply' },
+  { value: 'stage', label: 'Stage' },
+  { value: 'probability', label: 'Probability' },
+  { value: 'name', label: 'Lead name' },
+]
+const sort = ref('reply')
+const sortMenu = computed(() =>
+  SORTS.map((o) => ({ label: o.label, icon: sort.value === o.value ? 'lucide-check' : 'lucide-blank', onClick: () => (sort.value = o.value) })),
+)
+const COLUMNS = [
+  { key: 'company', label: 'Company', width: 'minmax(0,1fr)' },
+  { key: 'stage', label: 'Stage', width: '11rem' },
+  { key: 'owner', label: 'Assigned to', width: '11rem' },
+  { key: 'probability', label: 'Probability', width: '7rem' },
+]
+const shownCols = ref(COLUMNS.map((c) => c.key))
+const show = (k) => shownCols.value.includes(k)
+const columnsMenu = computed(() =>
+  COLUMNS.map((c) => ({
+    label: c.label,
+    icon: show(c.key) ? 'lucide-check' : 'lucide-blank',
+    onClick: () => (shownCols.value = show(c.key) ? shownCols.value.filter((k) => k !== c.key) : [...shownCols.value, c.key]),
+  })),
+)
+const gridColumns = computed(() => ({
+  base: ['minmax(0,1fr)', 'auto'],
+  md: ['minmax(0,2fr)', ...COLUMNS.filter((c) => show(c.key)).map((c) => c.width), '6rem'],
+}))
+const PAGE_SIZES = [20, 50, 100].map((n) => ({ label: String(n), value: n }))
+const pageSize = ref(20)
+const refreshing = ref(false)
+function refresh() {
+  refreshing.value = true
+  setTimeout(() => (refreshing.value = false), 500)
+}
+
 const inView = computed(() =>
   leads.value.filter((t) =>
     view.value === 'needs'
@@ -66,14 +113,22 @@ const rows = computed(() => {
     .filter((t) => !q || t.project.toLowerCase().includes(q) || t.company?.name.toLowerCase().includes(q))
     .filter((t) => !stage.value || t.stage === stage.value)
     .filter((t) => !owner.value || (owner.value === 'none' ? !t.owner : t.owner === owner.value))
-    .sort((a, b) => (view.value === 'needs' ? theirLast(a) - theirLast(b) : lastAt(b) - lastAt(a)))
+    .filter((t) => !probability.value || t.probability === probability.value)
+    .sort((a, b) => {
+      if (sort.value === 'stage') return PRM_STAGES.indexOf(a.stage) - PRM_STAGES.indexOf(b.stage)
+      if (sort.value === 'probability') return ['Hot', 'Warm', 'Cold', undefined].indexOf(a.probability) - ['Hot', 'Warm', 'Cold', undefined].indexOf(b.probability)
+      if (sort.value === 'name') return a.project.localeCompare(b.project)
+      return view.value === 'needs' ? theirLast(a) - theirLast(b) : lastAt(b) - lastAt(a)
+    })
 })
+const page = computed(() => rows.value.slice(0, pageSize.value))
 watch(rows, (r) => (queue.value = r.map((t) => t.id)), { immediate: true })
-const filtered = computed(() => Boolean(query.value.trim() || stage.value || owner.value))
+const filtered = computed(() => Boolean(query.value.trim() || stage.value || owner.value || probability.value))
 const clear = () => {
   query.value = ''
   stage.value = ''
   owner.value = ''
+  probability.value = ''
 }
 
 // A coloured dot for the stage, as CRM shows status; colour only where the
@@ -112,13 +167,33 @@ const EMPTY = { needs: 'All caught up', mine: 'None assigned to you', open: 'No 
 
     <div class="flex min-h-0 min-w-0 flex-1 flex-col">
       <!-- ── Quick filters ─────────────────────────────────────────────── -->
-      <div class="flex shrink-0 flex-wrap items-center gap-2 px-3 py-4 sm:px-5">
-        <TextInput v-model="query" type="search" placeholder="Lead or company" class="w-full sm:w-56">
-          <template #prefix><span class="lucide-search size-4 text-ink-gray-5" aria-hidden="true" /></template>
-        </TextInput>
-        <Select v-model="stage" :options="stageOptions" class="min-w-36" aria-label="Stage" />
-        <Select v-model="owner" :options="ownerOptions" class="min-w-36" aria-label="Assigned to" />
-        <Button v-if="filtered" variant="ghost" label="Clear" @click="clear" />
+      <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 px-3 py-4 sm:px-5">
+        <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <TextInput v-model="query" type="search" placeholder="Lead or company" class="w-full sm:w-56">
+            <template #prefix><span class="lucide-search size-4 text-ink-gray-5" aria-hidden="true" /></template>
+          </TextInput>
+          <Select v-model="stage" :options="stageOptions" class="min-w-36" aria-label="Stage" />
+          <Select v-model="owner" :options="ownerOptions" class="min-w-36" aria-label="Assigned to" />
+          <Button v-if="filtered" variant="ghost" label="Clear" @click="clear" />
+        </div>
+        <!-- CRM's controls, default subtle, after a rule. Wraps on a phone. -->
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="hidden h-5 border-l border-outline-gray-2 sm:block" aria-hidden="true" />
+          <Button icon="lucide-refresh-ccw" aria-label="Refresh" tooltip="Refresh" :loading="refreshing" @click="refresh" />
+          <Dropdown :options="filterMenu" align="end">
+            <Button label="Filter" icon-left="lucide-list-filter">
+              <template v-if="probability" #suffix>
+                <span class="grid size-5 place-items-center rounded-4 bg-surface-base text-xs font-medium shadow-sm">1</span>
+              </template>
+            </Button>
+          </Dropdown>
+          <Dropdown :options="sortMenu" align="end">
+            <Button :label="SORTS.find((o) => o.value === sort).label" icon-left="lucide-arrow-down-up" />
+          </Dropdown>
+          <Dropdown :options="columnsMenu" align="end">
+            <Button label="Columns" icon-left="lucide-columns-3" />
+          </Dropdown>
+        </div>
       </div>
 
       <!-- ── The table, full width ─────────────────────────────────────── -->
@@ -126,21 +201,18 @@ const EMPTY = { needs: 'All caught up', mine: 'None assigned to you', open: 'No 
         <List
           v-if="rows.length"
           class="list-row-px-2"
-          :columns="{
-            base: ['minmax(0,1fr)', 'auto'],
-            md: ['minmax(0,2fr)', 'minmax(0,1fr)', '11rem', '11rem', '7rem', '6rem'],
-          }"
+          :columns="gridColumns"
           :row-height="40"
         >
           <ListHeader class="mb-2 rounded-4 bg-surface-gray-2 px-2">
             <ListHeaderCell>Lead</ListHeaderCell>
-            <ListHeaderCell class="hidden md:flex">Company</ListHeaderCell>
-            <ListHeaderCell class="hidden md:flex">Stage</ListHeaderCell>
-            <ListHeaderCell class="hidden md:flex">Assigned to</ListHeaderCell>
-            <ListHeaderCell class="hidden md:flex">Probability</ListHeaderCell>
+            <ListHeaderCell v-if="show('company')" class="hidden md:flex">Company</ListHeaderCell>
+            <ListHeaderCell v-if="show('stage')" class="hidden md:flex">Stage</ListHeaderCell>
+            <ListHeaderCell v-if="show('owner')" class="hidden md:flex">Assigned to</ListHeaderCell>
+            <ListHeaderCell v-if="show('probability')" class="hidden md:flex">Probability</ListHeaderCell>
             <ListHeaderCell class="justify-end">Updated</ListHeaderCell>
           </ListHeader>
-          <ListRows :items="rows" v-slot="{ item }">
+          <ListRows :items="page" v-slot="{ item }">
             <ListRow :to="`/connect/leads/${item.id}`">
               <!-- Bold while a reply waits on you, as CRM bolds an unseen row. -->
               <ListCell class="min-w-0 gap-2">
@@ -152,21 +224,21 @@ const EMPTY = { needs: 'All caught up', mine: 'None assigned to you', open: 'No 
                   {{ item.project }}
                 </span>
               </ListCell>
-              <ListCell class="hidden min-w-0 md:flex">
+              <ListCell v-if="show('company')" class="hidden min-w-0 md:flex">
                 <span class="truncate text-base text-ink-gray-7">{{ companyName(item) }}</span>
               </ListCell>
-              <ListCell class="hidden min-w-0 gap-2 md:flex">
+              <ListCell v-if="show('stage')" class="hidden min-w-0 gap-2 md:flex">
                 <span :class="dot(item.stage)" class="size-2 shrink-0 rounded-full" aria-hidden="true" />
                 <span class="truncate text-base text-ink-gray-7">{{ item.stage }}</span>
               </ListCell>
-              <ListCell class="hidden min-w-0 gap-2 md:flex">
+              <ListCell v-if="show('owner')" class="hidden min-w-0 gap-2 md:flex">
                 <template v-if="item.owner">
                   <Avatar :label="nameOf(item.owner)" size="sm" />
                   <span class="truncate text-base text-ink-gray-7">{{ nameOf(item.owner) }}</span>
                 </template>
                 <span v-else class="text-base text-ink-gray-5">Unassigned</span>
               </ListCell>
-              <ListCell class="hidden text-base text-ink-gray-7 md:flex">{{ item.probability ?? '—' }}</ListCell>
+              <ListCell v-if="show('probability')" class="hidden text-base text-ink-gray-7 md:flex">{{ item.probability ?? '—' }}</ListCell>
               <ListCell class="justify-end whitespace-nowrap text-base text-ink-gray-5">{{ time(lastAt(item)) }}</ListCell>
             </ListRow>
           </ListRows>
@@ -182,9 +254,10 @@ const EMPTY = { needs: 'All caught up', mine: 'None assigned to you', open: 'No 
         </EmptyState>
       </div>
 
-      <!-- ── Footer, as CRM's: the count on the right. -->
-      <div class="flex shrink-0 items-center justify-end border-t border-outline-gray-1 px-3 py-2 sm:px-5">
-        <span class="text-base tabular-nums text-ink-gray-5">{{ rows.length }} of {{ inView.length }}</span>
+      <!-- ── Footer, as CRM's: page size on the left, the count on the right. -->
+      <div class="flex shrink-0 items-center justify-between border-t border-outline-gray-1 px-3 py-2 sm:px-5">
+        <TabButtons v-model="pageSize" :options="PAGE_SIZES" />
+        <span class="text-base tabular-nums text-ink-gray-5">{{ page.length }} of {{ rows.length }}</span>
       </div>
     </div>
   </ConnectShell>
