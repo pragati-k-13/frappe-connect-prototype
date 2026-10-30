@@ -1,12 +1,13 @@
 # Partner view — plan
 
-The partner side today is one screen, Messages. This plan grows it into a small PRM with six
+The partner side today is one screen, Messages. This plan grows it into a small PRM with seven
 areas on the rail, plus Settings. Each area answers one question a partner comes back with:
 
 | Rail item   | The partner's question                                     |
 | ----------- | ---------------------------------------------------------- |
 | Partnership | Where do we stand with Frappe, and what gets us up a tier? |
 | Customers   | Who are we working with, and what does each one bring in?  |
+| Billing     | What did we pay Frappe for our customers, and what do we bill them? |
 | Messages    | Which leads are waiting on us?                             |
 | Team        | Who is on the team, who is certified, and who can do what? |
 | Profile     | What does a business see when it finds us?                 |
@@ -153,10 +154,13 @@ removes the request and tells the customer.
 
 **Two billing modes.** Each linked customer has one, and it sets what the partner can see:
 
-| Mode          | Who pays Frappe Cloud | Counts toward tier | Commission | Partner sees                      |
-| ------------- | --------------------- | ------------------ | ---------- | --------------------------------- |
-| Customer pays | The customer          | Yes                | No         | The customer's plans and invoices |
-| Partner pays  | The partner           | Yes                | Yes        | The monthly invoice amount only   |
+| Mode          | Who pays Frappe Cloud | Counts toward tier | Partner's tier discount | Partner sees                      |
+| ------------- | --------------------- | ------------------ | ----------------------- | --------------------------------- |
+| Customer pays | The customer          | Yes                | No                      | The customer's plans and invoices |
+| Partner pays  | The partner           | Yes                | Yes, on their bill      | The monthly invoice amount only   |
+
+The partner's commission is that discount: their tier's FC discount (15% at Bronze, 20% at
+Silver, 25% at Gold) on what they pay for Partner-pays customers. There's no separate payout.
 
 A business can't pick a billing mode before it has hired anyone, so every link starts as
 Customer pays. A link request never asks for a mode. Moving to Partner pays is a later step,
@@ -197,7 +201,29 @@ site moves them to Live.
 - A site is suspended or a customer cancels: their MRR stops counting. If that brings the
   partner below their tier floor, Partnership shows At risk and the customer row links to it.
 
-## 3. Messages
+## 3. Billing
+
+The partner's own money, for whoever does the accounts. Contributions (on Partnership) is
+Frappe's view: what counts toward tier. Billing answers the accountant's question: what did we
+pay Frappe on our customers' behalf, and what do we charge them for it? Frappe Cloud's own
+Billing page doesn't break this down per customer, so Connect does.
+
+**One month at a time,** with a month picker. One row per Partner-pays customer: the amount
+Frappe billed for them, the tier discount taken off, and what the partner paid. The month's
+total matches the partner's Frappe Cloud invoice, which it links to. Export as CSV, so the
+partner can bill each customer from their own ERPNext.
+
+Customer-pays customers aren't listed, since the partner pays nothing for them. If there are
+no Partner-pays customers, the page says so in one line and links to how billing modes work.
+
+**Error paths**
+
+- The month isn't closed yet: show it as "This month so far" and don't offer the export until
+  the invoice is final.
+- A customer moved between billing modes during the month: split their row by dates, so the
+  amounts still add up to the invoice.
+
+## 4. Messages
 
 This exists already and stays business-only. Every thread is a lead. It is the landing screen
 from Bronze up, so it has to stay calm:
@@ -262,7 +288,7 @@ The other changes:
 - **Beginner:** no leads reach them. Beginners find their own until Bronze. Messages stays on
   the rail and says leads from Connect start at Bronze, linking to the milestones.
 
-## 4. Team
+## 5. Team
 
 Everyone at the firm in one list: who counts toward the consultants criterion, who is working
 toward it, and who can sign in to Connect with what role. It's a page, not part of the Settings
@@ -315,7 +341,7 @@ days), Expired, and Not certified.
   that drops the count below the current tier's threshold, Partnership shows At risk and links
   here.
 
-## 5. Profile
+## 6. Profile
 
 The partner edits their **own directory page**, laid out as a business sees it (reusing
 `PartnerProfilePage`), with an Edit control on each section. Edits are not done in a separate
@@ -351,7 +377,7 @@ and the partner gets a notice.
   code on it. The editor says once, at the top, that it's unlisted until Bronze, with Copy
   link. Bronze makes the same page public.
 
-## 6. Resources
+## 7. Resources
 
 What Frappe gives partners to sell and deliver with, in one place instead of scattered links.
 Each item links out to where it lives. From the partner guide:
@@ -369,7 +395,7 @@ comes from: Frappe's existing channels, not a new one in Connect.
 
 **Empty and error:** none to design beyond a failed load, since Frappe curates the list.
 
-## 7. Settings
+## 8. Settings
 
 A `SettingsDialog`, opened from the account menu. Admins only. It holds CRM sync; users and
 roles live on Team.
