@@ -143,6 +143,21 @@ const logoMenu = computed(() => [
   ...(store.signedIn
     ? [{ label: 'Settings', icon: 'lucide-settings', onClick: () => (settings.value = true) }]
     : []),
+  // The theme lives here because the Preferences tab that held it is hidden,
+  // and this menu is on every screen. `AppSettingsDialog` applies it.
+  {
+    label: 'Theme',
+    icon: 'lucide-sun-moon',
+    submenu: [
+      ['Light', 'light'],
+      ['Dark', 'dark'],
+      ['System', 'system'],
+    ].map(([label, value]) => ({
+      label,
+      icon: store.preferences.theme === value ? 'lucide-check' : 'lucide-minus',
+      onClick: () => (store.preferences.theme = value),
+    })),
+  },
   { label: 'Give feedback', icon: 'lucide-message-square-quote', onClick: () => (feedback.value = true) },
   ...(store.signedIn ? [{ label: 'Log out', icon: 'lucide-log-out', onClick: logOut }] : []),
 ])
