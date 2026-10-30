@@ -329,7 +329,9 @@ site moves them to Live.
 
 One page, two tabs, both Frappe Cloud invoices by customer and month. **All customers** (was
 Contributions) is Frappe's view: every linked customer's invoice, what counts toward tier;
-Partnership's MRR row opens it. **Paid by you** (was Billing) answers the accountant's question: what did we
+Partnership's MRR row opens it. **Your Frappe bill** (was Billing) is the one monthly invoice
+Frappe Cloud sends the firm, shown as a document: a group per Partner-pays customer with its
+sites, then the firm's own sites, then the discount off the total. It answers the accountant's question: what did we
 pay Frappe on our customers' behalf, and what do we charge them for it? Frappe Cloud's own
 Billing page doesn't break this down per customer, so Connect does.
 
@@ -457,7 +459,7 @@ and Roles, like Frappe Cloud's.
 | Add customers and notes                               | Yes   | Yes   | No      | No     |
 | See a customer's invoices                             | Yes   | No    | Yes     | No     |
 | Approve or decline link requests                      | Yes   | No    | No      | No     |
-| See and export Invoices, Paid by you                  | Yes   | No    | Yes     | No     |
+| See and export Your Frappe bill                       | Yes   | No    | Yes     | No     |
 | Reply to leads, send quotes, change lead stages       | Yes   | Yes   | No      | No     |
 | Request an audit                                      | Yes   | No    | No      | No     |
 | Edit the profile                                      | Yes   | No    | No      | No     |

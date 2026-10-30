@@ -489,7 +489,7 @@ export const useConnectStore = defineStore('connect', {
     // Partnership; from Bronze up, each role lands where its work is.
     partnerHome: (state) => {
       if (state.partnerTier === 'beginner') return '/connect/partnership'
-      return { sales: '/connect/messages', finance: '/connect/invoices?tab=paid' }[state.partnerRole] ?? '/connect/partnership'
+      return { sales: '/connect/messages', finance: '/connect/invoices?tab=bill' }[state.partnerRole] ?? '/connect/partnership'
     },
     // Did the visitor arrive at sign-up in the middle of doing something?
     //

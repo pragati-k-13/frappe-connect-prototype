@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Alert, Badge, Button, Select, TabButtons, TextInput, toast } from 'frappe-ui'
+import { Alert, Badge, Button, Dropdown, Select, TabButtons, TextInput, toast } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -12,12 +12,14 @@ import { contributionMonths, contributionsFor, firmFor, money, shortDate } from 
 
 // SCREEN — Invoices: the Frappe Cloud invoices for the firm's customers, seen
 // from two sides. "All customers" is every linked customer's invoice, which is
-// what counts toward tier (the MRR on Partnership). "Paid by you" is only the
-// Partner-pays customers, on the one monthly invoice the firm owes Frappe;
-// the tier discount comes off that invoice's total, not off each customer.
+// what counts toward tier (the MRR on Partnership). "Your Frappe bill" is the
+// one monthly invoice Frappe Cloud sends the firm, shown as the document it is:
+// its lines grouped by whose sites they are (each Partner-pays customer, then
+// the firm's own), and the tier discount off the total, not off each customer.
+// What customers pay the firm isn't here: that's billed from their own ERPNext.
 //
-// An invoice opens in the shell's docked panel, beside the list rather than
-// over it, so stepping through customers keeps your place.
+// On All customers, an invoice opens in the shell's docked panel, beside the
+// list rather than over it, so stepping through customers keeps your place.
 
 const store = useConnectStore()
 const route = useRoute()
@@ -28,11 +30,11 @@ const months = contributionMonths()
 
 const TABS = [
   { label: 'All customers', value: 'all' },
-  { label: 'Paid by you', value: 'paid' },
+  { label: 'Your Frappe bill', value: 'bill' },
 ]
 // The tab lives in the URL, so Partnership's MRR row can open "All customers".
 const tab = computed({
-  get: () => (route.query.tab === 'paid' ? 'paid' : 'all'),
+  get: () => (route.query.tab === 'bill' ? 'bill' : 'all'),
   set: (v) => router.replace({ query: { ...route.query, tab: v } }),
 })
 
@@ -73,10 +75,11 @@ const allColumns = computed(() =>
     : { base: ['minmax(0,1fr)', '8rem'], sm: ['minmax(0,1fr)', '10rem', '8rem'] },
 )
 
-// ── Paid by you ─────────────────────────────────────────────────────────────
+// ── Your Frappe bill ────────────────────────────────────────────────────────
 const b = computed(() => billingFor(store.partnerTier, store.partnershipState, month.value))
 const payFor = computed(() => b.value.rows.filter((r) => !r.own))
-const paidShown = computed(() => b.value.rows.filter((r) => matches(r.own ? 'Your account' : r.customer)))
+// Customers first, the firm's own sites last.
+const groups = computed(() => [...payFor.value, ...b.value.rows.filter((r) => r.own)])
 
 function exportCsv() {
   const lines = [
@@ -91,18 +94,18 @@ function exportCsv() {
   URL.revokeObjectURL(a.href)
 }
 const notReady = () => toast.info('Available once Frappe Cloud issues the invoice')
+const whenIssued = (fn) => () => (monthMeta.value.open ? notReady() : fn())
+// The PDF per customer is what the firm bills that customer from.
+const downloadFor = (r) => whenIssued(() => toast.success(`${r.customer}’s breakdown downloaded`))()
+const billMenu = computed(() => [
+  { label: 'Email invoice', icon: 'lucide-mail', onClick: whenIssued(() => toast.success('Invoice sent to your billing email')) },
+  { label: 'Export CSV', icon: 'lucide-file-spreadsheet', onClick: whenIssued(exportCsv) },
+])
 
 // ── The intro's figures follow the tab ──────────────────────────────────────
 const stats = computed(() => {
-  if (tab.value === 'all') return [{ label: 'MRR', value: money(mrr.value, cur.value) }]
-  if (!payFor.value.length) return []
-  return [
-    {
-      label: monthMeta.value.open ? 'You owe so far' : b.value.status === 'unpaid' ? 'You owe' : 'You paid',
-      value: money(b.value.total, cur.value),
-    },
-    ...(b.value.discount ? [{ label: 'Tier discount', value: `${b.value.discount}%` }] : []),
-  ]
+  // The bill carries its own total and discount, so the intro adds none.
+  return tab.value === 'all' ? [{ label: 'MRR', value: money(mrr.value, cur.value) }] : []
 })
 
 const STATUS = {
@@ -112,15 +115,7 @@ const STATUS = {
 }
 
 // ── The docked invoice ──────────────────────────────────────────────────────
-const open = computed(() => {
-  if (!openId.value) return null
-  if (tab.value === 'paid') {
-    if (openId.value === 'invoice') return { whole: true }
-    return b.value.rows.find((r) => r.id === openId.value) ?? null
-  }
-  return all.value.find((r) => r.id === openId.value) ?? null
-})
-const openTitle = computed(() => (open.value.whole ? 'Your Frappe Cloud invoice' : open.value.own ? 'Your account' : open.value.customer))
+const open = computed(() => (tab.value === 'all' && all.value.find((r) => r.id === openId.value)) || null)
 </script>
 
 <template>
@@ -129,12 +124,12 @@ const openTitle = computed(() => (open.value.whole ? 'Your Frappe Cloud invoice'
       <PageIntro title="Frappe Cloud invoices for your customers" :stats="stats">
         <template #actions>
           <Select v-model="month" :options="monthOptions" class="w-48" />
-          <Button
-            v-if="tab === 'paid' && payFor.length"
-            icon-left="lucide-download"
-            label="Export CSV"
-            @click="monthMeta.open ? notReady() : exportCsv()"
-          />
+          <template v-if="tab === 'bill' && payFor.length">
+            <Button icon-left="lucide-download" label="Download PDF" @click="whenIssued(() => toast.success('Invoice downloaded'))()" />
+            <Dropdown :options="billMenu">
+              <Button icon="lucide-ellipsis" aria-label="More" />
+            </Dropdown>
+          </template>
         </template>
       </PageIntro>
 
@@ -184,7 +179,7 @@ const openTitle = computed(() => (open.value.whole ? 'Your Frappe Cloud invoice'
         />
       </template>
 
-      <!-- ── Paid by you ───────────────────────────────────────────────── -->
+      <!-- ── Your Frappe bill ───────────────────────────────────────────────── -->
       <template v-else>
         <EmptyState
           v-if="!payFor.length"
@@ -200,102 +195,46 @@ const openTitle = computed(() => (open.value.whole ? 'Your Frappe Cloud invoice'
             v-if="b.status === 'unpaid'"
             class="mt-6"
             theme="amber"
-            :title="`Your ${b.month.label} invoice is unpaid. ${payFor.map((r) => r.customer).join(', ')} may be suspended.`"
+            :title="`${b.month.label} invoice is unpaid`"
+            :description="`${payFor.map((r) => r.customer).join(', ')} may be suspended.`"
           />
 
-          <!-- The firm's own Frappe Cloud invoice: the rows below add up to
-               its subtotal, and the discount comes off it. -->
-          <List
-            v-model:active="openId"
-            class="-mx-3 mt-6 list-row-px-3"
-            :columns="['minmax(0,1fr)', 'auto']"
-            :row-height="56"
-          >
-            <ListRow value="invoice" @click="openId = 'invoice'">
-              <ListCell class="min-w-0">
-                <span class="min-w-0">
-                  <span class="block text-base text-ink-gray-8">Your Frappe Cloud invoice</span>
-                  <span class="mt-1 block text-sm tabular-nums text-ink-gray-5">{{ b.invoice }}</span>
+          <!-- The bill as a document: its number, then a group per customer
+               with their sites, then the discount off the total. -->
+          <p class="mt-6 flex items-center gap-2 text-sm text-ink-gray-5">
+            <span class="tabular-nums">{{ b.invoice }}</span>
+            <Badge v-if="b.status === 'paid'" theme="green" variant="subtle" size="sm" label="Paid" />
+          </p>
+
+          <ul class="mt-3 divide-y divide-outline-gray-1">
+            <li v-for="r in groups" :key="r.id" class="py-4">
+              <div class="flex items-center gap-3">
+                <span class="min-w-0 flex-1 truncate text-base font-medium text-ink-gray-8">
+                  {{ r.own ? 'Your sites' : r.customer }}
                 </span>
-              </ListCell>
-              <!-- No total here: the figure at the top of the page is it. -->
-              <ListCell class="gap-3">
-                <Badge v-if="b.status === 'paid'" theme="green" variant="subtle" size="sm" label="Paid" />
-                <span class="lucide-chevron-right size-4 text-ink-gray-5" aria-hidden="true" />
-              </ListCell>
-            </ListRow>
-          </List>
+                <span class="shrink-0 text-base tabular-nums text-ink-gray-8">{{ money(r.converted, cur) }}</span>
+                <Button
+                  v-if="!r.own"
+                  variant="ghost"
+                  icon="lucide-download"
+                  class="text-ink-gray-5"
+                  :aria-label="`Download ${r.customer}’s breakdown`"
+                  :tooltip="`Download ${r.customer}’s breakdown`"
+                  @click="downloadFor(r)"
+                />
+                <!-- Holds the column, so amounts line up with the rows above. -->
+                <span v-else class="size-7 shrink-0" aria-hidden="true" />
+              </div>
+              <ul class="mt-1.5 space-y-1 pr-10">
+                <li v-for="site in r.sites" :key="site.name" class="flex justify-between gap-3 text-sm text-ink-gray-5">
+                  <span class="truncate">{{ site.name }}</span>
+                  <span class="shrink-0">{{ site.plan }}</span>
+                </li>
+              </ul>
+            </li>
+          </ul>
 
-          <TextInput v-model="query" type="search" placeholder="Search customers" class="mt-6 w-full sm:w-56">
-            <template #prefix><span class="lucide-search size-4 text-ink-gray-5" aria-hidden="true" /></template>
-          </TextInput>
-
-          <List
-            v-if="paidShown.length"
-            v-model:active="openId"
-            class="-mx-3 mt-4 list-row-px-3"
-            :columns="['minmax(0,1fr)', '8rem']"
-            :row-height="48"
-          >
-            <ListHeader>
-              <ListHeaderCell>Customer</ListHeaderCell>
-              <ListHeaderCell class="justify-end">Frappe billed</ListHeaderCell>
-            </ListHeader>
-            <ListRows :items="paidShown" v-slot="{ item, value }">
-              <ListRow :value="value" @click="openId = item.id">
-                <ListCell class="min-w-0">
-                  <span class="truncate text-ink-gray-8">{{ item.own ? 'Your account' : item.customer }}</span>
-                </ListCell>
-                <ListCell class="justify-end tabular-nums text-ink-gray-7">{{ money(item.converted, cur) }}</ListCell>
-              </ListRow>
-            </ListRows>
-          </List>
-          <EmptyState v-else icon="lucide-receipt" title="No invoices match" />
-        </template>
-      </template>
-    </div>
-
-    <!-- ── An invoice, docked ─────────────────────────────────────────────── -->
-    <template v-if="open" #panel>
-      <div class="flex items-start justify-between gap-3 border-b border-outline-gray-1 p-4">
-        <div class="min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="truncate text-base-semibold text-ink-gray-9">{{ openTitle }}</span>
-            <Badge
-              v-if="tab === 'all' && open.status !== 'accruing'"
-              :theme="STATUS[open.status].theme"
-              variant="subtle"
-              size="sm"
-              :label="STATUS[open.status].label"
-            />
-          </div>
-          <p class="mt-1 text-sm text-ink-gray-5">{{ open.whole ? b.invoice : open.invoice }} · {{ monthMeta.label }}</p>
-        </div>
-        <div class="flex shrink-0 items-center">
-          <template v-if="tab === 'paid'">
-            <Button variant="ghost" icon="lucide-mail" aria-label="Email invoice" tooltip="Email invoice" @click="monthMeta.open ? notReady() : toast.success('Invoice sent to your billing email')" />
-            <Button variant="ghost" icon="lucide-download" aria-label="Download PDF" tooltip="Download PDF" @click="monthMeta.open ? notReady() : toast.success('Invoice downloaded')" />
-          </template>
-          <Button variant="ghost" icon="lucide-x" aria-label="Close" @click="openId = null" />
-        </div>
-      </div>
-
-      <div class="min-h-0 flex-1 overflow-y-auto p-4">
-        <!-- The whole invoice: each customer, then the discount on the total. -->
-        <template v-if="open.whole">
-          <section v-for="r in b.rows" :key="r.id" class="border-b border-outline-gray-1 py-3 first:pt-0">
-            <div class="flex justify-between gap-3 text-base">
-              <span class="text-ink-gray-8">{{ r.own ? 'Your account' : r.customer }}</span>
-              <span class="tabular-nums text-ink-gray-8">{{ money(r.converted, cur) }}</span>
-            </div>
-            <ul class="mt-1.5 space-y-1">
-              <li v-for="site in r.sites" :key="site.name" class="flex justify-between gap-3 text-sm text-ink-gray-5">
-                <span class="truncate">{{ site.name }}</span>
-                <span class="shrink-0">{{ site.plan }}</span>
-              </li>
-            </ul>
-          </section>
-          <dl class="mt-3 space-y-2 text-base">
+          <dl class="space-y-2 border-t border-outline-gray-2 pt-4 pr-10 text-base">
             <div class="flex justify-between gap-3">
               <dt class="text-ink-gray-7">Subtotal</dt>
               <dd class="tabular-nums text-ink-gray-8">{{ money(b.subtotal, cur) }}</dd>
@@ -310,34 +249,51 @@ const openTitle = computed(() => (open.value.whole ? 'Your Frappe Cloud invoice'
             </div>
           </dl>
         </template>
+      </template>
+    </div>
 
-        <!-- One customer: what Frappe billed for their sites. -->
-        <template v-else>
-          <ul class="divide-y divide-outline-gray-1">
-            <li v-for="site in open.sites" :key="site.name" class="flex items-baseline justify-between gap-3 py-2.5">
-              <span class="min-w-0">
-                <span class="block truncate text-base text-ink-gray-8">{{ site.name }}</span>
-                <span class="mt-1 block text-sm text-ink-gray-5">{{ site.plan }}</span>
-              </span>
-              <span class="shrink-0 tabular-nums text-ink-gray-7">{{ money(site.amount, open.currency) }}</span>
-            </li>
-          </ul>
-          <dl class="mt-4 space-y-2 border-t border-outline-gray-2 pt-3 text-base">
-            <div class="flex justify-between gap-3 font-medium">
-              <dt class="text-ink-gray-8">Total</dt>
-              <dd class="tabular-nums text-ink-gray-9">{{ money(open.amount, open.currency) }}</dd>
-            </div>
-            <!-- Converted at the invoice date's rate, so the figure that
-                 counts toward MRR can be checked by hand. -->
-            <div v-if="open.rate" class="flex justify-between gap-3 text-sm text-ink-gray-5">
-              <dt>{{ tab === 'all' ? 'Counts toward MRR as' : 'On your invoice as' }}</dt>
-              <dd class="tabular-nums">{{ money(open.converted, cur) }}</dd>
-            </div>
-          </dl>
-          <p v-if="open.rate" class="mt-1.5 text-sm text-ink-gray-5">
-            At ₹{{ open.rate }} per $ on {{ shortDate(open.date) }}
-          </p>
-        </template>
+    <!-- ── An invoice, docked (All customers) ───────────────────────────── -->
+    <template v-if="open" #panel>
+      <div class="flex items-start justify-between gap-3 border-b border-outline-gray-1 p-4">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="truncate text-base-semibold text-ink-gray-9">{{ open.own ? 'Your account' : open.customer }}</span>
+            <Badge
+              v-if="open.status !== 'accruing'"
+              :theme="STATUS[open.status].theme"
+              variant="subtle"
+              size="sm"
+              :label="STATUS[open.status].label"
+            />
+          </div>
+          <p class="mt-1 text-sm text-ink-gray-5">{{ open.invoice }} · {{ monthMeta.label }}</p>
+        </div>
+        <Button variant="ghost" icon="lucide-x" aria-label="Close" @click="openId = null" />
+      </div>
+
+      <div class="min-h-0 flex-1 overflow-y-auto p-4">
+        <ul class="divide-y divide-outline-gray-1">
+          <li v-for="site in open.sites" :key="site.name" class="flex items-baseline justify-between gap-3 py-2.5">
+            <span class="min-w-0">
+              <span class="block truncate text-base text-ink-gray-8">{{ site.name }}</span>
+              <span class="mt-1 block text-sm text-ink-gray-5">{{ site.plan }}</span>
+            </span>
+            <span class="shrink-0 tabular-nums text-ink-gray-7">{{ money(site.amount, open.currency) }}</span>
+          </li>
+        </ul>
+        <dl class="mt-4 space-y-2 border-t border-outline-gray-2 pt-3 text-base">
+          <div class="flex justify-between gap-3 font-medium">
+            <dt class="text-ink-gray-8">Total</dt>
+            <dd class="tabular-nums text-ink-gray-9">{{ money(open.amount, open.currency) }}</dd>
+          </div>
+          <!-- Converted at the invoice date's rate, so the figure that counts
+               toward MRR can be checked by hand. -->
+          <div v-if="open.rate" class="flex justify-between gap-3 text-sm text-ink-gray-5">
+            <dt>Counts toward MRR as</dt>
+            <dd class="tabular-nums">{{ money(open.converted, cur) }}</dd>
+          </div>
+        </dl>
+        <p v-if="open.rate" class="mt-1.5 text-sm text-ink-gray-5">At ₹{{ open.rate }} per $ on {{ shortDate(open.date) }}</p>
       </div>
     </template>
   </ConnectShell>

@@ -153,7 +153,7 @@ const routes = [
   },
   // Contributions and Billing became the two tabs of Invoices.
   { path: '/connect/partnership/contributions', redirect: { name: 'invoices', query: { tab: 'all' } } },
-  { path: '/connect/billing', redirect: { name: 'invoices', query: { tab: 'paid' } } },
+  { path: '/connect/billing', redirect: { name: 'invoices', query: { tab: 'bill' } } },
   { path: '/connect/customers', name: 'customers', component: () => import('./pages/CustomersPage.vue'), beforeEnter: asPartner },
   { path: '/connect/customers/:id', name: 'customer', component: () => import('./pages/CustomerPage.vue'), beforeEnter: asPartner },
   { path: '/connect/invoices', name: 'invoices', component: () => import('./pages/InvoicesPage.vue'), beforeEnter: asPartner },

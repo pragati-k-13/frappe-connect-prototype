@@ -680,6 +680,16 @@ watch(open, toBottom)
                 size="xl"
                 class="mt-0.5 shrink-0"
               />
+              <!-- A partner's reply shows its PERSON, initials until they
+                   have a photo. The firm's logo is in the thread header; on
+                   each message it couldn't tell two of their people apart. -->
+              <Avatar
+                v-else-if="isPartnerPerson(m)"
+                :image="m.authorImage"
+                :label="m.author"
+                size="xl"
+                class="mt-0.5 shrink-0"
+              />
               <Avatar
                 v-else-if="logo"
                 :image="logo"
