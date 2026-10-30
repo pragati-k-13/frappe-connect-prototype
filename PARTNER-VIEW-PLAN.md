@@ -14,16 +14,33 @@ areas on the rail, plus Settings. Each area answers one question a partner comes
 
 Settings (users, roles and CRM sync) opens as a dialog, not a rail item.
 
-Partnership is the landing screen. A partner opens the app most often to check their standing,
-and every other area feeds into it: customers make up MRR, certified team members are a tier
-criterion, and the profile is what the tier earns in the directory.
+**The landing screen depends on tier.** A Beginner lands on Partnership: they have no listing
+and no leads yet, and the milestone checklist is their next step. Bronze and up land on
+Messages, because leads are the work that can't wait and standing changes slowly (MRR monthly,
+audits yearly). Standing still reaches them where they are:
 
-## The tier rubric (from frappe.io/partners/plans)
+- **Rail badges** where something needs action: leads waiting on a reply (Messages), link
+  requests (Customers), certificates expiring (Team).
+- **A banner across the app** only for At risk. It is rare and serious, so it can't depend on
+  a visit to Partnership.
+
+A Home dashboard collecting all of this was ruled out: every block on it would repeat another
+area, and nothing on it would be the anchor.
+
+**Demo switcher.** The Demo menu's Partner side gets a tier choice: **Beginner** and **Bronze
+and up**. Those are the two versions of the product a partner sees: milestones or criteria on
+Partnership, a different landing screen, and a directory listing or none. Silver and Gold
+differ from Bronze only in numbers, so one seeded Bronze-and-up partner covers them.
+
+## The tier rubric
+
+The ladder is **Beginner → Bronze → Silver → Gold**. Entry and Emerging are gone, merged into
+Beginner. frappe.io/partners/plans and the partner guide haven't caught up yet, so Bronze and
+up below are from the plans page and need confirming.
 
 | Tier     | Frappe Cloud MRR    | Certified consultants | PMM | FC discount | Listing                     |
 | -------- | ------------------- | --------------------- | --- | ----------- | --------------------------- |
-| Entry    | ₹10,000 / $100      | 2                     | —   | 10%         | Name and location only      |
-| Emerging | ₹30,000 / $350      | 2                     | —   | 10%         | Name and location only      |
+| Beginner | Below Bronze        | Below Bronze          | —   | *to confirm* | Not listed                 |
 | Bronze   | ₹63,000 / $750      | 2                     | 3   | 15%         | Full profile, large card    |
 | Silver   | ₹2,50,000 / $3,150  | 3                     | 4   | 20%         | Full profile                |
 | Gold     | ₹6,30,000 / $7,500  | 4                     | 5   | 25%         | Full profile, top of list   |
@@ -31,21 +48,47 @@ criterion, and the profile is what the tier earns in the directory.
 Every tier also needs a registered company and a Frappe Cloud account billing at least $100 a
 month. MRR counts both direct and indirect billing. A consultant counts only with a full
 ERPNext or Framework certification, not a single-module one. An upgrade needs a PMM audit
-started ahead of time: 30 days for Bronze, 60 for Silver and Gold. Entry and Emerging tiers
-end on **31 Mar 2027**. A partner still below Bronze then gets a "Frappe Beginner" tag and
-drops out of the directory.
+started ahead of time: 30 days for Bronze, 60 for Silver and Gold.
+
+**Beginner to Bronze is measured in milestones.** Frappe tracks these for every Beginner, and
+the partner sees the same ones:
+
+1. 1st certification
+2. 2nd certification
+3. $100 MRR
+4. $300 MRR
+5. Bronze reached (needs the PMM audit)
 
 ⚠️ The prototype knows only gold, silver and bronze (`data/partners.js`, `TierIcon.vue`), and
-PMM is derived from tier there. Entry and Emerging need to be added, and PMM needs to become
-its own field, since it is a criterion with its own audit and not a label for the tier.
+PMM is derived from tier there. Beginner needs to be added, and PMM needs to become its own
+field, since it is a criterion with its own audit and not a label for the tier.
 
 ## 1. Partnership
 
-**What's on it.** The current tier with its benefits (discount, listing type). Then one row
+**Beginner.** The milestone checklist is the anchor: the five milestones in order, done ones
+ticked with their date, the next one highlighted with what it takes ("1 more certification",
+"$140 more MRR"). Each links to where it's done: certifications to Team, MRR to Contributions.
+The partner code sits right below it, since linking a first customer is how MRR starts.
+
+**Bronze and up.** The current tier with its benefits (discount, listing type). Then one row
 per criterion for the **next** tier: MRR, certified consultants, PMM level and eligibility.
 Each row shows where the partner is, the threshold, and the gap ("₹41,000 more MRR"). Each
 row also names its source and how fresh it is: MRR from Frappe Cloud billing, consultants from
-certification, PMM from the last audit. The consultants row links to Team.
+certification, PMM from the last audit. The consultants row links to Team, and the MRR row
+links to Contributions. Under the MRR figure, last month's sits as one line ("Last month
+₹4,94,395"), which says whether the partner is growing or slipping.
+
+**Partner code.** On Partnership too, with Copy and Share, because partners already look for
+it here in the PRM portal's Overview.
+
+**Contributions.** Behind the MRR row: every invoice that makes up MRR, across all customers.
+Columns: customer, month, invoice, status, amount, currency, and whether it counts toward MRR.
+Filters for month and status. The month's total matches the MRR figure.
+
+- **Draft** is the current month's invoice, still accruing. **Empty** is an invoice with
+  nothing billed. The list says how each counts, once Frappe confirms it.
+- The partner's own Frappe Cloud account appears here, since it bills too. It's labelled as
+  theirs, so it doesn't read as a client.
 
 **Audit history.** Below the criteria, one row per past audit: date, auditor, the PMM level it
 gave, the tier that followed, and the report. The newest sits first. A partner with no audits
@@ -53,7 +96,8 @@ yet sees one line saying the first audit is due before Bronze.
 
 **States.** The screen shows one of these at a time:
 
-- **Working toward the next tier.** The default.
+- **Working toward the next tier.** The default. For a Beginner, this is the milestone
+  checklist.
 - **Ready for an audit.** Every criterion except PMM is met. Show the button to request a PMM
   audit, with the date it needs to start by.
 - **Audit in progress.** Show the audit date and auditor, and say what the partner needs to
@@ -61,8 +105,6 @@ yet sees one line saying the first audit is due before Bronze.
 - **At risk.** A criterion for the *current* tier has dropped below its threshold: MRR below
   the floor, or a certified consultant who left or whose certificate lapsed. Name the
   criterion, and show the date of the next review if there is one.
-- **Deadline (Entry and Emerging only).** A banner with the days left until 31 Mar 2027, and
-  what is missing to reach Bronze.
 
 **Error paths**
 
@@ -140,7 +182,25 @@ site moves them to Live.
 
 ## 3. Messages
 
-This exists already and stays business-only. Every thread is a lead.
+This exists already and stays business-only. Every thread is a lead. It is the landing screen
+from Bronze up, so it has to stay calm:
+
+- **Leads only.** Link requests, certificate expiries, audit updates and tier changes go to
+  badges on their own rail items, or the At risk banner. Never into this list.
+- **"Needs reply" is the default view:** leads where the partner owes the next move (a new
+  brief, an unanswered message, a quote asked for), oldest waiting first. Everything else is
+  one filter away.
+- **Finished leads leave.** Won moves to Customers. Lost, Junk and Closed drop out of the
+  default view and stay findable.
+- **Only the business bumps a row.** A synced CRM stage, a Frappe owner change or a status
+  update changes the row where it sits.
+- **Caught up is a state.** An empty "Needs reply" says so, rather than looking like an empty
+  inbox.
+- **One list, a source label per row.** Connect briefs and leads passed by Frappe sit together.
+- **Inflow is controlled on Profile**, through regions, industries, deal sizes and "taking work
+  this quarter". The caught-up state can point there.
+- **Assignment.** Each lead has an owner, from the CRM when synced or set by hand, and a "Mine"
+  filter, so two people at one firm don't answer the same lead.
 
 **Stages are the PRM portal's**, so partners and Frappe's partner team keep one vocabulary,
 and a CRM sync maps onto stages Frappe already owns: Open, Qualification, Demo/Making,
@@ -247,9 +307,9 @@ and the partner gets a notice.
   link. The error is shown inline before saving.
 - Two team members edit at once: the second save is told there is a newer version, and is
   shown it.
-- Entry and Emerging: their listing shows name and location only. The editor shows the other
-  sections dimmed, with "Shown from Bronze", so the work isn't wasted and the reward is
-  visible.
+- Beginner: they aren't listed, so the whole page is a draft. The editor says once, at the
+  top, that the page goes live at Bronze. Sections stay editable, so the work isn't wasted
+  and the reward is visible.
 
 ## 6. Resources
 
@@ -303,8 +363,7 @@ member.
    as MRR does? The At risk state depends on the answer.
 2. **MRR window.** Is it the current month, or a trailing average? This decides whether one
    bad month means At risk.
-3. **Audit lead time.** The Bronze doc says 30 days, the Silver and Gold docs 60. The Bronze
-   doc also says PMM 3 lists a partner as "Emerging", which conflicts with the plans table.
+3. **Audit lead time.** The Bronze doc says 30 days, the Silver and Gold docs 60.
 4. **Team permissions.** Do the Admin and Member roles in Settings match how partner firms
    work?
 5. **Reviews.** Can a partner reply publicly to a review?
@@ -322,3 +381,14 @@ member.
     with both?
 12. **Partner code link.** Can Frappe Cloud take the code in a link, so a customer opens it and
     the code is filled in? If so, Share copies the link instead of the steps.
+13. **Beginner to Bronze.** The milestones stop at $300 MRR, but Bronze has been $750 and PMM 3.
+    Is there a step between, or has Bronze changed? What FC discount does a Beginner get, and
+    does Beginner have a time limit?
+14. **Leads for Beginners.** Beginners aren't listed. Do any Connect briefs or passed leads
+    reach them, or is Messages empty until Bronze?
+15. **Guidance for first implementations.** New partners often need product help on their
+    first few projects. Where should they get it, given there's no messaging with Frappe?
+16. **Currency.** Invoices come in INR and USD, but each threshold is one figure. Which rate
+    converts them, and when?
+17. **Draft and Empty invoices.** Does a Draft invoice count toward MRR before the month closes?
+    Does an Empty one count at all?
