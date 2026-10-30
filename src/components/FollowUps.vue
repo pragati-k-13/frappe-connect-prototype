@@ -19,6 +19,8 @@ const props = defineProps({
   contact: { type: String, default: '' },
   syncedFrom: { type: String, default: '' },
   canAdd: { type: Boolean, default: true },
+  // When set, a section title heads the tab, with Add follow-up beside it.
+  title: { type: String, default: '' },
 })
 const emit = defineEmits(['add'])
 
@@ -46,7 +48,12 @@ const ICON = { Call: 'lucide-phone', Demo: 'lucide-presentation', Email: 'lucide
 
 <template>
   <div>
-    <div v-if="items.length && (addable || syncedFrom)" class="mb-2 flex items-center justify-between gap-3">
+    <div v-if="title" class="mb-3 flex items-center justify-between gap-3">
+      <h2 class="text-lg-semibold text-ink-gray-9">{{ title }}</h2>
+      <Button v-if="addable && items.length" icon-left="lucide-plus" label="Add follow-up" @click="start" />
+    </div>
+    <p v-if="title && syncedFrom && items.length" class="mb-2 text-sm text-ink-gray-5">Synced from {{ syncedFrom }}</p>
+    <div v-else-if="!title && items.length && (addable || syncedFrom)" class="mb-2 flex items-center justify-between gap-3">
       <p class="text-sm text-ink-gray-5">{{ syncedFrom ? `Synced from ${syncedFrom}` : '' }}</p>
       <Button v-if="addable" icon-left="lucide-plus" label="Add follow-up" @click="start" />
     </div>

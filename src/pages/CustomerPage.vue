@@ -76,12 +76,12 @@ const ownerMenu = computed(() =>
 // ── Tabs ────────────────────────────────────────────────────────────────────
 const tabs = computed(() =>
   [
-    { value: 'sites', label: 'Sites' },
-    seesInvoices.value && { value: 'invoices', label: 'Invoices' },
-    { value: 'followups', label: 'Follow-ups' },
-    { value: 'activity', label: 'Activity' },
-    { value: 'notes', label: 'Notes' },
-    c.value?.source === 'connect' && { value: 'connect', label: 'Connect' },
+    { value: 'sites', label: 'Sites', icon: 'lucide-globe' },
+    seesInvoices.value && { value: 'invoices', label: 'Invoices', icon: 'lucide-receipt' },
+    { value: 'followups', label: 'Follow-ups', icon: 'lucide-phone' },
+    { value: 'activity', label: 'Activity', icon: 'lucide-history' },
+    { value: 'notes', label: 'Notes', icon: 'lucide-notebook-pen' },
+    c.value?.source === 'connect' && { value: 'connect', label: 'Connect', icon: 'lucide-message-square' },
   ].filter(Boolean),
 )
 // On a phone the side panel is a tab of its own, so the record comes first
@@ -237,13 +237,23 @@ function requestSwitch() {
            tabs and the panels, not on this column. -->
       <div class="min-w-0 shrink-0 pb-6 lg:flex-1 lg:shrink lg:overflow-y-auto">
         <Tabs v-model="tab">
-          <TabList class="fc-tabs-scroll h-12 shrink-0 px-3 sm:px-5">
-            <TabTrigger v-if="narrow" value="details" label="Details" />
-            <TabTrigger v-for="t in tabs" :key="t.value" :value="t.value" :label="t.label" />
+          <!-- As in Frappe CRM: an icon with each tab, and the row as tall as
+               the top bar. -->
+          <TabList class="fc-tabs-scroll h-12 shrink-0 px-3 sm:px-5" size="md">
+            <TabTrigger v-if="narrow" value="details" label="Details" icon-left="lucide-panel-right" />
+            <TabTrigger v-for="t in tabs" :key="t.value" :value="t.value" :label="t.label" :icon-left="t.icon" />
           </TabList>
 
           <TabPanel value="sites" class="px-3 sm:px-5">
-            <div class="pt-4">
+            <div class="pt-6">
+              <div class="mb-3 flex items-center justify-between gap-3">
+              <h2 class="text-lg-semibold text-ink-gray-9">Sites</h2>
+              <Button
+                v-if="sites.length && !partnerPays"
+                label="Open in Frappe Cloud"
+                href="https://frappecloud.com/dashboard"
+              />
+            </div>
               <EmptyState
                 v-if="!sites.length"
                 icon="lucide-globe"
@@ -267,17 +277,14 @@ function requestSwitch() {
                   </span>
                 </li>
               </ul>
-              <Button
-                v-if="sites.length && !partnerPays"
-                class="mt-4"
-                label="Open in Frappe Cloud"
-                href="https://frappecloud.com/dashboard"
-              />
             </div>
           </TabPanel>
 
           <TabPanel value="invoices" class="px-3 sm:px-5">
-            <div class="pt-4">
+            <div class="pt-6">
+              <div class="mb-3 flex items-center justify-between gap-3">
+              <h2 class="text-lg-semibold text-ink-gray-9">Invoices</h2>
+            </div>
               <p v-if="partnerPays" class="text-p-sm text-ink-gray-5">On your Frappe bill</p>
               <EmptyState v-if="!invoices.length" icon="lucide-receipt" title="No invoices yet" />
               <ul v-else class="divide-y divide-outline-gray-1" :class="partnerPays && 'mt-3'">
@@ -296,8 +303,9 @@ function requestSwitch() {
           </TabPanel>
 
           <TabPanel value="followups" class="px-3 sm:px-5">
-            <div class="pt-4">
+            <div class="pt-6">
               <FollowUps
+                title="Follow-ups"
                 :items="followUps"
                 :people="teamPeople"
                 :contact="c.contact"
@@ -309,25 +317,34 @@ function requestSwitch() {
           </TabPanel>
 
           <TabPanel value="activity" class="px-3 sm:px-5">
-            <div class="pt-5">
+            <div class="pt-6">
+              <div class="mb-3 flex items-center justify-between gap-3">
+              <h2 class="text-lg-semibold text-ink-gray-9">Activity</h2>
+            </div>
               <ActivityFeed :items="activity" />
             </div>
           </TabPanel>
 
           <TabPanel value="notes" class="px-3 sm:px-5">
-            <div class="max-w-[640px] space-y-3 pt-4">
+            <div class="max-w-[640px] pt-6">
+              <div class="mb-3 flex items-center justify-between gap-3">
+              <h2 class="text-lg-semibold text-ink-gray-9">Notes</h2>
+            </div>
               <Textarea v-model="notes" :rows="8" placeholder="Anything your team should know about this customer" />
-              <Button label="Save notes" @click="saveNotes" />
+              <Button class="mt-3" label="Save notes" @click="saveNotes" />
             </div>
           </TabPanel>
 
           <TabPanel value="connect" class="px-3 sm:px-5">
-            <div class="space-y-4 pt-4">
+            <div class="pt-6">
+              <div class="mb-3 flex items-center justify-between gap-3">
+              <h2 class="text-lg-semibold text-ink-gray-9">Connect</h2>
+              <Button label="Open conversation" route="/connect/messages" />
+            </div>
               <div>
                 <p class="text-sm text-ink-gray-5">Project</p>
                 <p class="mt-1 text-base text-ink-gray-8">{{ c.project }}</p>
               </div>
-              <Button label="Open conversation" route="/connect/messages" />
             </div>
           </TabPanel>
         </Tabs>
