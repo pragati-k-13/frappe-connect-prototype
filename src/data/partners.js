@@ -85,10 +85,12 @@ export const APPS = [
 // The id every partner is keyed by, derived from the name rather than stored.
 const slug = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 
-// Partner Maturity Model level, shown in the profile's About column. Invented,
-// and derived from tier rather than stored per partner so the two can't
-// contradict each other — a bronze partner at PMM 5 would just look like a bug.
-const PMM_BY_TIER = { gold: 5, silver: 3, bronze: 2 }
+// Partner Maturity Model level, shown in the profile's About column. Its own
+// field: PMM is a criterion with its own audit, not a label for the tier, so a
+// partner can sit above their tier's level while working toward the next one.
+// Invented. Defaults to the level each tier requires (frappe.io/partners/plans)
+// when a partner doesn't set one.
+const PMM_BY_TIER = { gold: 5, silver: 4, bronze: 3 }
 
 // The "Partner vision" section: a leadership quote, then the same three
 // questions every partner in the directory answers, with their answers and
@@ -604,6 +606,7 @@ const P = (
     accolades = [],
     // See the note above `tier` — invented, one of 'remote' | 'onsite' | 'both'.
     workStyle = 'both',
+    pmm = PMM_BY_TIER[tier] ?? 1,
   },
 ) => ({
   id: slug(name),
@@ -611,7 +614,7 @@ const P = (
   tagline,
   address,
   accolades,
-  pmm: PMM_BY_TIER[tier] ?? 1,
+  pmm,
   // Real: `city` is scraped, and the country is its last comma field.
   countries: [countryOf(city)],
   // Real too — see `zoneOf`. `null` for a city not in the table.
@@ -688,7 +691,9 @@ export const PARTNERS = [
   P('Software@Work', {
     tagline: 'Running payroll, plants and pipelines on one system since 2011',
     address: 'Unit 402, Marol Business Centre, Andheri East, Mumbai 400059, Maharashtra, India',
-    tier: 'gold',
+    // Silver, not Gold: the partner demo shows this firm working toward Gold
+    // (see `data/partnership.js`), and the directory has to agree with it.
+    tier: 'silver',
     workStyle: 'onsite',
     city: 'Mumbai, India',
     region: 'asia',

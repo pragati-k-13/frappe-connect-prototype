@@ -25,7 +25,6 @@ import ConnectShell from '../components/ConnectShell.vue'
 import { List, ListCell, ListRow } from 'frappe-ui/list'
 import CompanyDetailsDialog from '../components/CompanyDetailsDialog.vue'
 import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
-import PartnerMessagesPage from './PartnerMessagesPage.vue'
 import { implementerFor, isFrappe } from '../data/partners'
 import { logoFor } from '../data/logos'
 import { STATUS_LABELS, isActive, lastAt, threadStatus } from '../data/messages'
@@ -436,13 +435,17 @@ const send = () => {
 }
 
 watch(open, toBottom)
+
+// A partner's conversations are Leads now, with pages of their own.
+watch(
+  () => store.role,
+  (r) => r === 'partner' && router.replace('/connect/leads'),
+  { immediate: true },
+)
 </script>
 
 <template>
-  <!-- The same address from the other side of the product. See
-       `PartnerMessagesPage` for what differs and why. -->
-  <PartnerMessagesPage v-if="store.role === 'partner'" />
-  <ConnectShell v-else root-label="Messages" flush>
+  <ConnectShell root-label="Messages" flush>
     <div class="flex min-h-0 min-w-0 flex-1">
       <!-- ── The inbox ──────────────────────────────────────────────────── -->
       <!-- ⚠️ No inbox at all until there is something in it. An empty list
@@ -677,6 +680,16 @@ watch(open, toBottom)
               <Avatar
                 v-if="m.from === 'you'"
                 :label="store.viewer.name"
+                size="xl"
+                class="mt-0.5 shrink-0"
+              />
+              <!-- A partner's reply shows its PERSON, initials until they
+                   have a photo. The firm's logo is in the thread header; on
+                   each message it couldn't tell two of their people apart. -->
+              <Avatar
+                v-else-if="isPartnerPerson(m)"
+                :image="m.authorImage"
+                :label="m.author"
                 size="xl"
                 class="mt-0.5 shrink-0"
               />

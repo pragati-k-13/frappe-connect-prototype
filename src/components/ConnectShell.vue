@@ -28,13 +28,17 @@ const collapsed = ref(true)
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
+  Alert,
+  Avatar,
   Badge,
+  Dropdown,
   Button,
   PageHeader,
   ScrollArea,
   Sidebar,
   SidebarHeader,
   SidebarItem,
+  SidebarLabel,
   toast,
   Tooltip,
 } from 'frappe-ui'
@@ -44,8 +48,12 @@ import FeedbackDialog from './FeedbackDialog.vue'
 import AppSettingsDialog from './settings/AppSettingsDialog.vue'
 import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
-import { PARTNERS } from '../data/partners'
-import { PARTNER_SELF } from '../data/partnerView'
+import { firmFor, longDate, standingFor } from '../data/partnership'
+import { needsReply, useLeads } from '../composables/useLeads'
+import LeadsIcon from './icons/LeadsIcon.vue'
+import { usePartnerAccountStore } from '../stores/partnerAccount'
+import PartnerSettingsDialog from './settings/PartnerSettingsDialog.vue'
+import PartnerAccountDialog from './settings/PartnerAccountDialog.vue'
 
 const store = useConnectStore()
 const router = useRouter()
@@ -91,12 +99,56 @@ const inDirectory = computed(() => DIRECTORY_ROUTES.has(route.name))
 const HOME_ROUTES = new Set(['connect', 'recommendation'])
 const inHome = computed(() => HOME_ROUTES.has(route.name))
 
-const partnerSelfName = PARTNERS.find((p) => p.id === PARTNER_SELF.partnerId)?.name ?? ''
+// ── The partner's rail ──────────────────────────────────────────────────────
+// Each role sees the areas it works in (the roles table in the plan): Sales
+// has no Invoices, Finance has no Messages. Counts are what waits on THIS
+// person: link requests and expiring certificates are the owner's, an unpaid
+// invoice is finance's, unanswered leads are sales'.
+const account = usePartnerAccountStore()
+const leads = useLeads()
+const partnerRail = computed(() => {
+  const role = store.partnerRole
+  // Member is view-only: standing, the team, the profile and resources.
+  const member = role === 'member'
+  const beginner = store.partnerTier === 'beginner'
+  const waiting = leads.value.filter(needsReply).length
+  const at = (...names) => names.includes(route.name)
+  // Two groups: the work you do daily, then your firm. Resources isn't a place you work (it's links
+  // out), so it lives in the header menu.
+  // Leads first: the daily queue, and the one row with a count. Partnership
+  // is checked now and then, so it follows the work — except for a Beginner,
+  // whose main job is the milestones to Bronze, so it leads for them.
+  const partnership = { label: 'Partnership', to: '/connect/partnership', icon: 'lucide-handshake', active: at('partnership') }
+  const work = [
+    beginner && partnership,
+    !member && role !== 'finance' && { label: 'Leads', to: '/connect/leads', iconComp: LeadsIcon, active: at('leads', 'lead'), count: waiting },
+    !member && { label: 'Customers', to: '/connect/customers', icon: 'lucide-building-2', active: at('customers', 'customer') },
+    !beginner && partnership,
+  ].filter(Boolean)
+  // Invoices is the firm's money with Frappe, so it sits with the firm.
+  const firm = [
+    !member && role !== 'sales' && { label: 'Invoices', to: '/connect/invoices', icon: 'lucide-receipt', active: at('invoices') },
+    { label: 'Team', to: '/connect/team', icon: 'lucide-users', active: at('team') },
+    { label: 'Listing', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile') },
+  ].filter(Boolean)
+  // Only Leads carries a count: replies are the one thing that can't wait.
+  // The firm group gets a label; the work group, at the top, needs none.
+  // Four rows or fewer is one plain list: a list that short scans without
+  // groups, and a label over it would only say the obvious (a Member's
+  // Partnership, Team, Listing). Five or more keeps the two groups.
+  if (work.length + firm.length <= 4) return [{ items: [...work, ...firm] }]
+  return [
+    { items: work },
+    { label: 'Your firm', items: firm },
+  ].filter((g) => g.items.length)
+})
 
-// The partner side has one screen so far, Messages, so it keeps the rail's
-// first group and none of the business destinations under it.
+// The partner side's firm and person follow the demo tier: Beginner is a
+// different firm. See `data/partnership.js`.
 const shellSubtitle = computed(() => {
-  if (store.role === 'partner') return `${PARTNER_SELF.person}, ${partnerSelfName}`
+  if (store.role === 'partner') {
+    return firmFor(store.partnerTier).name
+  }
   return store.signedIn ? store.viewer.name : undefined
 })
 
@@ -125,13 +177,70 @@ const shellSubtitle = computed(() => {
 // ⚠️ THE ONE PIECE OF STATE THIS SHELL OWNS THAT IS NOT NAVIGATION, and it is
 // here rather than on each page because the dialog has to be reachable from all
 // of them.
+// ⚠️ THE ONE BANNER THE PARTNER SIDE HAS. At risk is rare and serious, so it
+// shows on every partner screen rather than waiting for a visit to
+// Partnership. Everything else about standing waits for that visit.
+const atRisk = computed(() => {
+  if (store.role !== 'partner' || store.partnerTier === 'beginner') return null
+  return standingFor(store.partnerTier, store.partnershipState).risk ?? null
+})
+
 const feedback = ref(false)
 const settings = ref(false)
 
+const partnerSettings = ref(false)
+const partnerAccount = ref(false)
+
+// ── The partner's footer: the signed-in person ──────────────────────────────
+// The header is the firm (its settings, its managers, help); the footer is
+// you (your settings, theme, log out), as on Frappe Cloud.
+const me = computed(() => account.edits.me ?? firmFor(store.partnerTier).person)
+const themeMenu = computed(() => ({
+  label: 'Theme',
+  icon: 'lucide-sun-moon',
+  submenu: [
+    ['Light', 'light'],
+    ['Dark', 'dark'],
+    ['System', 'system'],
+  ].map(([label, value]) => ({
+    label,
+    icon: store.preferences.theme === value ? 'lucide-check' : 'lucide-minus',
+    onClick: () => (store.preferences.theme = value),
+  })),
+}))
+const footerMenu = computed(() => [
+  { label: 'Your settings', icon: 'lucide-user-cog', onClick: () => (partnerAccount.value = true) },
+  themeMenu.value,
+  { label: 'Log out', icon: 'lucide-log-out', onClick: () => { store.setRole('business'); store.logOut(); router.push('/connect') } },
+])
+
 const logoMenu = computed(() => [
-  ...(store.signedIn
-    ? [{ label: 'Settings', icon: 'lucide-settings', onClick: () => (settings.value = true) }]
-    : []),
+  // The firm's settings are the owner's. Partner managers open as a list to
+  // write to, rather than jumping to a section of a page.
+  ...(store.role === 'partner'
+    ? [
+        ...(store.partnerRole === 'owner'
+          ? [{ label: 'Firm settings', icon: 'lucide-settings', onClick: () => (partnerSettings.value = true) }]
+          : []),
+        ...(standingFor(store.partnerTier, store.partnershipState).managers.length
+          ? [{
+          label: 'Partner managers',
+          icon: 'lucide-life-buoy',
+          submenu: standingFor(store.partnerTier, store.partnershipState).managers.map((m) => ({
+            label: m.name,
+            icon: 'lucide-mail',
+            onClick: () => (window.location.href = `mailto:${m.email}`),
+          })),
+        }]
+          : []),
+        { label: 'Help and resources', icon: 'lucide-book-open', onClick: () => router.push('/connect/resources') },
+      ]
+    : store.signedIn
+      ? [{ label: 'Settings', icon: 'lucide-settings', onClick: () => (settings.value = true) }]
+      : []),
+  // On the business side the theme lives here, since that side has no footer
+  // menu. `AppSettingsDialog` applies it.
+  ...(store.role === 'partner' ? [] : [themeMenu.value]),
   { label: 'Give feedback', icon: 'lucide-message-square-quote', onClick: () => (feedback.value = true) },
   ...(store.signedIn ? [{ label: 'Log out', icon: 'lucide-log-out', onClick: logOut }] : []),
 ])
@@ -204,6 +313,9 @@ defineProps({
   // composer stays put at the bottom. A page that scrolls as one document
   // wants the default.
   flush: { type: Boolean, default: false },
+  // No top bar. For a screen whose own columns carry its title (Leads), where
+  // a 48px row with one word in it is wasted.
+  bare: { type: Boolean, default: false },
   // Off where the page carries its own sign-up — the cart, whose Sign up sits
   // under the total. Two ways into one account, one in the chrome and one in
   // the page, split the click.
@@ -307,7 +419,42 @@ defineProps({
              control itself. -->
         <!-- Signed in only: a visitor has no threads and nothing to be notified
              of, so the pair would be two dead rows. -->
-        <nav v-if="store.signedIn" class="space-y-0.5">
+        <!-- The partner's rail, filtered by role (see `partnerRail`). The count
+             beside a row is what's waiting on this person there. -->
+        <template v-if="store.role === 'partner'">
+          <!-- Groups split by a gap, no labels, like the business rail. -->
+          <nav v-for="(group, gi) in partnerRail" :key="gi" class="space-y-0.5" :class="gi > 0 && 'mt-4'">
+            <SidebarLabel v-if="group.label" divider>{{ group.label }}</SidebarLabel>
+            <Tooltip
+              v-for="item in group.items"
+              :key="item.to"
+              :text="item.count ? `${item.label}, ${item.count} waiting` : item.label"
+              side="right"
+              :offset="8"
+              :disabled="!collapsed"
+            >
+              <SidebarItem :label="item.label" :to="item.to" :active="item.active">
+                <!-- Collapsed, the count can't show, so a dot keeps the signal. -->
+                <template #prefix>
+                  <span class="relative grid place-items-center">
+                    <component :is="item.iconComp" v-if="item.iconComp" class="size-4 text-ink-gray-6" aria-hidden="true" />
+                    <span v-else :class="item.icon" class="size-4 text-ink-gray-6" aria-hidden="true" />
+                    <span
+                      v-if="item.count && collapsed"
+                      class="absolute -right-1 -top-1 size-1.5 rounded-full bg-surface-blue-7"
+                      aria-hidden="true"
+                    />
+                  </span>
+                </template>
+                <template v-if="item.count" #suffix>
+                  <span class="mr-2 text-xs tabular-nums text-ink-gray-5">{{ item.count }}</span>
+                </template>
+              </SidebarItem>
+            </Tooltip>
+          </nav>
+        </template>
+
+        <nav v-else-if="store.signedIn" class="space-y-0.5">
           <!-- An inbox, not a message bubble. The bubble belongs to the Contact
                buttons that WRITE into this screen; this row is the pile those
                threads land in. `lucide-inbox` is frappe-ui's own choice for the
@@ -472,10 +619,28 @@ defineProps({
         </nav>
 
       </ScrollArea>
+      <!-- The partner's footer: you. -->
+      <div v-if="store.role === 'partner'" class="shrink-0 px-2 pb-2">
+        <Dropdown :options="footerMenu" side="top" align="start">
+          <button
+            type="button"
+            class="flex w-full items-center gap-2 rounded-4 p-1.5 text-left transition-colors hover:bg-surface-gray-2"
+            :class="collapsed && 'justify-center'"
+          >
+            <Avatar :label="me" size="sm" />
+            <template v-if="!collapsed">
+              <span class="min-w-0 flex-1 truncate text-sm text-ink-gray-8">{{ me }}</span>
+              <span class="lucide-chevrons-up-down size-4 shrink-0 text-ink-gray-5" aria-hidden="true" />
+            </template>
+          </button>
+        </Dropdown>
+      </div>
     </Sidebar>
 
     <FeedbackDialog v-model:open="feedback" />
     <AppSettingsDialog v-model:open="settings" />
+    <PartnerSettingsDialog v-model:open="partnerSettings" />
+    <PartnerAccountDialog v-model:open="partnerAccount" />
 
     <div class="relative flex min-w-0 flex-1 flex-col">
       <!-- ── Collapse handle ──────────────────────────────────────────────
@@ -523,7 +688,9 @@ defineProps({
            divider — it's the edge of the chrome, marking where the fixed bar
            ends and the scrolling content begins. Without it, content scrolls up
            against nothing. -->
-      <PageHeader class="shrink-0">
+      <!-- 44px, Frappe CRM's bar height on this scale (CRM's 42px isn't a
+           step here). `!` because PageHeader carries its own `min-h-12`. -->
+      <PageHeader v-if="!bare" class="!min-h-11 h-11 shrink-0">
         <!-- "Partners" alone on the list screens; a breadcrumb once you're
              inside one. `crumb` is the trailing label, and "Partners" becomes
              the link back — the profile is a level down, so the bar is where
@@ -542,7 +709,9 @@ defineProps({
              composition puts a solid button against the crumbs and lets them
              touch. The current crumb truncates, so without this the ellipsis
              runs straight into the auth control at narrow widths. -->
-        <nav v-if="crumb" class="flex min-w-0 items-center pr-3" aria-label="Breadcrumb">
+        <!-- `#crumb` replaces the trailing label with a control, as Frappe
+             CRM puts its view switcher there ("Leads / To reply ▾"). -->
+        <nav v-if="crumb || $slots.crumb" class="flex min-w-0 items-center pr-3" aria-label="Breadcrumb">
           <RouterLink
             :to="rootTo"
             class="shrink-0 whitespace-nowrap rounded-4 px-0.5 py-1 text-lg-medium text-ink-gray-5 transition-colors hover:text-ink-gray-7"
@@ -550,12 +719,14 @@ defineProps({
             {{ rootLabel }}
           </RouterLink>
           <span class="mx-0.5 text-base text-ink-gray-4" aria-hidden="true">/</span>
-          <span
-            class="min-w-0 truncate px-0.5 py-1 text-lg-medium text-ink-gray-9"
-            aria-current="page"
-          >
-            {{ crumb }}
-          </span>
+          <slot name="crumb">
+            <span
+              class="min-w-0 truncate px-0.5 py-1 text-lg-medium text-ink-gray-9"
+              aria-current="page"
+            >
+              {{ crumb }}
+            </span>
+          </slot>
         </nav>
         <span v-else class="whitespace-nowrap px-0.5 py-1 text-lg-medium text-ink-gray-9">
           {{ rootLabel }}
@@ -626,6 +797,16 @@ defineProps({
            That matters here and nowhere else: with a panel open the column's
            width changes without the window changing, so viewport breakpoints
            inside a page would answer the wrong question. See `index.css`. -->
+      <div
+        v-if="atRisk"
+        class="shrink-0 border-b border-outline-gray-1 px-3 py-2 sm:px-5"
+      >
+        <Alert
+          theme="amber"
+          :title="`${atRisk.criterion} are below ${atRisk.tier}. Fix by ${longDate(atRisk.fixBy)}, before the review on ${longDate(atRisk.review)}.`"
+          :primary-action="route.name === 'partnership' ? undefined : { label: 'View', onClick: () => router.push('/connect/partnership') }"
+        />
+      </div>
       <div class="flex min-h-0 flex-1">
         <!-- ⚠️ Two content regions, one slot. The default wraps the page in a
              ScrollArea and lets it be as tall as it likes; `flush` hands over

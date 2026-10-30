@@ -17,7 +17,9 @@ import { Badge, Tooltip } from 'frappe-ui'
 const props = defineProps({
   // 'gold' | 'silver' | 'bronze', or null for a partner outside the programme.
   // Not required, and null renders nothing: there is no fourth tier to draw, so
-  // an untiered partner's row simply carries no seal.
+  // an untiered partner's row simply carries no seal. 'beginner' renders
+  // nothing too, on purpose: Frappe's badge set has no Beginner seal, and a
+  // Beginner isn't listed anywhere a seal would show.
   tier: { type: String, default: null },
 })
 

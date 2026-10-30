@@ -19,9 +19,35 @@ export const PARTNER_SELF = {
   person: 'Farhan Qureshi',
 }
 
+// ── Leads ───────────────────────────────────────────────────────────────────
+// Every thread is a lead (see the plan's Messages section). Each carries:
+//   stage    one of the PRM portal's stages, set by what happens in Connect,
+//            then by CRM sync, then by hand
+//   owner    the team member it's assigned to (a `data/partnerAccount.js` id)
+//   closed   { stage, reason } once it's Won, Lost, Junk or Closed
+//
+// ⚠️ The leads after the first two are invented here too.
+//
+// Only Connect briefs live here. A lead Frappe passes on, or one the firm
+// finds itself, isn't on Connect: that business has no reason to sign up just
+// to message the partner, so the partner works it in their own CRM.
+
+export const PRM_LOST_REASONS = [
+  // "Lost to competitor" is the PRM portal's own; the rest stand in for its
+  // list until it's copied across.
+  'Lost to competitor',
+  'No budget',
+  'Not responding',
+  'Chose another product',
+  'Other',
+]
+
 export const partnerThreads = () => [
   {
     id: 'pv-northwind',
+    stage: 'Negotiation',
+    owner: 'farhan-qureshi',
+    probability: 'Warm',
     project: 'Warehouse barcode workflow',
     brief: {
       scope:
@@ -45,6 +71,7 @@ export const partnerThreads = () => [
       name: 'Northwind',
       contact: 'Meera Iyer',
       email: 'meera@northwind.example',
+      phone: '+91 98200 55731',
     },
     messages: [
       { id: 'n1', from: 'them', kind: 'brief', at: hoursAgo(6) },
@@ -71,6 +98,8 @@ export const partnerThreads = () => [
   },
   {
     id: 'pv-anonymous',
+    stage: 'Proposal/Quotation',
+    owner: 'rahul-verma',
     project: 'Batch tracking for spice exports',
     brief: {
       scope:
@@ -101,6 +130,144 @@ export const partnerThreads = () => [
           weeks: 6,
           note: 'Batch and lot tracking are standard in ERPNext stock, so most of this is configuration and moving the batch sheets across. The buyer audit report is the one piece we would build.',
         },
+      },
+    ],
+  },
+  {
+    id: 'pv-pharma',
+    stage: 'Open',
+    owner: null,
+    project: 'Stock and expiry for a pharma distributor',
+    brief: {
+      scope:
+        'We distribute generic medicines to around 400 pharmacies in western Maharashtra. Batches and expiry dates live in Tally and a spreadsheet, and near-expiry stock is found too late to return to the manufacturer.',
+      modules: { erpnext: ['inventory', 'selling', 'purchase'] },
+      budget: 'inr-2',
+      country: 'India',
+      segments: ['Pharmaceutical Manufacturing'],
+      employees: '51 to 200',
+      cities: [],
+      tiers: [],
+      workStyle: '',
+      timeline: 'quarter',
+      operations: 'disconnected',
+      apps: [],
+      problems: ['visibility'],
+    },
+    company: null,
+    messages: [{ id: 'p1', from: 'them', kind: 'brief', at: hoursAgo(9) }],
+  },
+  {
+    id: 'pv-lost',
+    stage: 'Lost',
+    owner: 'rahul-verma',
+    closed: { stage: 'Lost', reason: 'Lost to competitor' },
+    project: 'Payroll for a textile mill',
+    brief: {
+      scope: 'Payroll and attendance for 600 workers across two shifts, replacing a vendor system that no longer gets updates.',
+      modules: { hrms: ['payroll', 'attendance'] },
+      budget: 'inr-1',
+      country: 'India',
+      segments: ['Textile Manufacturing'],
+      employees: '201 to 1000',
+      cities: [],
+      tiers: [],
+      workStyle: 'onsite',
+      timeline: 'quarter',
+      operations: 'disconnected',
+      apps: [],
+      problems: ['manual-work'],
+    },
+    company: null,
+    messages: [
+      { id: 'x1', from: 'them', kind: 'brief', at: hoursAgo(24 * 20) },
+      {
+        id: 'x2',
+        from: 'you',
+        kind: 'bid',
+        at: hoursAgo(24 * 19),
+        bid: { price: '₹3,80,000', weeks: 5, note: 'Payroll, attendance and the shift roster, with two weeks of parallel runs.' },
+      },
+    ],
+  },
+]
+
+// ── A Beginner's leads ──────────────────────────────────────────────────────
+// Lumen Digital, the Beginner firm in `data/partnership.js`: Bahrain, USD.
+// Connect sends briefs from the first tier, so a Beginner works leads too.
+// Two, so both sides of shortlisting show: one still anonymous and waiting on
+// a reply, one where the company has shared its details after a quote.
+// ⚠️ Invented here, like the rest.
+export const beginnerThreads = () => [
+  {
+    id: 'bg-clinic',
+    stage: 'Open',
+    owner: null,
+    project: 'Appointments and billing for three clinics',
+    brief: {
+      scope:
+        'We run three outpatient clinics in Manama. Appointments are on paper and billing is in a spreadsheet, so insurance claims go out late and some never go out.',
+      modules: { erpnext: ['selling', 'accounting'] },
+      budget: 'usd-1',
+      country: 'Bahrain',
+      segments: ['Healthcare'],
+      employees: '11 to 50',
+      cities: [],
+      tiers: [],
+      workStyle: '',
+      timeline: 'quarter',
+      operations: 'spreadsheets',
+      apps: [],
+      problems: ['manual'],
+    },
+    company: null,
+    messages: [
+      { id: 'c1', from: 'them', kind: 'brief', at: hoursAgo(5) },
+    ],
+  },
+  {
+    id: 'bg-bakery',
+    stage: 'Proposal/Quotation',
+    owner: 'sana-malik',
+    probability: 'Warm',
+    project: 'Stock and orders for a bakery chain',
+    brief: {
+      scope:
+        'Six outlets and a central kitchen. Orders from outlets come over WhatsApp, and the kitchen bakes to a guess, so we throw away bread most evenings.',
+      modules: { erpnext: ['inventory', 'manufacturing', 'selling'] },
+      budget: 'usd-2',
+      country: 'Bahrain',
+      segments: ['Food and Beverage'],
+      employees: '51 to 200',
+      cities: [],
+      tiers: [],
+      workStyle: '',
+      timeline: 'none',
+      operations: 'disconnected',
+      apps: [],
+      problems: ['visibility'],
+    },
+    company: { name: 'Crumb & Co', contact: 'Layla Haddad', email: 'layla@crumbandco.example', phone: '+973 3611 2290' },
+    messages: [
+      { id: 'b1', from: 'them', kind: 'brief', at: hoursAgo(50) },
+      {
+        id: 'b2',
+        from: 'you',
+        kind: 'bid',
+        at: hoursAgo(30),
+        bid: {
+          price: '$14,500',
+          weeks: 6,
+          note: 'Outlet ordering, kitchen production plans from those orders, and stock across the outlets. Training for each outlet lead.',
+        },
+      },
+      { id: 'b3', from: 'them', kind: 'shared', at: hoursAgo(26) },
+      {
+        id: 'b4',
+        from: 'them',
+        kind: 'text',
+        at: hoursAgo(3),
+        body: '<p>Thanks for the quote. Could the outlets order from a phone? Our leads are rarely at a computer.</p>',
       },
     ],
   },

@@ -614,6 +614,12 @@ textarea[data-slot='control'] {
 .fc-composer > * + * {
   @apply mt-2;
 }
+/* A quoted message, from a card's Reply: set off by a rule, in grey, so it
+   reads as what's being answered rather than as part of the answer. */
+.fc-message blockquote,
+.fc-composer blockquote {
+  @apply border-l-2 border-outline-gray-2 pl-3 text-ink-gray-6;
+}
 
 
 /* The pack setup list's rows open and close at their own height. reka-ui sets
@@ -658,4 +664,16 @@ textarea[data-slot='control'] {
   @keyframes fc-sent-fade {
     from { opacity: 0; }
   }
+}
+
+/* A tabs row that scrolls sideways when the tabs don't fit (phones), with no
+   scrollbar: the cut-off tab says there's more. `overflow-y: hidden` because
+   the active indicator sits 1px below the row and would add a vertical bar. */
+.fc-tabs-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.fc-tabs-scroll::-webkit-scrollbar {
+  display: none;
 }

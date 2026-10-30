@@ -241,6 +241,14 @@ export const useConnectStore = defineStore('connect', {
     // 'partner' (main's — Frappe assigns a partner at payment). A demo setting,
     // switched from the Demo menu, and not cleared by `reset()`.
     packImplementer: 'frappe',
+    // The partner side's two demo axes, and the Partnership page's state. Not
+    // cleared by `reset()`, same as `role`: they say which demo you're in.
+    //   partnerTier   'beginner' | 'bronze-up' — see `data/partnership.js`
+    //   partnerRole   'owner' | 'sales' | 'finance' | 'member' — sets landing and actions
+    //   partnershipState  one of PARTNERSHIP_STATES; Bronze and up only
+    partnerTier: 'bronze-up',
+    partnerRole: 'owner',
+    partnershipState: 'working',
     // See ACCOUNT_STATES above. Deliberately NOT cleared by `reset()`: it's
     // which demo you're in, not something the quiz collected — same as `role`.
     account: 'visitor',
@@ -477,6 +485,12 @@ export const useConnectStore = defineStore('connect', {
     // The two questions a screen actually wants to ask. Everything that varies
     // by account state should go through these, so the enum stays in one place.
     signedIn: (state) => state.account !== 'visitor',
+    // Where a partner lands: where each role's work is. A Beginner's owner and
+    // finance land on Partnership, since the milestones to Bronze are the job.
+    partnerHome: (state) => {
+      if (state.partnerTier === 'beginner') return state.partnerRole === 'sales' ? '/connect/leads' : '/connect/partnership'
+      return { sales: '/connect/leads', finance: '/connect/invoices?tab=bill' }[state.partnerRole] ?? '/connect/partnership'
+    },
     // Did the visitor arrive at sign-up in the middle of doing something?
     //
     // A pack means they pressed Get started; `pendingHeld` means a gated control
@@ -714,6 +728,19 @@ export const useConnectStore = defineStore('connect', {
     // switch offers the option disabled rather than hiding it.
     setRole(role) {
       this.role = role
+    },
+
+    setPartnerTier(tier) {
+      if (tier !== 'beginner' && tier !== 'bronze-up') return
+      this.partnerTier = tier
+      this.partnershipState = 'working'
+    },
+    setPartnerRole(role) {
+      if (!['owner', 'sales', 'finance', 'member'].includes(role)) return
+      this.partnerRole = role
+    },
+    setPartnershipState(state) {
+      this.partnershipState = state
     },
 
     // Guarded rather than assigned straight through: the switcher is the only

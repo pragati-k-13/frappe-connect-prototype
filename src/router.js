@@ -1,6 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useConnectStore } from './stores/connect'
 
+const asPartner = () => {
+  const store = useConnectStore()
+  if (store.role !== 'partner') store.setRole('partner')
+}
+
 // One route per screen in the handoff.
 //
 // `/partners` is the frappe.io partners page — the discovery surface, not part
@@ -137,6 +142,28 @@ const routes = [
     name: 'messages',
     component: () => import('./pages/MessagesPage.vue'),
   },
+  // The partner's standing with Frappe, and the invoices behind its MRR.
+  // Partner-only screens, so arriving at one (a reload, a shared link) puts
+  // the demo on the partner side rather than drawing it in business chrome.
+  {
+    path: '/connect/partnership',
+    name: 'partnership',
+    component: () => import('./pages/PartnershipPage.vue'),
+    beforeEnter: asPartner,
+  },
+  // Contributions and Billing became the two tabs of Invoices.
+  { path: '/connect/partnership/contributions', redirect: { name: 'invoices', query: { tab: 'all' } } },
+  { path: '/connect/billing', redirect: { name: 'invoices', query: { tab: 'bill' } } },
+  // Leads: Connect briefs as a list, each opening its own page, like Helpdesk
+  // tickets. The business side's inbox stays at /connect/messages.
+  { path: '/connect/leads', name: 'leads', component: () => import('./pages/LeadsPage.vue'), beforeEnter: asPartner },
+  { path: '/connect/leads/:id', name: 'lead', component: () => import('./pages/LeadPage.vue'), beforeEnter: asPartner },
+  { path: '/connect/customers', name: 'customers', component: () => import('./pages/CustomersPage.vue'), beforeEnter: asPartner },
+  { path: '/connect/customers/:id', name: 'customer', component: () => import('./pages/CustomerPage.vue'), beforeEnter: asPartner },
+  { path: '/connect/invoices', name: 'invoices', component: () => import('./pages/InvoicesPage.vue'), beforeEnter: asPartner },
+  { path: '/connect/team', name: 'team', component: () => import('./pages/TeamPage.vue'), beforeEnter: asPartner },
+  { path: '/connect/profile', name: 'own-profile', component: () => import('./pages/OwnProfilePage.vue'), beforeEnter: asPartner },
+  { path: '/connect/resources', name: 'resources', component: () => import('./pages/ResourcesPage.vue'), beforeEnter: asPartner },
   // The collaboration half of the product: everything the account is tracking.
   //
   // A LIST and a detail, not one screen. A business routinely has more than one
