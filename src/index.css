@@ -659,3 +659,15 @@ textarea[data-slot='control'] {
     from { opacity: 0; }
   }
 }
+
+/* A tabs row that scrolls sideways when the tabs don't fit (phones), with no
+   scrollbar: the cut-off tab says there's more. `overflow-y: hidden` because
+   the active indicator sits 1px below the row and would add a vertical bar. */
+.fc-tabs-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.fc-tabs-scroll::-webkit-scrollbar {
+  display: none;
+}

@@ -233,14 +233,16 @@ function requestSwitch() {
 
     <div v-else class="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
       <!-- ── The main area ─────────────────────────────────────────────── -->
-      <div class="min-w-0 shrink-0 px-3 py-4 sm:px-5 lg:flex-1 lg:shrink lg:overflow-y-auto">
+      <!-- The tabs row runs edge to edge, as in Frappe CRM: padding is on the
+           tabs and the panels, not on this column. -->
+      <div class="min-w-0 shrink-0 pb-6 lg:flex-1 lg:shrink lg:overflow-y-auto">
         <Tabs v-model="tab">
-          <TabList class="overflow-x-auto">
+          <TabList class="fc-tabs-scroll px-3 pt-2 sm:px-5">
             <TabTrigger v-if="narrow" value="details" label="Details" />
             <TabTrigger v-for="t in tabs" :key="t.value" :value="t.value" :label="t.label" />
           </TabList>
 
-          <TabPanel value="sites">
+          <TabPanel value="sites" class="px-3 sm:px-5">
             <div class="pt-4">
               <EmptyState
                 v-if="!sites.length"
@@ -274,7 +276,7 @@ function requestSwitch() {
             </div>
           </TabPanel>
 
-          <TabPanel value="invoices">
+          <TabPanel value="invoices" class="px-3 sm:px-5">
             <div class="pt-4">
               <p v-if="partnerPays" class="text-p-sm text-ink-gray-5">On your Frappe bill</p>
               <EmptyState v-if="!invoices.length" icon="lucide-receipt" title="No invoices yet" />
@@ -293,7 +295,7 @@ function requestSwitch() {
             </div>
           </TabPanel>
 
-          <TabPanel value="followups">
+          <TabPanel value="followups" class="px-3 sm:px-5">
             <div class="pt-4">
               <FollowUps
                 :items="followUps"
@@ -306,20 +308,20 @@ function requestSwitch() {
             </div>
           </TabPanel>
 
-          <TabPanel value="activity">
+          <TabPanel value="activity" class="px-3 sm:px-5">
             <div class="pt-5">
               <ActivityFeed :items="activity" />
             </div>
           </TabPanel>
 
-          <TabPanel value="notes">
+          <TabPanel value="notes" class="px-3 sm:px-5">
             <div class="max-w-[640px] space-y-3 pt-4">
               <Textarea v-model="notes" :rows="8" placeholder="Anything your team should know about this customer" />
               <Button label="Save notes" @click="saveNotes" />
             </div>
           </TabPanel>
 
-          <TabPanel value="connect">
+          <TabPanel value="connect" class="px-3 sm:px-5">
             <div class="space-y-4 pt-4">
               <div>
                 <p class="text-sm text-ink-gray-5">Project</p>
