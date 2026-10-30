@@ -7,8 +7,6 @@ import PartnerCode from '../components/PartnerCode.vue'
 import { useConnectStore } from '../stores/connect'
 import {
   TIERS,
-  TODAY,
-  addDays,
   longDate,
   money,
   nextTier,
@@ -68,7 +66,7 @@ const criteria = computed(() => {
       label: 'PMM level',
       value: `${s.value.pmm} of ${n.pmm}`,
       met: s.value.pmm >= n.pmm,
-      meta: [`From your audit on ${longDate(s.value.audits[0].date)}`],
+      meta: [],
     },
     {
       key: 'eligibility',
@@ -101,7 +99,6 @@ const milestones = computed(() => {
 // the next one; at Gold it would be the re-audit to keep Gold.
 const auditTier = computed(() => next.value ?? tier.value)
 const audit = computed(() => s.value.audit ?? { status: 'none' })
-const earliest = computed(() => addDays(TODAY, auditTier.value.leadDays))
 
 function requestAudit() {
   store.setPartnershipState('requested')
@@ -138,8 +135,8 @@ function requestAudit() {
                     :class="m.route && 'transition-colors hover:bg-surface-gray-2'"
                   >
                     <span
-                      :class="m.done ? 'lucide-circle-check text-ink-green-5' : 'lucide-circle text-ink-gray-4'"
-                      class="size-4 shrink-0"
+                      :class="m.done ? 'lucide-circle-check' : 'lucide-circle'"
+                      class="size-4 shrink-0 text-ink-gray-5"
                       aria-hidden="true"
                     />
                     <span
@@ -154,7 +151,7 @@ function requestAudit() {
                     </span>
                     <span
                       v-if="m.route"
-                      class="lucide-chevron-right size-4 shrink-0 text-ink-gray-4"
+                      class="lucide-chevron-right size-4 shrink-0 text-ink-gray-5"
                       aria-hidden="true"
                     />
                   </component>
@@ -174,14 +171,8 @@ function requestAudit() {
                     :class="c.to && 'transition-colors hover:bg-surface-gray-2'"
                   >
                     <span
-                      :class="
-                        c.warn
-                          ? 'lucide-circle-alert text-ink-amber-6'
-                          : c.met
-                            ? 'lucide-circle-check text-ink-green-5'
-                            : 'lucide-circle text-ink-gray-4'
-                      "
-                      class="mt-0.5 size-4 shrink-0"
+                      :class="c.warn ? 'lucide-circle-alert' : c.met ? 'lucide-circle-check' : 'lucide-circle'"
+                      class="mt-0.5 size-4 shrink-0 text-ink-gray-5"
                       aria-hidden="true"
                     />
                     <span class="min-w-0 flex-1">
@@ -195,7 +186,7 @@ function requestAudit() {
                     </span>
                     <span
                       v-if="c.to"
-                      class="lucide-chevron-right mt-0.5 size-4 shrink-0 text-ink-gray-4"
+                      class="lucide-chevron-right mt-0.5 size-4 shrink-0 text-ink-gray-5"
                       aria-hidden="true"
                     />
                   </component>
@@ -227,10 +218,7 @@ function requestAudit() {
               <template v-else-if="audit.status === 'scheduled'">
                 Scheduled for {{ longDate(audit.date) }} with {{ audit.auditor }}.
               </template>
-              <template v-else-if="readyForAudit">
-                Everything but PMM is met. Request today to move up from {{ longDate(earliest) }} at the
-                earliest.
-              </template>
+              <template v-else-if="readyForAudit">Everything but PMM is met.</template>
               <template v-else>Not requested.</template>
             </div>
 

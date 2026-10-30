@@ -9,8 +9,8 @@ import {
   contributionMonths,
   contributionsFor,
   firmFor,
-  longDate,
   money,
+  shortDate,
 } from '../data/partnership'
 
 // SCREEN — Contributions: every Frappe Cloud invoice behind the MRR on
@@ -70,7 +70,7 @@ const columns = computed(() =>
 )
 
 const STATUS = {
-  accruing: { label: 'This month', theme: 'gray' },
+  accruing: { label: 'Accruing', theme: 'gray' },
   paid: { label: 'Paid', theme: 'green' },
   unpaid: { label: 'Unpaid', theme: 'amber' },
 }
@@ -116,7 +116,7 @@ const STATUS = {
               <span class="truncate text-ink-gray-8">{{ item.customer }}</span>
               <Badge v-if="item.own" theme="gray" variant="subtle" size="sm" label="Your account" />
             </ListCell>
-            <ListCell class="hidden whitespace-nowrap tabular-nums text-ink-gray-4 sm:flex">
+            <ListCell class="hidden whitespace-nowrap tabular-nums text-ink-gray-5 sm:flex">
               {{ item.invoice }}
             </ListCell>
             <ListCell v-if="showStatus" class="hidden sm:flex">
@@ -149,6 +149,7 @@ const STATUS = {
           <div class="flex items-center gap-2">
             <span class="truncate text-base-semibold text-ink-gray-9">{{ open.customer }}</span>
             <Badge
+              v-if="open.status !== 'accruing'"
               :theme="STATUS[open.status].theme"
               variant="subtle"
               size="sm"
@@ -184,10 +185,7 @@ const STATUS = {
           </div>
         </dl>
         <p v-if="open.rate" class="mt-1.5 text-sm text-ink-gray-5">
-          At ₹{{ open.rate }} per $ on {{ longDate(open.date) }}
-        </p>
-        <p v-if="open.status === 'accruing'" class="mt-4 text-p-sm text-ink-gray-5">
-          This invoice is still building up until the month closes.
+          At ₹{{ open.rate }} per $ on {{ shortDate(open.date) }}
         </p>
       </div>
     </template>
