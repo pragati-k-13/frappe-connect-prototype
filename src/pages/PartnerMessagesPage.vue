@@ -138,7 +138,7 @@ function setOwner(id) {
 }
 function stillWorking() {
   open.value.stalled = false
-  toast.success('Thanks. Frappe can see it’s still open.')
+  toast.success('Kept open')
 }
 
 const preview = (t) => {
@@ -256,7 +256,7 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
         <EmptyState
           v-if="!ordered.length"
           :icon="view === 'needs' ? 'lucide-check-check' : 'lucide-inbox'"
-          :title="view === 'needs' ? 'All caught up' : view === 'closed' ? 'No closed leads' : 'No leads here'"
+:title="{ needs: 'All caught up', mine: 'None assigned to you', open: 'No open leads', closed: 'No closed leads' }[view]"
         >
           <Button v-if="view === 'needs'" label="View open leads" @click="view = 'open'" />
         </EmptyState>
@@ -430,8 +430,8 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
         </ScrollArea>
 
         <!-- A closed lead stays as a record of the bid, read-only. -->
-        <p v-if="isClosed(open)" class="shrink-0 border-t border-outline-gray-1 px-5 py-4 text-center text-p-sm text-ink-gray-5">
-          {{ open.stage }}{{ open.closed?.reason ? `: ${open.closed.reason.toLowerCase()}` : '' }}. This conversation is closed.
+        <p v-if="isClosed(open)" class="shrink-0 px-5 pb-4 pt-1 text-center text-p-sm text-ink-gray-5">
+          This conversation is closed.
         </p>
         <div v-else class="shrink-0 px-5 pb-4 pt-1">
           <Editor
@@ -499,11 +499,8 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
                 v-if="open.stalled && !crm && !isClosed(open)"
                 class="mt-3 rounded-6 bg-surface-gray-1 p-3"
               >
-                <p class="text-p-base text-ink-gray-8">Still working on this?</p>
-                <div class="mt-2 flex gap-2">
-                  <Button size="sm" label="Yes" @click="stillWorking" />
-                  <Button size="sm" label="Mark as lost" @click="setStage('Lost')" />
-                </div>
+                <p class="text-p-base text-ink-gray-8">No activity for 12 days. Still working on this?</p>
+                <Button class="mt-2" size="sm" label="Still working" @click="stillWorking" />
               </div>
               <dl class="mt-3 space-y-3">
                 <div>
@@ -528,12 +525,6 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
                       :options="ownerOptions"
                       @update:model-value="setOwner"
                     />
-                  </dd>
-                </div>
-                <div>
-                  <dt class="text-p-sm text-ink-gray-5">Source</dt>
-                  <dd class="mt-0.5 text-p-base text-ink-gray-8">
-                    {{ sourceLabel(open) }}<template v-if="open.frappeOwner">, by {{ open.frappeOwner }}</template>
                   </dd>
                 </div>
               </dl>
@@ -580,17 +571,15 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
       </aside>
     </div>
 
-    <Dialog v-model:open="losing" title="Mark as lost">
-      <div class="space-y-4">
-        <div>
-          <p class="mb-1.5 text-sm text-ink-gray-6">Why was it lost?</p>
-          <Select v-model="lostReason" :options="reasonOptions" />
-        </div>
-        <div class="flex justify-end gap-2 pt-2">
-          <Button label="Cancel" @click="losing = false" />
-          <Button variant="solid" label="Mark as lost" @click="confirmLost" />
-        </div>
-      </div>
+    <Dialog
+      v-model:open="losing"
+      title="Mark as lost"
+      :actions="[
+        { label: 'Cancel', onClick: ({ close }) => close() },
+        { label: 'Mark lost', variant: 'solid', onClick: confirmLost },
+      ]"
+    >
+      <Select v-model="lostReason" label="Why was it lost?" :options="reasonOptions" />
     </Dialog>
   </ConnectShell>
 </template>
