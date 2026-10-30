@@ -69,7 +69,7 @@ const VIEWS = computed(() => [
 // Only the business moves a row: order by their last message, not ours, and
 // not by a stage change. "Needs reply" goes oldest waiting first, since that's
 // the order to answer in.
-const theirLast = (t) => [...t.messages].reverse().find((m) => m.from === 'them' || m.from === 'frappe')?.at ?? 0
+const theirLast = (t) => [...t.messages].reverse().find((m) => m.from === 'them')?.at ?? 0
 const lastAt = (t) => t.messages.at(-1)?.at ?? 0
 const ordered = computed(() => {
   const list = threads.value.filter((t) =>
@@ -110,7 +110,6 @@ const authorOf = (t, m) =>
 
 // The stage, with colour only where it says the lead is finished.
 const stageTheme = (stage) => ({ Won: 'green', Lost: 'red', Junk: 'gray', Closed: 'gray' })[stage] ?? 'blue'
-const sourceLabel = (t) => (t.source === 'frappe' ? 'Passed by Frappe' : 'Through Connect')
 
 // ── The lead ────────────────────────────────────────────────────────────────
 // With a CRM connected, stages come from it and aren't set here.
@@ -143,10 +142,6 @@ function confirmLost() {
 }
 function setOwner(id) {
   open.value.owner = id === 'none' ? null : id
-}
-function stillWorking() {
-  open.value.stalled = false
-  toast.success('Kept open')
 }
 
 const preview = (t) => {
@@ -304,9 +299,7 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
                       {{ preview(t) }}
                     </span>
                   </span>
-                  <span v-if="t.source === 'frappe'" class="mt-0.5 block truncate text-p-xs text-ink-gray-5">
-                    {{ sourceLabel(t) }}
-                  </span>
+
                 </span>
               </ListCell>
             </ListRow>
@@ -345,7 +338,7 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
 
         <ScrollArea ref="feed" class="min-h-0 flex-1">
           <div class="px-5 py-6">
-            <p v-if="open.source === 'connect'" class="text-center text-p-sm text-ink-gray-5">
+            <p class="text-center text-p-sm text-ink-gray-5">
               Sent to you and the other partners who match
             </p>
 
@@ -353,10 +346,7 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
               <!-- The moment the company became known. A line, not a card:
                    the details themselves are in the sidebar, and this only has
                    to say that they arrived and when. -->
-              <p v-if="m.kind === 'passed'" class="text-center text-p-sm text-ink-gray-5">
-                {{ open.frappeOwner }} at Frappe passed on {{ open.company.name }} · {{ time(m.at) }}
-              </p>
-              <p v-else-if="m.kind === 'shared'" class="mt-6 text-center text-p-sm text-ink-gray-5">
+              <p v-if="m.kind === 'shared'" class="mt-6 text-center text-p-sm text-ink-gray-5">
                 <span class="text-ink-gray-7">{{ open.company.name }}</span>
                 is interested in your quote and shared their contact details · {{ time(m.at) }}
                 <button
@@ -520,13 +510,6 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
             <!-- ── The lead: what Frappe needs back, and who has it ────────── -->
             <section>
               <h3 class="text-p-base font-medium text-ink-gray-8">Lead</h3>
-              <div
-                v-if="open.stalled && !crm && !isClosed(open)"
-                class="mt-3 rounded-6 bg-surface-gray-1 p-3"
-              >
-                <p class="text-p-base text-ink-gray-8">No activity for 12 days. Still working on this?</p>
-                <Button class="mt-2" size="sm" label="Still working" @click="stillWorking" />
-              </div>
               <dl class="mt-3 space-y-3">
                 <div>
                   <dt class="text-p-sm text-ink-gray-5">Stage</dt>

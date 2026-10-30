@@ -12,11 +12,12 @@ areas on the rail, plus Settings. Each area answers one question a partner comes
 | Team        | Who is on the team, who is certified, and who can do what? |
 | Listing     | What does a business see when it finds us?                 |
 
-The rail is two groups split by a gap: daily work (Leads, Customers, Billing), then the firm
-(Partnership, Team, Listing). Each role sees only its own rows. Resources is links out, not a
+The rail is two groups: daily work (Leads, Customers, Billing) with no label, then the firm
+(Partnership, Team, Listing) under "Your firm". Each role sees only its own rows. Resources is links out, not a
 place you work, so it sits in the header menu as "Help and resources", with Firm settings and
 Partner managers. The sidebar's footer is the signed-in person: their settings, theme and log
-out. Collapsed, a row with something waiting shows a dot.
+out. Only Leads shows a count: replies are the one thing that can't wait, and counts on every
+row were distracting. Collapsed, Leads shows a dot instead.
 
 Firm settings (CRM sync, leaving) open as a dialog, not a rail item.
 
@@ -38,9 +39,8 @@ From Bronze up, each role lands where its work is:
 The landing changes once, at Bronze, with a one-time notice so it doesn't feel like the app
 moved. Standing still reaches people where they are:
 
-- **Rail badges** where something needs action, shown to the role that can act: leads waiting
-  on a reply (Messages, Sales), link requests (Customers, Owner), certificates expiring (Team,
-  Owner), an unpaid invoice (Billing, Finance).
+- **A count on Leads** for replies waiting. Nothing else on the rail carries one: link
+  requests, expiring certificates and an unpaid invoice show where they live, and by email.
 - **A banner across the app** only for At risk. It is rare and serious, so it can't depend on
   a visit to Partnership.
 
@@ -229,7 +229,8 @@ confirmed or replaced:
 
 ## 2. Customers
 
-**One list, two sources**, with a filter for each:
+**One list.** Customers arrive two ways, but the list doesn't split by source: where a
+customer came from doesn't change how the firm works with them.
 
 - **Through Connect.** A business enters the list when it **hires** the partner. Until then it
   is a lead and stays in Messages, even after it shortlists the partner and its name is shared.
@@ -375,7 +376,6 @@ from Bronze up, so it has to stay calm:
   update changes the row where it sits.
 - **Caught up is a state.** An empty "Needs reply" says so, rather than looking like an empty
   inbox.
-- **One list, a source label per row.** Connect briefs and leads passed by Frappe sit together.
 - **Inflow is controlled on Profile**, through regions, industries, deal sizes and "taking work
   this quarter". The caught-up state can point there.
 - **Assignment.** Each lead has an owner, from the CRM when synced or set by hand, and a "Mine"
@@ -390,7 +390,7 @@ order of preference, by what happens in Connect, then by a CRM sync, then by han
 
 | What happens                                        | Stage                            |
 | --------------------------------------------------- | -------------------------------- |
-| Brief reaches the partner, or Frappe passes a lead  | Open                             |
+| Brief reaches the partner                           | Open                             |
 | Partner sends a quote                               | Proposal/Quotation               |
 | Business shortlists the partner                     | Negotiation                      |
 | Business hires them, or links through the partner code | Won                           |
@@ -404,13 +404,12 @@ portal's list.
 
 **Each lead also carries:**
 
-- **Source:** a brief through Connect, or passed on by Frappe. Passed leads arrive with the
-  business named from the start, and show the Frappe person who passed them on.
 - **What it asked about:** the brief, its industry, and the Starter Pack, if it picked one.
 
-**Without a sync,** a passed lead that hasn't moved for a while gets one prompt, "Still working
-on this?", answered in one click. Leads a partner finds on their own stay in their CRM. Connect
-sees them only once they link through the partner code, as customers.
+**Only Connect briefs are leads here.** A lead Frappe passes on, or one the firm finds itself,
+isn't on Connect: that business has no reason to sign up just to message the partner. The firm
+works it in its own CRM, and Connect sees it once it links through the partner code, as a
+customer.
 
 The other changes:
 
@@ -630,10 +629,8 @@ Who acts is in brackets. *Outside* means the step happens outside Connect.
 - **D. Slipping a tier** (Owner, Frappe): see the proposed rule under Partnership.
 - **E. Profile review** (Owner, Frappe): client logos and claims, as in flow 4. Case studies
   are reviewed on frappe.io.
-- **F. A lead passed by Frappe** (Frappe, Sales): Frappe passes it → "Passed by Frappe" with the
-  Frappe owner's name → Sales works it → stages from Connect, CRM or by hand → without a sync,
-  one "Still working on this?" prompt after it stalls → Won or Lost with a reason → Frappe's
-  owner sees the outcome. From Bronze up only.
+- **F. A lead passed by Frappe:** not on Connect. Frappe passes it outside Connect and the firm
+  works it in its CRM; it appears here only once it links as a customer.
 - **G. Disputing a figure** (Owner): figure looks wrong → email the partner manager, with the
   partner code, the figure and the month (*outside*) → Frappe corrects it → the figure updates with a new
   sync time.

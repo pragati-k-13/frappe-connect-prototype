@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Avatar, Badge, Button, Dialog, FormControl, TabButtons, TextInput, toast } from 'frappe-ui'
+import { Avatar, Badge, Button, Dialog, FormControl, TextInput, toast } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -23,19 +23,14 @@ const isOwner = computed(() => store.partnerRole === 'owner')
 const canAdd = computed(() => store.partnerRole !== 'finance')
 
 // ── The list ────────────────────────────────────────────────────────────────
-const source = ref('all')
+// One list: where a customer came from doesn't change how the firm works
+// with them, so the list doesn't split by source.
 const query = ref('')
-const SOURCES = [
-  { label: 'All', value: 'all' },
-  { label: 'Through Connect', value: 'connect' },
-  { label: 'Your own', value: 'own' },
-]
 
 const shown = computed(() => {
   const q = query.value.trim().toLowerCase()
   return account.customers.filter(
     (c) =>
-      (source.value === 'all' || c.source === source.value) &&
       (!q || c.name.toLowerCase().includes(q) || c.contact?.toLowerCase().includes(q)),
   )
 })
@@ -161,7 +156,6 @@ function finishAdd() {
           <TextInput v-model="query" type="search" placeholder="Search customers" class="w-full sm:w-56">
             <template #prefix><span class="lucide-search size-4 text-ink-gray-5" aria-hidden="true" /></template>
           </TextInput>
-          <TabButtons v-model="source" :options="SOURCES" />
         </div>
 
         <List
@@ -177,14 +171,13 @@ function finishAdd() {
             <ListHeaderCell class="justify-end">MRR</ListHeaderCell>
           </ListHeader>
           <ListRows :items="shown" v-slot="{ item }">
-            <ListRow :route="`/connect/customers/${item.id}`">
+            <ListRow :to="`/connect/customers/${item.id}`">
               <ListCell class="min-w-0 gap-3">
                 <Avatar :label="item.name" size="md" shape="square" />
                 <span class="min-w-0">
                   <span class="block truncate text-base text-ink-gray-8">{{ item.name }}</span>
                   <span class="mt-1 block truncate text-sm text-ink-gray-5">
-                    {{ item.source === 'connect' ? 'Through Connect' : 'Your own' }}<span class="sm:hidden">
-                      · {{ BILLING[item.billing] }}</span>
+                    {{ item.contact }}<span class="sm:hidden"> · {{ BILLING[item.billing] }}</span>
                     <template v-if="item.codeShared"> · Code shared {{ shortDate(item.codeShared) }}</template>
                     <template v-else-if="item.stage === 'onboarding' && !item.sites.length && !item.linkedSites">
                       · Not on Frappe Cloud yet

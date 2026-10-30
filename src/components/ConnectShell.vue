@@ -38,6 +38,7 @@ import {
   Sidebar,
   SidebarHeader,
   SidebarItem,
+  SidebarLabel,
   toast,
   Tooltip,
 } from 'frappe-ui'
@@ -48,7 +49,6 @@ import AppSettingsDialog from './settings/AppSettingsDialog.vue'
 import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 import { firmFor, longDate, standingFor } from '../data/partnership'
-import { billingFor } from '../data/partnerAccount'
 import { partnerThreads } from '../data/partnerView'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import PartnerSettingsDialog from './settings/PartnerSettingsDialog.vue'
@@ -106,28 +106,30 @@ const inHome = computed(() => HOME_ROUTES.has(route.name))
 const account = usePartnerAccountStore()
 const partnerRail = computed(() => {
   const role = store.partnerRole
-  const owner = role === 'owner'
   // Member is view-only: standing, the team, the profile and resources.
   const member = role === 'member'
   const beginner = store.partnerTier === 'beginner'
   const waiting = beginner ? 0 : partnerThreads().filter((t) => !t.closed && t.messages.at(-1)?.from === 'them').length
-  const unpaid = billingFor(store.partnerTier, store.partnershipState, '2026-09').status === 'unpaid' ? 1 : 0
-  const certs = account.team.filter((p) => p.status === 'expiring' || p.status === 'expired').length
   const at = (...names) => names.includes(route.name)
   // Two groups: the work you do daily, then your firm. Leads leads, since it's
   // the most frequent visit. Resources isn't a place you work (it's links
   // out), so it lives in the header menu.
   const work = [
     !member && role !== 'finance' && { label: 'Leads', to: '/connect/messages', icon: 'lucide-inbox', active: inMessages.value, count: waiting },
-    !member && { label: 'Customers', to: '/connect/customers', icon: 'lucide-building-2', active: at('customers', 'customer'), count: owner ? account.requests.length : 0 },
-    !member && role !== 'sales' && { label: 'Billing', to: '/connect/billing', icon: 'lucide-wallet', active: at('billing'), count: role === 'finance' || owner ? unpaid : 0 },
+    !member && { label: 'Customers', to: '/connect/customers', icon: 'lucide-building-2', active: at('customers', 'customer') },
+    !member && role !== 'sales' && { label: 'Billing', to: '/connect/billing', icon: 'lucide-wallet', active: at('billing') },
   ].filter(Boolean)
   const firm = [
     { label: 'Partnership', to: '/connect/partnership', icon: 'lucide-handshake', active: at('partnership', 'contributions') },
-    { label: 'Team', to: '/connect/team', icon: 'lucide-users', active: at('team'), count: owner ? certs : 0 },
+    { label: 'Team', to: '/connect/team', icon: 'lucide-users', active: at('team') },
     { label: 'Listing', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile') },
   ]
-  return [work, firm].filter((g) => g.length)
+  // Only Leads carries a count: replies are the one thing that can't wait.
+  // The firm group gets a label; the work group, at the top, needs none.
+  return [
+    { items: work },
+    { label: 'Your firm', items: firm },
+  ].filter((g) => g.items.length)
 })
 
 // The partner side's firm and person follow the demo tier: Beginner is a
@@ -411,8 +413,9 @@ defineProps({
         <template v-if="store.role === 'partner'">
           <!-- Groups split by a gap, no labels, like the business rail. -->
           <nav v-for="(group, gi) in partnerRail" :key="gi" class="space-y-0.5" :class="gi > 0 && 'mt-4'">
+            <SidebarLabel v-if="group.label" :label="group.label" />
             <Tooltip
-              v-for="item in group"
+              v-for="item in group.items"
               :key="item.to"
               :text="item.count ? `${item.label}, ${item.count} waiting` : item.label"
               side="right"
