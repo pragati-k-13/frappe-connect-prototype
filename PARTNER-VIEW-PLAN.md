@@ -40,7 +40,7 @@ up below are from the plans page and need confirming.
 
 | Tier     | Frappe Cloud MRR    | Certified consultants | PMM | FC discount | Listing                     |
 | -------- | ------------------- | --------------------- | --- | ----------- | --------------------------- |
-| Beginner | Below Bronze        | Below Bronze          | —   | *to confirm* | Not listed                 |
+| Beginner | Below Bronze        | Below Bronze          | —   | *to confirm* | Not listed; page shared by link |
 | Bronze   | ₹63,000 / $750      | 2                     | 3   | 15%         | Full profile, large card    |
 | Silver   | ₹2,50,000 / $3,150  | 3                     | 4   | 20%         | Full profile                |
 | Gold     | ₹6,30,000 / $7,500  | 4                     | 5   | 25%         | Full profile, top of list   |
@@ -345,9 +345,11 @@ and the partner gets a notice.
   link. The error is shown inline before saving.
 - Two team members edit at once: the second save is told there is a newer version, and is
   shown it.
-- Beginner: they aren't listed, so the whole page is a draft. The editor says once, at the
-  top, that the page goes live at Bronze. Sections stay editable, so the work isn't wasted
-  and the reward is visible.
+- Beginner: they aren't in the directory, since a partner without a PMM audit shouldn't be
+  found through Frappe's own listing, and the listing is what Bronze earns. Their page still
+  works by link: a Beginner can send it to prospects they find themselves, with the partner
+  code on it. The editor says once, at the top, that it's unlisted until Bronze, with Copy
+  link. Bronze makes the same page public.
 
 ## 6. Resources
 
