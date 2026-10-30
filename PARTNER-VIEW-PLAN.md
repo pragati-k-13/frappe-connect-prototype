@@ -132,14 +132,13 @@ links to Contributions. Under the MRR figure, last month's sits as one line ("La
 ₹4,94,395"), which says whether the partner is growing or slipping.
 
 **Partner managers.** Partners reach Frappe's partner managers directly, and a firm can have
-more than one (for example one for the partnership, one for audits). They're shown in three
-places:
+more than one. There's no rule for who handles what, so they're listed together, not by topic.
+They're shown in three places:
 
-- **Partnership, in an aside:** each manager's name, photo, what they handle, and email. This
-  is their home.
+- **Partnership, in an aside:** each manager's name, photo and email. This is their home.
 - **Where a problem comes up:** a disputed figure on Contributions, a certificate claimed by
-  another partner on Team, a declined audit. The error links straight to the manager who
-  handles it, with what to include.
+  another partner on Team, a declined audit. The error links to the firm's partner managers,
+  with what to include.
 - **The account menu:** "Partner managers", so they're reachable from any page.
 
 Each is an email link, not a channel inside Connect.
@@ -642,7 +641,7 @@ sections above. These are left open:
 
 1. **Losing a tier.** Frappe has no rule yet. Confirm or replace the one proposed under
    Partnership (3-month average, quarterly review, 60 days to replace a consultant).
-2. **Partner managers.** Which managers is each partner assigned, and what does each handle?
+2. **Removed.** Partner managers are answered: no rule for who handles what.
 3. **Audit lead time.** The Bronze doc says 30 days, the Silver and Gold docs 60.
 4. **Roles.** Do Owner, Sales and Finance match how partner firms work?
 5. **Reviews.** Can a partner reply publicly to a review?
