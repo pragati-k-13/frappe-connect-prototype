@@ -111,15 +111,19 @@ const partnerRail = computed(() => {
   // Member is view-only: standing, the team, the profile and resources.
   const member = role === 'member'
   const beginner = store.partnerTier === 'beginner'
-  const waiting = beginner ? 0 : leads.value.filter(needsReply).length
+  const waiting = leads.value.filter(needsReply).length
   const at = (...names) => names.includes(route.name)
   // Two groups: the work you do daily, then your firm. Resources isn't a place you work (it's links
   // out), so it lives in the header menu.
+  // Leads first: the daily queue, and the one row with a count. Partnership
+  // is checked now and then, so it follows the work — except for a Beginner,
+  // whose main job is the milestones to Bronze, so it leads for them.
+  const partnership = { label: 'Partnership', to: '/connect/partnership', icon: 'lucide-handshake', active: at('partnership') }
   const work = [
-    // Partnership first: it's where most roles land.
-    { label: 'Partnership', to: '/connect/partnership', icon: 'lucide-handshake', active: at('partnership') },
+    beginner && partnership,
     !member && role !== 'finance' && { label: 'Leads', to: '/connect/leads', iconComp: LeadsIcon, active: at('leads', 'lead'), count: waiting },
     !member && { label: 'Customers', to: '/connect/customers', icon: 'lucide-building-2', active: at('customers', 'customer') },
+    !beginner && partnership,
   ].filter(Boolean)
   // Invoices is the firm's money with Frappe, so it sits with the firm.
   const firm = [

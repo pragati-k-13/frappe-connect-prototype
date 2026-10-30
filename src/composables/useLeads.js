@@ -1,14 +1,16 @@
-import { ref } from 'vue'
-import { partnerThreads } from '../data/partnerView'
+import { computed, ref } from 'vue'
+import { useConnectStore } from '../stores/connect'
+import { beginnerThreads, partnerThreads } from '../data/partnerView'
 
 // The partner's leads, shared by the list and the lead page (and the rail's
 // count), so a reply sent on the page shows on the list when you go back.
-// One copy for the whole demo; it resets on reload like the rest of it.
+// One copy per demo tier, since each tier is a different firm; it resets on
+// reload like the rest of the demo.
 //
 // A lead is a Connect brief: its thread, stage, owner and probability. See
-// `data/partnerView.js` for the seed.
+// `data/partnerView.js` for the seeds.
 
-const leads = ref(partnerThreads())
+const byTier = { beginner: ref(beginnerThreads()), 'bronze-up': ref(partnerThreads()) }
 
 export const CLOSED = ['Won', 'Lost', 'Junk', 'Closed']
 export const isClosed = (t) => CLOSED.includes(t.stage)
@@ -21,7 +23,17 @@ export const companyName = (t) => t.company?.name ?? 'Anonymous company'
 // The stage, with colour only where it says the lead is finished.
 export const stageTheme = (stage) => ({ Won: 'green', Lost: 'red', Junk: 'gray', Closed: 'gray' })[stage] ?? 'blue'
 
-export const useLeads = () => leads
+export const useLeads = () => {
+  const store = useConnectStore()
+  return computed(() => (byTier[store.partnerTier] ?? byTier['bronze-up']).value)
+}
+
+// Who the demo's signed-in person is, as a Team id: the firm's owner, or its
+// salesperson when the demo role is Sales.
+export const meFor = (store) =>
+  store.partnerTier === 'beginner'
+    ? store.partnerRole === 'sales' ? 'yusuf-karim' : 'sana-malik'
+    : store.partnerRole === 'sales' ? 'rahul-verma' : 'farhan-qureshi'
 
 // The list's rows in the order it last showed them, so previous and next on a
 // lead page step to the row above and below rather than through the seed.

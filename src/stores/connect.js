@@ -485,10 +485,10 @@ export const useConnectStore = defineStore('connect', {
     // The two questions a screen actually wants to ask. Everything that varies
     // by account state should go through these, so the enum stays in one place.
     signedIn: (state) => state.account !== 'visitor',
-    // Where a partner lands. A Beginner has no leads, so everyone lands on
-    // Partnership; from Bronze up, each role lands where its work is.
+    // Where a partner lands: where each role's work is. A Beginner's owner and
+    // finance land on Partnership, since the milestones to Bronze are the job.
     partnerHome: (state) => {
-      if (state.partnerTier === 'beginner') return '/connect/partnership'
+      if (state.partnerTier === 'beginner') return state.partnerRole === 'sales' ? '/connect/leads' : '/connect/partnership'
       return { sales: '/connect/leads', finance: '/connect/invoices?tab=bill' }[state.partnerRole] ?? '/connect/partnership'
     },
     // Did the visitor arrive at sign-up in the middle of doing something?

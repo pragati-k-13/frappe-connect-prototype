@@ -21,7 +21,8 @@ import { scopeSentence } from '../data/modules'
 import { PARTNER_SELF, PRM_LOST_REASONS } from '../data/partnerView'
 import { CRMS, PRM_STAGES } from '../data/partnerAccount'
 import { PROBABILITY } from '../data/records'
-import { companyName, isClosed, queue, stageTheme, useLeads } from '../composables/useLeads'
+import { firmFor } from '../data/partnership'
+import { companyName, isClosed, meFor, queue, stageTheme, useLeads } from '../composables/useLeads'
 
 // SCREEN — one lead, the same shape as a customer: tabs (Messages,
 // Follow-ups, Activity, Notes) and a docked panel of facts on the right.
@@ -38,23 +39,25 @@ const store = useConnectStore()
 const account = usePartnerAccountStore()
 const leads = useLeads()
 
-const self = PARTNERS.find((p) => p.id === PARTNER_SELF.partnerId)
-const selfLogo = logoFor(PARTNER_SELF.partnerId)
+// The firm, as it signs its messages: Software@Work has a listing and a logo;
+// the Beginner firm isn't listed yet, so it's its name.
+const self = computed(() =>
+  store.partnerTier === 'beginner' ? { name: firmFor('beginner').name } : PARTNERS.find((p) => p.id === PARTNER_SELF.partnerId),
+)
+const selfLogo = computed(() => (store.partnerTier === 'beginner' ? null : logoFor(PARTNER_SELF.partnerId)))
 
 const lead = computed(() => leads.value.find((t) => t.id === route.params.id) ?? null)
 const closed = computed(() => (lead.value ? isClosed(lead.value) : false))
 const crm = computed(() => account.edits.crm)
 // Leads are Sales' and the owner's: the rail hides them from Finance and
-// Members, so anyone else arriving by link reads without acting. A Beginner
-// gets no briefs at all.
+// Members, so anyone else arriving by link reads without acting.
 const canAct = computed(() => ['owner', 'sales'].includes(store.partnerRole))
-const beginner = computed(() => store.partnerTier === 'beginner')
 
 // Who's acting: the person the demo role stands for, from Team.
-const me = computed(() => (store.partnerRole === 'sales' ? 'rahul-verma' : 'farhan-qureshi'))
+const me = computed(() => meFor(store))
 const nameOf = (id) => account.team.find((p) => p.id === id)?.name ?? 'Unassigned'
 const meName = computed(() => nameOf(me.value))
-const authorOf = (m) => (m.from === 'you' ? (m.by ? nameOf(m.by) : PARTNER_SELF.person) : (lead.value.company?.contact ?? companyName(lead.value)))
+const authorOf = (m) => (m.from === 'you' ? (m.by ? nameOf(m.by) : store.partnerTier === 'beginner' ? nameOf(me.value) : PARTNER_SELF.person) : (lead.value.company?.contact ?? companyName(lead.value)))
 
 // ── Previous and next ───────────────────────────────────────────────────────
 // Working through replies without going back to the list each time.
@@ -257,7 +260,7 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
   <ConnectShell root-label="Leads" root-to="/connect/leads" :crumb="lead?.project ?? 'Not found'" flush>
     <!-- Owner and stage where Helpdesk and CRM put status; then previous and
          next, to work through the list from here. -->
-    <template v-if="lead && !beginner" #action>
+    <template v-if="lead" #action>
       <div class="flex items-center gap-2">
         <div v-if="canAct" class="hidden items-center gap-2 sm:flex">
           <Dropdown v-if="!closed" :options="ownerMenu" align="end">
@@ -287,10 +290,7 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
       </div>
     </template>
 
-    <EmptyState v-if="beginner" icon="lucide-inbox" title="Leads from Connect start at Bronze">
-      <Button label="View milestones" route="/connect/partnership" />
-    </EmptyState>
-    <EmptyState v-else-if="!lead" icon="lucide-inbox" title="This lead isn’t in your list">
+    <EmptyState v-if="!lead" icon="lucide-inbox" title="This lead isn’t in your list">
       <Button label="All leads" route="/connect/leads" />
     </EmptyState>
 
@@ -322,12 +322,12 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
                 <Avatar
                   v-if="m.from === 'you' && selfLogo"
                   :image="selfLogo"
-                  :label="self.name"
+                  :label="self?.name"
                   size="xl"
                   shape="square"
                   class="fc-logo-avatar mt-0.5 shrink-0"
                 />
-                <Avatar v-else-if="m.from === 'you'" :label="self.name" size="xl" shape="square" class="mt-0.5 shrink-0" />
+                <Avatar v-else-if="m.from === 'you'" :label="self?.name" size="xl" shape="square" class="mt-0.5 shrink-0" />
                 <Avatar v-else-if="lead.company" :label="lead.company.contact" size="xl" class="mt-0.5 shrink-0" />
                 <Avatar v-else size="xl" shape="square" class="mt-0.5 shrink-0" aria-hidden="true">
                   <IconBuilding class="size-full text-ink-gray-5" />

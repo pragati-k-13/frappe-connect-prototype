@@ -7,21 +7,21 @@ import EmptyState from '../components/EmptyState.vue'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { PRM_STAGES } from '../data/partnerAccount'
-import { companyName, isClosed, lastAt, needsReply, queue, theirLast, useLeads } from '../composables/useLeads'
+import { companyName, isClosed, lastAt, meFor, needsReply, queue, theirLast, useLeads } from '../composables/useLeads'
 
 // SCREEN — Leads, styled as Frappe CRM's list: the view switcher in the
 // breadcrumb, quick filters with Refresh, Filter, Sort and Columns beside
 // them, then a full-width table and a footer with page size and count. A row opens the lead's own page. See PARTNER-VIEW-PLAN.md, Leads.
 //
-// No Create: every lead here is a Connect brief. A Beginner isn't listed, so
-// no brief reaches them until Bronze.
+// No Create: every lead here is a Connect brief. Every tier gets them,
+// Beginners included.
 
 const store = useConnectStore()
 const account = usePartnerAccountStore()
 const leads = useLeads()
 
 // Who "Mine" means: the person the demo role stands for, from Team.
-const me = computed(() => (store.partnerRole === 'sales' ? 'rahul-verma' : 'farhan-qureshi'))
+const me = computed(() => meFor(store))
 const nameOf = (id) => account.team.find((p) => p.id === id)?.name
 
 // ── Views, in the breadcrumb as CRM has them ────────────────────────────────
@@ -148,13 +148,7 @@ const EMPTY = { needs: 'All caught up', mine: 'None assigned to you', open: 'No 
 </script>
 
 <template>
-  <ConnectShell v-if="store.partnerTier === 'beginner'" root-label="Leads">
-    <EmptyState icon="lucide-inbox" title="Leads from Connect start at Bronze">
-      <Button label="View milestones" route="/connect/partnership" />
-    </EmptyState>
-  </ConnectShell>
-
-  <ConnectShell v-else root-label="Leads" root-to="/connect/leads" flush>
+  <ConnectShell root-label="Leads" root-to="/connect/leads" flush>
     <!-- "Leads / To reply ▾", CRM's view switcher. -->
     <template #crumb>
       <Dropdown :options="viewMenu">

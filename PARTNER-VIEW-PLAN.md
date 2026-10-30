@@ -439,8 +439,9 @@ The other changes:
   closed (block it and explain).
 - **Empty state, Bronze and up:** no briefs yet. Say what makes a brief reach them: their
   regions and industries, and the deal sizes and capacity on their profile.
-- **Beginner:** no leads reach them. Beginners find their own until Bronze. Messages stays on
-  the rail and says leads from Connect start at Bronze, linking to the milestones.
+- **Beginner:** Connect sends them briefs too, so Leads works the same at every tier. Their rail
+  puts Partnership first, since the milestones to Bronze are their main job; from Bronze up
+  the rail runs Leads, Customers, Partnership.
 
 ## 5. Team
 

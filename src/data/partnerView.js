@@ -191,3 +191,84 @@ export const partnerThreads = () => [
     ],
   },
 ]
+
+// ── A Beginner's leads ──────────────────────────────────────────────────────
+// Lumen Digital, the Beginner firm in `data/partnership.js`: Bahrain, USD.
+// Connect sends briefs from the first tier, so a Beginner works leads too.
+// Two, so both sides of shortlisting show: one still anonymous and waiting on
+// a reply, one where the company has shared its details after a quote.
+// ⚠️ Invented here, like the rest.
+export const beginnerThreads = () => [
+  {
+    id: 'bg-clinic',
+    stage: 'Open',
+    owner: null,
+    project: 'Appointments and billing for three clinics',
+    brief: {
+      scope:
+        'We run three outpatient clinics in Manama. Appointments are on paper and billing is in a spreadsheet, so insurance claims go out late and some never go out.',
+      modules: { erpnext: ['selling', 'accounting'] },
+      budget: 'usd-1',
+      country: 'Bahrain',
+      segments: ['Healthcare'],
+      employees: '11 to 50',
+      cities: [],
+      tiers: [],
+      workStyle: '',
+      timeline: 'quarter',
+      operations: 'spreadsheets',
+      apps: [],
+      problems: ['manual'],
+    },
+    company: null,
+    messages: [
+      { id: 'c1', from: 'them', kind: 'brief', at: hoursAgo(5) },
+    ],
+  },
+  {
+    id: 'bg-bakery',
+    stage: 'Proposal/Quotation',
+    owner: 'sana-malik',
+    probability: 'Warm',
+    project: 'Stock and orders for a bakery chain',
+    brief: {
+      scope:
+        'Six outlets and a central kitchen. Orders from outlets come over WhatsApp, and the kitchen bakes to a guess, so we throw away bread most evenings.',
+      modules: { erpnext: ['inventory', 'manufacturing', 'selling'] },
+      budget: 'usd-2',
+      country: 'Bahrain',
+      segments: ['Food and Beverage'],
+      employees: '51 to 200',
+      cities: [],
+      tiers: [],
+      workStyle: '',
+      timeline: 'none',
+      operations: 'disconnected',
+      apps: [],
+      problems: ['visibility'],
+    },
+    company: { name: 'Crumb & Co', contact: 'Layla Haddad', email: 'layla@crumbandco.example', phone: '+973 3611 2290' },
+    messages: [
+      { id: 'b1', from: 'them', kind: 'brief', at: hoursAgo(50) },
+      {
+        id: 'b2',
+        from: 'you',
+        kind: 'bid',
+        at: hoursAgo(30),
+        bid: {
+          price: '$14,500',
+          weeks: 6,
+          note: 'Outlet ordering, kitchen production plans from those orders, and stock across the outlets. Training for each outlet lead.',
+        },
+      },
+      { id: 'b3', from: 'them', kind: 'shared', at: hoursAgo(26) },
+      {
+        id: 'b4',
+        from: 'them',
+        kind: 'text',
+        at: hoursAgo(3),
+        body: '<p>Thanks for the quote. Could the outlets order from a phone? Our leads are rarely at a computer.</p>',
+      },
+    ],
+  },
+]
