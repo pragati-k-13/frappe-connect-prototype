@@ -8,11 +8,11 @@ areas on the rail, plus Settings. Each area answers one question a partner comes
 | Partnership | Where do we stand with Frappe, and what gets us up a tier? |
 | Customers   | Who are we working with, and what does each one bring in?  |
 | Messages    | Which leads are waiting on us?                             |
-| Team        | Who is certified, and who is working toward it?            |
+| Team        | Who is on the team, who is certified, and who can do what? |
 | Profile     | What does a business see when it finds us?                 |
 | Resources   | What has Frappe given us to sell and deliver with?         |
 
-Settings (users, roles and CRM sync) opens as a dialog, not a rail item.
+Settings (CRM sync) opens as a dialog, not a rail item.
 
 **The landing screen depends on tier.** A Beginner lands on Partnership: they have no listing
 and no leads yet, and the milestone checklist is their next step. Bronze and up land on
@@ -93,6 +93,19 @@ Filters for month and status. The month's total matches the MRR figure.
   list shows each invoice's own amount and currency, so the conversion is visible.
 - The partner's own Frappe Cloud account appears here, since it bills too. It's labelled as
   theirs, so it doesn't read as a client.
+
+**How audits work, always visible.** Every tier and every state shows the audit mechanics in
+one block, so no partner learns about the wait at the last step:
+
+- What the audit checks: the PMM level the next tier needs, linked to the PMM criteria.
+- The lead time for the next tier: 30 days before Bronze, 60 before Silver and Gold.
+- Where the partner is with it: not requested, requested, scheduled (date and auditor), in
+  progress, or done (the level it gave).
+- When to request it: once the other criteria are within reach, with the start-by date that
+  follows from the lead time. A Beginner sees this from their first visit, next to the
+  milestones, not only after $300.
+- At Gold, there's no next tier, so the block shows when the next audit to keep Gold is due,
+  once Frappe confirms that audits recur.
 
 **Audit history.** Below the criteria, one row per past audit: date, auditor, the PMM level it
 gave, the tier that followed, and the report. The newest sits first. A partner with no audits
@@ -251,17 +264,36 @@ The other changes:
 
 ## 4. Team
 
-The people at the firm who count toward the consultants criterion, and the ones working
-toward it. A team member doesn't need to use Connect: a consultant can be listed here without
-being a user (users are in Settings).
+Everyone at the firm in one list: who counts toward the consultants criterion, who is working
+toward it, and who can sign in to Connect with what role. It's a page, not part of the Settings
+dialog, because adding a colleague is one task whether they need a certificate, access, or
+both. A person doesn't need Connect access to be listed: a consultant can count toward tier
+without ever signing in.
 
 **List:** name, email, certifications (ERPNext, Framework, or a single module), status and
 expiry. A column says whether each person counts toward tier, so a single-module certificate
 reads as "Doesn't count toward tier" rather than looking like a missing one. The count at the
 top matches the consultants row on Partnership.
 
-**Statuses:** Certified, Applied (exam not taken yet), Expiring (within 60 days), Expired, and
-Not certified.
+**Access and role** are columns on the same rows: No access, Member or Admin. Inviting someone
+sets their access and role; their certifications can be added in the same step or later. The
+last admin can't be removed or made a member.
+
+**Certification statuses:** Certified, Applied (exam not taken yet), Expiring (within 60
+days), Expired, and Not certified.
+
+**Roles.** Two, set per person on Team:
+
+| Action                                                    | Admin | Member |
+| --------------------------------------------------------- | ----- | ------ |
+| See Partnership, Customers, Messages, Team, Resources, Profile | Yes | Yes  |
+| Reply to leads, send quotes, change lead stages           | Yes   | Yes    |
+| Add customers and notes                                   | Yes   | Yes    |
+| Approve or decline link requests                          | Yes   | No     |
+| Request an audit                                          | Yes   | No     |
+| Edit the profile and submit it for review                 | Yes   | No     |
+| Invite people, change roles, add certifications           | Yes   | No     |
+| Open Settings                                             | Yes   | No     |
 
 **Two ways to add a certification:**
 
@@ -337,23 +369,8 @@ comes from: Frappe's existing channels, not a new one in Connect.
 
 ## 7. Settings
 
-A `SettingsDialog`, opened from the account menu. Admins only.
-
-**Users and roles.** Who can sign in to Connect for the firm, and what they can do. Two roles:
-
-| Action                                                    | Admin | Member |
-| --------------------------------------------------------- | ----- | ------ |
-| See Partnership, Customers, Messages, Team, Resources     | Yes   | Yes    |
-| Reply to leads, send quotes, change lead stages           | Yes   | Yes    |
-| Add customers and notes                                   | Yes   | Yes    |
-| Approve or decline link requests                          | Yes   | No     |
-| Request an audit                                          | Yes   | No     |
-| Edit the profile and submit it for review                 | Yes   | No     |
-| Add certifications, apply on someone's behalf             | Yes   | No     |
-| Open Settings                                             | Yes   | No     |
-
-Inviting a user takes a name, email and role. The last admin can't be removed or made a
-member.
+A `SettingsDialog`, opened from the account menu. Admins only. It holds CRM sync; users and
+roles live on Team.
 
 **CRM sync.** Connect the firm's CRM so lead stages stay in one place:
 
@@ -403,3 +420,4 @@ member.
     answer is a one-line change. Also: does Beginner get an FC discount, and a time limit?
 14. **How Frappe converts currency today.** The PRM portal already totals INR and USD invoices
     into one figure. Use the same method, whatever it is.
+15. **Recurring audits.** Is a tier re-audited on a schedule to keep it, or only when moving up?
