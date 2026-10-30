@@ -231,8 +231,8 @@ confirmed or replaced:
 ## 2. Customers
 
 **One record shape for leads and customers,** after Frappe CRM's deal page. Owner and stage sit
-in the top bar (in the thread header on Leads). The record is in tabs: a lead has Messages,
-Follow-ups, Activity and Notes; a customer has Sites, Invoices, Follow-ups, Activity, Notes and,
+in the top bar (in the thread header on Leads). A lead has no tabs: the thread is the page, and
+its follow-ups, activity and notes sit in the details panel. A customer's record is in tabs: Sites, Invoices, Follow-ups, Activity, Notes and,
 if it came through Connect, Connect. A side panel holds the facts, edited in place and logged
 to Activity: contact (name, email, phone), details (industry, country, source; probability on
 leads), and billing on customers. Follow-ups are a call, demo, email or meeting with who was

@@ -21,6 +21,8 @@ const props = defineProps({
   canAdd: { type: Boolean, default: true },
   // When set, a section title heads the tab, with Add follow-up beside it.
   title: { type: String, default: '' },
+  // In a side panel: a one-line empty state instead of the full one.
+  compact: { type: Boolean, default: false },
 })
 const emit = defineEmits(['add'])
 
@@ -76,6 +78,10 @@ const ICON = { Call: 'lucide-phone', Demo: 'lucide-presentation', Email: 'lucide
       </ListRows>
     </List>
 
+    <div v-else-if="compact">
+      <p class="text-p-sm text-ink-gray-5">{{ syncedFrom ? `None yet from ${syncedFrom}` : 'None yet' }}</p>
+      <Button v-if="addable" class="mt-2" size="sm" label="Add follow-up" @click="start" />
+    </div>
     <EmptyState
       v-else
       icon="lucide-phone"

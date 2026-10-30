@@ -9,10 +9,6 @@ import {
   ScrollArea,
   Select,
   TabButtons,
-  TabList,
-  TabPanel,
-  Tabs,
-  TabTrigger,
   TextInput,
   Textarea,
   toast,
@@ -188,16 +184,9 @@ const stageMenu = computed(() => stageOptions.map((o) => ({ label: o.label, onCl
 const ownerMenu = computed(() => ownerOptions.value.map((o) => ({ label: o.label, onClick: () => setOwner(o.value) })))
 const probabilityOptions = PROBABILITY.map((p) => ({ label: p, value: p }))
 
-// ── Tabs ────────────────────────────────────────────────────────────────────
-// Messages first: replies are what can't wait. Follow-ups and Activity are the
-// PRM's record of the lead; Notes is the team's own.
-const TABS = [
-  { value: 'messages', label: 'Messages' },
-  { value: 'followups', label: 'Follow-ups' },
-  { value: 'activity', label: 'Activity' },
-  { value: 'notes', label: 'Notes' },
-]
-const tab = ref('messages')
+// ── The lead's record ───────────────────────────────────────────────────────
+// No tabs: the thread is the page. Follow-ups, activity and notes are the PRM's
+// record of the lead, read now and then, so they sit in the details panel.
 const followUps = computed(() => (open.value ? account.followUpsOf(open.value.id) : []))
 const activity = computed(() => (open.value ? account.activityOf(open.value.id) : []))
 const teamPeople = computed(() => account.team.map((p) => ({ id: p.id, name: p.name })))
@@ -320,7 +309,6 @@ const onKey = (e) => {
 watch(openId, () => {
   // Over the thread, the panel belongs to the lead it was opened on.
   if (!wide.value) sideOpen.value = false
-  tab.value = 'messages'
   toBottom()
 })
 const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
@@ -402,7 +390,7 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
         class="min-h-0 min-w-0 flex-1 flex-col lg:flex"
         :class="mobileThread ? 'flex' : 'hidden'"
       >
-        <header class="flex shrink-0 items-center gap-3 px-5 pb-1 pt-3">
+        <header class="flex shrink-0 items-center gap-3 border-b border-outline-gray-1 px-5 py-3">
           <Button
             class="-ml-2 lg:hidden"
             variant="ghost"
@@ -449,12 +437,7 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
           </Button>
         </header>
 
-        <Tabs v-model="tab" class="flex min-h-0 flex-1 flex-col">
-          <TabList class="fc-tabs-scroll shrink-0 px-5">
-            <TabTrigger v-for="t in TABS" :key="t.value" :value="t.value" :label="t.label" />
-          </TabList>
 
-          <TabPanel value="messages" class="min-h-0 flex-1 flex-col data-[state=active]:flex">
 
         <ScrollArea ref="feed" class="min-h-0 flex-1">
           <div class="px-5 py-6">
@@ -602,30 +585,6 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
             </template>
           </Editor>
         </div>
-          </TabPanel>
-
-          <TabPanel value="followups" class="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-            <FollowUps
-              :items="followUps"
-              :people="teamPeople"
-              :contact="open.company?.contact ?? ''"
-              :synced-from="crm ? CRMS[crm.crm].label : ''"
-              :can-add="!isClosed(open)"
-              @add="addFollowUp"
-            />
-          </TabPanel>
-
-          <TabPanel value="activity" class="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-            <ActivityFeed :items="activity" />
-          </TabPanel>
-
-          <TabPanel value="notes" class="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-            <div class="max-w-[640px] space-y-3">
-              <Textarea v-model="notes" :rows="8" placeholder="Anything your team should know about this lead" />
-              <Button label="Save notes" @click="saveNotes" />
-            </div>
-          </TabPanel>
-        </Tabs>
       </section>
 
       <!-- ── The sidebar ────────────────────────────────────────────────── -->
@@ -725,6 +684,32 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
               <p v-else class="mt-2 text-p-base leading-relaxed text-ink-gray-6">
                 Their name and contact details appear here if they're interested in your quote.
               </p>
+            </section>
+
+            <section>
+              <h3 class="text-p-base font-medium text-ink-gray-8">Follow-ups</h3>
+              <div class="mt-2">
+                <FollowUps
+                  :items="followUps"
+                  :people="teamPeople"
+                  :contact="open.company?.contact ?? ''"
+                  :synced-from="crm ? CRMS[crm.crm].label : ''"
+                  :can-add="!isClosed(open)"
+                  compact
+                  @add="addFollowUp"
+                />
+              </div>
+            </section>
+
+            <section>
+              <h3 class="text-p-base font-medium text-ink-gray-8">Activity</h3>
+              <div class="mt-3"><ActivityFeed :items="activity" compact /></div>
+            </section>
+
+            <section>
+              <h3 class="text-p-base font-medium text-ink-gray-8">Notes</h3>
+              <Textarea v-model="notes" class="mt-2" :rows="4" placeholder="Anything your team should know" />
+              <Button class="mt-2" size="sm" label="Save notes" @click="saveNotes" />
             </section>
           </div>
         </ScrollArea>

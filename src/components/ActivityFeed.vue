@@ -8,6 +8,7 @@ import EmptyState from './EmptyState.vue'
 // stage moves doesn't bury everything else.
 const props = defineProps({
   items: { type: Array, required: true },
+  compact: { type: Boolean, default: false },
 })
 
 const groups = computed(() => {
@@ -35,7 +36,8 @@ const ICON = { created: 'lucide-sparkles', change: 'lucide-pencil', note: 'lucid
 </script>
 
 <template>
-  <EmptyState v-if="!items.length" icon="lucide-history" title="No activity yet" />
+  <p v-if="!items.length && compact" class="text-p-sm text-ink-gray-5">None yet</p>
+  <EmptyState v-else-if="!items.length" icon="lucide-history" title="No activity yet" />
   <ol v-else class="relative">
     <li v-for="(g, i) in groups" :key="g.id" class="relative flex gap-3 pb-5 last:pb-0">
       <!-- The rail between entries. -->
