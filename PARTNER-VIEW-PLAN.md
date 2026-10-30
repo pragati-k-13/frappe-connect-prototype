@@ -101,6 +101,21 @@ those designs.
    with the milestones, the audit mechanics and the partner code.
 7. Invite the team on Team.
 
+**Signing in.** Partners sign in the way businesses already do (`LoginPage`, `SignupPage`): work
+email, then a one-time code, no password.
+
+- **Signing in:** Connect knows from the email that it belongs to a partner team, so it opens
+  the partner side on that person's landing screen. There's no "I'm a partner" toggle.
+- **Signing up as a new partner:** starts from "Become a partner" on frappe.io/partners and
+  goes into the onboarding steps above. The general sign-up screen stays for businesses.
+- **Joining a team:** the owner's invite email links to the same email-and-code step, and the
+  person lands with the roles they were given.
+- **One email on both sides:** if an address is a business user and on a partner team, Connect
+  asks which side to open after the code.
+
+Signing in with the Frappe Cloud account was considered and left out: it would make Sales and
+Finance people create Frappe Cloud accounts they otherwise never need.
+
 ## 1. Partnership
 
 **Beginner.** The milestone checklist is the anchor: the five milestones in order, done ones
