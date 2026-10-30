@@ -1,19 +1,22 @@
 # Partner view — plan
 
-The partner side today is one screen, Messages. This plan grows it into a small PRM with four
-areas: **Partnership**, **Customers**, **Messages** and **Profile**. Each area answers one
-question a partner comes back with:
+The partner side today is one screen, Messages. This plan grows it into a small PRM with six
+areas on the rail, plus Settings. Each area answers one question a partner comes back with:
 
-| Rail item   | The partner's question                                   |
-| ----------- | -------------------------------------------------------- |
+| Rail item   | The partner's question                                     |
+| ----------- | ---------------------------------------------------------- |
 | Partnership | Where do we stand with Frappe, and what gets us up a tier? |
-| Customers   | Who are we working with, and what does each one bring in? |
-| Messages    | Which businesses are waiting on a reply from us?          |
-| Profile     | What does a business see when it finds us?               |
+| Customers   | Who are we working with, and what does each one bring in?  |
+| Messages    | Which leads are waiting on us?                             |
+| Team        | Who is certified, and who is working toward it?            |
+| Profile     | What does a business see when it finds us?                 |
+| Resources   | What has Frappe given us to sell and deliver with?         |
+
+Settings (users, roles and CRM sync) opens as a dialog, not a rail item.
 
 Partnership is the landing screen. A partner opens the app most often to check their standing,
-and every other area feeds into it: customers make up MRR, and the profile is what the tier
-earns in the directory.
+and every other area feeds into it: customers make up MRR, certified team members are a tier
+criterion, and the profile is what the tier earns in the directory.
 
 ## The tier rubric (from frappe.io/partners/plans)
 
@@ -42,7 +45,11 @@ its own field, since it is a criterion with its own audit and not a label for th
 per criterion for the **next** tier: MRR, certified consultants, PMM level and eligibility.
 Each row shows where the partner is, the threshold, and the gap ("₹41,000 more MRR"). Each
 row also names its source and how fresh it is: MRR from Frappe Cloud billing, consultants from
-certification, PMM from the last audit.
+certification, PMM from the last audit. The consultants row links to Team.
+
+**Audit history.** Below the criteria, one row per past audit: date, auditor, the PMM level it
+gave, the tier that followed, and the report. The newest sits first. A partner with no audits
+yet sees one line saying the first audit is due before Bronze.
 
 **States.** The screen shows one of these at a time:
 
@@ -96,15 +103,18 @@ activity. Both sources share one set of stages: Onboarding → Live → Churned.
 is Onboarding while its project runs. The MRR total sits next to the list's MRR column and
 matches the figure on Partnership. If the two disagree, one of them is wrong.
 
-**Customer detail page**
+**Customer detail page.** Laid out like a deal in Frappe CRM: a side panel with the facts,
+and the main area for what changes over time.
 
-- **Header:** company, contact, billing mode, stage, MRR contribution.
-- **Sites:** name, plan, region, status, apps, monthly cost. Read-only, with "Open in Frappe
-  Cloud". Partner-pays customers show plan and amount only.
-- **Invoices:** Frappe Cloud invoices, read-only, with unpaid ones flagged. Customer-pays
-  customers only.
-- **Connect:** the message thread and project, for customers who came through Connect.
-- **Notes:** the partner's own.
+- **Side panel:** company, contact, billing mode, stage, MRR contribution, and when the partner
+  code was linked.
+- **Main area, in tabs:**
+  - **Sites:** name, plan, region, status, apps, monthly cost. Read-only, with "Open in Frappe
+    Cloud". Partner-pays customers show plan and amount only.
+  - **Invoices:** Frappe Cloud invoices, read-only, with unpaid ones flagged. Customer-pays
+    customers only.
+  - **Connect:** the message thread and project, for customers who came through Connect.
+  - **Notes:** the partner's own.
 - **Out of scope:** invoices the partner sends the customer for their own work. Partners do
   that in their own ERPNext.
 
@@ -168,7 +178,40 @@ The other changes:
 - **Empty state:** a new partner with no briefs yet. Say what makes a brief reach them: their
   regions and industries, and the deal sizes and capacity on their profile.
 
-## 4. Profile
+## 4. Team
+
+The people at the firm who count toward the consultants criterion, and the ones working
+toward it. A team member doesn't need to use Connect: a consultant can be listed here without
+being a user (users are in Settings).
+
+**List:** name, email, certifications (ERPNext, Framework, or a single module), status and
+expiry. A column says whether each person counts toward tier, so a single-module certificate
+reads as "Doesn't count toward tier" rather than looking like a missing one. The count at the
+top matches the consultants row on Partnership.
+
+**Statuses:** Certified, Applied (exam not taken yet), Expiring (within 60 days), Expired, and
+Not certified.
+
+**Two ways to add a certification:**
+
+- **Link an existing certificate.** Enter the certificate ID, or the email the person took the
+  exam with. Connect looks it up and shows the match (name, certification, date) before
+  saving.
+- **Apply on their behalf.** Pick the person (or add them by name and email) and the
+  certification. They get an email to book and take the exam, and the row shows Applied until
+  they pass.
+
+**Error paths**
+
+- No certificate matches the ID or email: say so, and keep what was typed.
+- The certificate is already counted by another partner: don't link it, and point to the
+  partner support desk.
+- The name on the certificate differs from the team member's: show both and ask to confirm.
+- A consultant leaves or a certificate expires: the row moves to Expired or is removed, and if
+  that drops the count below the current tier's threshold, Partnership shows At risk and links
+  here.
+
+## 5. Profile
 
 The partner edits their **own directory page**, laid out as a business sees it (reusing
 `PartnerProfilePage`), with an Edit control on each section. Edits are not done in a separate
@@ -202,6 +245,52 @@ and the partner gets a notice.
   sections dimmed, with "Shown from Bronze", so the work isn't wasted and the reward is
   visible.
 
+## 6. Resources
+
+What Frappe gives partners to sell and deliver with, in one place instead of scattered links:
+the partner guide, brand assets and logo files, sales decks, Starter Pack scopes, and the
+courses that prepare for certification. Each item links out to where it lives. The contents
+need confirming against the PRM portal's Resources tab before building.
+
+**Empty and error:** none to design beyond a failed load, since Frappe curates the list.
+
+## 7. Settings
+
+A `SettingsDialog`, opened from the account menu. Admins only.
+
+**Users and roles.** Who can sign in to Connect for the firm, and what they can do. Two roles:
+
+| Action                                                    | Admin | Member |
+| --------------------------------------------------------- | ----- | ------ |
+| See Partnership, Customers, Messages, Team, Resources     | Yes   | Yes    |
+| Reply to leads, send quotes, change lead stages           | Yes   | Yes    |
+| Add customers and notes                                   | Yes   | Yes    |
+| Approve or decline link requests                          | Yes   | No     |
+| Request an audit                                          | Yes   | No     |
+| Edit the profile and submit it for review                 | Yes   | No     |
+| Add certifications, apply on someone's behalf             | Yes   | No     |
+| Open Settings                                             | Yes   | No     |
+
+Inviting a user takes a name, email and role. The last admin can't be removed or made a
+member.
+
+**CRM sync.** Connect the firm's CRM so lead stages stay in one place:
+
+- **Connect:** pick the CRM, enter its site URL and API key, then map its lead statuses to the
+  PRM stages. The mapping is set once and can be changed later.
+- **What syncs:** Connect pushes a lead once the business is named, so an anonymous brief stays
+  in Connect. Stage changes come back from the CRM. Won from the partner code link always
+  wins over a CRM status.
+- **Status:** connected, with the last sync time, or paused with the reason.
+
+**Error paths**
+
+- The URL or key is wrong: say which, and don't save the connection.
+- A CRM status has no mapping: leads in it keep their last Connect stage, and the sync row
+  says how many are unmapped.
+- The CRM stops responding: sync pauses, the last sync time stays visible, and stages set in
+  Connect keep working.
+
 ## Open questions for Frappe
 
 1. **Losing a tier.** Is there a grace period or a review date, or does the tier drop as soon
@@ -210,8 +299,8 @@ and the partner gets a notice.
    bad month means At risk.
 3. **Audit lead time.** The Bronze doc says 30 days, the Silver and Gold docs 60. The Bronze
    doc also says PMM 3 lists a partner as "Emerging", which conflicts with the plans table.
-4. **Team permissions.** Can anyone at the partner firm edit the profile and request audits,
-   or only an admin?
+4. **Team permissions.** Do the Admin and Member roles in Settings match how partner firms
+   work?
 5. **Reviews.** Can a partner reply publicly to a review?
 6. **Review time.** How long does a profile review take? It goes in the "In review" copy.
 7. **The PRM portal.** Frappe already runs one: Partnerships > Overview, Contributions (linked
@@ -223,3 +312,5 @@ and the partner gets a notice.
    one of them.
 10. **CRM sync.** Which CRMs will Frappe support? Frappe CRM and ERPNext are the obvious first
     ones.
+11. **Applying for certification.** Does the partner pay the exam fee when applying on someone's
+    behalf, and can a certificate count for two partners if a consultant works with both?
