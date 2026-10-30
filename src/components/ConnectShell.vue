@@ -209,7 +209,8 @@ const logoMenu = computed(() => [
         ...(store.partnerRole === 'owner'
           ? [{ label: 'Firm settings', icon: 'lucide-settings', onClick: () => (partnerSettings.value = true) }]
           : []),
-        {
+        ...(standingFor(store.partnerTier, store.partnershipState).managers.length
+          ? [{
           label: 'Partner managers',
           icon: 'lucide-life-buoy',
           submenu: standingFor(store.partnerTier, store.partnershipState).managers.map((m) => ({
@@ -217,7 +218,8 @@ const logoMenu = computed(() => [
             icon: 'lucide-mail',
             onClick: () => (window.location.href = `mailto:${m.email}`),
           })),
-        },
+        }]
+          : []),
         { label: 'Help and resources', icon: 'lucide-book-open', onClick: () => router.push('/connect/resources') },
       ]
     : store.signedIn
@@ -412,7 +414,7 @@ defineProps({
             <Tooltip
               v-for="item in group"
               :key="item.to"
-              :text="item.label"
+              :text="item.count ? `${item.label}, ${item.count} waiting` : item.label"
               side="right"
               :offset="8"
               :disabled="!collapsed"
