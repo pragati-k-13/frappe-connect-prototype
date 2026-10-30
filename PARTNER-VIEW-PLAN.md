@@ -85,8 +85,12 @@ it here in the PRM portal's Overview.
 Columns: customer, month, invoice, status, amount, currency, and whether it counts toward MRR.
 Filters for month and status. The month's total matches the MRR figure.
 
-- **Draft** is the current month's invoice, still accruing. **Empty** is an invoice with
-  nothing billed. The list says how each counts, once Frappe confirms it.
+- The current month shows as "This month so far", since its invoices are still accruing.
+  The PRM portal's Draft and Empty statuses look like a quirk of that portal and aren't
+  carried over: an invoice with nothing billed isn't listed.
+- **Currency.** Rates move, so there's no fixed conversion. Each invoice converts at the rate
+  of its own date, and the total and thresholds show in the partner's billing currency. The
+  list shows each invoice's own amount and currency, so the conversion is visible.
 - The partner's own Frappe Cloud account appears here, since it bills too. It's labelled as
   theirs, so it doesn't read as a client.
 
@@ -240,8 +244,10 @@ The other changes:
   business hires someone else or withdraws the brief (the lead closes with that stage and
   reason, and the thread stays as a read-only record of the bid); a quote is sent after the brief
   closed (block it and explain).
-- **Empty state:** a new partner with no briefs yet. Say what makes a brief reach them: their
+- **Empty state, Bronze and up:** no briefs yet. Say what makes a brief reach them: their
   regions and industries, and the deal sizes and capacity on their profile.
+- **Beginner:** no leads reach them. Beginners find their own until Bronze. Messages stays on
+  the rail and says leads from Connect start at Bronze, linking to the milestones.
 
 ## 4. Team
 
@@ -313,10 +319,19 @@ and the partner gets a notice.
 
 ## 6. Resources
 
-What Frappe gives partners to sell and deliver with, in one place instead of scattered links:
-the partner guide, brand assets and logo files, sales decks, Starter Pack scopes, and the
-courses that prepare for certification. Each item links out to where it lives. The contents
-need confirming against the PRM portal's Resources tab before building.
+What Frappe gives partners to sell and deliver with, in one place instead of scattered links.
+Each item links out to where it lives. From the partner guide:
+
+- **Help with a project:** Frappe Support (support.frappe.io), the community forum
+  (discuss.frappe.io), the partner forum (partners.frappe.io), the partner WhatsApp and Telegram
+  groups, and the docs (docs.frappe.io). Co-delivery with an existing partner, through the
+  partner list.
+- **Selling:** the Sales Bootcamp on Frappe School, marketing resources, and Starter Pack scopes.
+- **Hiring and certification:** Frappe School's certified participants and job openings.
+- **Staying up to date:** partner events, the Frappe YouTube channel, and Frappe Times.
+
+"Help with a project" goes first for a Beginner. This answers where first-implementation help
+comes from: Frappe's existing channels, not a new one in Connect.
 
 **Empty and error:** none to design beyond a failed load, since Frappe curates the list.
 
@@ -382,13 +397,9 @@ member.
 12. **Partner code link.** Can Frappe Cloud take the code in a link, so a customer opens it and
     the code is filled in? If so, Share copies the link instead of the steps.
 13. **Beginner to Bronze.** The milestones stop at $300 MRR, but Bronze has been $750 and PMM 3.
-    Is there a step between, or has Bronze changed? What FC discount does a Beginner get, and
-    does Beginner have a time limit?
-14. **Leads for Beginners.** Beginners aren't listed. Do any Connect briefs or passed leads
-    reach them, or is Messages empty until Bronze?
-15. **Guidance for first implementations.** New partners often need product help on their
-    first few projects. Where should they get it, given there's no messaging with Frappe?
-16. **Currency.** Invoices come in INR and USD, but each threshold is one figure. Which rate
-    converts them, and when?
-17. **Draft and Empty invoices.** Does a Draft invoice count toward MRR before the month closes?
-    Does an Empty one count at all?
+    Is there a step between, or has Bronze changed? Ask whoever wrote the milestone list, or
+    the partner team. Until then the prototype shows the five milestones and calls the last
+    one "Bronze criteria" without a figure, and the thresholds sit in one data file so a new
+    answer is a one-line change. Also: does Beginner get an FC discount, and a time limit?
+14. **How Frappe converts currency today.** The PRM portal already totals INR and USD invoices
+    into one figure. Use the same method, whatever it is.
