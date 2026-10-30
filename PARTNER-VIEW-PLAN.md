@@ -199,7 +199,8 @@ Not certified.
   saving.
 - **Apply on their behalf.** Pick the person (or add them by name and email) and the
   certification. They get an email to book and take the exam, and the row shows Applied until
-  they pass.
+  they pass. The employee pays the exam fee and the partner reimburses them outside Connect,
+  so applying involves no payment step.
 
 **Error paths**
 
@@ -312,5 +313,5 @@ member.
    one of them.
 10. **CRM sync.** Which CRMs will Frappe support? Frappe CRM and ERPNext are the obvious first
     ones.
-11. **Applying for certification.** Does the partner pay the exam fee when applying on someone's
-    behalf, and can a certificate count for two partners if a consultant works with both?
+11. **Shared consultants.** Can a certificate count for two partners if a consultant works
+    with both?
