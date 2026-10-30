@@ -1,8 +1,9 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Alert, Avatar, Button, Dialog, FormControl, MultiSelect, Select, Switch, Textarea, toast } from 'frappe-ui'
+import { Avatar, Button, Dialog, FormControl, MultiSelect, Select, Switch, Textarea, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import ProfileSection from '../components/ProfileSection.vue'
+import PageIntro from '../components/PageIntro.vue'
 import MediaGallery from '../components/MediaGallery.vue'
 import ClientStrip from '../components/ClientStrip.vue'
 import PartnerAboutCard from '../components/PartnerAboutCard.vue'
@@ -126,24 +127,23 @@ watch(editing, (v) => v === null && (draft.value = {}))
 
 <template>
   <ConnectShell root-label="Listing">
-    <template #action>
-      <Button
-        v-if="!beginner"
-        variant="ghost"
-        class="-mr-2"
-        label="View in directory"
-        :route="`/connect/partners/${p.id}`"
-      />
-    </template>
 
     <div class="fc-page-read space-y-12 pb-24 pt-8">
-      <Alert
-        v-if="beginner"
-        theme="blue"
-        title="Unlisted until Bronze. Anyone with the link can see it."
-        :primary-action="{ label: 'Copy link', onClick: shareLink }"
-      />
-      <p v-else-if="!canEdit" class="text-p-sm text-ink-gray-5">Your firm’s owner edits this page.</p>
+      <PageIntro
+        title="How businesses see you"
+        :description="
+          beginner
+            ? 'Unlisted until Bronze. Anyone with the link can see it.'
+            : canEdit
+              ? 'Listed in the Frappe Connect directory'
+              : 'Listed in the directory. Your firm’s owner edits this page.'
+        "
+      >
+        <template #actions>
+          <Button v-if="beginner" label="Copy link" icon-left="lucide-link" @click="shareLink" />
+          <Button v-else label="View in directory" :route="`/connect/partners/${p.id}`" />
+        </template>
+      </PageIntro>
 
       <!-- ── Header ───────────────────────────────────────────────────── -->
       <ProfileSection label="Name and tagline" :editable="canEdit" @edit="edit('header')">

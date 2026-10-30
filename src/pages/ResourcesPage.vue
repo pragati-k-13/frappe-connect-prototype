@@ -1,5 +1,6 @@
 <script setup>
 import ConnectShell from '../components/ConnectShell.vue'
+import PageIntro from '../components/PageIntro.vue'
 import { RESOURCES } from '../data/partnerAccount'
 
 // SCREEN — Resources: what Frappe gives partners to sell and deliver with, in
@@ -12,6 +13,7 @@ const groups = RESOURCES
 <template>
   <ConnectShell root-label="Resources">
     <div class="fc-page-read space-y-10 py-8">
+      <PageIntro title="Help and resources from Frappe" class="!pb-0" />
       <section v-for="g in groups" :key="g.key">
         <h2 class="text-lg-semibold text-ink-gray-8">{{ g.title }}</h2>
         <ul class="mt-3 divide-y divide-outline-gray-1">

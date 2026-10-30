@@ -90,27 +90,26 @@ const SILVER_REQUESTS = [
 export const linkRequestsFor = (tier) => (tier === 'beginner' ? [] : SILVER_REQUESTS)
 
 // ── Billing (Partner pays) ──────────────────────────────────────────────────
-// What Frappe billed for each Partner-pays customer, the tier discount taken
-// off, and what the partner paid. The partner's own account bills on the same
-// invoice. Customer-pays customers aren't here: the partner pays nothing.
+// What Frappe billed the firm for each Partner-pays customer, plus its own
+// account, on one monthly invoice. The tier discount applies to that invoice
+// as a whole, not per customer: the rows add up to the subtotal, and the
+// discount comes off the total. Customer-pays customers aren't here.
 export const billingFor = (tier, state, monthKey) => {
   const firm = firmFor(tier)
   const discount = tier === 'beginner' ? 0 : TIERS.silver.discount
   const partnerPays = new Set(customersFor(tier, state).filter((c) => c.billing === 'partner').map((c) => c.name))
   const month = contributionMonths().find((m) => m.key === monthKey)
-  const rows = contributionsFor(tier, monthKey, state)
-    .filter((r) => r.own || partnerPays.has(r.customer))
-    .map((r) => {
-      const off = Math.round((r.converted * discount) / 100)
-      return { ...r, billed: r.converted, off, paid: r.converted - off }
-    })
-  const total = rows.reduce((sum, r) => sum + r.paid, 0)
+  const rows = contributionsFor(tier, monthKey, state).filter((r) => r.own || partnerPays.has(r.customer))
+  const subtotal = rows.reduce((sum, r) => sum + r.converted, 0)
+  const off = Math.round((subtotal * discount) / 100)
   return {
     month,
     currency: firm.currency,
     discount,
     rows,
-    total,
+    subtotal,
+    off,
+    total: subtotal - off,
     invoice: `FC-${monthKey.replace('-', '')}-0193`,
     // September is the seeded unpaid month, so the flag has somewhere to show.
     status: month?.open ? 'accruing' : monthKey === '2026-09' ? 'unpaid' : 'paid',

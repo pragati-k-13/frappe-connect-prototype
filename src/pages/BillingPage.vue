@@ -4,18 +4,18 @@ import { Alert, Badge, Button, Select, toast } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
+import PageIntro from '../components/PageIntro.vue'
 import { useConnectStore } from '../stores/connect'
 import { billingFor } from '../data/partnerAccount'
 import { contributionMonths, money } from '../data/partnership'
 
-// SCREEN — Billing: what the firm paid Frappe on its customers' behalf, and
-// what to bill them. Only Partner-pays customers, since the firm pays nothing
-// for the rest. Contributions is Frappe's view; this is the accountant's.
-// See PARTNER-VIEW-PLAN.md §3.
+// SCREEN — Billing: what the firm pays Frappe for its Partner-pays customers,
+// and what to bill them onward. Customer-pays customers aren't here: the firm
+// pays nothing for them. See PARTNER-VIEW-PLAN.md §3.
 //
-// An invoice opens in the docked panel, like Frappe Cloud's own: the
-// customer's servers and sites, then subtotal, discount and total. That panel
-// IS the per-customer invoice the firm passes on.
+// One monthly invoice. Each row is what Frappe billed for one customer; the
+// tier discount comes off the invoice total, not off each customer. An invoice
+// opens in the docked panel, like Frappe Cloud's own.
 
 const store = useConnectStore()
 const months = contributionMonths()
@@ -33,15 +33,24 @@ watch(month, () => (openId.value = null))
 const monthOptions = months.map((m) => ({ label: m.open ? `${m.label}, so far` : m.label, value: m.key }))
 const cur = computed(() => b.value.currency)
 
+const stats = computed(() => [
+  {
+    label: b.value.month.open ? 'This month so far' : b.value.status === 'unpaid' ? 'You owe' : 'You paid',
+    value: money(b.value.total, cur.value),
+  },
+  { label: 'Customers you pay for', value: String(customers.value.length) },
+  ...(b.value.discount ? [{ label: 'Tier discount', value: `${b.value.discount}%` }] : []),
+])
+
 // Unpaid has no badge: the alert above says it, with what it puts at risk.
 const STATUS = { paid: { label: 'Paid', theme: 'green' } }
 
-// The month's rows as a file, so the firm can bill each customer from its own
-// ERPNext. Only once the month is final.
+// Per customer, as Frappe billed it, so the firm can bill each one from its
+// own ERPNext. Only once the month is final.
 function exportCsv() {
   const lines = [
-    ['Customer', 'Invoice', 'Frappe billed', 'Discount', 'You paid', 'Currency'],
-    ...b.value.rows.map((r) => [r.own ? 'Your account' : r.customer, r.invoice, r.billed, r.off, r.paid, cur.value]),
+    ['Customer', 'Invoice', 'Frappe billed', 'Currency'],
+    ...b.value.rows.map((r) => [r.own ? 'Your account' : r.customer, r.invoice, r.converted, cur.value]),
   ]
   const blob = new Blob([lines.map((l) => l.join(',')).join('\n')], { type: 'text/csv' })
   const a = document.createElement('a')
@@ -67,41 +76,29 @@ const notReady = () => toast.info('Available once Frappe Cloud issues the invoic
       </EmptyState>
 
       <template v-else>
-        <div class="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p class="text-sm text-ink-gray-5">
-              {{
-                b.month.open
-                  ? 'So far this month'
-                  : b.status === 'unpaid'
-                    ? `You owe for ${b.month.label}`
-                    : `You paid for ${b.month.label}`
-              }}
-            </p>
-            <p class="mt-1 text-2xl-semibold tabular-nums text-ink-gray-9">{{ money(b.total, cur) }}</p>
-            <p v-if="b.discount" class="mt-1.5 text-sm text-ink-gray-5">After your {{ b.discount }}% tier discount</p>
-          </div>
-          <div class="flex flex-wrap items-center gap-2">
+        <PageIntro title="What you pay Frappe for your customers" :stats="stats">
+          <template #actions>
             <Select v-model="month" :options="monthOptions" class="w-48" />
             <Button
               icon-left="lucide-download"
               label="Export CSV"
               @click="b.month.open ? notReady() : exportCsv()"
             />
-          </div>
-        </div>
+          </template>
+        </PageIntro>
 
         <Alert
           v-if="b.status === 'unpaid'"
-          class="mt-6"
+          class="mb-6"
           theme="amber"
           :title="`Your ${b.month.label} invoice is unpaid. ${customers.map((r) => r.customer).join(', ')} may be suspended.`"
         />
 
-        <!-- The firm's own Frappe Cloud invoice: the rows below add up to it. -->
+        <!-- The firm's own Frappe Cloud invoice: the rows below add up to its
+             subtotal, and the discount comes off it. -->
         <List
           v-model:active="openId"
-          class="-mx-3 mt-6 list-row-px-3"
+          class="-mx-3 list-row-px-3"
           :columns="['minmax(0,1fr)', 'auto']"
           :row-height="56"
         >
@@ -120,28 +117,21 @@ const notReady = () => toast.info('Available once Frappe Cloud issues the invoic
         </List>
 
         <List
-          v-if="b.rows.length"
           v-model:active="openId"
           class="-mx-3 mt-4 list-row-px-3"
-          :columns="{ base: ['minmax(0,1fr)', '7rem'], sm: ['minmax(0,1fr)', '7rem', '6rem', '7rem'] }"
+          :columns="['minmax(0,1fr)', '8rem']"
           :row-height="48"
         >
           <ListHeader>
             <ListHeaderCell>Customer</ListHeaderCell>
-            <ListHeaderCell class="hidden justify-end sm:flex">Frappe billed</ListHeaderCell>
-            <ListHeaderCell class="hidden justify-end sm:flex">Discount</ListHeaderCell>
-            <ListHeaderCell class="justify-end">You pay</ListHeaderCell>
+            <ListHeaderCell class="justify-end">Frappe billed</ListHeaderCell>
           </ListHeader>
           <ListRows :items="b.rows" v-slot="{ item, value }">
             <ListRow :value="value" @click="openId = item.id">
-              <ListCell class="min-w-0 gap-2">
+              <ListCell class="min-w-0">
                 <span class="truncate text-ink-gray-8">{{ item.own ? 'Your account' : item.customer }}</span>
               </ListCell>
-              <ListCell class="hidden justify-end tabular-nums text-ink-gray-7 sm:flex">{{ money(item.billed, cur) }}</ListCell>
-              <ListCell class="hidden justify-end tabular-nums text-ink-gray-5 sm:flex">
-                {{ item.off ? `−${money(item.off, cur)}` : '—' }}
-              </ListCell>
-              <ListCell class="justify-end tabular-nums text-ink-gray-8">{{ money(item.paid, cur) }}</ListCell>
+              <ListCell class="justify-end tabular-nums text-ink-gray-7">{{ money(item.converted, cur) }}</ListCell>
             </ListRow>
           </ListRows>
         </List>
@@ -165,12 +155,12 @@ const notReady = () => toast.info('Available once Frappe Cloud issues the invoic
       </div>
 
       <div class="min-h-0 flex-1 overflow-y-auto p-4">
-        <!-- The whole invoice: split by customer, with servers under each. -->
+        <!-- The whole invoice: each customer, then the discount on the total. -->
         <template v-if="open.whole">
-          <section v-for="r in b.rows" :key="r.id" class="border-b border-outline-gray-1 py-3 first:pt-0 last:border-b-0">
+          <section v-for="r in b.rows" :key="r.id" class="border-b border-outline-gray-1 py-3 first:pt-0">
             <div class="flex justify-between gap-3 text-base">
               <span class="text-ink-gray-8">{{ r.own ? 'Your account' : r.customer }}</span>
-              <span class="tabular-nums text-ink-gray-8">{{ money(r.paid, cur) }}</span>
+              <span class="tabular-nums text-ink-gray-8">{{ money(r.converted, cur) }}</span>
             </div>
             <ul class="mt-1.5 space-y-1">
               <li v-for="site in r.sites" :key="site.name" class="flex justify-between gap-3 text-sm text-ink-gray-5">
@@ -179,9 +169,23 @@ const notReady = () => toast.info('Available once Frappe Cloud issues the invoic
               </li>
             </ul>
           </section>
+          <dl class="mt-3 space-y-2 text-base">
+            <div class="flex justify-between gap-3">
+              <dt class="text-ink-gray-7">Subtotal</dt>
+              <dd class="tabular-nums text-ink-gray-8">{{ money(b.subtotal, cur) }}</dd>
+            </div>
+            <div v-if="b.off" class="flex justify-between gap-3">
+              <dt class="text-ink-gray-7">Tier discount, {{ b.discount }}%</dt>
+              <dd class="tabular-nums text-ink-gray-8">−{{ money(b.off, cur) }}</dd>
+            </div>
+            <div class="flex justify-between gap-3 font-medium">
+              <dt class="text-ink-gray-8">Total</dt>
+              <dd class="tabular-nums text-ink-gray-9">{{ money(b.total, cur) }}</dd>
+            </div>
+          </dl>
         </template>
 
-        <!-- One customer's invoice. -->
+        <!-- One customer: what Frappe billed for their servers and sites. -->
         <template v-else>
           <ul class="divide-y divide-outline-gray-1">
             <li v-for="site in open.sites" :key="site.name" class="flex items-baseline justify-between gap-3 py-2.5">
@@ -192,20 +196,10 @@ const notReady = () => toast.info('Available once Frappe Cloud issues the invoic
               <span class="shrink-0 tabular-nums text-ink-gray-7">{{ money(site.amount, open.currency) }}</span>
             </li>
           </ul>
-          <dl class="mt-4 space-y-2 border-t border-outline-gray-2 pt-3 text-base">
-            <div class="flex justify-between gap-3">
-              <dt class="text-ink-gray-7">Subtotal</dt>
-              <dd class="tabular-nums text-ink-gray-8">{{ money(open.billed, cur) }}</dd>
-            </div>
-            <div v-if="open.off" class="flex justify-between gap-3">
-              <dt class="text-ink-gray-7">Tier discount</dt>
-              <dd class="tabular-nums text-ink-gray-8">−{{ money(open.off, cur) }}</dd>
-            </div>
-            <div class="flex justify-between gap-3 font-medium">
-              <dt class="text-ink-gray-8">Total</dt>
-              <dd class="tabular-nums text-ink-gray-9">{{ money(open.paid, cur) }}</dd>
-            </div>
-          </dl>
+          <div class="mt-4 flex justify-between gap-3 border-t border-outline-gray-2 pt-3 text-base font-medium">
+            <span class="text-ink-gray-8">Total</span>
+            <span class="tabular-nums text-ink-gray-9">{{ money(open.converted, cur) }}</span>
+          </div>
         </template>
       </div>
     </template>

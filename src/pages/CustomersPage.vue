@@ -1,13 +1,14 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Avatar, Badge, Button, Dialog, FormControl, TextInput, toast } from 'frappe-ui'
+import { Avatar, Badge, Button, Dialog, Dropdown, FormControl, TextInput, dialog, toast } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
 import PartnerCode from '../components/PartnerCode.vue'
+import PageIntro from '../components/PageIntro.vue'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
-import { contributionsFor, firmFor, money, OPEN_MONTH, shortDate } from '../data/partnership'
+import { firmFor, money, shortDate } from '../data/partnership'
 
 // SCREEN — Customers: who the firm works with and what each brings in.
 // See PARTNER-VIEW-PLAN.md §2.
@@ -39,12 +40,8 @@ const shown = computed(() => {
   return [...requests, ...account.customers.filter((c) => hit(c.name, c.contact))]
 })
 
-// The customers' total, and what the firm's own account adds to reach the
-// figure on Partnership.
+// The customers' total. Partnership's MRR also counts the firm's own account.
 const total = computed(() => account.customers.reduce((sum, c) => sum + c.mrr, 0))
-const own = computed(
-  () => contributionsFor(store.partnerTier, OPEN_MONTH, store.partnershipState).find((r) => r.own)?.converted ?? 0,
-)
 
 const STAGE = {
   onboarding: { label: 'Onboarding', theme: 'blue' },
@@ -62,13 +59,82 @@ const match = computed(() =>
 
 // A few seconds to undo instead of an "Are you sure?" dialog: approving by
 // mistake exposes a stranger's invoices, declining sends a rejection.
-function handle(outcome) {
-  const req = open.value
+function handle(outcome, request = open.value) {
+  const req = request
   account.handleRequest(req.id, outcome)
   openId.value = null
   const done = outcome === 'approved' ? `${req.company} linked` : `${req.company} declined`
   toast.success(done, { action: { label: 'Undo', onClick: () => account.undoRequest(req.id) } })
 }
+
+// ── Row actions ─────────────────────────────────────────────────────────────
+// What each role can do from the list, without opening the customer first.
+// Removing a linked customer unlinks it: its MRR stops counting toward tier,
+// so it asks first. One added by hand that never linked is just deleted.
+const canEdit = computed(() => ['owner', 'sales'].includes(store.partnerRole))
+function actionsFor(item) {
+  if (item.request) {
+    return isOwner.value
+      ? [
+          { label: 'Approve', icon: 'lucide-check', onClick: () => handle('approved', item) },
+          { label: 'Decline', icon: 'lucide-x', onClick: () => handle('declined', item) },
+        ]
+      : []
+  }
+  const linked = Boolean(item.linked || item.sites.length)
+  return [
+    canEdit.value && { label: 'Edit details', icon: 'lucide-pencil', onClick: () => startEdit(item) },
+    isOwner.value && item.billing === 'customer' && linked && !item.billingSwitch && {
+      label: 'Switch to Partner pays',
+      icon: 'lucide-wallet',
+      route: `/connect/customers/${item.id}`,
+    },
+    isOwner.value && linked && { label: 'Unlink', icon: 'lucide-unlink', theme: 'red', onClick: () => unlink(item) },
+    canEdit.value && !linked && { label: 'Delete', icon: 'lucide-trash-2', theme: 'red', onClick: () => remove(item) },
+  ].filter(Boolean)
+}
+
+function unlink(item) {
+  dialog.danger({
+    title: `Unlink ${item.name}?`,
+    message: 'Their MRR stops counting toward your tier, and you lose sight of their sites and invoices.',
+    confirmLabel: 'Unlink',
+    onConfirm: () => {
+      account.removeCustomer(item.id)
+      toast.success(`${item.name} unlinked`)
+    },
+  })
+}
+function remove(item) {
+  account.removeCustomer(item.id)
+  toast.success(`${item.name} deleted`, { action: { label: 'Undo', onClick: () => account.restoreCustomer(item.id) } })
+}
+
+const editing = ref(null)
+const editForm = ref({ name: '', contact: '', email: '' })
+const editErrors = ref({})
+function startEdit(item) {
+  editing.value = item
+  editForm.value = { name: item.name, contact: item.contact ?? '', email: item.email ?? '' }
+  editErrors.value = {}
+}
+function saveEdit() {
+  const f = editForm.value
+  const e = {}
+  if (!f.name.trim()) e.name = 'Enter the company name'
+  if (!/^\S+@\S+\.\S+$/.test(f.email.trim())) e.email = 'Enter a valid email, like name@company.com'
+  editErrors.value = e
+  if (Object.keys(e).length) return
+  account.editCustomer(editing.value.id, { name: f.name.trim(), contact: f.contact.trim(), email: f.email.trim() })
+  editing.value = null
+  toast.success('Details saved')
+}
+
+const stats = computed(() => [
+  { label: 'MRR from customers', value: money(total.value, firm.value.currency) },
+  { label: 'Live', value: String(account.customers.filter((c) => c.stage === 'live').length) },
+  ...(account.requests.length ? [{ label: 'Waiting to link', value: String(account.requests.length) }] : []),
+])
 
 // ── Add customer ────────────────────────────────────────────────────────────
 // Saved as Onboarding, then the dialog ends on the partner code: sharing it
@@ -110,24 +176,15 @@ function finishAdd() {
 <template>
   <ConnectShell root-label="Customers">
     <div class="fc-page-list py-8">
-      <!-- The total, the code and the one action. -->
-      <div class="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p class="text-sm text-ink-gray-5">MRR from customers this month</p>
-          <p class="mt-1 text-2xl-semibold tabular-nums text-ink-gray-9">{{ money(total, firm.currency) }}</p>
-          <p class="mt-1.5 text-sm text-ink-gray-5">
-            Your own account adds {{ money(own, firm.currency) }} · Updated 2 hours ago
-          </p>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
+      <PageIntro title="Businesses on your partner code" :stats="stats">
+        <template #actions>
           <PartnerCode :code="firm.code" :firm="firm.name" />
           <!-- Subtle while a request is open: Approve is the one primary then. -->
           <Button v-if="canAdd" :variant="openId ? 'subtle' : 'solid'" label="Add customer" @click="startAdd" />
-        </div>
-      </div>
+        </template>
+      </PageIntro>
 
-      <!-- ── Customers ────────────────────────────────────────────────── -->
-      <section class="mt-10">
+      <section>
         <div class="flex flex-wrap items-center gap-2">
           <TextInput v-model="query" type="search" placeholder="Search customers" class="w-full sm:w-56">
             <template #prefix><span class="lucide-search size-4 text-ink-gray-5" aria-hidden="true" /></template>
@@ -138,7 +195,7 @@ function finishAdd() {
           v-if="shown.length"
           v-model:active="openId"
           class="-mx-3 mt-4 list-row-px-3"
-          :columns="{ base: ['minmax(0,1fr)', '7rem'], sm: ['minmax(0,1fr)', '8rem', '7rem', '7rem'] }"
+          :columns="{ base: ['minmax(0,1fr)', '6rem', '2rem'], sm: ['minmax(0,1fr)', '8rem', '7rem', '7rem', '2rem'] }"
           :row-height="56"
         >
           <ListHeader>
@@ -146,6 +203,7 @@ function finishAdd() {
             <ListHeaderCell class="hidden sm:flex">Billing</ListHeaderCell>
             <ListHeaderCell class="hidden sm:flex">Stage</ListHeaderCell>
             <ListHeaderCell class="justify-end">MRR</ListHeaderCell>
+            <ListHeaderCell><span class="sr-only">Actions</span></ListHeaderCell>
           </ListHeader>
           <ListRows :items="shown" v-slot="{ item }">
             <ListRow v-if="item.request" :value="item.id" @click="openId = item.id">
@@ -163,6 +221,11 @@ function finishAdd() {
                 <Badge theme="amber" variant="subtle" size="sm" label="Wants to link" />
               </ListCell>
               <ListCell class="justify-end text-ink-gray-5">—</ListCell>
+              <ListCell class="justify-end" @click.stop.prevent>
+                <Dropdown v-if="actionsFor(item).length" :options="actionsFor(item)" align="end">
+                  <Button variant="ghost" icon="lucide-ellipsis" :aria-label="`Actions for ${item.name}`" />
+                </Dropdown>
+              </ListCell>
             </ListRow>
             <ListRow v-else :to="`/connect/customers/${item.id}`">
               <ListCell class="min-w-0 gap-3">
@@ -184,6 +247,13 @@ function finishAdd() {
               </ListCell>
               <ListCell class="justify-end tabular-nums text-ink-gray-7">
                 {{ item.mrr ? money(item.mrr, firm.currency) : '—' }}
+              </ListCell>
+              <!-- Inside a row that links to the customer, so the menu stops
+                   the click from also opening the page. -->
+              <ListCell class="justify-end" @click.stop.prevent>
+                <Dropdown v-if="actionsFor(item).length" :options="actionsFor(item)" align="end">
+                  <Button variant="ghost" icon="lucide-ellipsis" :aria-label="`Actions for ${item.name}`" />
+                </Dropdown>
               </ListCell>
             </ListRow>
           </ListRows>
@@ -234,6 +304,19 @@ function finishAdd() {
         <p v-else class="text-p-sm text-ink-gray-5">Your firm’s owner approves link requests.</p>
       </div>
     </template>
+
+    <!-- ── Edit details ─────────────────────────────────────────────────── -->
+    <Dialog :open="editing !== null" title="Edit details" @update:open="(v) => !v && (editing = null)">
+      <form class="space-y-4" @submit.prevent="saveEdit">
+        <FormControl v-model="editForm.name" label="Company" required :error="editErrors.name" />
+        <FormControl v-model="editForm.contact" label="Contact name" />
+        <FormControl v-model="editForm.email" type="email" label="Contact email" required :error="editErrors.email" />
+        <div class="flex justify-end gap-2 pt-2">
+          <Button label="Cancel" @click="editing = null" />
+          <Button variant="solid" type="submit" label="Save" />
+        </div>
+      </form>
+    </Dialog>
 
     <!-- ── Add customer ─────────────────────────────────────────────────── -->
     <Dialog v-model:open="adding" :title="step === 'form' ? 'Add customer' : 'Share your partner code'">

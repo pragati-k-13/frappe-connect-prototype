@@ -3,6 +3,8 @@ import { computed, ref } from 'vue'
 import { Avatar, Badge, Button, Checkbox, Dialog, Dropdown, FormControl, TabButtons, toast, Tooltip } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
+import PageIntro from '../components/PageIntro.vue'
+import { firmFor } from '../data/partnership'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { ROLES, ROLE_LABEL } from '../data/partnerAccount'
@@ -136,10 +138,12 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
 <template>
   <ConnectShell root-label="Team">
     <div class="fc-page-list py-8">
-      <div class="flex items-center justify-between gap-4">
-        <TabButtons v-model="tab" :options="TABS" />
-        <Button v-if="isOwner" variant="solid" label="Invite" @click="startInvite" />
-      </div>
+      <PageIntro :title="`People at ${firmFor(store.partnerTier).name}`">
+        <template #actions>
+          <Button v-if="isOwner" variant="solid" label="Invite" @click="startInvite" />
+        </template>
+      </PageIntro>
+      <TabButtons v-model="tab" :options="TABS" />
 
 
       <List

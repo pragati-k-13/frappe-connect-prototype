@@ -16,6 +16,9 @@ import {
 
 const blank = () => ({
   added: [],
+  // Edits to a customer's details, and customers unlinked or deleted.
+  customerEdits: {},
+  removedCustomers: [],
   handled: {},
   billing: {},
   notes: {},
@@ -66,8 +69,11 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
           sites: [],
           linkedSites: r.sites,
         }))
-      return [...seeded, ...fromRequests, ...this.edits.added].map((c) => ({
+      return [...seeded, ...fromRequests, ...this.edits.added]
+        .filter((c) => !this.edits.removedCustomers.includes(c.id))
+        .map((c) => ({
         ...c,
+        ...(this.edits.customerEdits[c.id] ?? {}),
         billingSwitch: this.edits.billing[c.id] ?? null,
         notes: this.edits.notes[c.id] ?? '',
       }))
@@ -115,6 +121,15 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
     markCodeShared(id) {
       const c = this.edits.added.find((x) => x.id === id)
       if (c) c.codeShared = '2026-10-30'
+    },
+    editCustomer(id, patch) {
+      this.edits.customerEdits[id] = { ...(this.edits.customerEdits[id] ?? {}), ...patch }
+    },
+    removeCustomer(id) {
+      this.edits.removedCustomers.push(id)
+    },
+    restoreCustomer(id) {
+      this.edits.removedCustomers = this.edits.removedCustomers.filter((x) => x !== id)
     },
     requestPartnerPays(id) {
       this.edits.billing[id] = { to: 'partner', from: '2026-11-01' }

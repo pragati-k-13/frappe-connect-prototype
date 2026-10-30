@@ -4,6 +4,7 @@ import { Badge, Button, Select, TextInput } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
+import PageIntro from '../components/PageIntro.vue'
 import { useConnectStore } from '../stores/connect'
 import {
   contributionMonths,
@@ -81,19 +82,19 @@ const STATUS = {
     <div class="fc-page-list py-8">
       <!-- The total first: it is the figure on Partnership, and the reason
            anyone opens this page is to see what makes it up. -->
-      <p class="text-sm text-ink-gray-5">
-        {{ monthMeta.open ? 'MRR this month so far' : `MRR for ${monthMeta.label}` }}
-      </p>
-      <p class="mt-1 text-2xl-semibold tabular-nums text-ink-gray-9">
-        {{ money(total, firm.currency) }}
-      </p>
-      <p v-if="monthMeta.open" class="mt-1.5 text-sm text-ink-gray-5">Updated 2 hours ago</p>
+      <PageIntro
+        title="What counts toward your tier"
+        :stats="[{ label: monthMeta.open ? 'MRR this month so far' : `MRR for ${monthMeta.label}`, value: money(total, firm.currency) }]"
+      >
+        <template #actions>
+          <Select v-model="month" :options="monthOptions" class="w-48" />
+        </template>
+      </PageIntro>
 
-      <div class="mt-6 flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <TextInput v-model="query" type="search" placeholder="Search customers" class="w-full sm:w-56">
           <template #prefix><span class="lucide-search size-4 text-ink-gray-5" aria-hidden="true" /></template>
         </TextInput>
-        <Select v-model="month" :options="monthOptions" class="w-48" />
         <Select v-if="!monthMeta.open" v-model="status" :options="statusOptions" class="w-36" />
       </div>
 

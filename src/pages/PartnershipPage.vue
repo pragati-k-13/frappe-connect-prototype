@@ -4,6 +4,7 @@ import { Avatar, Badge, Button, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import TierIcon from '../components/TierIcon.vue'
 import PartnerCode from '../components/PartnerCode.vue'
+import PageIntro from '../components/PageIntro.vue'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import {
@@ -130,18 +131,16 @@ function requestAudit() {
         <div class="min-w-0 space-y-10">
           <!-- ── The anchor ───────────────────────────────────────────── -->
           <section>
-            <div class="flex items-center gap-2">
-              <TierIcon v-if="!beginner" :tier="s.tier" />
-              <h1 class="text-2xl-semibold text-ink-gray-9">{{ tier.label }}</h1>
-            </div>
-            <p class="mt-1.5 text-p-sm text-ink-gray-5">
-              <template v-if="beginner">{{ tier.listing }}</template>
-              <template v-else>{{ tier.discount }}% off Frappe Cloud · {{ tier.listing }}</template>
-            </p>
+            <PageIntro
+              :title="next ? `${tier.label} partner, working toward ${next.label}` : `${tier.label} partner`"
+              :description="beginner ? tier.listing : `${tier.discount}% off Frappe Cloud · ${tier.listing}`"
+            >
+              <template #prefix><TierIcon v-if="!beginner" :tier="s.tier" /></template>
+            </PageIntro>
 
             <!-- Beginner: the five milestones Frappe tracks, in order. -->
             <template v-if="beginner">
-              <h2 class="mt-8 text-lg-semibold text-ink-gray-8">Your way to Bronze</h2>
+              <h2 class="text-lg-semibold text-ink-gray-8">Your way to Bronze</h2>
               <ol class="mt-3 divide-y divide-outline-gray-1">
                 <li v-for="m in milestones" :key="m.key">
                   <component
@@ -177,7 +176,7 @@ function requestAudit() {
 
             <!-- Bronze and up: the next tier's criteria. -->
             <template v-else-if="next">
-              <h2 class="mt-8 text-lg-semibold text-ink-gray-8">{{ next.label }} needs</h2>
+              <h2 class="text-lg-semibold text-ink-gray-8">{{ next.label }} needs</h2>
               <ul class="mt-3 divide-y divide-outline-gray-1">
                 <li v-for="c in criteria" :key="c.key">
                   <component
