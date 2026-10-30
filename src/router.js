@@ -157,6 +157,12 @@ const routes = [
     component: () => import('./pages/ContributionsPage.vue'),
     beforeEnter: asPartner,
   },
+  { path: '/connect/customers', name: 'customers', component: () => import('./pages/CustomersPage.vue'), beforeEnter: asPartner },
+  { path: '/connect/customers/:id', name: 'customer', component: () => import('./pages/CustomerPage.vue'), beforeEnter: asPartner },
+  { path: '/connect/billing', name: 'billing', component: () => import('./pages/BillingPage.vue'), beforeEnter: asPartner },
+  { path: '/connect/team', name: 'team', component: () => import('./pages/TeamPage.vue'), beforeEnter: asPartner },
+  { path: '/connect/profile', name: 'own-profile', component: () => import('./pages/OwnProfilePage.vue'), beforeEnter: asPartner },
+  { path: '/connect/resources', name: 'resources', component: () => import('./pages/ResourcesPage.vue'), beforeEnter: asPartner },
   // The collaboration half of the product: everything the account is tracking.
   //
   // A LIST and a detail, not one screen. A business routinely has more than one

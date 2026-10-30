@@ -179,7 +179,8 @@ export const standingFor = (tier, state = 'working') => {
 // invoice's own currency; `rate` is INR per USD on the invoice date, so the
 // conversion is visible rather than a fixed figure. `own` is the partner's
 // own Frappe Cloud account, which bills too.
-// Customers are the invented clients from `assets/clients`.
+// Customers are the invented clients from `assets/clients`. Not Northwind: it
+// is a lead in the partner's Messages, so it can't also be a customer here.
 const MONTHS = [
   { key: '2026-10', label: 'October 2026', open: true },
   { key: '2026-09', label: 'September 2026' },
@@ -188,7 +189,7 @@ const MONTHS = [
 export const contributionMonths = () => MONTHS
 
 const SITES = {
-  Northwind: [['northwind.frappe.cloud', 'Business'], ['northwind-uat.frappe.cloud', 'Starter']],
+  Kestrel: [['kestrel.frappe.cloud', 'Business'], ['kestrel-uat.frappe.cloud', 'Starter']],
   Meridian: [['meridian.frappe.cloud', 'Business']],
   Halcyon: [['halcyon-erp.frappe.cloud', 'Business'], ['Dedicated server, Mumbai', 'n2-standard-4']],
   Silverpine: [['silverpine.frappe.cloud', 'Business']],
@@ -198,14 +199,14 @@ const SITES = {
   Vantage: [['vantage-ops.frappe.cloud', 'Business']],
   'Software@Work': [['softwarework.frappe.cloud', 'Starter']],
   Aurelia: [['aurelia.frappe.cloud', 'Starter']],
-  Kestrel: [['kestrel.frappe.cloud', 'Business']],
+  'Brightwell Foods': [['brightwell.frappe.cloud', 'Starter']],
 }
 
 // [customer, INR amount or USD amount, currency, own]
 const SILVER_INVOICES = {
   '2026-10': [
     ['Halcyon', 1_42_400, 'INR'],
-    ['Northwind', 96_350, 'INR'],
+    ['Kestrel', 96_350, 'INR'],
     ['Vantage', 980, 'USD'],
     ['Tessellate', 61_200, 'INR'],
     ['Meridian', 38_900, 'INR'],
@@ -216,7 +217,7 @@ const SILVER_INVOICES = {
   ],
   '2026-09': [
     ['Halcyon', 1_48_100, 'INR'],
-    ['Northwind', 1_02_760, 'INR'],
+    ['Kestrel', 1_02_760, 'INR'],
     ['Vantage', 1_040, 'USD'],
     ['Tessellate', 63_880, 'INR'],
     ['Meridian', 41_200, 'INR'],
@@ -227,7 +228,7 @@ const SILVER_INVOICES = {
   ],
   '2026-08': [
     ['Halcyon', 1_39_900, 'INR'],
-    ['Northwind', 99_420, 'INR'],
+    ['Kestrel', 99_420, 'INR'],
     ['Vantage', 1_010, 'USD'],
     ['Tessellate', 58_700, 'INR'],
     ['Meridian', 39_600, 'INR'],
@@ -240,7 +241,7 @@ const SILVER_INVOICES = {
 const BEGINNER_INVOICES = {
   '2026-10': [
     ['Aurelia', 96, 'USD'],
-    ['Kestrel', 44, 'USD'],
+    ['Brightwell Foods', 44, 'USD'],
     ['Lumen Digital', 24, 'USD', true],
   ],
   '2026-09': [
@@ -253,6 +254,7 @@ const BEGINNER_INVOICES = {
 const RATE = { '2026-10': 84.1, '2026-09': 83.6, '2026-08': 83.4 }
 const LAST_DAY = { '2026-10': '2026-10-31', '2026-09': '2026-09-30', '2026-08': '2026-08-31' }
 
+export const OPEN_MONTH = '2026-10'
 export const contributionsFor = (tier, monthKey, state = 'working') => {
   const firm = firmFor(tier)
   const scale = tier === 'beginner' ? 1 : (STATES[state]?.scale ?? 1)

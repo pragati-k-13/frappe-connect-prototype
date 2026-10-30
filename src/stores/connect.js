@@ -486,12 +486,11 @@ export const useConnectStore = defineStore('connect', {
     // by account state should go through these, so the enum stays in one place.
     signedIn: (state) => state.account !== 'visitor',
     // Where a partner lands. A Beginner has no leads, so everyone lands on
-    // Partnership; from Bronze up, each role lands where its work is. Finance
-    // belongs on Billing, which isn't built yet, so it lands on Partnership.
-    partnerHome: (state) =>
-      state.partnerTier !== 'beginner' && state.partnerRole === 'sales'
-        ? '/connect/messages'
-        : '/connect/partnership',
+    // Partnership; from Bronze up, each role lands where its work is.
+    partnerHome: (state) => {
+      if (state.partnerTier === 'beginner') return '/connect/partnership'
+      return { sales: '/connect/messages', finance: '/connect/billing' }[state.partnerRole] ?? '/connect/partnership'
+    },
     // Did the visitor arrive at sign-up in the middle of doing something?
     //
     // A pack means they pressed Get started; `pendingHeld` means a gated control

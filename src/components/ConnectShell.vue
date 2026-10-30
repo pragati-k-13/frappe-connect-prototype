@@ -46,6 +46,10 @@ import AppSettingsDialog from './settings/AppSettingsDialog.vue'
 import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 import { firmFor, longDate, standingFor } from '../data/partnership'
+import { billingFor } from '../data/partnerAccount'
+import { partnerThreads } from '../data/partnerView'
+import { usePartnerAccountStore } from '../stores/partnerAccount'
+import PartnerSettingsDialog from './settings/PartnerSettingsDialog.vue'
 
 const store = useConnectStore()
 const router = useRouter()
@@ -91,7 +95,30 @@ const inDirectory = computed(() => DIRECTORY_ROUTES.has(route.name))
 const HOME_ROUTES = new Set(['connect', 'recommendation'])
 const inHome = computed(() => HOME_ROUTES.has(route.name))
 
-const inPartnership = computed(() => route.name === 'partnership' || route.name === 'contributions')
+// ── The partner's rail ──────────────────────────────────────────────────────
+// Each role sees the areas it works in (the roles table in the plan): Sales
+// has no Billing, Finance has no Messages. Counts are what waits on THIS
+// person: link requests and expiring certificates are the owner's, an unpaid
+// invoice is finance's, unanswered leads are sales'.
+const account = usePartnerAccountStore()
+const partnerRail = computed(() => {
+  const role = store.partnerRole
+  const owner = role === 'owner'
+  const beginner = store.partnerTier === 'beginner'
+  const waiting = beginner ? 0 : partnerThreads().filter((t) => t.messages.at(-1)?.from === 'them').length
+  const unpaid = billingFor(store.partnerTier, store.partnershipState, '2026-09').status === 'unpaid' ? 1 : 0
+  const certs = account.team.filter((p) => p.status === 'expiring' || p.status === 'expired').length
+  const at = (...names) => names.includes(route.name)
+  return [
+    { label: 'Partnership', to: '/connect/partnership', icon: 'lucide-handshake', active: at('partnership', 'contributions') },
+    { label: 'Customers', to: '/connect/customers', icon: 'lucide-building-2', active: at('customers', 'customer'), count: owner ? account.requests.length : 0 },
+    role !== 'sales' && { label: 'Billing', to: '/connect/billing', icon: 'lucide-wallet', active: at('billing'), count: role === 'finance' || owner ? unpaid : 0 },
+    role !== 'finance' && { label: 'Messages', to: '/connect/messages', icon: 'lucide-inbox', active: inMessages.value, count: waiting },
+    { label: 'Team', to: '/connect/team', icon: 'lucide-users', active: at('team'), count: owner ? certs : 0 },
+    { label: 'Profile', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile') },
+    { label: 'Resources', to: '/connect/resources', icon: 'lucide-book-open', active: at('resources') },
+  ].filter(Boolean)
+})
 
 // The partner side's firm and person follow the demo tier: Beginner is a
 // different firm. See `data/partnership.js`.
@@ -139,10 +166,19 @@ const atRisk = computed(() => {
 const feedback = ref(false)
 const settings = ref(false)
 
+const partnerSettings = ref(false)
 const logoMenu = computed(() => [
-  ...(store.signedIn
-    ? [{ label: 'Settings', icon: 'lucide-settings', onClick: () => (settings.value = true) }]
-    : []),
+  // The partner side has its own settings, and only the owner opens them.
+  ...(store.role === 'partner'
+    ? [
+        ...(store.partnerRole === 'owner'
+          ? [{ label: 'Settings', icon: 'lucide-settings', onClick: () => (partnerSettings.value = true) }]
+          : []),
+        { label: 'Partner managers', icon: 'lucide-life-buoy', onClick: () => router.push('/connect/partnership') },
+      ]
+    : store.signedIn
+      ? [{ label: 'Settings', icon: 'lucide-settings', onClick: () => (settings.value = true) }]
+      : []),
   // The theme lives here because the Preferences tab that held it is hidden,
   // and this menu is on every screen. `AppSettingsDialog` applies it.
   {
@@ -333,19 +369,22 @@ defineProps({
              control itself. -->
         <!-- Signed in only: a visitor has no threads and nothing to be notified
              of, so the pair would be two dead rows. -->
-        <!-- The partner's rail. Only the areas that are built: the plan's rail
-             is Partnership, Customers, Billing, Messages, Team, Profile and
-             Resources, and a row for a screen that doesn't exist is a dead
-             end. -->
+        <!-- The partner's rail, filtered by role (see `partnerRail`). The count
+             beside a row is what's waiting on this person there. -->
         <nav v-if="store.role === 'partner'" class="space-y-0.5">
-          <Tooltip text="Partnership" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Partnership" to="/connect/partnership" :active="inPartnership">
-              <template #prefix><LucideHandshake class="size-4 text-ink-gray-6" /></template>
-            </SidebarItem>
-          </Tooltip>
-          <Tooltip text="Messages" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Messages" to="/connect/messages" :active="inMessages">
-              <template #prefix><LucideInbox class="size-4 text-ink-gray-6" /></template>
+          <Tooltip
+            v-for="item in partnerRail"
+            :key="item.to"
+            :text="item.label"
+            side="right"
+            :offset="8"
+            :disabled="!collapsed"
+          >
+            <SidebarItem :label="item.label" :to="item.to" :active="item.active">
+              <template #prefix><span :class="item.icon" class="size-4 text-ink-gray-6" aria-hidden="true" /></template>
+              <template v-if="item.count" #suffix>
+                <span class="mr-2 text-xs tabular-nums text-ink-gray-5">{{ item.count }}</span>
+              </template>
             </SidebarItem>
           </Tooltip>
         </nav>
@@ -519,6 +558,7 @@ defineProps({
 
     <FeedbackDialog v-model:open="feedback" />
     <AppSettingsDialog v-model:open="settings" />
+    <PartnerSettingsDialog v-model:open="partnerSettings" />
 
     <div class="relative flex min-w-0 flex-1 flex-col">
       <!-- ── Collapse handle ──────────────────────────────────────────────

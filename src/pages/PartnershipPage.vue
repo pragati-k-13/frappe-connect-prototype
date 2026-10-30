@@ -5,6 +5,7 @@ import ConnectShell from '../components/ConnectShell.vue'
 import TierIcon from '../components/TierIcon.vue'
 import PartnerCode from '../components/PartnerCode.vue'
 import { useConnectStore } from '../stores/connect'
+import { usePartnerAccountStore } from '../stores/partnerAccount'
 import {
   TIERS,
   longDate,
@@ -23,7 +24,12 @@ import {
 
 const store = useConnectStore()
 
-const s = computed(() => standingFor(store.partnerTier, store.partnershipState))
+const account = usePartnerAccountStore()
+// The consultants count is Team's, so linking a certificate there moves it here.
+const s = computed(() => ({
+  ...standingFor(store.partnerTier, store.partnershipState),
+  consultants: account.team.filter((p) => p.counts).length,
+}))
 const beginner = computed(() => store.partnerTier === 'beginner')
 const tier = computed(() => TIERS[s.value.tier])
 const next = computed(() => nextTier(s.value.tier))
@@ -60,6 +66,7 @@ const criteria = computed(() => {
       met: s.value.consultants >= n.consultants,
       warn: risk?.criterion === 'Certified consultants',
       meta: [risk?.criterion === 'Certified consultants' ? risk.detail : 'From Frappe School certificates'],
+      to: '/connect/team',
     },
     {
       key: 'pmm',
@@ -86,11 +93,20 @@ const readyForAudit = computed(
 // ── Beginner: the milestones ────────────────────────────────────────────────
 const milestones = computed(() => {
   if (!beginner.value) return []
-  const firstOpen = s.value.milestones.findIndex((m) => !m.done)
-  return s.value.milestones.map((m, i) => ({
+  // Certifications tick from Team's count.
+  const list = s.value.milestones.map((m) =>
+    m.key === 'cert-2' && s.value.consultants >= 2 ? { ...m, done: '2026-10-30' } : m,
+  )
+  const firstOpen = list.findIndex((m) => !m.done)
+  return list.map((m, i) => ({
     ...m,
     next: i === firstOpen,
-    route: m.to === 'contributions' && canSeeContributions.value ? '/connect/partnership/contributions' : null,
+    route:
+      m.to === 'contributions' && canSeeContributions.value
+        ? '/connect/partnership/contributions'
+        : m.to === 'team'
+          ? '/connect/team'
+          : null,
   }))
 })
 
