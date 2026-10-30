@@ -237,7 +237,7 @@ function requestSwitch() {
            tabs and the panels, not on this column. -->
       <div class="min-w-0 shrink-0 pb-6 lg:flex-1 lg:shrink lg:overflow-y-auto">
         <Tabs v-model="tab">
-          <TabList class="fc-tabs-scroll px-3 pt-2 sm:px-5">
+          <TabList class="fc-tabs-scroll h-12 shrink-0 px-3 sm:px-5">
             <TabTrigger v-if="narrow" value="details" label="Details" />
             <TabTrigger v-for="t in tabs" :key="t.value" :value="t.value" :label="t.label" />
           </TabList>
