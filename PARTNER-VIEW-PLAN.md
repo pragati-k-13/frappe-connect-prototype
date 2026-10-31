@@ -9,22 +9,21 @@ areas on the rail, plus Settings. Each area answers one question a partner comes
 | Customers   | Who are we working with, and what does each one bring in?  |
 | Invoices    | What counts toward tier, and what did we pay Frappe for our customers? |
 | Partnership | Where do we stand with Frappe, and what gets us up a tier? |
-| Team        | Who is on the team, who is certified, and who can do what? |
 | Listing     | What does a business see when it finds us?                 |
 
 The rail is two groups: daily work (Leads, Customers, Invoices) with no label, then the firm
-(Partnership, Team, Listing) under "Your firm". Each role sees only its own rows. Resources is links out, not a
+(Partnership, Listing) under "Your firm". Each role sees only its own rows. Resources is links out, not a
 place you work, so it sits in the header menu as "Help and resources", with Firm settings and
 Partner managers. The sidebar's footer is the signed-in person: their settings, theme and log
 out. Only Leads shows a count: replies are the one thing that can't wait, and counts on every
 row were distracting. Collapsed, Leads shows a dot instead.
 
-Firm settings (CRM sync, leaving) open as a dialog, not a rail item.
+Firm settings open as a dialog, not a rail item: Users for everyone, CRM sync and leaving for owners.
 
 **Who uses it.** Partner firms aren't one person. The owner sets the firm up (profile, team,
 audits, CRM sync) and checks standing about monthly. Sales works leads every day and writes to
 businesses on the firm's behalf. Finance checks what the firm paid Frappe and bills customers
-onward. These are the three roles (see Team), and a small firm gives one person all three.
+onward. These are the three roles (see §5), and a small firm gives one person all three.
 
 **The landing screen depends on tier and role.** A Beginner lands on Partnership whatever their
 role: they have no listing and no leads yet, and the milestone checklist is their next step.
@@ -104,7 +103,7 @@ those designs.
    month.
 6. The partner code is issued and the firm becomes a Beginner. The owner lands on Partnership,
    with the milestones, the audit mechanics and the partner code.
-7. Invite the team on Team.
+7. Invite the team in Firm settings → Users.
 
 **Signing in.** Partners sign in the way businesses already do (`LoginPage`, `SignupPage`): work
 email, then a one-time code, no password.
@@ -125,14 +124,14 @@ Finance people create Frappe Cloud accounts they otherwise never need.
 
 **Beginner.** The milestone checklist is the anchor: the five milestones in order, done ones
 ticked with their date, the next one highlighted with what it takes ("1 more certification",
-"$140 more MRR"). Each links to where it's done: certifications to Team, MRR to Invoices, All customers.
+"$140 more MRR"). Each links to where it's done: certifications to Certificates below, MRR to Invoices, All customers.
 The partner code sits right below it, since linking a first customer is how MRR starts.
 
 **Bronze and up.** The current tier with its benefits (discount, listing type). Then one row
 per criterion for the **next** tier: MRR, certified consultants, PMM level and eligibility.
 Each row shows where the partner is, the threshold, and the gap ("₹41,000 more MRR"). Each
 row also names its source and how fresh it is: MRR from Frappe Cloud billing, consultants from
-certification, PMM from the last audit. The consultants row links to Team, and the MRR row
+certification, PMM from the last audit. The consultants row links to Certificates on the same page, and the MRR row
 links to Invoices (All customers). Under the MRR figure, last month's sits as one line ("Last month
 ₹4,94,395"), which says whether the partner is growing or slipping.
 
@@ -143,7 +142,7 @@ They're shown in three places:
 - **Partnership, as one line near the end:** each manager's name, photo and an email link. Not a
   column of their own: they're who to write to, not something to read every visit.
 - **Where a problem comes up:** a disputed figure on Invoices, a certificate claimed by
-  another partner on Team, a declined audit. The error links to the firm's partner managers,
+  another partner on Certificates, a declined audit. The error links to the firm's partner managers,
   with what to include.
 - **The account menu:** "Partner managers", so they're reachable from any page.
 
@@ -451,32 +450,30 @@ The other changes:
   puts Partnership first, since the milestones to Bronze are their main job; from Bronze up
   the rail runs Leads, Customers, Partnership.
 
-## 5. Team
+## 5. Users and certificates
 
-Everyone at the firm in one list: who counts toward the consultants criterion, and who can
-sign in to Connect with what role. It's a page, not part of the Settings
-dialog, because adding a colleague is one task whether they need a certificate, access, or
-both. A person doesn't need Connect access to be listed: a consultant can count toward tier
-without ever signing in.
+The team splits in two, by what each half is for.
 
-**List:** name, email, certifications (ERPNext, Framework, or a single module), status and
-expiry. A column says whether each person counts toward tier, so a single-module certificate
-reads as "Doesn't count toward tier" rather than looking like a missing one. The count lives on
-Partnership, not here: the rows already say who counts.
+**Users** is a panel in Firm settings, copied from Frappe CRM's Settings → Users: everyone at the
+firm, each with one role. Owners change a role from a dropdown on the row (it saves on pick, with
+a toast), invite people, and remove them from a "more" menu. Everyone else can open Firm settings
+and see Users read-only; the other panels are the owner's. The last owner's role is locked, with
+the reason on hover.
 
-**Access and roles** are columns on the same rows: No access, or one or more of Owner, Sales
-and Finance. Inviting someone sets their access and roles. Ownership can be handed to someone
-else, and the last owner can't be removed.
+**Certificates** is a section on Partnership, right under the criteria it feeds: everyone at the
+firm with their certificate (ERPNext, Framework, or a single module), status and expiry. A person
+doesn't need Connect access to be listed: a consultant can count toward tier without ever signing
+in. A single-module certificate reads as "Doesn't count toward tier" rather than looking like a
+missing one. Owners link a certificate from the row.
 
 **Roles:**
 
-Every person has at least one role, as on Frappe Cloud's team page. Member is view-only, for
-consultants who count toward tier but don't work leads or money. Team has two tabs, People
-and Roles, like Frappe Cloud's.
+Every person has exactly one role. Member is view-only, for consultants who count toward tier
+but don't work leads or money. Roles are fixed: there's no screen for making new ones.
 
 | Action                                                | Owner | Sales | Finance | Member |
 | ----------------------------------------------------- | ----- | ----- | ------- | ------ |
-| See Partnership, Team, Profile, Resources             | Yes   | Yes   | Yes     | Yes    |
+| See Partnership, Users, Profile, Resources            | Yes   | Yes   | Yes     | Yes    |
 | See Invoices, All customers                           | Yes   | No    | Yes     | No     |
 | See Customers                                         | Yes   | Yes   | Yes     | No     |
 | Add customers and notes                               | Yes   | Yes   | No      | No     |
@@ -495,7 +492,7 @@ enter the certificate ID, or the email the person took the exam with, and Connec
 match (name, certification, date) before saving. That lists the person as certified. The
 public profile shows the firm's certifications as a count.
 
-**Certification statuses:** Certified, Expiring (within 60 days, with a Team badge), Expired,
+**Certification statuses:** Certified, Expiring (within 60 days, with a badge on Certificates), Expired,
 and Not certified. When a certificate is renewed on Frappe School, the owner links the new one
 and the row returns to Certified.
 
@@ -583,8 +580,8 @@ comes from: Frappe's existing channels, not a new one in Connect.
 
 ## 8. Settings
 
-A `SettingsDialog`, opened from the account menu. Owner only. It holds CRM sync; users and
-roles live on Team.
+A `SettingsDialog`, opened from the account menu by every role. Users (§5) is the one panel
+everyone sees, read-only unless you're an owner; CRM sync and leaving are the owner's.
 
 **CRM sync.** Connect the firm's CRM so lead stages stay in one place:
 
@@ -624,7 +621,7 @@ Who acts is in brackets. *Outside* means the step happens outside Connect.
 **Working in Connect**
 
 1. **Beginner to Bronze** (Owner): Partnership milestones → an employee certifies on Frappe
-   School (*outside*) → link the certificate on Team → share the partner code → approve the
+   School (*outside*) → link the certificate on Partnership → share the partner code → approve the
    link request on Customers → $100 and $300 tick on Partnership → request the audit → Bronze
    → check the profile before it goes public → one-time notice that the landing changes.
 2. **Lead to customer** (Sales): brief in "Needs reply" → reply, send a quote → shortlisted →
@@ -638,7 +635,7 @@ Who acts is in brackets. *Outside* means the step happens outside Connect.
    Submit for review → In review → approved, live. Rejected → reason on the section, draft
    kept. Case studies → frappe.io (*outside*).
 5. **Recover from At risk** (Owner): consultant leaves or the 3-month MRR average drops →
-   banner and email → Partnership names the criterion and review date → fix it on Team or
+   banner and email → Partnership names the criterion and review date → fix it on Certificates or
    Customers → clears at the next sync. Still below at the quarter's review → the tier drops.
 6. **Connect a CRM** (Owner): Settings → CRM sync → URL and API key → check the prefilled
    mapping → connected, with the last sync time → leads show "Synced from CRM".
@@ -649,7 +646,7 @@ Who acts is in brackets. *Outside* means the step happens outside Connect.
 - **B. Certifications** (Employee, Owner): the employee applies, pays and passes on Frappe
   School (*outside*) → the owner links the certificate → certified, and the public count goes
   up. A single-module certificate shows "Doesn't count toward tier". One already counted by
-  another partner → the partner manager. Expiring → Team badge → renewed on Frappe School → the
+  another partner → the partner manager. Expiring → Certificates badge → renewed on Frappe School → the
   owner links the new one.
 - **C. Moving up a tier** (Owner, Frappe): start-by date shows → request the audit →
   "Waiting for Frappe to schedule it" → scheduled, with an email → audit → PMM level recorded →
@@ -672,7 +669,7 @@ Who acts is in brackets. *Outside* means the step happens outside Connect.
 
 - Frappe changing the rubric: waits on open question 17.
 
-Covered elsewhere: switching to Partner pays (Customers), handing over ownership (Team),
+Covered elsewhere: switching to Partner pays (Customers), handing over ownership (Users),
 re-auditing Gold (the audit block), leaving the partnership (Settings).
 
 ## Review findings
