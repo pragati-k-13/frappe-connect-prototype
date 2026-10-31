@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Avatar, Badge, Button, Checkbox, Dialog, dialog, Dropdown, FormControl, TabButtons, toast, Tooltip } from 'frappe-ui'
+import { Avatar, Badge, Button, Checkbox, Dialog, dialog, Dropdown, FormControl, Switch, TabButtons, toast, Tooltip } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -162,7 +162,51 @@ function addRole() {
   if (next) roles.value.push(next.key)
 }
 // What each role opens, as short chips in the member dialog (from ROLES[].desc).
-const PERMS = { owner: [], sales: ['Leads', 'Quotes', 'Customers'], finance: ['Billing', 'Invoices'], member: [] }
+// What each role opens, from ROLES[].desc. One list feeds the member dialog's
+// chips and the role dialog's switches, so the two never disagree.
+const AREAS = [
+  { key: 'leads', label: 'Leads' },
+  { key: 'quotes', label: 'Quotes' },
+  { key: 'customers', label: 'Customers' },
+  { key: 'billing', label: 'Billing' },
+  { key: 'invoices', label: 'Invoices' },
+  { key: 'team', label: 'Team' },
+  { key: 'settings', label: 'Settings' },
+]
+const ROLE_AREAS = {
+  owner: AREAS.map((a) => a.key),
+  sales: ['leads', 'quotes', 'customers'],
+  finance: ['billing', 'invoices'],
+  member: [],
+}
+const PERMS = Object.fromEntries(
+  Object.entries(ROLE_AREAS).map(([k, keys]) => [k, k === 'owner' ? [] : AREAS.filter((a) => keys.includes(a.key)).map((a) => a.label)]),
+)
+
+// ── Role dialog ─────────────────────────────────────────────────────────────
+// Clicking a role opens it, as in FC v2: Permissions and Members tabs sharing
+// one grid cell so the dialog never resizes. Connect's four roles are built in,
+// so permissions show read-only; Members can add a teammate to the role.
+const roleOpen = ref(false)
+const roleFor = ref(null)
+const roleTab = ref('permissions')
+const addId = ref('')
+function openRole(r) {
+  roleFor.value = r
+  roleTab.value = 'permissions'
+  addId.value = ''
+  roleOpen.value = true
+}
+const addableOptions = computed(() =>
+  account.team.filter((p) => !p.roles.includes(roleFor.value?.key)).map((p) => ({ label: p.name, value: p.id })),
+)
+function addToRole() {
+  const p = account.team.find((x) => x.id === addId.value)
+  if (!p) return
+  account.setRoles(p.id, [...p.roles, roleFor.value.key])
+  toast.success(`${p.name} is now ${ROLE_LABEL[roleFor.value.key]}`)
+  addId.value = ''
+}
 const memberRoles = computed(() => ROLES.filter((r) => memberFor.value?.roles.includes(r.key)))
 const roleError = computed(() => {
   if (!roles.value.length) return 'Pick at least one role'
@@ -302,7 +346,7 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
             <ListHeaderCell>Role</ListHeaderCell>
             <ListHeaderCell class="hidden sm:flex">Members</ListHeaderCell>
           </ListHeader>
-          <ListRow v-for="r in roleList" :key="r.key">
+          <ListRow v-for="r in roleList" :key="r.key" @click="openRole(r)">
             <!-- Role: icon + name + description -->
             <ListCell>
               <div class="flex min-w-0 items-center gap-3">
@@ -444,6 +488,88 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
         <div v-else class="flex justify-end gap-2">
           <Button icon-left="lucide-arrow-left" label="Back" @click="memberMode = 'view'" />
           <Button variant="solid" label="Save" :disabled="!roles.length" @click="saveRoles" />
+        </div>
+      </template>
+    </Dialog>
+    <!-- ── Role: what it opens, and who has it ─────────────────────────────── -->
+    <Dialog v-model:open="roleOpen">
+      <template #title>
+        <div class="flex items-center gap-2">
+          <span class="text-xl font-semibold text-ink-gray-9">{{ roleFor?.label }}</span>
+          <Tooltip v-if="roleFor?.key === 'owner'" text="This role has access to everything.">
+            <span class="lucide-shield size-3.5 text-ink-gray-5" />
+          </Tooltip>
+        </div>
+      </template>
+      <div v-if="roleFor">
+        <TabButtons
+          v-model="roleTab"
+          :options="[{ label: 'Permissions', value: 'permissions' }, { label: 'Members', value: 'members' }]"
+          class="mb-4"
+        />
+
+        <!-- Both panels share the same grid cell so the dialog never resizes -->
+        <div class="grid">
+          <!-- Permissions tab -->
+          <div class="col-start-1 row-start-1 space-y-4" :class="{ 'invisible pointer-events-none': roleTab !== 'permissions' }">
+            <div>
+              <div class="mb-2 text-sm text-ink-gray-5">Important</div>
+              <div class="flex items-center justify-between rounded-6 border border-outline-gray-2 bg-surface-base px-3 py-2.5">
+                <div>
+                  <div class="text-sm text-ink-gray-8">Full access</div>
+                  <div class="text-xs text-ink-gray-5">Everything, including the team and settings</div>
+                </div>
+                <div class="pointer-events-none opacity-40">
+                  <Switch :model-value="roleFor.key === 'owner'" />
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="mb-2 text-sm text-ink-gray-5">General</div>
+              <div class="divide-y divide-outline-alpha-gray-1 overflow-hidden rounded-6 border border-outline-gray-2 bg-surface-base">
+                <div v-for="a in AREAS" :key="a.key" class="flex items-center justify-between px-3 py-2.5">
+                  <span class="text-sm text-ink-gray-8">{{ a.label }}</span>
+                  <div class="pointer-events-none opacity-40">
+                    <Switch :model-value="ROLE_AREAS[roleFor.key].includes(a.key)" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="text-p-xs text-ink-gray-5">Built-in role — permissions can’t be changed.</p>
+          </div>
+
+          <!-- Members tab -->
+          <div class="col-start-1 row-start-1" :class="{ 'invisible pointer-events-none': roleTab !== 'members' }">
+            <div v-if="membersOf(roleFor.key).length" class="divide-y divide-outline-alpha-gray-1">
+              <div v-for="m in membersOf(roleFor.key)" :key="m.id" class="flex items-center gap-2 py-2.5">
+                <Avatar :label="m.name" size="sm" class="shrink-0" />
+                <span class="min-w-0 flex-1 truncate text-sm text-ink-gray-8">{{ m.name }}</span>
+                <span class="shrink-0 text-xs text-ink-gray-5">{{ m.invited ? 'Invited' : m.email }}</span>
+              </div>
+            </div>
+            <p v-else class="py-6 text-center text-p-sm text-ink-gray-5">No one has this role yet.</p>
+
+            <!-- Add an existing teammate directly, no invite -->
+            <div v-if="isOwner" class="mt-3 border-t border-outline-alpha-gray-1 pt-3">
+              <template v-if="addableOptions.length">
+                <div class="flex items-end gap-2">
+                  <div class="min-w-0 flex-1">
+                    <FormControl v-model="addId" type="select" label="Team member" placeholder="Choose…" :options="addableOptions" />
+                  </div>
+                  <Button class="shrink-0" variant="subtle" label="Add" :disabled="!addId" @click="addToRole" />
+                </div>
+              </template>
+              <p v-else class="text-center text-p-xs text-ink-gray-5">Everyone on the team already has this role.</p>
+              <p v-if="roleFor.key === 'owner'" class="mt-1.5 text-p-xs text-ink-gray-5">
+                Owners can do everything, including removing other owners.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #actions>
+        <div class="flex justify-end gap-2">
+          <Button label="Close" @click="roleOpen = false" />
         </div>
       </template>
     </Dialog>
