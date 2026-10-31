@@ -150,6 +150,8 @@ function openMember(p, mode = 'view') {
   memberOpen.value = true
 }
 const startRoles = (p) => openMember(p, 'manage')
+// What each role opens, as short chips in the member dialog (from ROLES[].desc).
+const PERMS = { owner: [], sales: ['Leads', 'Quotes', 'Customers'], finance: ['Billing', 'Invoices'], member: [] }
 const memberRoles = computed(() => ROLES.filter((r) => memberFor.value?.roles.includes(r.key)))
 const roleError = computed(() => {
   if (!roles.value.length) return 'Pick at least one role'
@@ -388,36 +390,22 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
         </div>
       </template>
 
-      <!-- View mode: what they can do, and their certificate -->
-      <div v-if="memberMode === 'view' && memberFor" class="rounded-4 border border-outline-gray-2">
+      <!-- View mode: one row per role, as FC v2 shows one per server: where
+           (the whole firm), the role, then what it allows as short chips -->
+      <div v-if="memberMode === 'view' && memberFor" class="rounded-6 border border-outline-gray-2">
         <div v-for="r in memberRoles" :key="r.key" class="flex items-center gap-3 border-b border-outline-alpha-gray-1 px-3 py-2.5 last:border-b-0">
-          <span class="grid size-6 shrink-0 place-items-center rounded-1" :class="r.key === 'owner' ? 'bg-surface-amber-2' : 'bg-surface-gray-2'">
-            <span class="size-3.5" :class="r.key === 'owner' ? 'lucide-shield text-ink-amber-8' : 'lucide-user text-ink-gray-5'" aria-hidden="true" />
-          </span>
-          <div class="min-w-0 flex-1">
-            <div class="truncate text-sm text-ink-gray-8">{{ r.label }}</div>
-            <div class="text-xs text-ink-gray-5">{{ r.desc }}</div>
-          </div>
-        </div>
-        <div class="flex items-center gap-3 px-3 py-2.5">
           <span class="grid size-6 shrink-0 place-items-center rounded-1 bg-surface-gray-2">
-            <span class="lucide-badge-check size-3.5 text-ink-gray-5" aria-hidden="true" />
+            <span class="lucide-building-2 size-3.5 text-ink-gray-5" aria-hidden="true" />
           </span>
           <div class="min-w-0 flex-1">
-            <template v-if="memberFor.cert">
-              <div class="flex items-center gap-2">
-                <span class="truncate text-sm text-ink-gray-8">{{ memberFor.cert.name }} certificate</span>
-                <Badge v-if="STATUS[memberFor.status]" :theme="STATUS[memberFor.status].theme" variant="subtle" :label="STATUS[memberFor.status].label" />
-              </div>
-              <div class="text-xs text-ink-gray-5">
-                <template v-if="!memberFor.cert.full">Doesn’t count toward tier</template>
-                <template v-else-if="memberFor.status === 'expired'">Expired {{ longDate(memberFor.cert.expires) }}</template>
-                <template v-else>Until {{ longDate(memberFor.cert.expires) }}</template>
-              </div>
-            </template>
-            <div v-else class="text-sm text-ink-gray-8">Not certified</div>
+            <div class="truncate text-sm text-ink-gray-8">{{ firmFor(store.partnerTier).name }}</div>
+            <div class="text-xs text-ink-gray-5">{{ r.label }}</div>
           </div>
-          <Button v-if="isOwner && !memberFor.cert" variant="ghost" size="sm" label="Link certificate" @click="memberOpen = false; startLink(memberFor)" />
+          <div class="flex shrink-0 flex-wrap justify-end gap-1">
+            <span v-if="r.key === 'owner'" class="rounded-4 bg-surface-amber-2 px-1.5 py-0.5 text-2xs font-medium text-ink-amber-8">Full access</span>
+            <span v-for="p in PERMS[r.key]" :key="p" class="rounded-4 bg-surface-gray-2 px-1.5 py-0.5 text-2xs text-ink-gray-6">{{ p }}</span>
+            <span v-if="r.key === 'member'" class="text-xs text-ink-gray-5">View only</span>
+          </div>
         </div>
       </div>
 
