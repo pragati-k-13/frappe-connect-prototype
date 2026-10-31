@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Avatar, Badge, Button, Checkbox, Dialog, dialog, Dropdown, FormControl, Switch, TabButtons, toast, Tooltip } from 'frappe-ui'
+import { Avatar, Badge, Button, Dialog, dialog, Dropdown, FormControl, Switch, TabButtons, toast, Tooltip } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -24,6 +24,9 @@ import { longDate } from '../data/partnership'
 // (frappe-cloud-v2 CentralSettingsPage.vue): one control row with search on the
 // left and the tabs plus Invite on the right, 60px rows, and the same cell
 // markup. The frappe-patterns skill's team-and-roles note lists what changed.
+//
+// Single-role variant: each person holds exactly one role. `roles` stays an
+// array (other screens check `roles.includes`) but always has one entry.
 
 const store = useConnectStore()
 const account = usePartnerAccountStore()
@@ -59,7 +62,7 @@ const membersOf = (role) => account.team.filter((p) => p.roles.includes(role))
 function menu(p) {
   return [
     { label: 'Link certificate', icon: 'lucide-badge-check', onClick: () => startLink(p) },
-    { label: 'Change roles', icon: 'lucide-key-round', onClick: () => startRoles(p) },
+    { label: 'Change role', icon: 'lucide-key-round', onClick: () => startRoles(p) },
     {
       label: 'Remove',
       icon: 'lucide-trash-2',
@@ -117,10 +120,10 @@ function saveLink() {
 
 // ── Invite and access ───────────────────────────────────────────────────────
 const inviting = ref(false)
-const invite = ref({ name: '', email: '', roles: ['member'] })
+const invite = ref({ name: '', email: '', role: 'member' })
 const inviteErrors = ref({})
 function startInvite() {
-  invite.value = { name: '', email: '', roles: ['member'] }
+  invite.value = { name: '', email: '', role: 'member' }
   inviteErrors.value = {}
   inviting.value = true
 }
@@ -128,40 +131,28 @@ function sendInvite() {
   const e = {}
   if (!invite.value.name.trim()) e.name = 'Enter their name'
   if (!/^\S+@\S+\.\S+$/.test(invite.value.email.trim())) e.email = 'Enter a valid email, like name@company.com'
-  if (!invite.value.roles.length) e.roles = 'Pick at least one role'
   inviteErrors.value = e
   if (Object.keys(e).length) return
-  account.invite({ ...invite.value, name: invite.value.name.trim(), email: invite.value.email.trim() })
+  account.invite({ name: invite.value.name.trim(), email: invite.value.email.trim(), roles: [invite.value.role] })
   inviting.value = false
   toast.success(`Invite sent to ${invite.value.email}`)
 }
 
 // ── Member dialog ───────────────────────────────────────────────────────────
 // Clicking a row opens the person, as in the FC v2 demo: what they can do and
-// their certificate, then "Manage roles" switches the same dialog to editing.
+// the firm, then "Change role" switches the same dialog to a role select.
 const memberOpen = ref(false)
 const memberMode = ref('view')
 const memberFor = ref(null)
-const roles = ref([])
+const role = ref('')
 function openMember(p, mode = 'view') {
   memberFor.value = p
-  roles.value = [...p.roles]
+  role.value = p.roles[0]
   memberMode.value = mode
   memberOpen.value = true
 }
 const startRoles = (p) => openMember(p, 'manage')
-// Owner covers everything: other rows stay but go inactive, as Admin does in FC v2.
-const hasOwnerDraft = computed(() => roles.value.includes('owner'))
-const isCovered = (i) => hasOwnerDraft.value && roles.value[i] !== 'owner'
-const roleOptions = (i) =>
-  ROLES.filter((r) => r.key === roles.value[i] || !roles.value.includes(r.key)).map((r) => ({ label: r.label, value: r.key }))
-// A new row starts on the first unused role that isn't Owner; Owner is picked on purpose.
-function addRole() {
-  const unused = ROLES.filter((r) => !roles.value.includes(r.key))
-  const next = unused.find((r) => r.key !== 'owner') ?? unused[0]
-  if (next) roles.value.push(next.key)
-}
-// What each role opens, as short chips in the member dialog (from ROLES[].desc).
+const roleOptions = ROLES.map((r) => ({ label: r.label, value: r.key }))
 // What each role opens, from ROLES[].desc. One list feeds the member dialog's
 // chips and the role dialog's switches, so the two never disagree.
 const AREAS = [
@@ -186,7 +177,8 @@ const PERMS = Object.fromEntries(
 // ── Role dialog ─────────────────────────────────────────────────────────────
 // Clicking a role opens it, as in FC v2: Permissions and Members tabs sharing
 // one grid cell so the dialog never resizes. Connect's four roles are built in,
-// so permissions show read-only; Members can add a teammate to the role.
+// so permissions show read-only. Members can move a teammate into the role;
+// with one role each, that replaces the role they had.
 const roleOpen = ref(false)
 const roleFor = ref(null)
 const roleTab = ref('permissions')
@@ -197,31 +189,34 @@ function openRole(r) {
   addId.value = ''
   roleOpen.value = true
 }
+// Everyone not already in this role, with the role they'd leave. The last owner
+// can't be moved out: the firm needs one.
 const addableOptions = computed(() =>
-  account.team.filter((p) => !p.roles.includes(roleFor.value?.key)).map((p) => ({ label: p.name, value: p.id })),
+  account.team
+    .filter((p) => !p.roles.includes(roleFor.value?.key))
+    .filter((p) => !(p.roles.includes('owner') && owners.value === 1))
+    .map((p) => ({ label: `${p.name} · ${ROLE_LABEL[p.roles[0]]}`, value: p.id })),
 )
 function addToRole() {
   const p = account.team.find((x) => x.id === addId.value)
   if (!p) return
-  account.setRoles(p.id, [...p.roles, roleFor.value.key])
+  account.setRoles(p.id, [roleFor.value.key])
   toast.success(`${p.name} is now ${ROLE_LABEL[roleFor.value.key]}`)
   addId.value = ''
 }
 const memberRoles = computed(() => ROLES.filter((r) => memberFor.value?.roles.includes(r.key)))
-const roleError = computed(() => {
-  if (!roles.value.length) return 'Pick at least one role'
-  return memberFor.value?.roles.includes('owner') && !roles.value.includes('owner') && owners.value === 1
+const roleError = computed(() =>
+  memberFor.value?.roles.includes('owner') && role.value !== 'owner' && owners.value === 1
     ? 'Your firm needs an owner. Make someone else owner first.'
-    : ''
-})
+    : '',
+)
 function saveRoles() {
   if (roleError.value) return
-  account.setRoles(memberFor.value.id, [...roles.value])
+  account.setRoles(memberFor.value.id, [role.value])
   memberFor.value = account.team.find((p) => p.id === memberFor.value.id) ?? memberFor.value
   memberMode.value = 'view'
-  toast.success('Roles updated')
+  toast.success('Role updated')
 }
-const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filter((x) => x !== r))
 </script>
 
 <template>
@@ -413,19 +408,7 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
       <form class="space-y-4" @submit.prevent="sendInvite">
         <FormControl v-model="invite.name" label="Name" required :error="inviteErrors.name" />
         <FormControl v-model="invite.email" type="email" label="Email" placeholder="name@company.com" required :error="inviteErrors.email" />
-        <fieldset>
-          <legend class="text-sm text-ink-gray-6">Roles</legend>
-          <div class="mt-2 space-y-2">
-            <Checkbox
-              v-for="(label, r) in ROLE_LABEL"
-              :key="r"
-              :label="label"
-              :model-value="invite.roles.includes(r)"
-              @update:model-value="(on) => (invite.roles = toggleRole(invite.roles, r, on))"
-            />
-          </div>
-          <p v-if="inviteErrors.roles" class="mt-2 text-p-sm text-ink-red-7">{{ inviteErrors.roles }}</p>
-        </fieldset>
+        <FormControl v-model="invite.role" type="select" label="Role" :options="roleOptions" />
         <div class="flex justify-end gap-2 pt-2">
           <Button label="Cancel" @click="inviting = false" />
           <Button variant="solid" type="submit" label="Send invite" />
@@ -464,30 +447,19 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
         </div>
       </div>
 
-      <!-- Manage mode: one role per row, as FC v2's role editor. Connect roles
-           cover the whole firm, so there is no "on <server>" half. -->
+      <!-- Change mode: one role per person, so a single select -->
       <div v-else-if="memberMode === 'manage'" class="space-y-3">
-        <p v-if="hasOwnerDraft && roles.length > 1" class="flex items-start gap-2 text-p-sm text-ink-gray-5">
-          <span class="lucide-info mt-0.5 size-3.5 shrink-0 text-ink-gray-5" aria-hidden="true" />
-          <span>Owner already covers everything, so the roles below stay inactive until you remove it.</span>
-        </p>
-        <div v-for="(r, i) in roles" :key="i" class="flex items-center gap-2" :class="isCovered(i) ? 'opacity-50' : ''">
-          <div class="flex-1">
-            <FormControl type="select" :model-value="r" :options="roleOptions(i)" :disabled="isCovered(i)" @update:model-value="(v) => (roles[i] = v)" />
-          </div>
-          <Button variant="ghost" size="sm" icon="lucide-x" aria-label="Remove role" :disabled="isCovered(i)" @click="roles.splice(i, 1)" />
-        </div>
-        <Button variant="subtle" size="sm" label="Add role" icon-left="lucide-plus" :disabled="hasOwnerDraft || roles.length === ROLES.length" @click="addRole" />
+        <FormControl v-model="role" type="select" label="Role" :options="roleOptions" />
         <p v-if="roleError" class="text-p-sm text-ink-red-7">{{ roleError }}</p>
       </div>
 
       <template #actions>
         <div v-if="memberMode === 'view'" class="flex justify-end">
-          <Button v-if="isOwner" variant="subtle" icon-left="lucide-shield" label="Manage roles" @click="memberMode = 'manage'" />
+          <Button v-if="isOwner" variant="subtle" icon-left="lucide-shield" label="Change role" @click="memberMode = 'manage'" />
         </div>
         <div v-else class="flex justify-end gap-2">
           <Button icon-left="lucide-arrow-left" label="Back" @click="memberMode = 'view'" />
-          <Button variant="solid" label="Save" :disabled="!roles.length" @click="saveRoles" />
+          <Button variant="solid" label="Save" :disabled="role === memberFor?.roles[0] || !!roleError" @click="saveRoles" />
         </div>
       </template>
     </Dialog>
@@ -560,8 +532,10 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
                 </div>
               </template>
               <p v-else class="text-center text-p-xs text-ink-gray-5">Everyone on the team already has this role.</p>
-              <p v-if="roleFor.key === 'owner'" class="mt-1.5 text-p-xs text-ink-gray-5">
-                Owners can do everything, including removing other owners.
+              <p class="mt-1.5 text-p-xs text-ink-gray-5">
+                {{ owners === 1 && roleFor.key !== 'owner'
+                  ? 'Adding someone replaces their current role. The last owner can’t be moved.'
+                  : 'Each person has one role, so adding someone here replaces their current one.' }}
               </p>
             </div>
           </div>

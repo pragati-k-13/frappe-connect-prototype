@@ -132,7 +132,7 @@ const SILVER_TEAM = [
 ]
 
 const BEGINNER_TEAM = [
-  { name: 'Sana Malik', email: 'sana@lumen.example', roles: ['owner', 'sales', 'finance'], cert: { name: 'ERPNext', full: true, issued: '2026-08-12', expires: '2028-08-12' } },
+  { name: 'Sana Malik', email: 'sana@lumen.example', roles: ['owner'], cert: { name: 'ERPNext', full: true, issued: '2026-08-12', expires: '2028-08-12' } },
   { name: 'Yusuf Karim', email: 'yusuf@lumen.example', roles: ['sales'], cert: null },
 ]
 
