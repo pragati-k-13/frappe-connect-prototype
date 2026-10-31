@@ -150,6 +150,17 @@ function openMember(p, mode = 'view') {
   memberOpen.value = true
 }
 const startRoles = (p) => openMember(p, 'manage')
+// Owner covers everything: other rows stay but go inactive, as Admin does in FC v2.
+const hasOwnerDraft = computed(() => roles.value.includes('owner'))
+const isCovered = (i) => hasOwnerDraft.value && roles.value[i] !== 'owner'
+const roleOptions = (i) =>
+  ROLES.filter((r) => r.key === roles.value[i] || !roles.value.includes(r.key)).map((r) => ({ label: r.label, value: r.key }))
+// A new row starts on the first unused role that isn't Owner; Owner is picked on purpose.
+function addRole() {
+  const unused = ROLES.filter((r) => !roles.value.includes(r.key))
+  const next = unused.find((r) => r.key !== 'owner') ?? unused[0]
+  if (next) roles.value.push(next.key)
+}
 // What each role opens, as short chips in the member dialog (from ROLES[].desc).
 const PERMS = { owner: [], sales: ['Leads', 'Quotes', 'Customers'], finance: ['Billing', 'Invoices'], member: [] }
 const memberRoles = computed(() => ROLES.filter((r) => memberFor.value?.roles.includes(r.key)))
@@ -409,17 +420,20 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
         </div>
       </div>
 
-      <!-- Manage mode: role checkboxes -->
+      <!-- Manage mode: one role per row, as FC v2's role editor. Connect roles
+           cover the whole firm, so there is no "on <server>" half. -->
       <div v-else-if="memberMode === 'manage'" class="space-y-3">
-        <div class="space-y-2">
-          <Checkbox
-            v-for="(label, r) in ROLE_LABEL"
-            :key="r"
-            :label="label"
-            :model-value="roles.includes(r)"
-            @update:model-value="(on) => (roles = toggleRole(roles, r, on))"
-          />
+        <p v-if="hasOwnerDraft && roles.length > 1" class="flex items-start gap-2 text-p-sm text-ink-gray-5">
+          <span class="lucide-info mt-0.5 size-3.5 shrink-0 text-ink-gray-5" aria-hidden="true" />
+          <span>Owner already covers everything, so the roles below stay inactive until you remove it.</span>
+        </p>
+        <div v-for="(r, i) in roles" :key="i" class="flex items-center gap-2" :class="isCovered(i) ? 'opacity-50' : ''">
+          <div class="flex-1">
+            <FormControl type="select" :model-value="r" :options="roleOptions(i)" :disabled="isCovered(i)" @update:model-value="(v) => (roles[i] = v)" />
+          </div>
+          <Button variant="ghost" size="sm" icon="lucide-x" aria-label="Remove role" :disabled="isCovered(i)" @click="roles.splice(i, 1)" />
         </div>
+        <Button variant="subtle" size="sm" label="Add role" icon-left="lucide-plus" :disabled="hasOwnerDraft || roles.length === ROLES.length" @click="addRole" />
         <p v-if="roleError" class="text-p-sm text-ink-red-7">{{ roleError }}</p>
       </div>
 
@@ -429,7 +443,7 @@ const toggleRole = (list, r, on) => (on ? [...new Set([...list, r])] : list.filt
         </div>
         <div v-else class="flex justify-end gap-2">
           <Button icon-left="lucide-arrow-left" label="Back" @click="memberMode = 'view'" />
-          <Button variant="solid" label="Save" @click="saveRoles" />
+          <Button variant="solid" label="Save" :disabled="!roles.length" @click="saveRoles" />
         </div>
       </template>
     </Dialog>
