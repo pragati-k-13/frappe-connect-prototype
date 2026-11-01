@@ -132,7 +132,7 @@ const SILVER_TEAM = [
 ]
 
 const BEGINNER_TEAM = [
-  { name: 'Sana Malik', email: 'sana@lumen.example', roles: ['owner', 'sales', 'finance'], cert: { name: 'ERPNext', full: true, issued: '2026-08-12', expires: '2028-08-12' } },
+  { name: 'Sana Malik', email: 'sana@lumen.example', roles: ['owner'], cert: { name: 'ERPNext', full: true, issued: '2026-08-12', expires: '2028-08-12' } },
   { name: 'Yusuf Karim', email: 'yusuf@lumen.example', roles: ['sales'], cert: null },
 ]
 
@@ -158,12 +158,13 @@ export const teamFor = (tier, state) => {
 
 export const ROLE_LABEL = { owner: 'Owner', sales: 'Sales', finance: 'Finance', member: 'Member' }
 
-// What each role is for, in the Roles tab. The full table is in the plan.
+// What each role is for: the description under each option in the Users
+// panel's role menu, and the icon on its button. The full table is in the plan.
 export const ROLES = [
-  { key: 'owner', label: 'Owner', desc: 'Everything, including the team, audits, link requests and settings' },
-  { key: 'sales', label: 'Sales', desc: 'Leads, quotes and customers' },
-  { key: 'finance', label: 'Finance', desc: 'Billing, Contributions and customer invoices' },
-  { key: 'member', label: 'Member', desc: 'View-only: standing, team, profile and resources' },
+  { key: 'owner', label: 'Owner', icon: 'lucide-shield', desc: 'Everything, including the team, audits, link requests and settings' },
+  { key: 'sales', label: 'Sales', icon: 'lucide-briefcase', desc: 'Leads, quotes and customers' },
+  { key: 'finance', label: 'Finance', icon: 'lucide-receipt', desc: 'Billing, Contributions and customer invoices' },
+  { key: 'member', label: 'Member', icon: 'lucide-user', desc: 'View-only: standing, team, profile and resources' },
 ]
 
 // ── CRM sync ────────────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 <script setup>
-import { markRaw, ref } from 'vue'
+import { computed, markRaw, ref, watch } from 'vue'
 import {
   SettingsContent,
   SettingsDialog,
@@ -8,18 +8,26 @@ import {
   SettingsPanel,
   SettingsSidebar,
 } from 'frappe-ui'
+import { useConnectStore } from '../../stores/connect'
 import CrmSyncPanel from './CrmSyncPanel.vue'
 import LeavePanel from './LeavePanel.vue'
+import PartnerUsersPanel from './PartnerUsersPanel.vue'
 
-// The partner side's settings: owner only, and short, because users and roles
-// live on Team. See PARTNER-VIEW-PLAN.md §8.
+// The partner side's settings. Everyone can open it to see who's on the team
+// (Users, read-only unless you're an owner); the rest is the owner's.
+// See PARTNER-VIEW-PLAN.md §5 and §8.
 const open = defineModel('open', { type: Boolean, default: false })
 
-const tabs = [
-  { label: 'CRM sync', value: 'crm', icon: 'lucide-refresh-cw', component: markRaw(CrmSyncPanel) },
-  { label: 'Leave the partnership', value: 'leave', icon: 'lucide-log-out', component: markRaw(LeavePanel) },
+const store = useConnectStore()
+const allTabs = [
+  { label: 'Users', value: 'users', icon: 'lucide-users', component: markRaw(PartnerUsersPanel) },
+  { label: 'CRM sync', value: 'crm', icon: 'lucide-refresh-cw', component: markRaw(CrmSyncPanel), owner: true },
+  { label: 'Leave the partnership', value: 'leave', icon: 'lucide-log-out', component: markRaw(LeavePanel), owner: true },
 ]
-const tab = ref('crm')
+const tabs = computed(() => allTabs.filter((t) => !t.owner || store.partnerRole === 'owner'))
+const tab = ref('users')
+// Opening always lands on Users, the one panel every role has.
+watch(open, (o) => o && (tab.value = 'users'))
 </script>
 
 <template>

@@ -1,6 +1,6 @@
 <script setup>
-import { computed } from 'vue'
-import { Avatar, Badge, Button, toast } from 'frappe-ui'
+import { computed, ref, watch } from 'vue'
+import { Avatar, Badge, Button, Dialog, FormControl, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import TierIcon from '../components/TierIcon.vue'
 import PartnerCode from '../components/PartnerCode.vue'
@@ -26,7 +26,7 @@ import {
 const store = useConnectStore()
 
 const account = usePartnerAccountStore()
-// The consultants count is Team's, so linking a certificate there moves it here.
+// The consultants count comes from Certificates below, so linking one moves it.
 const s = computed(() => ({
   ...standingFor(store.partnerTier, store.partnershipState),
   consultants: account.team.filter((p) => p.counts).length,
@@ -40,6 +40,59 @@ const currency = computed(() => s.value.mrr.currency)
 // view of the money, for the owner and finance; the audit is the owner's call.
 const canSeeContributions = computed(() => ['owner', 'finance'].includes(store.partnerRole))
 const canRequestAudit = computed(() => store.partnerRole === 'owner')
+
+// ── Certificates ────────────────────────────────────────────────────────────
+// Everyone at the firm and their Frappe School certificate, which is what the
+// consultants criterion counts. A person needn't have Connect access to be here.
+// Employees take exams on Frappe School themselves; the owner only LINKS a
+// certificate. See PARTNER-VIEW-PLAN.md §5.
+const CERT_STATUS = {
+  expiring: { label: 'Expiring', theme: 'amber' },
+  expired: { label: 'Expired', theme: 'red' },
+}
+const certLine = (p) =>
+  !p.cert
+    ? 'Not certified'
+    : !p.cert.full
+      ? `${p.cert.name} · Doesn’t count toward tier`
+      : p.status === 'expired'
+        ? `${p.cert.name} · Expired ${longDate(p.cert.expires)}`
+        : `${p.cert.name} · Until ${longDate(p.cert.expires)}`
+
+// Connect looks the certificate up and shows the match before saving. In this
+// prototype the lookup is faked: an ID under 6 characters finds nothing, one
+// starting with "SW" is already claimed by another partner, anything else
+// matches the person.
+const linking = ref(false)
+const linkFor = ref(null)
+const certInput = ref('')
+const certError = ref('')
+const found = ref(null)
+// A new ID means a new lookup: drop the old match so it can't be linked by mistake.
+watch(certInput, () => {
+  found.value = null
+  certError.value = ''
+})
+function startLink(p) {
+  linkFor.value = p
+  certInput.value = ''
+  certError.value = ''
+  found.value = null
+  linking.value = true
+}
+function lookUp() {
+  const v = certInput.value.trim()
+  found.value = null
+  if (v.length < 6) return (certError.value = 'No certificate matches that ID or email')
+  if (/^sw/i.test(v)) return (certError.value = 'Another partner already counts this certificate. Your partner managers can help.')
+  certError.value = ''
+  found.value = { name: 'ERPNext', full: true, holder: linkFor.value.name, issued: '2026-10-18', expires: '2028-10-18' }
+}
+function saveLink() {
+  account.linkCertificate(linkFor.value.id, found.value)
+  linking.value = false
+  toast.success(`${linkFor.value.name} is certified`)
+}
 
 // ── Bronze and up: the next tier's criteria ─────────────────────────────────
 const criteria = computed(() => {
@@ -67,7 +120,7 @@ const criteria = computed(() => {
       met: s.value.consultants >= n.consultants,
       warn: risk?.criterion === 'Certified consultants',
       meta: [risk?.criterion === 'Certified consultants' ? risk.detail : 'From Frappe School certificates'],
-      to: '/connect/team',
+      to: '/connect/partnership#certificates',
     },
     // The audit lives in this row: PMM only moves through one, so where the
     // audit stands is where PMM stands.
@@ -97,7 +150,7 @@ const readyForAudit = computed(
 // ── Beginner: the milestones ────────────────────────────────────────────────
 const milestones = computed(() => {
   if (!beginner.value) return []
-  // Certifications tick from Team's count.
+  // Certifications tick from the Certificates count.
   const list = s.value.milestones.map((m) =>
     m.key === 'cert-2' && s.value.consultants >= 2 ? { ...m, done: '2026-10-30' } : m,
   )
@@ -111,7 +164,7 @@ const milestones = computed(() => {
       m.to === 'contributions' && canSeeContributions.value
         ? '/connect/invoices?tab=all'
         : m.to === 'team'
-          ? '/connect/team'
+          ? '/connect/partnership#certificates'
           : null,
   }))
 })
@@ -226,6 +279,31 @@ function requestAudit() {
             </template>
           </section>
 
+          <!-- ── Certificates ───────────────────────────────────────────────
+               What the consultants criterion counts, right under it. -->
+          <section id="certificates" class="scroll-mt-6">
+            <h2 class="text-lg-semibold text-ink-gray-8">Certificates</h2>
+            <ul class="mt-3 divide-y divide-outline-gray-1">
+              <li v-for="p in account.team" :key="p.id" class="flex items-center gap-3 py-3">
+                <Avatar :label="p.name" size="md" class="shrink-0" />
+                <span class="min-w-0 flex-1">
+                  <span class="flex items-center gap-2">
+                    <span class="truncate text-base text-ink-gray-8">{{ p.name }}</span>
+                    <Badge v-if="CERT_STATUS[p.status]" :theme="CERT_STATUS[p.status].theme" variant="subtle" :label="CERT_STATUS[p.status].label" />
+                  </span>
+                  <span class="mt-1 block truncate text-sm text-ink-gray-5">{{ certLine(p) }}</span>
+                </span>
+                <Button
+                  v-if="canRequestAudit && (!p.cert || p.status !== 'certified')"
+                  variant="ghost"
+                  size="sm"
+                  label="Link certificate"
+                  @click="startLink(p)"
+                />
+              </li>
+            </ul>
+          </section>
+
           <!-- ── Partner code ─────────────────────────────────────────────
                Right under a Beginner's milestones, since linking a first
                customer is how MRR starts. -->
@@ -277,5 +355,27 @@ function requestAudit() {
 
       </div>
     </div>
+    <!-- ── Link a certificate ───────────────────────────────────────────── -->
+    <Dialog v-model:open="linking" :title="`Link a certificate for ${linkFor?.name ?? ''}`">
+      <div class="space-y-4">
+        <FormControl
+          v-model="certInput"
+          label="Certificate ID, or the email they took the exam with"
+          :error="certError"
+          @keydown.enter.prevent="lookUp"
+        />
+        <div v-if="found" class="rounded-6 border border-outline-gray-1 p-3">
+          <p class="text-base text-ink-gray-8">{{ found.name }} certification</p>
+          <p class="mt-1 text-sm text-ink-gray-5">
+            {{ found.holder }} · Issued {{ longDate(found.issued) }} · Until {{ longDate(found.expires) }}
+          </p>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <Button label="Cancel" @click="linking = false" />
+          <Button v-if="!found" variant="solid" label="Look up" @click="lookUp" />
+          <Button v-else variant="solid" label="Link certificate" @click="saveLink" />
+        </div>
+      </div>
+    </Dialog>
   </ConnectShell>
 </template>

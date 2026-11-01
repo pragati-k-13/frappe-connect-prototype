@@ -108,7 +108,8 @@ const account = usePartnerAccountStore()
 const leads = useLeads()
 const partnerRail = computed(() => {
   const role = store.partnerRole
-  // Member is view-only: standing, the team, the profile and resources.
+  // Member is view-only: standing, the profile and resources. The team is in
+  // Settings → Users, which every role can open.
   const member = role === 'member'
   const beginner = store.partnerTier === 'beginner'
   const waiting = leads.value.filter(needsReply).length
@@ -128,14 +129,13 @@ const partnerRail = computed(() => {
   // Invoices is the firm's money with Frappe, so it sits with the firm.
   const firm = [
     !member && role !== 'sales' && { label: 'Invoices', to: '/connect/invoices', icon: 'lucide-receipt', active: at('invoices') },
-    { label: 'Team', to: '/connect/team', icon: 'lucide-users', active: at('team') },
     { label: 'Listing', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile') },
   ].filter(Boolean)
   // Only Leads carries a count: replies are the one thing that can't wait.
   // The firm group gets a label; the work group, at the top, needs none.
   // Four rows or fewer is one plain list: a list that short scans without
   // groups, and a label over it would only say the obvious (a Member's
-  // Partnership, Team, Listing). Five or more keeps the two groups.
+  // Partnership and Listing). Five or more keeps the two groups.
   if (work.length + firm.length <= 4) return [{ items: [...work, ...firm] }]
   return [
     { items: work },
@@ -215,13 +215,12 @@ const footerMenu = computed(() => [
 ])
 
 const logoMenu = computed(() => [
-  // The firm's settings are the owner's. Partner managers open as a list to
-  // write to, rather than jumping to a section of a page.
+  // Everyone can open the firm's settings to see who's on the team; the other
+  // panels are the owner's. Partner managers open as a list to write to,
+  // rather than jumping to a section of a page.
   ...(store.role === 'partner'
     ? [
-        ...(store.partnerRole === 'owner'
-          ? [{ label: 'Firm settings', icon: 'lucide-settings', onClick: () => (partnerSettings.value = true) }]
-          : []),
+        { label: 'Firm settings', icon: 'lucide-settings', onClick: () => (partnerSettings.value = true) },
         ...(standingFor(store.partnerTier, store.partnershipState).managers.length
           ? [{
           label: 'Partner managers',

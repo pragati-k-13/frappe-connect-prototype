@@ -161,7 +161,6 @@ const routes = [
   { path: '/connect/customers', name: 'customers', component: () => import('./pages/CustomersPage.vue'), beforeEnter: asPartner },
   { path: '/connect/customers/:id', name: 'customer', component: () => import('./pages/CustomerPage.vue'), beforeEnter: asPartner },
   { path: '/connect/invoices', name: 'invoices', component: () => import('./pages/InvoicesPage.vue'), beforeEnter: asPartner },
-  { path: '/connect/team', name: 'team', component: () => import('./pages/TeamPage.vue'), beforeEnter: asPartner },
   { path: '/connect/profile', name: 'own-profile', component: () => import('./pages/OwnProfilePage.vue'), beforeEnter: asPartner },
   { path: '/connect/resources', name: 'resources', component: () => import('./pages/ResourcesPage.vue'), beforeEnter: asPartner },
   // The collaboration half of the product: everything the account is tracking.

@@ -25,10 +25,13 @@
        names a partner. -->
   <ContactPartnerDialog />
   <DemoSwitch />
+  <!-- Host for frappe-ui's imperative `dialog.confirm` / `dialog.danger`.
+       Without it those calls render nothing, so confirms silently do nothing. -->
+  <Dialogs />
 </template>
 
 <script setup>
-import { ToastProvider } from 'frappe-ui'
+import { Dialogs, ToastProvider } from 'frappe-ui'
 import CompanySignupDialog from './components/CompanySignupDialog.vue'
 import ContactPartnerDialog from './components/ContactPartnerDialog.vue'
 import DemoSwitch from './components/DemoSwitch.vue'

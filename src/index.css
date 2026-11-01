@@ -153,6 +153,13 @@
   padding-top: calc(1.25rem + 1.5px);
 }
 
+/* Same for menu items with a `description` (the role menu in Settings → Users):
+   frappe-ui centres the icon on label and description together; it goes on the
+   label's line. The label line is 16px, the icon's own size, so no offset. */
+[data-slot='item-list-row']:has([data-slot='item-label'] .text-p-sm) {
+  align-items: flex-start;
+}
+
 /* `Dialog`'s `size` prop is an enum of Tailwind `max-w-*` steps — `xl` is
    576px, `2xl` is 672px, and neither is the width this modal wants. The panel
    carries frappe-ui's own `dialog-content` class but takes no class of ours,
