@@ -8,12 +8,14 @@ const store = useConnectStore()
 </script>
 
 <template>
-  <SettingsHeader title="Users">
-    <template #actions>
+  <!-- Own header row, as in frappe-ui's Users story: the title prop aligns the title to the button's top -->
+  <SettingsHeader>
+    <div class="flex items-center justify-between gap-3">
+      <h2 class="text-lg font-semibold text-ink-gray-8">Users</h2>
       <Button variant="solid" label="Invite">
         <template #prefix><LucidePlus class="size-4" /></template>
       </Button>
-    </template>
+    </div>
   </SettingsHeader>
   <SettingsBody>
     <div class="divide-y divide-outline-gray-1">

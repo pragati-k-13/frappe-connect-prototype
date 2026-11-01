@@ -17,10 +17,12 @@ const save = () => {
 </script>
 
 <template>
-  <SettingsHeader title="Profile">
-    <template #actions>
+  <!-- Own header row, as in frappe-ui's Users story: the title prop aligns the title to the button's top -->
+  <SettingsHeader>
+    <div class="flex items-center justify-between gap-3">
+      <h2 class="text-lg font-semibold text-ink-gray-8">Profile</h2>
       <Button variant="solid" label="Save" :disabled="!dirty" @click="save" />
-    </template>
+    </div>
   </SettingsHeader>
   <SettingsBody>
     <div class="flex flex-col gap-6">
