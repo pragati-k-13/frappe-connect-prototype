@@ -98,10 +98,12 @@ function sendInvite() {
 </script>
 
 <template>
-  <SettingsHeader title="Users">
-    <template v-if="isOwner" #actions>
-      <Button variant="solid" label="Invite" icon-left="lucide-plus" @click="startInvite" />
-    </template>
+  <!-- Own header row, as in frappe-ui's Users story: the default slot aligns the title to the button's top, not its center -->
+  <SettingsHeader>
+    <div class="flex items-center justify-between gap-3">
+      <h2 class="text-lg font-semibold text-ink-gray-8">Users</h2>
+      <Button v-if="isOwner" variant="solid" label="Invite" icon-left="lucide-plus" @click="startInvite" />
+    </div>
   </SettingsHeader>
   <SettingsBody>
     <TextInput v-if="account.team.length > 10" v-model="query" type="search" placeholder="Search users" class="mb-3">
