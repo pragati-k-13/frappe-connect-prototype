@@ -111,7 +111,7 @@ const criteria = computed(() => {
         `Last month ${money(s.value.mrr.lastMonth)}`,
         `Updated ${s.value.mrr.updated}`,
       ].filter(Boolean),
-      to: canSeeContributions.value ? '/connect/invoices?tab=all' : null,
+      to: canSeeContributions.value ? '/connect/customers?sort=mrr' : null,
     },
     {
       key: 'consultants',
@@ -162,7 +162,7 @@ const milestones = computed(() => {
     next: i === firstOpen,
     route:
       m.to === 'contributions' && canSeeContributions.value
-        ? '/connect/invoices?tab=all'
+        ? '/connect/customers?sort=mrr'
         : m.to === 'team'
           ? '/connect/partnership#certificates'
           : null,

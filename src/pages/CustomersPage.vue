@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Avatar, Button, Dialog, Dropdown, FormControl, Select, TabButtons, TextInput, dialog, toast } from 'frappe-ui'
+import { useRoute } from 'vue-router'
+import { Avatar, Badge, Button, Dialog, Dropdown, FormControl, Select, TabButtons, TextInput, Tooltip, dialog, toast } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -8,7 +9,7 @@ import PartnerCode from '../components/PartnerCode.vue'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { customerInvoices } from '../data/partnerAccount'
-import { firmFor, money, shortDate } from '../data/partnership'
+import { contributionMonths, contributionsFor, firmFor, money, shortDate } from '../data/partnership'
 
 // SCREEN — Customers, as Frappe CRM's list (and Leads): a plain breadcrumb, quick filters with Refresh, Filter, Sort and Columns, a
 // full-width table, and a footer with page size and count. A customer row
@@ -56,10 +57,26 @@ const SORTS = [
   { value: 'mrr', label: 'MRR' },
   { value: 'linked', label: 'Linked' },
 ]
-const sort = ref('name')
+// Partnership's MRR row opens this page sorted by MRR (?sort=mrr).
+const sortParam = useRoute().query.sort
+const sort = ref(SORTS.some((o) => o.value === sortParam) ? sortParam : 'name')
 const sortMenu = computed(() =>
   SORTS.map((o) => ({ label: o.label, icon: sort.value === o.value ? 'lucide-check' : 'lucide-blank', onClick: () => (sort.value = o.value) })),
 )
+// Customers who pay Frappe Cloud themselves and haven't paid their last closed
+// invoice. It doesn't count toward tier until they do, so it's the partner's
+// to chase. Partner-pays customers are on the firm's own bill instead.
+const lastClosed = contributionMonths().find((m) => !m.open)
+const unpaid = computed(
+  () =>
+    new Set(
+      contributionsFor(store.partnerTier, lastClosed.key, store.partnershipState)
+        .filter((r) => r.status === 'unpaid' && !r.own)
+        .map((r) => r.customer),
+    ),
+)
+const isUnpaid = (c) => c.billing === 'customer' && unpaid.value.has(c.name)
+
 const COLUMNS = [
   { key: 'contact', label: 'Contact', width: 'minmax(0,1fr)' },
   { key: 'stage', label: 'Stage', width: '8rem' },
@@ -348,9 +365,12 @@ function finishAdd() {
                 </ListCell>
               </ListRow>
               <ListRow v-else :to="`/connect/customers/${item.id}`">
-                <ListCell class="min-w-0 gap-2">
+                <ListCell class="min-w-0 gap-2 overflow-hidden">
                   <Avatar :label="item.name" size="sm" shape="square" />
                   <span class="truncate text-base text-ink-gray-9">{{ item.name }}</span>
+                  <Tooltip v-if="isUnpaid(item)" :text="`${lastClosed.label} invoice unpaid`">
+                    <Badge class="shrink-0" theme="amber" variant="subtle" size="sm" label="Unpaid" />
+                  </Tooltip>
                 </ListCell>
                 <ListCell v-if="show('contact')" class="hidden min-w-0 md:flex">
                   <span class="truncate text-base text-ink-gray-7">{{ item.contact || '—' }}</span>
