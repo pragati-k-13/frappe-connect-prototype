@@ -104,7 +104,7 @@ const open = computed(() => rows.value.find((r) => r.id === openId.value) || nul
   <ConnectShell root-label="Invoices">
     <!-- The same invoice lives in Frappe Cloud's billing; the demo doesn't go there. -->
     <template #action>
-      <Button label="Billing">
+      <Button label="Open billing">
         <template #prefix><img :src="fcLogo" alt="Frappe Cloud" class="size-4" /></template>
       </Button>
     </template>
@@ -112,7 +112,7 @@ const open = computed(() => rows.value.find((r) => r.id === openId.value) || nul
     <div class="fc-page-list py-8">
       <!-- The month and the bill's actions sit in the title row, above
            everything the month changes: the figures, the warning and the list. -->
-      <PageIntro title="Your Frappe Cloud bill">
+      <PageIntro title="Your Frappe Cloud bill" class="!pb-6">
         <template #actions>
           <Select v-model="month" :options="monthOptions" class="w-44" />
           <Dropdown v-if="payFor.length" :options="billMenu">
@@ -150,7 +150,7 @@ const open = computed(() => rows.value.find((r) => r.id === openId.value) || nul
           :description="`${payFor.map((r) => r.customer).join(', ')} may be suspended.`"
         />
 
-        <List v-model:active="openId" class="-mx-3 mt-6 list-row-px-3 text-base" :columns="columns" divider="inset" :row-height="56">
+        <List v-model:active="openId" class="-mx-3 mt-6 list-gap-3 list-row-px-3 text-base" :columns="columns" divider="inset" :row-height="56">
           <ListHeader>
             <ListHeaderCellSort class="col-span-2" :direction="dirOf('customer')" @click="sortBy('customer')">Customer</ListHeaderCellSort>
             <ListHeaderCell class="hidden sm:flex">Invoice</ListHeaderCell>
@@ -208,7 +208,7 @@ const open = computed(() => rows.value.find((r) => r.id === openId.value) || nul
               <span class="block truncate text-base text-ink-gray-8">{{ site.name }}</span>
               <span class="mt-1 block text-sm text-ink-gray-5">{{ site.plan }}</span>
             </span>
-            <span class="shrink-0 tabular-nums text-ink-gray-7">{{ money(site.amount, open.currency) }}</span>
+            <span class="shrink-0 text-base tabular-nums text-ink-gray-7">{{ money(site.amount, open.currency) }}</span>
           </li>
         </ul>
         <dl class="mt-4 space-y-2 border-t border-outline-gray-2 pt-3 text-base">
