@@ -7,7 +7,7 @@ areas on the rail, plus Settings. Each area answers one question a partner comes
 | ----------- | ---------------------------------------------------------- |
 | Leads       | Which leads are waiting on us?                             |
 | Customers   | Who are we working with, and what does each one bring in?  |
-| Invoices    | What counts toward tier, and what did we pay Frappe for our customers? |
+| Invoices    | What did we pay Frappe for our customers this month? |
 | Partnership | Where do we stand with Frappe, and what gets us up a tier? |
 | Listing     | What does a business see when it finds us?                 |
 
@@ -71,7 +71,7 @@ up below are from the plans page and need confirming.
 | Gold     | ₹6,30,000 / $7,500  | 4                     | 5   | 25%         | Full profile, top of list   |
 
 Every tier also needs a registered company and a Frappe Cloud account billing at least $100 a
-month. MRR counts both direct and indirect billing. A consultant counts only with a full
+month. MRR counts both direct and indirect billing, but only paid invoices: an unpaid one doesn't count until it's paid, and partners chase their customers to pay on time. Frappe Cloud finalizes invoices on the last day of the month, so the open month's figure is an estimate. A consultant counts only with a full
 ERPNext or Framework certification, not a single-module one. An upgrade needs a PMM audit
 started ahead of time: 30 days for Bronze, 60 for Silver and Gold.
 
@@ -124,7 +124,7 @@ Finance people create Frappe Cloud accounts they otherwise never need.
 
 **Beginner.** The milestone checklist is the anchor: the five milestones in order, done ones
 ticked with their date, the next one highlighted with what it takes ("1 more certification",
-"$140 more MRR"). Each links to where it's done: certifications to Certificates below, MRR to Invoices, All customers.
+"$140 more MRR"). Each links to where it's done: certifications to Certificates below, MRR to Customers, sorted by MRR.
 The partner code sits right below it, since linking a first customer is how MRR starts.
 
 **Bronze and up.** The current tier with its benefits (discount, listing type). Then one row
@@ -132,7 +132,7 @@ per criterion for the **next** tier: MRR, certified consultants, PMM level and e
 Each row shows where the partner is, the threshold, and the gap ("₹41,000 more MRR"). Each
 row also names its source and how fresh it is: MRR from Frappe Cloud billing, consultants from
 certification, PMM from the last audit. The consultants row links to Certificates on the same page, and the MRR row
-links to Invoices (All customers). Under the MRR figure, last month's sits as one line ("Last month
+links to Customers, sorted by MRR. Under the MRR figure, last month's sits as one line ("Last month
 ₹4,94,395"), which says whether the partner is growing or slipping.
 
 **Partner managers.** Partners reach Frappe's partner managers directly, and a firm can have
@@ -151,15 +151,11 @@ Each is an email link, not a channel inside Connect.
 **Partner code.** On Partnership too, with Copy and Share, because partners already look for
 it here in the PRM portal's Overview.
 
-**Invoices, All customers.** Behind the MRR row: every invoice that makes up MRR, across all customers.
-Columns: customer, month, invoice, status, amount, currency, and whether it counts toward MRR.
-Filters for month and status. The month's total matches the MRR figure. An invoice opens in
-the docked aside (the same one as Billing): its sites and servers with amounts, the total, and
-for an invoice in another currency, what it counts toward MRR as and at which day's rate.
+**Customers, sorted by MRR.** Behind the MRR row: every linked customer with their MRR, so the
+figure can be traced to who makes it up. A Customer-pays customer whose last closed invoice is
+unpaid carries an "unpaid" badge: it doesn't count toward tier until it's paid, and it's the
+partner's to chase. Each customer's own invoices are on their page, in the Invoices tab.
 
-- The current month shows as "This month so far", since its invoices are still accruing.
-  The PRM portal's Draft and Empty statuses look like a quirk of that portal and aren't
-  carried over: an invoice with nothing billed isn't listed.
 - **Currency.** Rates move, so there's no fixed conversion. Each invoice converts at the rate
   of its own date, and the total and thresholds show in the partner's billing currency. The
   list shows each invoice's own amount and currency, so the conversion is visible.
@@ -229,8 +225,8 @@ confirmed or replaced:
 
 ## 2. Customers
 
-**The list is Frappe CRM's, like Leads:** views in the breadcrumb (All customers, Link
-requests), quick filters (search, stage, who pays) with Refresh, Filter (source), Sort and
+**The list is Frappe CRM's, like Leads:** a plain breadcrumb, with link requests at the top of
+the one list (stage "Wants to link"), quick filters (search, stage, who pays) with Refresh, Filter (source), Sort and
 Columns, a full-width table (customer, contact, stage, who pays, owner, sites, MRR), and a
 footer with page size and count. A row opens the customer's page; its menu carries the quick
 trips — open in Frappe Cloud, download the last invoice — so there's no peek sheet. Add customer
@@ -239,8 +235,9 @@ docked panel.
 
 **One record shape for leads and customers,** after Frappe CRM's deal page. Owner and stage sit
 in the top bar (in the thread header on Leads). Leads work like Helpdesk tickets: a list
-(project, company, stage, assigned to, probability, updated; views To reply, Mine, Open,
-Closed; unread rows bold) that opens a lead page. The lead page has the customer page's shape:
+(project, company, stage, assigned to, probability, updated; every lead in one list with a
+plain breadcrumb for now, CRM's List / Group by / Kanban switcher to come later; rows waiting
+on a reply bold) that opens a lead page. The lead page has the customer page's shape:
 tabs Messages (opens first, reply box always open, goes only to the business), Follow-ups
 (calls, demos, emails and meetings held outside Connect), Activity (what the team changed)
 and Notes (the team's own, never sent), with the same
@@ -348,13 +345,11 @@ site moves them to Live.
 
 ## 3. Invoices
 
-One page, two tabs, both Frappe Cloud invoices by customer and month. **All customers** (was
-Contributions) is Frappe's view: every linked customer's invoice, what counts toward tier;
-Partnership's MRR row opens it. **Your Frappe bill** (was Billing) is the one monthly invoice
+One page, no tabs: **your Frappe Cloud bill** (was Billing), the one monthly invoice
 Frappe Cloud sends the firm, shown as a document: a group per Partner-pays customer with its
 sites, then the firm's own sites, then the discount off the total. It answers the accountant's question: what did we
 pay Frappe on our customers' behalf, and what do we charge them for it? Frappe Cloud's own
-Billing page doesn't break this down per customer, so Connect does.
+Billing page doesn't break this down per customer, so Connect does. A "Frappe Cloud billing" button in the header opens Frappe Cloud's own billing (not wired in the demo). Customers who pay Frappe Cloud themselves aren't on this page: see Customers.
 
 **One month at a time,** with a month picker. One row per Partner-pays customer: the amount
 Frappe billed for them, the tier discount taken off, and what the partner paid. Above the rows,

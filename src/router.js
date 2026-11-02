@@ -151,9 +151,9 @@ const routes = [
     component: () => import('./pages/PartnershipPage.vue'),
     beforeEnter: asPartner,
   },
-  // Contributions and Billing became the two tabs of Invoices.
-  { path: '/connect/partnership/contributions', redirect: { name: 'invoices', query: { tab: 'all' } } },
-  { path: '/connect/billing', redirect: { name: 'invoices', query: { tab: 'bill' } } },
+  // Old links: Contributions (what makes up MRR) is Customers by MRR; Billing is Invoices.
+  { path: '/connect/partnership/contributions', redirect: { path: '/connect/customers', query: { sort: 'mrr' } } },
+  { path: '/connect/billing', redirect: { name: 'invoices' } },
   // Leads: Connect briefs as a list, each opening its own page, like Helpdesk
   // tickets. The business side's inbox stays at /connect/messages.
   { path: '/connect/leads', name: 'leads', component: () => import('./pages/LeadsPage.vue'), beforeEnter: asPartner },

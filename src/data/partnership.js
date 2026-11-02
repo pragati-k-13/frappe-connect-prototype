@@ -87,6 +87,8 @@ const FIRMS = {
     person: 'Sana Malik',
     code: 'Lm7QpR2xTa',
     currency: 'USD',
+    // The Frappe Cloud account's billing email, where Frappe sends the firm's bill.
+    billingEmail: 'accounts@lumen.example',
   },
   'bronze-up': {
     partnerId: 'software-work',
@@ -94,6 +96,7 @@ const FIRMS = {
     person: 'Farhan Qureshi',
     code: 'EyZnHMkVq1',
     currency: 'INR',
+    billingEmail: 'accounts@softwarework.example',
   },
 }
 export const firmFor = (tier) => FIRMS[tier] ?? FIRMS['bronze-up']
@@ -160,14 +163,17 @@ export const PARTNERSHIP_STATES = [
 ]
 
 // MRR is the sum of the month's contributions, so the two pages can't disagree.
+// Only paid invoices count toward tier; an open month has none yet (Frappe Cloud
+// finalizes invoices on its last day), so its figure is an estimate of all of them.
 const total = (rows) => rows.reduce((sum, r) => sum + r.converted, 0)
+export const mrrOf = (rows) => total(rows.filter((r) => r.status === 'paid' || r.status === 'accruing'))
 
 export const standingFor = (tier, state = 'working') => {
   const firm = firmFor(tier)
   const base = tier === 'beginner' ? BEGINNER : { ...SILVER, ...(STATES[state] ?? {}) }
   const mrr = {
     current: total(contributionsFor(tier, '2026-10', state)),
-    lastMonth: total(contributionsFor(tier, '2026-09', state)),
+    lastMonth: mrrOf(contributionsFor(tier, '2026-09', state)),
     currency: firm.currency,
     updated: '2 hours ago',
   }
@@ -215,16 +221,18 @@ const SILVER_INVOICES = {
     ['Bluecrest', 6_900, 'INR'],
     ['Software@Work', 8_260, 'INR', true],
   ],
+  // September's Frappe bill is the seeded unpaid one, so every invoice on it
+  // (the Partner pays customers and the firm's own) is unpaid too.
   '2026-09': [
     ['Halcyon', 1_48_100, 'INR'],
-    ['Kestrel', 1_02_760, 'INR'],
+    ['Kestrel', 1_02_760, 'INR', false, 'unpaid'],
     ['Vantage', 1_040, 'USD'],
     ['Tessellate', 63_880, 'INR'],
-    ['Meridian', 41_200, 'INR'],
+    ['Meridian', 41_200, 'INR', false, 'unpaid'],
     ['Orenda', 560, 'USD'],
-    ['Silverpine', 26_150, 'INR'],
+    ['Silverpine', 26_150, 'INR', false, 'unpaid'],
     ['Bluecrest', 7_340, 'INR', false, 'unpaid'],
-    ['Software@Work', 8_260, 'INR', true],
+    ['Software@Work', 8_260, 'INR', true, 'unpaid'],
   ],
   '2026-08': [
     ['Halcyon', 1_39_900, 'INR'],

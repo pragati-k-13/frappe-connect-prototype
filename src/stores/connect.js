@@ -489,7 +489,7 @@ export const useConnectStore = defineStore('connect', {
     // finance land on Partnership, since the milestones to Bronze are the job.
     partnerHome: (state) => {
       if (state.partnerTier === 'beginner') return state.partnerRole === 'sales' ? '/connect/leads' : '/connect/partnership'
-      return { sales: '/connect/leads', finance: '/connect/invoices?tab=bill' }[state.partnerRole] ?? '/connect/partnership'
+      return { sales: '/connect/leads', finance: '/connect/invoices' }[state.partnerRole] ?? '/connect/partnership'
     },
     // Did the visitor arrive at sign-up in the middle of doing something?
     //
