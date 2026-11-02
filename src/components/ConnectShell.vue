@@ -335,7 +335,9 @@ defineProps({
 </script>
 
 <template>
-  <div class="flex h-screen bg-surface-base">
+  <!-- `text-base`: app screens default to frappe-ui's 14px, so text without
+       its own size never falls back to the browser's 16px. -->
+  <div class="flex h-screen bg-surface-base text-base">
     <Sidebar v-model:collapsed="collapsed" class="fc-sidebar border-r">
       <!-- The second line is the signed-in viewer's name, and nothing at all
            when signed out — an app tagline under the app's own name told a
