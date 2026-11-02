@@ -229,8 +229,8 @@ confirmed or replaced:
 
 ## 2. Customers
 
-**The list is Frappe CRM's, like Leads:** views in the breadcrumb (All customers, Link
-requests), quick filters (search, stage, who pays) with Refresh, Filter (source), Sort and
+**The list is Frappe CRM's, like Leads:** a plain breadcrumb, with link requests at the top of
+the one list (stage "Wants to link"), quick filters (search, stage, who pays) with Refresh, Filter (source), Sort and
 Columns, a full-width table (customer, contact, stage, who pays, owner, sites, MRR), and a
 footer with page size and count. A row opens the customer's page; its menu carries the quick
 trips — open in Frappe Cloud, download the last invoice — so there's no peek sheet. Add customer
