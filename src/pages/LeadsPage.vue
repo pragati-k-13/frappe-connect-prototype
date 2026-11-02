@@ -4,37 +4,25 @@ import { Avatar, Button, Dropdown, Select, TabButtons, TextInput } from 'frappe-
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
-import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { PRM_STAGES } from '../data/partnerAccount'
-import { companyName, isClosed, lastAt, meFor, needsReply, theirLast, useLeads } from '../composables/useLeads'
+import { companyName, lastAt, needsReply, useLeads } from '../composables/useLeads'
 
-// SCREEN — Leads, styled as Frappe CRM's list: the view switcher in the
-// breadcrumb, quick filters with Refresh, Filter, Sort and Columns beside
+// SCREEN — Leads, styled as Frappe CRM's list: a plain breadcrumb, quick
+// filters with Refresh, Filter, Sort and Columns beside
 // them, then a full-width table and a footer with page size and count. A row opens the lead's own page. See PARTNER-VIEW-PLAN.md, Leads.
 //
 // No Create: every lead here is a Connect brief. Every tier gets them,
 // Beginners included.
 
-const store = useConnectStore()
 const account = usePartnerAccountStore()
 const leads = useLeads()
 
-// Who "Mine" means: the person the demo role stands for, from Team.
-const me = computed(() => meFor(store))
 const nameOf = (id) => account.team.find((p) => p.id === id)?.name
 
-// ── Views, in the breadcrumb as CRM has them ────────────────────────────────
-// Landing for Sales, so the default is only what waits on the firm.
-const VIEWS = [
-  { label: 'To reply', value: 'needs', icon: 'lucide-reply' },
-  { label: 'Mine', value: 'mine', icon: 'lucide-user' },
-  { label: 'Open', value: 'open', icon: 'lucide-inbox' },
-  { label: 'Closed', value: 'closed', icon: 'lucide-archive' },
-]
-const view = ref('needs')
-const current = computed(() => VIEWS.find((v) => v.value === view.value))
-const viewMenu = VIEWS.map((v) => ({ label: v.label, icon: v.icon, onClick: () => (view.value = v.value) }))
+// ── Views ───────────────────────────────────────────────────────────────────
+// None yet: one list of every lead. CRM's switcher (List, Group by, Kanban)
+// comes later, in the breadcrumb.
 
 // ── Quick filters ───────────────────────────────────────────────────────────
 const query = ref('')
@@ -94,17 +82,7 @@ function refresh() {
   setTimeout(() => (refreshing.value = false), 500)
 }
 
-const inView = computed(() =>
-  leads.value.filter((t) =>
-    view.value === 'needs'
-      ? needsReply(t)
-      : view.value === 'mine'
-        ? !isClosed(t) && t.owner === me.value
-        : view.value === 'open'
-          ? !isClosed(t)
-          : isClosed(t),
-  ),
-)
+const inView = leads
 // Only the business moves a row: ordered by their last message. "To reply"
 // goes oldest waiting first, since that's the order to answer in.
 const rows = computed(() => {
@@ -118,7 +96,7 @@ const rows = computed(() => {
       if (sort.value === 'stage') return PRM_STAGES.indexOf(a.stage) - PRM_STAGES.indexOf(b.stage)
       if (sort.value === 'probability') return ['Hot', 'Warm', 'Cold', undefined].indexOf(a.probability) - ['Hot', 'Warm', 'Cold', undefined].indexOf(b.probability)
       if (sort.value === 'name') return a.project.localeCompare(b.project)
-      return view.value === 'needs' ? theirLast(a) - theirLast(b) : lastAt(b) - lastAt(a)
+      return lastAt(b) - lastAt(a)
     })
 })
 const page = computed(() => rows.value.slice(0, pageSize.value))
@@ -143,20 +121,10 @@ const time = (at) => {
     : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-const EMPTY = { needs: 'All caught up', mine: 'None assigned to you', open: 'No open leads', closed: 'No closed leads' }
 </script>
 
 <template>
-  <ConnectShell root-label="Leads" root-to="/connect/leads" flush>
-    <!-- "Leads / To reply ▾", CRM's view switcher. -->
-    <template #crumb>
-      <Dropdown :options="viewMenu">
-        <Button variant="ghost" class="text-lg-medium text-nowrap" icon-right="lucide-chevron-down">
-          <template #prefix><span :class="current.icon" class="size-4" aria-hidden="true" /></template>
-          {{ current.label }}
-        </Button>
-      </Dropdown>
-    </template>
+  <ConnectShell root-label="Leads" flush>
 
     <div class="flex min-h-0 min-w-0 flex-1 flex-col">
       <!-- ── Quick filters ─────────────────────────────────────────────── -->
@@ -239,11 +207,10 @@ const EMPTY = { needs: 'All caught up', mine: 'None assigned to you', open: 'No 
 
         <EmptyState
           v-else
-          :icon="view === 'needs' && !filtered ? 'lucide-check-check' : 'lucide-inbox'"
-          :title="filtered ? 'No leads match' : EMPTY[view]"
+          icon="lucide-inbox"
+          :title="filtered ? 'No leads match' : 'No leads yet'"
         >
           <Button v-if="filtered" label="Clear filters" @click="clear" />
-          <Button v-else-if="view === 'needs'" label="View open leads" @click="view = 'open'" />
         </EmptyState>
       </div>
 

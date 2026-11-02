@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Alert, Badge, Button, Dropdown, Select, TabButtons, TextInput, toast } from 'frappe-ui'
+import { Alert, Avatar, Badge, Button, Dropdown, Select, TabButtons, TextInput, toast } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -18,8 +18,9 @@ import { contributionMonths, contributionsFor, firmFor, money, shortDate } from 
 // the firm's own), and the tier discount off the total, not off each customer.
 // What customers pay the firm isn't here: that's billed from their own ERPNext.
 //
-// On All customers, an invoice opens in the shell's docked panel, beside the
-// list rather than over it, so stepping through customers keeps your place.
+// On both tabs, a customer's invoice opens in the shell's docked panel, beside
+// the list rather than over it, so stepping through customers keeps your place.
+// The bill's rows are one line each: their sites and plans are in the panel.
 
 const store = useConnectStore()
 const route = useRoute()
@@ -80,6 +81,7 @@ const b = computed(() => billingFor(store.partnerTier, store.partnershipState, m
 const payFor = computed(() => b.value.rows.filter((r) => !r.own))
 // Customers first, the firm's own sites last.
 const groups = computed(() => [...payFor.value, ...b.value.rows.filter((r) => r.own)])
+const billColumns = { base: ['minmax(0,1fr)', '8rem', '2rem'], sm: ['minmax(0,1fr)', '6rem', '8rem', '2rem'] }
 
 function exportCsv() {
   const lines = [
@@ -102,12 +104,6 @@ const billMenu = computed(() => [
   { label: 'Export CSV', icon: 'lucide-file-spreadsheet', onClick: whenIssued(exportCsv) },
 ])
 
-// ── The intro's figures follow the tab ──────────────────────────────────────
-const stats = computed(() => {
-  // The bill carries its own total and discount, so the intro adds none.
-  return tab.value === 'all' ? [{ label: 'MRR', value: money(mrr.value, cur.value) }] : []
-})
-
 const STATUS = {
   accruing: { label: 'Accruing', theme: 'gray' },
   paid: { label: 'Paid', theme: 'green' },
@@ -115,21 +111,17 @@ const STATUS = {
 }
 
 // ── The docked invoice ──────────────────────────────────────────────────────
-const open = computed(() => (tab.value === 'all' && all.value.find((r) => r.id === openId.value)) || null)
+const open = computed(() => (tab.value === 'all' ? all.value : groups.value).find((r) => r.id === openId.value) || null)
 </script>
 
 <template>
   <ConnectShell root-label="Invoices">
     <div class="fc-page-list py-8">
-      <PageIntro title="Frappe Cloud invoices for your customers" :stats="stats">
+      <!-- The intro is the same on both tabs: a control only changes what's
+           below it, so MRR and the bill's actions live in their tab. -->
+      <PageIntro title="Frappe Cloud invoices for your customers">
         <template #actions>
           <Select v-model="month" :options="monthOptions" class="w-48" />
-          <template v-if="tab === 'bill' && payFor.length">
-            <Button icon-left="lucide-download" label="Download PDF" @click="whenIssued(() => toast.success('Invoice downloaded'))()" />
-            <Dropdown :options="billMenu">
-              <Button icon="lucide-ellipsis" aria-label="More" />
-            </Dropdown>
-          </template>
         </template>
       </PageIntro>
 
@@ -137,6 +129,11 @@ const open = computed(() => (tab.value === 'all' && all.value.find((r) => r.id =
 
       <!-- ── All customers ─────────────────────────────────────────────── -->
       <template v-if="tab === 'all'">
+        <dl class="mt-6">
+          <dt class="text-sm text-ink-gray-5">MRR</dt>
+          <dd class="mt-1 text-xl-semibold tabular-nums text-ink-gray-9">{{ money(mrr, cur) }}</dd>
+        </dl>
+
         <div class="mt-6 flex flex-wrap items-center gap-2">
           <TextInput v-model="query" type="search" placeholder="Search customers" class="w-full sm:w-56">
             <template #prefix><span class="lucide-search size-4 text-ink-gray-5" aria-hidden="true" /></template>
@@ -160,7 +157,8 @@ const open = computed(() => (tab.value === 'all' && all.value.find((r) => r.id =
           <ListRows :items="allShown" v-slot="{ item, value }">
             <ListRow :value="value" @click="openId = item.id">
               <!-- The firm's own account is named as theirs, the same on both tabs. -->
-              <ListCell class="min-w-0">
+              <ListCell class="min-w-0 gap-2">
+                <Avatar :label="item.own ? firm.name : item.customer" size="sm" shape="square" />
                 <span class="truncate text-ink-gray-8">{{ item.own ? 'Your account' : item.customer }}</span>
               </ListCell>
               <ListCell class="hidden whitespace-nowrap tabular-nums text-ink-gray-5 sm:flex">{{ item.invoice }}</ListCell>
@@ -199,42 +197,58 @@ const open = computed(() => (tab.value === 'all' && all.value.find((r) => r.id =
             :description="`${payFor.map((r) => r.customer).join(', ')} may be suspended.`"
           />
 
-          <!-- The bill as a document: its number, then a group per customer
-               with their sites, then the discount off the total. -->
-          <p class="mt-6 flex items-center gap-2 text-sm text-ink-gray-5">
-            <span class="tabular-nums">{{ b.invoice }}</span>
-            <Badge v-if="b.status === 'paid'" theme="green" variant="subtle" size="sm" label="Paid" />
-          </p>
+          <!-- The bill as a document: its number and actions, then a row per
+               customer, then the discount off the total. -->
+          <div class="mt-6 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <p class="flex items-center gap-2 text-sm text-ink-gray-5">
+              <span class="tabular-nums">{{ b.invoice }}</span>
+              <Badge v-if="b.status === 'paid'" theme="green" variant="subtle" size="sm" label="Paid" />
+            </p>
+            <div class="flex shrink-0 items-center gap-2">
+              <Button icon-left="lucide-download" label="Download PDF" @click="whenIssued(() => toast.success('Invoice downloaded'))()" />
+              <Dropdown :options="billMenu">
+                <Button icon="lucide-ellipsis" aria-label="More" />
+              </Dropdown>
+            </div>
+          </div>
 
-          <ul class="mt-3 divide-y divide-outline-gray-1">
-            <li v-for="r in groups" :key="r.id" class="py-4">
-              <div class="flex items-center gap-3">
-                <span class="min-w-0 flex-1 truncate text-base font-medium text-ink-gray-8">
-                  {{ r.own ? 'Your sites' : r.customer }}
-                </span>
-                <span class="shrink-0 text-base tabular-nums text-ink-gray-8">{{ money(r.converted, cur) }}</span>
-                <Button
-                  v-if="!r.own"
-                  variant="ghost"
-                  icon="lucide-download"
-                  class="text-ink-gray-5"
-                  :aria-label="`Download ${r.customer}’s breakdown`"
-                  :tooltip="`Download ${r.customer}’s breakdown`"
-                  @click="downloadFor(r)"
-                />
-                <!-- Holds the column, so amounts line up with the rows above. -->
-                <span v-else class="size-7 shrink-0" aria-hidden="true" />
-              </div>
-              <ul class="mt-1.5 space-y-1 pr-10">
-                <li v-for="site in r.sites" :key="site.name" class="flex justify-between gap-3 text-sm text-ink-gray-5">
-                  <span class="truncate">{{ site.name }}</span>
-                  <span class="shrink-0">{{ site.plan }}</span>
-                </li>
-              </ul>
-            </li>
-          </ul>
+          <List
+            v-model:active="openId"
+            class="-mx-3 mt-4 list-row-px-3"
+            :columns="billColumns"
+            :row-height="48"
+          >
+            <ListHeader>
+              <ListHeaderCell>Customer</ListHeaderCell>
+              <ListHeaderCell class="hidden sm:flex">Sites</ListHeaderCell>
+              <ListHeaderCell class="justify-end">Amount</ListHeaderCell>
+              <ListHeaderCell />
+            </ListHeader>
+            <ListRows :items="groups" v-slot="{ item, value }">
+              <ListRow :value="value" @click="openId = item.id">
+                <ListCell class="min-w-0 gap-2">
+                  <Avatar :label="item.own ? firm.name : item.customer" size="sm" shape="square" />
+                  <span class="truncate text-ink-gray-8">{{ item.own ? 'Your account' : item.customer }}</span>
+                </ListCell>
+                <ListCell class="hidden tabular-nums text-ink-gray-5 sm:flex">{{ item.sites.length }}</ListCell>
+                <ListCell class="justify-end tabular-nums text-ink-gray-7">{{ money(item.converted, cur) }}</ListCell>
+                <ListCell class="justify-end">
+                  <Button
+                    v-if="!item.own"
+                    variant="ghost"
+                    icon="lucide-download"
+                    class="text-ink-gray-5"
+                    :aria-label="`Download ${item.customer}’s breakdown`"
+                    :tooltip="`Download ${item.customer}’s breakdown`"
+                    @click.stop="downloadFor(item)"
+                  />
+                </ListCell>
+              </ListRow>
+            </ListRows>
+          </List>
 
-          <dl class="space-y-2 border-t border-outline-gray-2 pt-4 pr-10 text-base">
+          <!-- The totals sit under the Amount column, not across the page. -->
+          <dl class="ml-auto mt-2 space-y-2 border-t border-outline-gray-2 pt-4 pr-10 text-base sm:w-72">
             <div class="flex justify-between gap-3">
               <dt class="text-ink-gray-7">Subtotal</dt>
               <dd class="tabular-nums text-ink-gray-8">{{ money(b.subtotal, cur) }}</dd>

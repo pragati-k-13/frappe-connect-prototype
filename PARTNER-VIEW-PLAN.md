@@ -239,8 +239,9 @@ docked panel.
 
 **One record shape for leads and customers,** after Frappe CRM's deal page. Owner and stage sit
 in the top bar (in the thread header on Leads). Leads work like Helpdesk tickets: a list
-(project, company, stage, assigned to, probability, updated; views To reply, Mine, Open,
-Closed; unread rows bold) that opens a lead page. The lead page has the customer page's shape:
+(project, company, stage, assigned to, probability, updated; every lead in one list with a
+plain breadcrumb for now, CRM's List / Group by / Kanban switcher to come later; rows waiting
+on a reply bold) that opens a lead page. The lead page has the customer page's shape:
 tabs Messages (opens first, reply box always open, goes only to the business), Follow-ups
 (calls, demos, emails and meetings held outside Connect), Activity (what the team changed)
 and Notes (the team's own, never sent), with the same
