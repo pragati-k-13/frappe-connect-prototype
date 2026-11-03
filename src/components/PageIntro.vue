@@ -18,6 +18,7 @@ defineProps({
         <div class="flex items-center gap-2">
           <slot name="prefix" />
           <h1 class="text-2xl-semibold text-ink-gray-9">{{ title }}</h1>
+          <slot name="suffix" />
         </div>
         <p v-if="description" class="mt-1.5 text-p-base text-ink-gray-6">{{ description }}</p>
       </div>

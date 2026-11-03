@@ -58,6 +58,12 @@ const fmt = {
   USD: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }),
 }
 export const money = (amount, currency = 'INR') => fmt[currency].format(amount)
+// A figure that stands alone (a tile's value): ₹5.05L, $12.5K.
+const compact = {
+  INR: new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', notation: 'compact', maximumFractionDigits: 2 }),
+  USD: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }),
+}
+export const shortMoney = (amount, currency = 'INR') => compact[currency].format(amount)
 
 const day = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' })
 const dayYear = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -168,12 +174,27 @@ export const PARTNERSHIP_STATES = [
 const total = (rows) => rows.reduce((sum, r) => sum + r.converted, 0)
 export const mrrOf = (rows) => total(rows.filter((r) => r.status === 'paid' || r.status === 'accruing'))
 
+// The year of MRR behind the Partnership sparkline, oldest first. Nov 2025 to
+// Jul 2026 are invented; Aug and Sep are everything billed in the months seeded
+// below, and the last point is the open month. Billed, not paid: the trend is
+// the business, and an invoice still open would draw as a dip that isn't one.
+const EARLIER_MRR = [3_62_000, 3_75_000, 3_81_000, 3_98_000, 4_12_000, 4_20_000, 4_41_000, 4_58_000, 4_79_000]
+
 export const standingFor = (tier, state = 'working') => {
   const firm = firmFor(tier)
   const base = tier === 'beginner' ? BEGINNER : { ...SILVER, ...(STATES[state] ?? {}) }
+  const scale = tier === 'beginner' ? 1 : (STATES[state]?.scale ?? 1)
+  const current = total(contributionsFor(tier, '2026-10', state))
+  const lastMonth = mrrOf(contributionsFor(tier, '2026-09', state))
   const mrr = {
-    current: total(contributionsFor(tier, '2026-10', state)),
-    lastMonth: mrrOf(contributionsFor(tier, '2026-09', state)),
+    current,
+    lastMonth,
+    history: [
+      ...EARLIER_MRR.map((v) => Math.round(v * scale)),
+      total(contributionsFor(tier, '2026-08', state)),
+      total(contributionsFor(tier, '2026-09', state)),
+      current,
+    ],
     currency: firm.currency,
     updated: '2 hours ago',
   }

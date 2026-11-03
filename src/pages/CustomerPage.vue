@@ -229,7 +229,7 @@ function requestSwitch() {
       </div>
     </template>
 
-    <EmptyState v-if="!c" icon="lucide-building-2" title="This customer isn’t in your list">
+    <EmptyState v-if="!c" class="flex-1" icon="lucide-building-2" title="This customer isn’t in your list">
       <Button label="All customers" route="/connect/customers" />
     </EmptyState>
 
@@ -239,12 +239,16 @@ function requestSwitch() {
            tabs and the panels, not on this column. -->
       <div class="min-w-0 shrink-0 pb-6 lg:flex-1 lg:shrink lg:overflow-y-auto">
         <Tabs v-model="tab">
-          <!-- Frappe CRM's tabs: default size, an icon with each, and the row
-               as tall as the top bar. -->
-          <TabList class="fc-tabs-scroll h-11 shrink-0 px-3 sm:px-5">
-            <TabTrigger v-if="narrow" value="details" label="Details" icon-left="lucide-panel-right" />
-            <TabTrigger v-for="t in tabs" :key="t.value" :value="t.value" :label="t.label" :icon-left="t.icon" />
-          </TabList>
+          <!-- Helpdesk's tabs bar: `md`, an icon with each, the rule edge to
+               edge. The scroll sits on a wrapper, not the TabList: the
+               underline hangs 1px below the list, and the list's own overflow
+               would clip it. -->
+          <div class="fc-tabs-scroll shrink-0">
+            <TabList size="md" class="min-w-max px-3 py-1.5 sm:px-5">
+              <TabTrigger v-if="narrow" value="details" label="Details" icon-left="lucide-panel-right" />
+              <TabTrigger v-for="t in tabs" :key="t.value" :value="t.value" :label="t.label" :icon-left="t.icon" />
+            </TabList>
+          </div>
 
           <TabPanel value="sites" class="px-3 sm:px-10">
             <div>

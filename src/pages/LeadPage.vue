@@ -272,19 +272,22 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
       </div>
     </template>
 
-    <EmptyState v-if="!lead" icon="lucide-inbox" title="This lead isn’t in your list">
+    <EmptyState v-if="!lead" class="flex-1" icon="lucide-inbox" title="This lead isn’t in your list">
       <Button label="All leads" route="/connect/leads" />
     </EmptyState>
 
     <div v-else class="relative flex min-h-0 min-w-0 flex-1">
       <!-- ── The timeline ─────────────────────────────────────────────── -->
       <section class="flex min-h-0 min-w-0 flex-1 flex-col">
-        <!-- Frappe CRM's tabs: default size, an icon with each, the row as tall
-             as the top bar and running edge to edge. -->
+        <!-- Helpdesk's tabs bar: `md`, an icon with each, the rule edge to edge.
+             The scroll sits on a wrapper, not the TabList: the underline hangs
+             1px below the list, and the list's own overflow would clip it. -->
         <Tabs v-model="tab" class="shrink-0">
-          <TabList class="fc-tabs-scroll h-11 px-3 sm:px-5">
-            <TabTrigger v-for="t in TABS" :key="t.value" :value="t.value" :label="t.label" :icon-left="t.icon" />
-          </TabList>
+          <div class="fc-tabs-scroll">
+            <TabList size="md" class="min-w-max px-3 py-1.5 sm:px-5">
+              <TabTrigger v-for="t in TABS" :key="t.value" :value="t.value" :label="t.label" :icon-left="t.icon" />
+            </TabList>
+          </div>
         </Tabs>
         <ScrollArea ref="feed" class="min-h-0 flex-1">
           <!-- CRM's content inset: 40px each side, the title 32px down. -->
@@ -420,7 +423,7 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
           <p v-if="closed || !canAct" class="border-t border-outline-gray-1 px-3 py-2.5 text-center text-p-sm text-ink-gray-5 sm:px-10">
             {{ closed ? 'This lead is closed.' : 'Sales and your firm’s owner work on leads.' }}
           </p>
-          <div v-else class="border-t border-outline-gray-1 px-3 py-2.5 sm:px-10">
+          <div v-else class="px-3 py-2.5 sm:px-10">
             <Editor ref="composer" v-model="draft" :extensions="EXTENSIONS" placeholder="Reply to the business…">
               <template #default="{ isEmpty }">
                 <div
