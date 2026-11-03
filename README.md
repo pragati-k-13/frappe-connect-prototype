@@ -108,21 +108,27 @@ scripts/          placeholder-asset generators — delete once real art lands
 
 ## Not built yet
 
-Scoped out of this pass, in rough order:
+Scoped out of this pass, in rough order. Where a control exists for one of these, it
+names itself in a toast rather than swallowing the click.
 
-1. **The rest of the partner profile.** Everything down to Marketplace contributions is
-   built. What's below it isn't, and is deliberately absent rather than stubbed — an
-   empty section reads as a bug in review, a missing one reads as "not yet".
-2. **Starting a thread from a profile** — "Contact" and "Message partner" are still
-   inert. The messages screen exists now, but a conversation opened from a listing row
-   needs a rule for what it says first, and nobody has decided one. Booking a pack is
-   the only thing that opens a thread today.
-3. **The signed-in views.** `store.account` and `store.projects` are live and the demo
-   switcher flips between them. Implementation tracking has landed (below); Home is
-   still a row in the rail with nothing behind it. The estimate modal is meant to be
-   gated on `store.hasProject` and currently isn't.
-4. **The partner-side views.** The switcher is built and `store.role` is the seam — the
-   screens behind it are not.
-5. **Changing a project's scope**, and **cancelling a booked pack.** Both name themselves
-   in a toast rather than swallowing the click. Cancelling has contractual terms behind
-   it that nobody has written.
+1. **Partner onboarding.** Applying to be a partner, the application's status, the
+   agreement and linking Frappe Cloud are planned (PARTNER-VIEW-PLAN.md §0) but have no
+   screens. "Become a partner" on the frappe.io page is disabled rather than pointing
+   somewhere that would have to be invented.
+2. **Gating the estimator on a project.** "Estimate quote" on a partner's pricing is open
+   to everyone. It's meant to show only once `store.hasProject` is true
+   (`PartnerPricingSection.vue`).
+3. **Reviews beyond the profile.** No all-reviews screen, no reviews by tag, and no way
+   to write one. "View all" is inert; the other two are toasts.
+4. **Invoices on the business side, and Frappe Cloud billing on the partner side.** A
+   project's invoice download is a toast, since there's no invoice to render. "Open
+   billing" on Invoices goes nowhere.
+5. **Message extras.** Search in a conversation, reactions and per-message actions are
+   toasts: a reaction needs somewhere to live and someone to read it, and the message
+   menu's contents aren't decided.
+6. **Settings beyond Profile and Company.** Preferences, Notifications and Users are
+   built but hidden (`SHOW_ALL_TABS` in `AppSettingsDialog.vue`); Invite is inert, and
+   "Team settings" in Company details is a toast.
+7. **Search feedback and marketplace links.** "Share feedback" on the partner list is a
+   toast, with no form behind it. "View" on a partner's marketplace apps would open
+   Frappe Cloud's marketplace and is inert.
