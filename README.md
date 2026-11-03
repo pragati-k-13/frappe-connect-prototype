@@ -1,8 +1,9 @@
 # Frappe Connect — design handoff mock
 
-A running prototype of the **business-side** discovery flow for Frappe Connect: how a
-business finds a Frappe implementation partner, from first contact on the marketing
-site through to a filtered partner list.
+A running prototype of Frappe Connect, both sides of it. **Businesses** find a Frappe
+implementation partner or a Starter Pack, sign up, pay, and track the implementation.
+**Partners** work their leads and customers, see where they stand with Frappe, and
+manage their listing.
 
 This is a **reference for implementation**, not the implementation. There's no backend,
 no auth, and no Frappe app scaffolding — the point is that the interactions, states, and
@@ -17,25 +18,47 @@ Then open <http://localhost:5173>.
 
 ## The flow
 
-| #   | Route                     | What it is                                                             | Build it?                     |
-| --- | ------------------------- | ---------------------------------------------------------------------- | ----------------------------- |
-| 1   | `/`                       | `frappe.io/partners` — where a business discovers Connect              | **No** — the real page exists |
-| 2   | `/connect`                | Frappe Connect landing: the 3-question qualifier + supporting sections | Yes                           |
-| 3   | `/connect/partners`       | The filtered partner list                                              | Yes                           |
-| 3a  | `/connect/packs`          | The Starter Pack catalogue; `?pack=` opens a pack's scope in a panel   | Yes                           |
-| 3b  | `/connect/login`          | Log in. Every gated control lands here with `?next=` back to itself    | Yes                           |
-| 3c  | `/connect/signup`         | Create an account. Where a pack's "Get started" sends a new visitor    | Yes                           |
-| 3d  | `/connect/*/verify`       | The 6-digit code. Both forms hand off here; nobody is signed in before | Yes                           |
-| 3e  | `/connect/signup/company` | Onboarding. Sign-up only, and where the account actually lands         | Yes                           |
-| 3f  | `/connect/confirm`        | Confirm the pack and book the call. `?pack=` names which               | Yes                           |
-| 3g  | `/connect/confirmed`      | Who Frappe assigned you, and what happens next. End of the journey     | Yes                           |
-| 3h  | `/connect/messages`       | The inbox. `?thread=` names the open conversation                      | Yes                           |
-| 3i  | `/connect/projects`       | Implementation — everything the account is tracking                    | Yes                           |
-| 3j  | `/connect/projects/:id`   | One project: partner, progress, and what each stage needs from you     | Yes                           |
-| 4   | `/connect/partners/:id`   | A partner's profile — **top section only so far**                      | Yes                           |
+### frappe.io (stand-ins for the marketing site)
 
-Screen 1 is a deliberately light stand-in. It's here so the entry point isn't imaginary
-— you can see what a business was looking at when they clicked through. It's styled to
+| Route       | What it is                                                         | Build it?                      |
+| ----------- | ------------------------------------------------------------------ | ------------------------------ |
+| `/contact`  | `frappe.io/contact`, where most implementation leads arrive. `/` lands here | **No**, the real page exists |
+| `/partners` | `frappe.io/partners`, where a business discovers Connect           | **No**, the real page exists   |
+
+### Business side
+
+| Route                          | What it is                                                                 |
+| ------------------------------ | -------------------------------------------------------------------------- |
+| `/connect`                     | Home: the 3-question qualifier signed out, a dashboard signed in           |
+| `/connect/recommendation`      | What the answers add up to: packs to tick, total and pay for               |
+| `/connect/packs`               | The Starter Pack catalogue; `/connect/packs/:id` is a pack's scope and terms |
+| `/connect/packs/cart`          | The basket, before paying                                                  |
+| `/connect/checkout`            | The payment processor's page. Signed in only; `/checkout/paid` confirms it |
+| `/connect/partners`            | The filtered partner list; `/connect/partners/:id` is a partner's profile  |
+| `/connect/partners/contact`    | One brief sent to every partner that matches                               |
+| `/connect/requirements-sent`   | The receipt for that brief: who it went to                                 |
+| `/connect/partners/saved`      | Partners the account has saved                                             |
+| `/connect/login`, `/connect/signup` | Log in and sign up. Gated controls land here with `?next=` back to themselves |
+| `/connect/*/verify`            | The 6-digit code both forms hand off to                                    |
+| `/connect/messages`            | The inbox. `?thread=` names the open conversation                          |
+| `/connect/projects`            | Implementation: everything the account is tracking; `/:id` is one project  |
+
+### Partner side
+
+Switch to it from the Demo menu. Every partner route puts the demo on the partner side
+if you land on it directly.
+
+| Route                      | What it is                                                        |
+| -------------------------- | ----------------------------------------------------------------- |
+| `/connect/leads`           | Connect briefs as a list; `/connect/leads/:id` is one lead       |
+| `/connect/customers`       | The partner's customers and their MRR; `/:id` is one customer    |
+| `/connect/partnership`     | Where the firm stands with Frappe: next-tier criteria, audit, certified consultants |
+| `/connect/profile`         | The firm's own directory listing                                  |
+| `/connect/invoices`        | Frappe Cloud invoices behind the firm's MRR                       |
+| `/connect/resources`       | What Frappe gives partners to sell and deliver with, linked out    |
+
+The frappe.io pages are deliberately light stand-ins. They're here so the entry point
+isn't imaginary — you can see what a business was looking at when they clicked through. It's styled to
 read as _website_ rather than _app_ (serif headline, wide measure, no rail).
 
 **"Find a partner" opens Connect in a new tab.** That's why it's a plain anchor with
@@ -59,21 +82,22 @@ Beyond that:
 
 - **State is in-memory.** A refresh resets the quiz — deliberate, so the flow is easy to
   re-run while reviewing.
-- **The four demo projects are seeded.** Switching to "Ongoing project" loads a starter
-  pack mid-kickoff, a guided onboarding before its first session, custom work with **no
-  partner yet**, and a project with **no service chosen at all**. Four, because between
-  them they cover every state the tracker renders — drop one and a state becomes
-  unreachable. Everything attached to them is invented; the partners are real firms and
-  none of them is running any of this.
+- **Two demo projects are seeded.** Switching to "Ongoing project" loads a Starter Pack
+  and a piece of custom work. Everything attached to them is invented; the partners are
+  real firms and none of them is running any of this.
+- **The partner side is two firms.** "Bronze and up" is Software@Work, a real partner
+  shown at Silver; "Beginner" is a made-up firm, so no real partner is shown below the
+  tier it holds. MRR, invoices, audits and certificates are all invented.
 - **Counts don't reconcile with the list.** The map and chips show the directory's real
   figures (156 partners); the list is seeded with thirteen representative ones. The map
   and the chips do agree with each other — both read `REGIONS`.
-- **Log in works.** "Log in via Frappe Cloud" spins for a moment and signs you in — there's
-  no auth behind it, just the state change. Contact and Save open it first when you're
-  signed out, and finish what you started once you're in. "Sign up" is inert.
-- **Share feedback, "Write a review", "View all", "View" and "Message partner" are inert.**
-  They show placement and affordance. "Book a slot" and the estimate modal are the
-  exceptions — both work, they just don't submit anywhere.
+- **Log in and sign up work.** Both take an email and a 6-digit code; there's no auth
+  behind them, just the state change. Contact and Save send you there first when you're
+  signed out, and finish what you started once you're in.
+- **Payment is a mock of the processor's page.** Paying creates the project and its
+  conversation; no money or card details go anywhere.
+- **Some controls show placement only.** They're listed under Not built yet below; each
+  one either names itself in a toast or does nothing.
 
 ## Where the reasoning lives
 
@@ -81,6 +105,7 @@ Beyond that:
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | [DESIGN-NOTES.md](DESIGN-NOTES.md)       | Every screen decision: what it was, what it replaced, what was measured to settle it                    |
 | [FRAPPE-UI-NOTES.md](FRAPPE-UI-NOTES.md) | Library traps that aren't specific to Connect — mostly classes that compile to nothing without erroring |
+| [PARTNER-VIEW-PLAN.md](PARTNER-VIEW-PLAN.md) | The partner side: screens, roles, and what each role can see and do                                  |
 
 Both were part of this README until it reached fifty minutes of reading on the front page
 of the repo.
@@ -89,20 +114,17 @@ of the repo.
 
 ```
 src/
-  data/           quiz.js (questions), partners.js (partners, packs, stories),
-                  logos.js + media.js (convention-based asset resolution),
-                  project.js (the three stage spines and what each stage needs)
-  stores/         connect.js — answers, filters, and the results getter
-  assets/         world-map.svg (frappe-cloud-v2), tiers/ (Frappe Partner Badges),
-                  partners/ (drop real logos here),
-                  media/ + clients/ (PLACEHOLDER profile art — see scripts/)
-  components/     ConnectShell (Sidebar + top bar), DottedWorldMap, PartnerRow,
-                  FilterChip, TierIcon, DemoSwitch,
-                  MediaGallery + MediaLightbox, ClientStrip, BookSlotDialog,
-                  ProjectRow + ProjectStages + ProjectChecklist +
-                  ProjectPartnerCard + NewProjectDialog
-  pages/          FrappeSitePage, ConnectLandingPage, ResultsPage,
-                  PartnerProfilePage, ProjectsPage + ProjectPage
+  pages/          one file per route; business, partner and frappe.io screens
+  components/     ConnectShell (sidebar, top bar, docked panel), shared dialogs,
+                  partner-profile sections, pack and project pieces;
+                  settings/ (the settings dialog), icons/
+  data/           placeholder data, one file per area (partners, packs, project,
+                  messages, partnership, …) — every invented figure is flagged
+  stores/         connect.js (answers, account, demo state),
+                  partnerAccount.js (the partner firm's team and edits)
+  utils/          auth gate and contact flow
+  composables/    shared logic
+  assets/         maps, tier badges, logos, PLACEHOLDER profile art (see scripts/)
 scripts/          placeholder-asset generators — delete once real art lands
 ```
 
