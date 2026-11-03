@@ -126,10 +126,11 @@ const partnerRail = computed(() => {
     !member && { label: 'Customers', to: '/connect/customers', icon: 'lucide-building-2', active: at('customers', 'customer') },
     !beginner && partnership,
   ].filter(Boolean)
-  // Invoices is the firm's money with Frappe, so it sits with the firm.
+  // Invoices is the firm's money with Frappe, so it sits with the firm, after
+  // the firm's own listing.
   const firm = [
-    !member && role !== 'sales' && { label: 'Invoices', to: '/connect/invoices', icon: 'lucide-receipt', active: at('invoices') },
     { label: 'Listing', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile') },
+    !member && role !== 'sales' && { label: 'Invoices', to: '/connect/invoices', icon: 'lucide-receipt', active: at('invoices') },
   ].filter(Boolean)
   // Only Leads carries a count: replies are the one thing that can't wait.
   // The firm group gets a label; the work group, at the top, needs none.
