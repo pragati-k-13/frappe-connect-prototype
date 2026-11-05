@@ -20,6 +20,7 @@ import { modulesFor } from '../data/modules'
 import { sharedAnswers } from '../data/company'
 import { INDUSTRIES } from '../data/quiz'
 import { emptyBrief, matchingPartners } from '../data/custom'
+import { takingWork } from '../data/takingWork'
 import { bidFor, repliesToBrief } from '../data/bids'
 import { STARTER_PACKS, packConflicts } from '../data/packs'
 import { recommendedPackValues } from '../data/recommendation'
@@ -176,6 +177,8 @@ const criteriaFrom = (state) => ({
 // about what the other filters mean — the bug you get the moment the filter
 // logic is written out twice.
 const matches = (p, c, skip = null) => {
+  // Never lifted: a firm that isn't taking new work isn't a suggestion either.
+  if (!takingWork(p)) return false
   // Region and country are ONE dimension — `geo` — selected through a single
   // control, so they combine as a UNION and not an intersection. "All of Asia"
   // plus "Germany" has to mean either, the same way two regions or two segments

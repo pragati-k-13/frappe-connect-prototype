@@ -4,6 +4,7 @@ import { Avatar, Button, Tooltip } from 'frappe-ui'
 import { ListCell, ListRow } from 'frappe-ui/list'
 import TierIcon from './TierIcon.vue'
 import { logoFor } from '../data/logos'
+import { takingWork } from '../data/takingWork'
 import { storiesFor } from '../data/stories'
 import { savedToast } from '../feedback'
 import { useConnectStore } from '../stores/connect'
@@ -326,7 +327,8 @@ const industryLine = computed(() => {
         <!-- Opens the conversation with this partner and goes to it. Gated,
              unlike before: there IS something behind it now, and a thread needs
              an account to belong to — see `useContactPartner`. -->
-        <Button v-if="!compact" variant="subtle" label="Contact" @click="contactPartner(partner)">
+        <!-- Not for a firm that isn't taking new work: only Saved still lists one. -->
+        <Button v-if="!compact && takingWork(partner)" variant="subtle" label="Contact" @click="contactPartner(partner)">
           <!-- A message bubble, not an envelope: contact runs through in-app
              messages, and an envelope would promise email. -->
           <template #prefix><LucideMessageSquare class="size-4" /></template>

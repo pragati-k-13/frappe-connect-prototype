@@ -1,7 +1,11 @@
 <script setup>
 import { computed } from 'vue'
-import { Badge, Tooltip } from 'frappe-ui'
+import { Badge, MultiSelect, Select, Tooltip } from 'frappe-ui'
+import InlineInput from './InlineInput.vue'
+import RateEditor from './RateEditor.vue'
 import { APPS } from '../data/partners'
+import { COUNTRIES, INDUSTRIES } from '../data/quiz'
+import { budgetBandsFor } from '../data/custom'
 import { useConnectStore } from '../stores/connect'
 
 // SCREEN 6, second section — the About / Services and Expertise card.
@@ -11,7 +15,13 @@ import { useConnectStore } from '../stores/connect'
 // a single frame is what says they're read together.
 const props = defineProps({
   partner: { type: Object, required: true },
+  // The partner's own page in edit mode: every value the partner owns edits
+  // where it sits; Frappe's (PMM, certifications, its awards) carry a lock.
+  editable: { type: Boolean, default: false },
+  // The rate popover's button: "Save" on a Beginner's unlisted page.
+  action: { type: String, default: 'Publish' },
 })
+const emit = defineEmits(['change'])
 
 const store = useConnectStore()
 
@@ -74,6 +84,37 @@ const industryOverflow = computed(() => shownIndustries.value.slice(CHIP_LIMIT))
 // warning on `address` in `data/partners.js`. City is the fallback for a
 // partner added without one.
 const address = computed(() => props.partner.address ?? props.partner.city)
+
+// How the firm works and the smallest project it takes. Both decide which
+// briefs reach it, so a business sees them too.
+const WORKS = { onsite: 'On site', remote: 'Remote', both: 'On site or remote' }
+const bands = budgetBandsFor('India').filter((b) => b.value !== 'unsure')
+const smallest = computed(() => bands[(props.partner.minBand ?? 1) - 1]?.label)
+
+// ── Editing ──────────────────────────────────────────────────────────────────
+const workOptions = Object.entries(WORKS).map(([value, label]) => ({ label, value }))
+const bandOptions = bands.map((b, i) => ({ label: b.label, value: i + 1 }))
+const industryOptions = INDUSTRIES.map((i) => ({
+  group: i.label,
+  options: i.segments.map((s) => ({ label: s, value: s })),
+}))
+const countryOptions = COUNTRIES.map((c) => ({ label: c, value: c }))
+const appOptions = APPS.map((a) => ({ label: a.label, value: a.value }))
+const migrationOptions = ['Tally to ERPNext', 'SAP to ERPNext', 'QuickBooks to ERPNext'].map((m) => ({ label: m, value: m }))
+
+// Lists edit in a MultiSelect and save on each change (it reports no close).
+// Industries can't go empty: a firm with none would match no brief at all.
+function changeList(key, next) {
+  if (key === 'industries' && !next.length) return
+  emit('change', { [key]: next })
+}
+const LISTS = {
+  countries: { label: 'Countries served', options: countryOptions, chip: (v) => v },
+  industries: { label: 'Industries served', options: industryOptions, chip: (v) => v },
+  apps: { label: 'Apps', options: appOptions, chip: appLabel },
+  migrations: { label: 'Migration', options: migrationOptions, chip: (v) => v },
+}
+const LOCK = 'Set by Frappe'
 </script>
 
 <template>
@@ -119,12 +160,20 @@ const address = computed(() => props.partner.address ?? props.partner.city)
               <Tooltip :text="PMM_HELP">
                 <LucideInfo class="size-3.5 shrink-0 text-ink-gray-6" />
               </Tooltip>
+              <Tooltip v-if="editable" :text="LOCK">
+                <span class="lucide-lock size-4 text-ink-gray-5" :aria-label="LOCK" />
+              </Tooltip>
             </dt>
             <dd class="mt-1.5 text-p-base tabular-nums text-ink-gray-8">{{ partner.pmm }}</dd>
           </div>
 
           <div v-if="partner.certifications.length" class="py-3.5">
-            <dt class="text-p-sm text-ink-gray-7">Certified members</dt>
+            <dt class="flex items-center gap-1.5 text-p-sm text-ink-gray-7">
+              Certified members
+              <Tooltip v-if="editable" :text="LOCK">
+                <span class="lucide-lock size-4 text-ink-gray-5" :aria-label="LOCK" />
+              </Tooltip>
+            </dt>
             <!-- How many of the team hold each Frappe certification, count
                  first: the number is the answer here, and leading with it lets
                  the column be scanned down rather than read chip by chip.
@@ -144,7 +193,12 @@ const address = computed(() => props.partner.address ?? props.partner.city)
           </div>
 
           <div v-if="partner.accolades.length" class="py-3.5">
-            <dt class="text-p-sm text-ink-gray-7">Accolades</dt>
+            <dt class="flex items-center gap-1.5 text-p-sm text-ink-gray-7">
+              Accolades
+              <Tooltip v-if="editable" :text="LOCK">
+                <span class="lucide-lock size-4 text-ink-gray-5" :aria-label="LOCK" />
+              </Tooltip>
+            </dt>
             <dd class="mt-1.5 flex flex-wrap gap-2">
               <!-- `w-fit`: the box hugs its title rather than spanning the
                    column, so two accolades sit side by side. -->
@@ -166,7 +220,17 @@ const address = computed(() => props.partner.address ?? props.partner.city)
             <dt class="text-p-sm text-ink-gray-7">Address</dt>
             <!-- The one long-form value in the card, so it's the only one that
                  gets a reading line-height. -->
-            <dd class="mt-1.5 text-p-base leading-6 text-ink-gray-6">{{ address }}</dd>
+            <dd v-if="editable" class="mt-1">
+              <InlineInput
+                multiline
+                :rows="2"
+                :model-value="partner.address ?? ''"
+                label="Address"
+                placeholder="Add your address"
+                @commit="emit('change', { address: $event || null })"
+              />
+            </dd>
+            <dd v-else class="mt-1.5 text-p-base leading-6 text-ink-gray-6">{{ address }}</dd>
           </div>
         </dl>
       </div>
@@ -187,69 +251,136 @@ const address = computed(() => props.partner.address ?? props.partner.city)
                both places; a partner who publishes none says so, lighter. -->
           <div class="py-3.5">
             <dt class="text-p-sm text-ink-gray-7">Rate</dt>
-            <dd class="mt-1.5 text-p-base tabular-nums text-ink-gray-8">
+            <!-- The rate edits in a popover with where it sits in the market. -->
+            <dd v-if="editable" class="mt-1">
+              <RateEditor :partner="partner" :action="action" @publish="emit('change', { rate: $event })" />
+            </dd>
+            <dd v-else class="mt-1.5 text-p-base tabular-nums text-ink-gray-8">
               <template v-if="partner.rate">From ${{ partner.rate }}/hr</template>
               <span v-else class="text-ink-gray-5">Undisclosed</span>
             </dd>
           </div>
 
-          <div class="py-3.5">
-            <dt class="text-p-sm text-ink-gray-7">Countries served</dt>
-            <dd class="mt-1.5 flex flex-wrap gap-1.5">
-              <Badge v-for="c in partner.countries" :key="c" v-bind="CHIP" :label="c" />
-            </dd>
-          </div>
+          <template v-if="editable">
+            <div v-for="(l, key) in LISTS" :key="key" class="py-3.5">
+              <dt class="text-p-sm text-ink-gray-7">{{ l.label }}</dt>
+              <dd class="mt-1">
+                <MultiSelect
+                  :model-value="partner[key]"
+                  :options="l.options"
+                  :placeholder="`Search ${l.label.toLowerCase()}`"
+                  @update:model-value="changeList(key, $event)"
+                >
+                  <!-- The chips are the control: clicking them opens the list
+                       in place, so the row reads the same as on the profile. -->
+                  <template #trigger="{ open }">
+                    <button
+                      type="button"
+                      class="-mx-1 flex flex-wrap gap-1.5 rounded-4 p-1 text-left transition-colors hover:bg-surface-gray-2 focus-visible:focus-ring"
+                      :class="open && 'bg-surface-gray-3 hover:bg-surface-gray-3'"
+                      :aria-label="`Edit ${l.label.toLowerCase()}`"
+                    >
+                      <Badge v-for="v in partner[key]" :key="v" v-bind="CHIP" :label="l.chip(v)" />
+                      <span v-if="!partner[key].length" class="text-p-base text-ink-gray-4">Add {{ l.label.toLowerCase() }}</span>
+                    </button>
+                  </template>
+                </MultiSelect>
+              </dd>
+            </div>
+            <div class="py-3.5">
+              <dt class="text-p-sm text-ink-gray-7">Works</dt>
+              <dd class="mt-1">
+                <Select
+                  class="-mx-2"
+                  variant="ghost"
+                  :model-value="partner.workStyle"
+                  :options="workOptions"
+                  aria-label="How you work"
+                  @update:model-value="emit('change', { workStyle: $event })"
+                />
+              </dd>
+            </div>
+            <div class="py-3.5">
+              <dt class="text-p-sm text-ink-gray-7">Smallest project</dt>
+              <dd class="mt-1">
+                <Select
+                  class="-mx-2"
+                  variant="ghost"
+                  :model-value="partner.minBand ?? 1"
+                  :options="bandOptions"
+                  aria-label="Smallest project you take"
+                  @update:model-value="emit('change', { minBand: $event })"
+                />
+              </dd>
+            </div>
+          </template>
+          <template v-else>
+            <div class="py-3.5">
+              <dt class="text-p-sm text-ink-gray-7">Countries served</dt>
+              <dd class="mt-1.5 flex flex-wrap gap-1.5">
+                <Badge v-for="c in partner.countries" :key="c" v-bind="CHIP" :label="c" />
+              </dd>
+            </div>
 
-          <div class="py-3.5">
-            <dt class="text-p-sm text-ink-gray-7">Industries served</dt>
-            <dd class="mt-1.5 flex flex-wrap gap-1.5">
-              <Badge
-                v-for="i in shownIndustries.slice(0, CHIP_LIMIT)"
-                :key="i"
-                v-bind="CHIP"
-                :label="i"
-              >
-                {{ i }}
-                <!-- The check is the only thing separating a matched chip from
-                     an unmatched one, so it needs a text equivalent rather
-                     than an aria-hidden glyph on its own. -->
-                <template v-if="wantsIndustry(i)" #suffix>
-                  <LucideCheck class="size-3" aria-hidden="true" />
-                  <span class="sr-only">— matches your answers</span>
-                </template>
-              </Badge>
-              <!-- The rest by name, not just a count: "+2" alone asks the
-                   visitor to take it on trust that their industry isn't in
-                   there. -->
-              <Tooltip v-if="industryOverflow.length" :text="industryOverflow.join(', ')">
-                <Badge v-bind="CHIP" :label="`+${industryOverflow.length}`" />
-              </Tooltip>
-            </dd>
-          </div>
+            <div class="py-3.5">
+              <dt class="text-p-sm text-ink-gray-7">Industries served</dt>
+              <dd class="mt-1.5 flex flex-wrap gap-1.5">
+                <Badge
+                  v-for="i in shownIndustries.slice(0, CHIP_LIMIT)"
+                  :key="i"
+                  v-bind="CHIP"
+                  :label="i"
+                >
+                  {{ i }}
+                  <!-- The check is the only thing separating a matched chip from
+                       an unmatched one, so it needs a text equivalent rather
+                       than an aria-hidden glyph on its own. -->
+                  <template v-if="wantsIndustry(i)" #suffix>
+                    <LucideCheck class="size-3" aria-hidden="true" />
+                    <span class="sr-only">— matches your answers</span>
+                  </template>
+                </Badge>
+                <!-- The rest by name, not just a count: "+2" alone asks the
+                     visitor to take it on trust that their industry isn't in
+                     there. -->
+                <Tooltip v-if="industryOverflow.length" :text="industryOverflow.join(', ')">
+                  <Badge v-bind="CHIP" :label="`+${industryOverflow.length}`" />
+                </Tooltip>
+              </dd>
+            </div>
 
-          <div class="py-3.5">
-            <!-- "Apps", not "Frappe apps". Every app in this directory is a
-                 Frappe app and the page is a Frappe partner's profile, so the
-                 qualifier only restated the context — and it made this the one
-                 row label in the card carrying a brand name. -->
-            <dt class="text-p-sm text-ink-gray-7">Apps</dt>
-            <dd class="mt-1.5 flex flex-wrap gap-1.5">
-              <Badge v-for="a in apps" :key="a.value" v-bind="CHIP" :label="a.label">
-                {{ a.label }}
-                <template v-if="wantsApp(a.value)" #suffix>
-                  <LucideCheck class="size-3" aria-hidden="true" />
-                  <span class="sr-only">— matches your answers</span>
-                </template>
-              </Badge>
-            </dd>
-          </div>
+            <div class="py-3.5">
+              <!-- "Apps", not "Frappe apps". Every app in this directory is a
+                   Frappe app and the page is a Frappe partner's profile, so the
+                   qualifier only restated the context — and it made this the one
+                   row label in the card carrying a brand name. -->
+              <dt class="text-p-sm text-ink-gray-7">Apps</dt>
+              <dd class="mt-1.5 flex flex-wrap gap-1.5">
+                <Badge v-for="a in apps" :key="a.value" v-bind="CHIP" :label="a.label">
+                  {{ a.label }}
+                  <template v-if="wantsApp(a.value)" #suffix>
+                    <LucideCheck class="size-3" aria-hidden="true" />
+                    <span class="sr-only">— matches your answers</span>
+                  </template>
+                </Badge>
+              </dd>
+            </div>
 
-          <div v-if="partner.migrations.length" class="py-3.5">
-            <dt class="text-p-sm text-ink-gray-7">Migration</dt>
-            <dd class="mt-1.5 flex flex-wrap gap-1.5">
-              <Badge v-for="m in partner.migrations" :key="m" v-bind="CHIP" :label="m" />
-            </dd>
-          </div>
+            <div v-if="partner.migrations.length" class="py-3.5">
+              <dt class="text-p-sm text-ink-gray-7">Migration</dt>
+              <dd class="mt-1.5 flex flex-wrap gap-1.5">
+                <Badge v-for="m in partner.migrations" :key="m" v-bind="CHIP" :label="m" />
+              </dd>
+            </div>
+            <div v-if="partner.workStyle" class="py-3.5">
+              <dt class="text-p-sm text-ink-gray-7">Works</dt>
+              <dd class="mt-1.5 text-p-base text-ink-gray-8">{{ WORKS[partner.workStyle] }}</dd>
+            </div>
+            <div v-if="smallest" class="py-3.5">
+              <dt class="text-p-sm text-ink-gray-7">Smallest project</dt>
+              <dd class="mt-1.5 text-p-base text-ink-gray-8">{{ smallest }}</dd>
+            </div>
+          </template>
         </dl>
       </div>
     </div>

@@ -1,6 +1,7 @@
 <script setup>
-import { computed } from 'vue'
-import { Avatar, Badge, Tooltip } from 'frappe-ui'
+import { computed, ref } from 'vue'
+import { Avatar, Badge, Button, TextInput, Tooltip } from 'frappe-ui'
+import InlineInput from './InlineInput.vue'
 // Imported rather than written as `<LucideHandshake />` tags, because the rows
 // are a data list and the icon has to travel with the row. `~icons/lucide/*`
 // is the same virtual module the auto-resolver uses, so these are the same
@@ -17,9 +18,15 @@ import IconSuccess from '~icons/lucide/rocket'
 // who reworded them would break the comparison the section exists to support.
 const props = defineProps({
   partner: { type: Object, required: true },
+  // The partner's own page in edit mode: answers and tags edit in place, the
+  // quote and its author open a dialog (`edit-quote`).
+  editable: { type: Boolean, default: false },
 })
+const emit = defineEmits(['change', 'edit-quote'])
+// A firm that hasn't answered yet still gets the three prompts to fill in.
+const EMPTY = { quote: '', author: { name: '', role: '' }, why: '', together: { text: '', tags: [] }, success: { text: '', tags: [] } }
 
-const vision = computed(() => props.partner.vision)
+const vision = computed(() => props.partner.vision ?? (props.editable ? EMPTY : null))
 
 const rows = computed(() => {
   const v = vision.value
@@ -51,6 +58,25 @@ const rows = computed(() => {
 
 // A tag is a bare string, or `{ label, hint }` when it carries the info icon.
 const asTag = (t) => (typeof t === 'string' ? { label: t, hint: null } : t)
+
+// ── Editing ──────────────────────────────────────────────────────────────────
+// Each change goes up as the whole vision, so the page stores one object.
+function setAnswer(key, text) {
+  const v = vision.value
+  emit('change', key === 'why' ? { ...v, why: text } : { ...v, [key]: { ...v[key], text } })
+}
+const newTag = ref({})
+function addTag(key) {
+  const label = (newTag.value[key] ?? '').trim()
+  newTag.value[key] = ''
+  const v = vision.value
+  if (!label || v[key].tags.some((t) => asTag(t).label === label)) return
+  emit('change', { ...v, [key]: { ...v[key], tags: [...v[key].tags, label] } })
+}
+function removeTag(key, label) {
+  const v = vision.value
+  emit('change', { ...v, [key]: { ...v[key], tags: v[key].tags.filter((t) => asTag(t).label !== label) } })
+}
 </script>
 
 <template>
@@ -67,7 +93,17 @@ const asTag = (t) => (typeof t === 'string' ? { label: t, hint: null } : t)
          face as the quote itself, so the weight matches. `aria-hidden` because
          `<blockquote>` already says this is a quotation; a screen reader
          announcing "left double quotation mark" adds nothing. -->
-    <figure class="mt-8">
+    <figure class="group relative mt-8">
+      <!-- On the top rule's right end, clear of the author's photo. -->
+      <Button
+        v-if="editable"
+        class="absolute right-0 top-2 z-10 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+        icon-left="lucide-pencil"
+        aria-label="Edit vision quote"
+        @click="emit('edit-quote')"
+      >
+        Edit
+      </Button>
       <!-- ⚠️ `translate-y-[0.27em]`, and the figure is measured rather than
            eyeballed. `items-center` centres the BOX, and a quote mark's box is
            nothing like its ink: Georgia sets “ and ” up near cap height, so the
@@ -90,10 +126,13 @@ const asTag = (t) => (typeof t === 'string' ? { label: t, hint: null } : t)
         <span class="flex-1 border-t border-outline-gray-1" />
       </div>
 
+      <!-- In edit mode the quote and its author are one block with a pencil
+           that shows on hover or focus: four fields, one of them a photo, so
+           they edit together in a dialog. -->
       <div class="mt-4 flex items-start justify-between gap-6">
         <div class="min-w-0 flex-1">
           <blockquote class="max-w-prose text-p-base text-ink-gray-6">
-            {{ vision.quote }}
+            {{ vision.quote || (editable ? 'Add a quote from your leadership' : '') }}
           </blockquote>
           <figcaption class="mt-5">
             <p class="text-p-base font-medium text-ink-gray-7">{{ vision.author.name }}</p>
@@ -107,7 +146,7 @@ const asTag = (t) => (typeof t === 'string' ? { label: t, hint: null } : t)
              rather than as a gap. `Avatar` with neither `image` nor `label`
              holds the space as a plain circle. Add `:image` when the real
              ones arrive. -->
-        <Avatar class="size-16 shrink-0" />
+        <Avatar class="size-16 shrink-0" :image="vision.author.photo" />
       </div>
 
       <div class="mt-4 flex items-center gap-3">
@@ -148,7 +187,42 @@ const asTag = (t) => (typeof t === 'string' ? { label: t, hint: null } : t)
           <span class="text-base font-medium leading-6 text-ink-gray-7">{{ row.question }}</span>
         </dt>
 
-        <dd class="min-w-0">
+        <dd v-if="editable" class="min-w-0">
+          <InlineInput
+            multiline
+            :rows="4"
+            :model-value="row.answer"
+            :label="row.question"
+            placeholder="Answer in your own words"
+            @commit="setAnswer(row.key, $event)"
+          />
+          <!-- `why` carries no tags in the directory, so only the other two
+               offer them. -->
+          <div v-if="row.key !== 'why'" class="mt-3 flex flex-wrap items-center gap-1.5">
+            <Badge v-for="t in row.tags.map(asTag)" :key="t.label" theme="gray" variant="subtle" size="md">
+              {{ t.label }}
+              <template #suffix>
+                <button
+                  type="button"
+                  class="lucide-x size-3 rounded-full text-ink-gray-5 hover:text-ink-gray-8 focus-visible:focus-ring"
+                  :aria-label="`Remove ${t.label}`"
+                  @click="removeTag(row.key, t.label)"
+                />
+              </template>
+            </Badge>
+            <TextInput
+              v-model="newTag[row.key]"
+              class="w-32"
+              size="sm"
+              variant="ghost"
+              placeholder="Add tag"
+              :aria-label="`Add a tag to ${row.question}`"
+              @keydown.enter.prevent="addTag(row.key)"
+              @blur="addTag(row.key)"
+            />
+          </div>
+        </dd>
+        <dd v-else class="min-w-0">
           <p class="text-p-base text-ink-gray-6">{{ row.answer }}</p>
           <div v-if="row.tags.length" class="mt-3 flex flex-wrap gap-1.5">
             <!-- Label through the default slot rather than the `label` prop,

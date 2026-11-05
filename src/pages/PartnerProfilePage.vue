@@ -25,6 +25,7 @@ import { useAuthGate } from '../utils/auth'
 import PartnerMarketplaceSection from '../components/PartnerMarketplaceSection.vue'
 import PartnerFoundingSection from '../components/PartnerFoundingSection.vue'
 import { PARTNERS } from '../data/partners'
+import { takingWork } from '../data/takingWork'
 import { logoFor } from '../data/logos'
 import { clientsFor, mediaFor } from '../data/media'
 import { savedToast } from '../feedback'
@@ -34,6 +35,9 @@ const route = useRoute()
 const router = useRouter()
 
 const partner = computed(() => PARTNERS.find((p) => p.id === route.params.id) ?? null)
+// A firm that isn't taking new work is only reached by a link or from Saved:
+// the page stays, without Contact. Save stays, for when it's back.
+const open = computed(() => takingWork(partner.value))
 const logo = computed(() => (partner.value ? logoFor(partner.value.id) : null))
 const media = computed(() => (partner.value ? mediaFor(partner.value.id) : []))
 const clients = computed(() => (partner.value ? clientsFor(partner.value.id) : []))
@@ -148,7 +152,7 @@ onBeforeUnmount(() => observer?.disconnect())
         leave-to-class="opacity-0"
       >
         <Button
-          v-if="!pageContactVisible"
+          v-if="open && !pageContactVisible"
           variant="ghost"
           class="-mr-2"
           label="Contact"
@@ -245,6 +249,7 @@ onBeforeUnmount(() => observer?.disconnect())
                Passing the toast as the gated action also means it fires after a
                sign-in that was triggered from this button. -->
           <Button
+            v-if="open"
             ref="pageContact"
             variant="solid"
             label="Contact"

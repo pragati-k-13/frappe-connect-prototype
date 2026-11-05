@@ -15,6 +15,9 @@ import { reviewsFor } from '../data/reviews'
 // `data/reviews.js` before screenshotting this.
 const props = defineProps({
   partner: { type: Object, required: true },
+  // The partner's own page: no "Write a review" (a firm doesn't review
+  // itself), and each review takes the page's own actions through `#actions`.
+  own: { type: Boolean, default: false },
 })
 
 const media = computed(() => reviewMediaFor(props.partner.id))
@@ -91,7 +94,7 @@ const ago = (months) => (months < 12 ? `${months} months ago` : `${Math.floor(mo
            toast names that precondition, which is more useful than the click
            doing nothing: it says why the button won't help you rather than
            leaving you to press it twice. -->
-      <Button variant="subtle" label="Write a review" @click="reviewToast">
+      <Button v-if="!own" variant="subtle" label="Write a review" @click="reviewToast">
         <template #prefix><LucidePlus class="size-4" /></template>
       </Button>
     </div>
@@ -224,6 +227,7 @@ const ago = (months) => (months < 12 ? `${months} months ago` : `${Math.floor(mo
              gain, and the design runs it full width too. The rating row above
              takes the same left edge for the same reason. -->
         <p class="mt-2 text-p-base text-ink-gray-7">{{ r.text }}</p>
+        <slot name="actions" :review="r" />
       </article>
     </div>
 

@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { setTakingWork } from '../data/takingWork'
 import { useConnectStore } from './connect'
 import {
   customersFor,
@@ -28,11 +29,16 @@ const blank = () => ({
   roles: {},
   removed: [],
   crm: null,
-  // Profile: plain fields that publish at once, media added, and client logos
-  // waiting on Frappe's review (`{ logos, at }`, or `{ rejected }`).
+  // Profile: plain fields that publish at once; the media list once the
+  // partner has managed it; client logos once edited, each `pending` until
+  // Frappe approves it.
   profile: {},
-  media: [],
-  logoReview: null,
+  media: null,
+  logos: null,
+  // Per review id: the partner's public reply, and a report waiting on Frappe
+  // (`{ reason }`). A reported review stays up until Frappe decides.
+  reviewReplies: {},
+  reviewReports: {},
   // The signed-in person's name, once they change it in their settings.
   me: null,
   // Per lead or customer id: follow-ups logged, activity recorded here.
@@ -182,14 +188,24 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
     disconnectCrm() {
       this.edits.crm = null
     },
-    setProfile(patch) {
+    // `id` is the firm's directory id: the taking-work answer also reaches
+    // the client's lists through `data/availability`.
+    setProfile(patch, id) {
       Object.assign(this.edits.profile, patch)
+      if ('taking' in patch && id) setTakingWork(id, patch.taking)
     },
-    addMedia(item) {
-      this.edits.media.push(item)
+    setMedia(list) {
+      this.edits.media = list
     },
-    submitLogos(logos) {
-      this.edits.logoReview = { logos, at: '2026-10-30' }
+    setLogos(list) {
+      this.edits.logos = list
+    },
+    replyToReview(id, text) {
+      this.edits.reviewReplies[id] = text
+    },
+    reportReview(id, reason) {
+      if (reason) this.edits.reviewReports[id] = { reason }
+      else delete this.edits.reviewReports[id]
     },
   },
 })

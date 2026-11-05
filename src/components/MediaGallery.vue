@@ -15,8 +15,9 @@ const props = defineProps({
   items: { type: Array, required: true },
 })
 
-// First video wins the large slot; failing that, the first item.
-const lead = computed(() => props.items.find((m) => m.kind === 'video') ?? props.items[0] ?? null)
+// The first item is the cover and takes the large slot. The partner sets it
+// ("Make cover" in the media manager), so the order is theirs to decide.
+const lead = computed(() => props.items[0] ?? null)
 const rest = computed(() => props.items.filter((m) => m !== lead.value))
 // Two tiles beside the lead, as designed. Anything beyond that is reachable
 // through the lightbox, and the last visible tile says how many more there are.

@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import InlineInput from './InlineInput.vue'
 
 // SCREEN 6, closing section — "How <partner> began".
 //
@@ -41,9 +42,21 @@ import { computed } from 'vue'
 // heading in the body of the page, and it is still not the page's title.
 const props = defineProps({
   partner: { type: Object, required: true },
+  // The partner's own page in edit mode: the year and the story edit in place.
+  editable: { type: Boolean, default: false },
 })
+const emit = defineEmits(['change'])
 
-const founding = computed(() => props.partner.founding)
+const founding = computed(() => props.partner.founding ?? (props.editable ? { year: null, story: [] } : null))
+
+// The story edits as one text; a blank line starts a new paragraph.
+const storyText = computed(() => founding.value.story.join('\n\n'))
+function setStory(text) {
+  emit('change', { ...founding.value, story: text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean) })
+}
+function setYear(year) {
+  emit('change', { ...founding.value, year: Number(year) || null })
+}
 </script>
 
 <template>
@@ -56,7 +69,12 @@ const founding = computed(() => props.partner.founding)
          prose deliberately keeps the date vague ("the mid-2000s", "a decade
          in") so there's a single place a reader has to trust, and a single
          place to correct. -->
-    <p class="text-p-sm text-ink-gray-5">Founded {{ founding.year }} in {{ partner.city }}</p>
+    <div v-if="editable" class="flex items-center gap-1 text-p-sm text-ink-gray-5">
+      Founded
+      <InlineInput class="w-20" type="number" :model-value="founding.year ?? ''" label="Year founded" placeholder="Year" @commit="setYear" />
+      in {{ partner.city }}
+    </div>
+    <p v-else class="text-p-sm text-ink-gray-5">Founded {{ founding.year }} in {{ partner.city }}</p>
 
     <!-- "How they got started", not "How <partner> began". Every other heading
          on this page is a noun-phrase label — About, Pricing, Reviews — and
@@ -69,7 +87,17 @@ const founding = computed(() => props.partner.founding)
 
     <!-- `space-y-4` — 16px against the paragraph's own 21px line spacing, which
          is enough to separate them at this size. -->
-    <div class="mt-4 space-y-4">
+    <InlineInput
+      v-if="editable"
+      class="mt-3"
+      multiline
+      :rows="6"
+      :model-value="storyText"
+      label="How you got started"
+      placeholder="How the firm began. A blank line starts a new paragraph."
+      @commit="setStory"
+    />
+    <div v-else class="mt-4 space-y-4">
       <p v-for="(para, i) in founding.story" :key="i" class="text-p-base text-ink-gray-6">
         {{ para }}
       </p>
