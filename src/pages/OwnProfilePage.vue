@@ -392,7 +392,9 @@ const shareLink = async () => {
       <section v-if="editing" data-anchor="media">
         <MediaGrid :items="media" @change="draftMedia = $event" />
       </section>
-      <MediaGallery v-else-if="media.length" data-anchor="media" :items="media" />
+      <!-- Preview spaces the top of the page as the business view does: 24px
+           to the gallery, 48px to the strip, 48px (64px with no strip) to About. -->
+      <MediaGallery v-else-if="media.length" data-anchor="media" class="!mt-6" :items="media" />
 
       <!-- ── Client logos ─────────────────────────────────────────────── -->
       <!-- Edit mode shows every logo, still, and edits them in place; the
@@ -401,12 +403,12 @@ const shareLink = async () => {
         <ClientLogoGrid :logos="logos" @change="draftLogos = $event" />
       </section>
       <!-- The public profile's own measure for the strip, so Preview matches it. -->
-      <div v-else-if="clients.length" data-anchor="logos" class="mx-auto max-w-[600px]"><!-- design-lint-ignore -->
+      <div v-else-if="clients.length" data-anchor="logos" class="mx-auto !mt-12 max-w-[600px]"><!-- design-lint-ignore -->
         <ClientStrip :clients="clients" :visible="5" />
       </div>
 
       <!-- ── About ────────────────────────────────────────────────────── -->
-      <PartnerAboutCard data-anchor="about" :partner="p" :editable="editing" @change="edit" />
+      <PartnerAboutCard data-anchor="about" :class="!editing && (clients.length ? '!mt-12' : '!mt-16')" :partner="p" :editable="editing" @change="edit" />
 
       <!-- ── In their words, then Frappe's ────────────────────────────── -->
       <PartnerWordsSection data-anchor="words" :partner="p" :editable="editing" :errors="errors" @change="edit" />
