@@ -1,10 +1,11 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Avatar, Button, Dropdown, Select, TabButtons, TextInput } from 'frappe-ui'
+import { Alert, Avatar, Button, Dropdown, Select, TabButtons, TextInput } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
+import { useConnectStore } from '../stores/connect'
 import { PRM_STAGES } from '../data/partnerAccount'
 import { companyName, lastAt, needsReply, useLeads } from '../composables/useLeads'
 
@@ -16,6 +17,15 @@ import { companyName, lastAt, needsReply, useLeads } from '../composables/useLea
 // Beginners included.
 
 const account = usePartnerAccountStore()
+const store = useConnectStore()
+
+// Taking new work lives in Firm settings › Leads, owners only. While it's off,
+// this page is where its effect shows (no new briefs), so it says so here.
+// Only owners get the button: no one else can change it.
+const paused = computed(() => account.edits.profile.taking === false)
+const pausedAction = computed(() =>
+  store.partnerRole === 'owner' ? { label: 'Open settings', onClick: () => store.openFirmSettings('leads') } : undefined,
+)
 const leads = useLeads()
 
 const nameOf = (id) => account.team.find((p) => p.id === id)?.name
@@ -127,6 +137,9 @@ const time = (at) => {
   <ConnectShell root-label="Leads" flush>
 
     <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div v-if="paused" class="shrink-0 px-3 pt-4 sm:px-5">
+        <Alert theme="amber" title="Not taking new work" :primary-action="pausedAction" />
+      </div>
       <!-- ── Quick filters ─────────────────────────────────────────────── -->
       <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 px-3 py-4 sm:px-5">
         <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">

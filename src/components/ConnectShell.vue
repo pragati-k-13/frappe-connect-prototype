@@ -25,7 +25,7 @@ const collapsed = ref(true)
 </script>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   Alert,
@@ -190,6 +190,12 @@ const feedback = ref(false)
 const settings = ref(false)
 
 const partnerSettings = ref(false)
+// A page can ask for Firm settings on a tab (the Leads page's alert does).
+watch(
+  () => store.firmSettingsTab,
+  (t) => t && (partnerSettings.value = true),
+)
+watch(partnerSettings, (o) => !o && store.openFirmSettings(null))
 const partnerAccount = ref(false)
 
 // ── The partner's footer: the signed-in person ──────────────────────────────
@@ -641,7 +647,7 @@ defineProps({
 
     <FeedbackDialog v-model:open="feedback" />
     <AppSettingsDialog v-model:open="settings" />
-    <PartnerSettingsDialog v-model:open="partnerSettings" />
+    <PartnerSettingsDialog v-model:open="partnerSettings" :initial-tab="store.firmSettingsTab" />
     <PartnerAccountDialog v-model:open="partnerAccount" />
 
     <div class="relative flex min-w-0 flex-1 flex-col">

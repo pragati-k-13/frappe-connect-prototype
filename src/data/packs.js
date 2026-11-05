@@ -694,8 +694,7 @@ export const INCLUDED_IN_ALL = [
 // is the reason a pack is cheap and fast, so it's given the same weight as the
 // inclusions rather than being buried in fine print.
 // A bare string, or `{ label, hint }` when the line carries a caveat that would
-// otherwise double its length. Same shape as the vision section's tags — see
-// `components/PartnerVisionSection.vue`.
+// otherwise double its length.
 // ⚠️ Where a line needs a qualifier, the qualifier goes in `hint`, not in
 // parentheses on the label. Three of these ran past the column's 304px and
 // wrapped, and a wrapped exclusion reads as the loudest thing in the list —

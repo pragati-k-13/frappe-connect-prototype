@@ -17,6 +17,8 @@ const props = defineProps({
   wrap: { type: Boolean, default: false },
   type: { type: String, default: 'text' },
   rows: { type: Number, default: 3 },
+  // A character limit for a multi-line field, with a count under it.
+  max: { type: Number, default: null },
 })
 const emit = defineEmits(['commit'])
 
@@ -49,18 +51,21 @@ function cancel(e) {
 </script>
 
 <template>
-  <Textarea
-    v-if="multiline || wrap"
-    v-model="draft"
-    variant="ghost"
-    :rows="wrap ? 1 : rows"
-    :placeholder="placeholder"
-    :aria-label="label"
-    :class="['-mx-2 resize-none', AREA, wrap && '!min-h-7 !py-1 [field-sizing:content]']"
-    @blur="commit"
-    @keydown.enter="wrap && ($event.preventDefault(), $event.target.blur())"
-    @keydown.esc.prevent="cancel"
-  />
+  <div v-if="multiline || wrap">
+    <Textarea
+      v-model="draft"
+      variant="ghost"
+      :rows="wrap ? 1 : rows"
+      :maxlength="max ?? undefined"
+      :placeholder="placeholder"
+      :aria-label="label"
+      :class="['-mx-2 resize-none', AREA, wrap && '!min-h-7 !py-1 [field-sizing:content]']"
+      @blur="commit"
+      @keydown.enter="wrap && ($event.preventDefault(), $event.target.blur())"
+      @keydown.esc.prevent="cancel"
+    />
+    <p v-if="max" class="mt-1 pr-2 text-right text-p-sm tabular-nums text-ink-gray-5">{{ String(draft).length }}/{{ max }}</p>
+  </div>
   <TextInput
     v-else
     v-model="draft"

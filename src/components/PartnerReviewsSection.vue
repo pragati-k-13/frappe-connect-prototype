@@ -1,10 +1,8 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { Avatar, Button, toast } from 'frappe-ui'
 import IconPositive from '~icons/lucide/check'
 import IconCaution from '~icons/lucide/info'
-import MediaLightbox from './MediaLightbox.vue'
-import { reviewMediaFor } from '../data/media'
 import { reviewsFor } from '../data/reviews'
 
 // SCREEN 6, fifth section — "Reviews".
@@ -20,7 +18,6 @@ const props = defineProps({
   own: { type: Boolean, default: false },
 })
 
-const media = computed(() => reviewMediaFor(props.partner.id))
 const review = computed(() => reviewsFor(props.partner))
 
 // The aggregate comes from the partner record — the same `rating` and `reviews`
@@ -52,13 +49,6 @@ const tagToast = (tag) =>
     } that mention "${tag.label}".`,
   })
 
-const lightboxOpen = ref(false)
-const lightboxAt = ref(0)
-const openAt = (i) => {
-  lightboxAt.value = i
-  lightboxOpen.value = true
-}
-
 // Single-use copy, so it lives here rather than in `feedback.js`.
 const reviewToast = () =>
   toast.info('Writing a review is not built yet', {
@@ -73,57 +63,18 @@ const ago = (months) => (months < 12 ? `${months} months ago` : `${Math.floor(mo
     <h2 class="text-base font-semibold text-ink-gray-8">Reviews</h2>
 
     <!-- ── The aggregate ───────────────────────────────────────────────── -->
-    <div class="mt-4 flex items-start justify-between gap-4">
-      <div>
-        <p class="flex items-center gap-1.5">
-          <span class="text-6xl font-medium tabular-nums text-ink-gray-8">{{ rating }}</span>
-          <!-- Amber, the same `ink-amber-5` the marketplace listings fill with
-               and the shade frappe-ui's own `Rating` uses for a filled star.
-               ⚠️ `ink-amber-1` to `-4` have no generated utility and render
-               black — see FRAPPE-UI-NOTES.md. -->
-          <LucideStar class="size-4 fill-current text-ink-amber-5" aria-hidden="true" />
-          <span class="sr-only">out of 5</span>
-        </p>
-        <p class="mt-0.5 text-p-base text-ink-gray-6">
-          {{ partner.reviews }} {{ partner.reviews === 1 ? 'review' : 'reviews' }}
-        </p>
-      </div>
-      <!-- ⚠️ Still no review form — writing one needs an account AND a
-           completed project, both `store.account` questions this section
-           doesn't ask yet (see the demo switcher notes in the README). The
-           toast names that precondition, which is more useful than the click
-           doing nothing: it says why the button won't help you rather than
-           leaving you to press it twice. -->
-      <Button v-if="!own" variant="subtle" label="Write a review" @click="reviewToast">
-        <template #prefix><LucidePlus class="size-4" /></template>
-      </Button>
-    </div>
-
-    <!-- ── Customer media ──────────────────────────────────────────────── -->
-    <!-- Opens the same lightbox as the profile gallery: one overlay, one set
-         of keyboard shortcuts, wherever media is clicked on this page. -->
-    <div v-if="media.length" class="mt-4 grid grid-cols-3 gap-3">
-      <button
-        v-for="(m, i) in media"
-        :key="m.id"
-        class="group relative aspect-[2/1] cursor-zoom-in overflow-hidden rounded-5 bg-surface-gray-2"
-        :aria-label="m.kind === 'video' ? `Play ${m.alt}` : `Open ${m.alt} full screen`"
-        @click="openAt(i)"
-      >
-        <img
-          :src="m.kind === 'video' ? (m.poster ?? m.src) : m.src"
-          :alt="m.alt"
-          class="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-        />
-        <span
-          v-if="m.kind === 'video'"
-          class="absolute left-1/2 top-1/2 grid size-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-white backdrop-blur-sm transition-all group-hover:scale-105 group-hover:bg-black/60"
-          aria-hidden="true"
-        >
-          <LucidePlay class="size-5 translate-x-[1px] fill-current" />
-        </span>
-      </button>
-    </div>
+    <p class="mt-4 flex items-center gap-1.5">
+      <span class="text-6xl font-medium tabular-nums text-ink-gray-8">{{ rating }}</span>
+      <!-- Amber, the same `ink-amber-5` the marketplace listings fill with
+           and the shade frappe-ui's own `Rating` uses for a filled star.
+           ⚠️ `ink-amber-1` to `-4` have no generated utility and render
+           black — see FRAPPE-UI-NOTES.md. -->
+      <LucideStar class="size-4 fill-current text-ink-amber-5" aria-hidden="true" />
+      <span class="sr-only">out of 5,</span>
+      <span class="ml-2 text-base text-ink-gray-6">
+        {{ partner.reviews }} {{ partner.reviews === 1 ? 'review' : 'reviews' }}
+      </span>
+    </p>
 
     <!-- ── What reviewers keep saying ──────────────────────────────────── -->
     <!-- ⚠️ NOT `FilterChip`, though it looks identical to one in its unselected
@@ -202,7 +153,7 @@ const ago = (months) => (months < 12 ? `${months} months ago` : `${Math.floor(mo
              and the star row read as one run of small grey text and the review
              had no visible start. Same rhythm the listing row uses — identity,
              break, content. -->
-        <div class="mt-3 flex items-center gap-4">
+        <div class="mt-5 flex items-center gap-4">
           <p class="flex items-center gap-1.5 text-base font-medium text-ink-gray-8">
             <!-- Coloured rather than inherited: `fill-current` on its own would
                  take the row's ink-8 and make a solid black star the loudest
@@ -226,29 +177,26 @@ const ago = (months) => (months < 12 ? `${months} months ago` : `${Math.floor(mo
              column width an indented paragraph loses 48px of measure for no
              gain, and the design runs it full width too. The rating row above
              takes the same left edge for the same reason. -->
-        <p class="mt-2 text-p-base text-ink-gray-7">{{ r.text }}</p>
+        <p class="mt-1.5 text-p-base text-ink-gray-7">{{ r.text }}</p>
         <slot name="actions" :review="r" />
       </article>
     </div>
 
-    <!-- ⚠️ Inert — there's no all-reviews screen yet. Same treatment as the
-         pricing links: ghost Button pulled back by `-ml-2` so the label lines
-         up with the column edge rather than sitting inside its own padding. -->
-    <Button
-      v-if="partner.reviews > review.items.length"
-      variant="ghost"
-      label="View all"
-      class="-ml-2 mt-3"
-    >
-      <template #suffix><LucideChevronRight class="size-4" /></template>
-    </Button>
-
-    <MediaLightbox
-      :open="lightboxOpen"
-      :items="media"
-      :index="lightboxAt"
-      @close="lightboxOpen = false"
-      @update:index="lightboxAt = $event"
-    />
+    <!-- The list's own actions, after the reviews: "Write a review" belongs
+         with them, at the moment someone has just read what others said,
+         rather than floating opposite the heading.
+         ⚠️ "View all" is inert — there's no all-reviews screen yet.
+         ⚠️ Still no review form: writing one needs an account AND a completed
+         project, both `store.account` questions this section doesn't ask yet.
+         The toast names that precondition rather than the click doing
+         nothing. -->
+    <div v-if="partner.reviews > review.items.length || !own" class="mt-4 flex gap-2">
+      <Button v-if="!own" variant="subtle" label="Write a review" @click="reviewToast">
+        <template #prefix><LucidePlus class="size-4" /></template>
+      </Button>
+      <Button v-if="partner.reviews > review.items.length" variant="subtle" label="View all">
+        <template #suffix><LucideChevronRight class="size-4" /></template>
+      </Button>
+    </div>
   </section>
 </template>

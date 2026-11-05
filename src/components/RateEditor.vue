@@ -16,8 +16,6 @@ import { REGIONS } from '../data/quiz'
 // ⚠️ The rates it compares against are the invented ones in `data/partners.js`.
 const props = defineProps({
   partner: { type: Object, required: true },
-  // "Save" on a Beginner's unlisted page, where nothing is published.
-  action: { type: String, default: 'Publish' },
 })
 const emit = defineEmits(['publish'])
 
@@ -122,7 +120,7 @@ const standing = computed(() => {
 
         <div class="flex justify-end gap-2">
           <Button label="Cancel" @click="open = false" />
-          <Button variant="solid" :label="action" @click="publish" />
+          <Button variant="solid" label="Done" @click="publish" />
         </div>
       </div>
     </template>

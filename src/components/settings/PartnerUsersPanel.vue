@@ -121,7 +121,7 @@ function sendInvite() {
                   <span class="truncate text-p-base text-ink-gray-8">{{ item.name }}</span>
                   <Badge v-if="item.invited" theme="amber" variant="subtle" label="Invited" />
                 </div>
-                <div class="truncate text-p-sm text-ink-gray-5">{{ item.email }}</div>
+                <div class="truncate text-p-base text-ink-gray-6">{{ item.email }}</div>
               </div>
             </div>
           </ListCell>

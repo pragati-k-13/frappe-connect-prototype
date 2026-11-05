@@ -542,7 +542,7 @@ watch(
                         :theme="statusOf(r.t).theme"
                         :label="statusOf(r.t).label"
                       />
-                      <span class="min-w-0 flex-1 truncate text-p-sm text-ink-gray-5">
+                      <span class="min-w-0 flex-1 truncate text-p-base text-ink-gray-6">
                         {{ preview(r.t) }}
                       </span>
                     </span>
@@ -575,7 +575,7 @@ watch(
                       <span class="block truncate text-base font-medium text-ink-gray-8">
                         Requirements sent
                       </span>
-                      <span class="mt-0.5 block truncate text-p-sm text-ink-gray-5">
+                      <span class="mt-0.5 block truncate text-p-base text-ink-gray-6">
                         {{ grouped.length }}
                         {{ grouped.length === 1 ? 'partner has' : 'partners have' }} not replied
                         yet

@@ -91,8 +91,7 @@ const listOf = (items) =>
   items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items.at(-1)}` : (items[0] ?? '')
 
 const industryLine = computed(() => {
-  const { pinned, rest: others } = storiesFor(props.partner)
-  const matching = [pinned, ...others].filter((st) => st && wanted.value.includes(st.segment))
+  const matching = storiesFor(props.partner).filter((st) => wanted.value.includes(st.segment))
   if (matching.length) {
     const n = matching.length
     const segments = [...new Set(matching.map((st) => st.segment))]

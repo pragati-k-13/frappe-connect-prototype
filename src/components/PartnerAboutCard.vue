@@ -3,9 +3,9 @@ import { computed } from 'vue'
 import { Badge, MultiSelect, Select, Tooltip } from 'frappe-ui'
 import InlineInput from './InlineInput.vue'
 import RateEditor from './RateEditor.vue'
-import { APPS } from '../data/partners'
-import { COUNTRIES, INDUSTRIES } from '../data/quiz'
-import { budgetBandsFor } from '../data/custom'
+import Tag from './Tag.vue'
+import { APPS, PARTNERS, countryShort } from '../data/partners'
+import { INDUSTRIES } from '../data/quiz'
 import { useConnectStore } from '../stores/connect'
 
 // SCREEN 6, second section — the About / Services and Expertise card.
@@ -18,8 +18,6 @@ const props = defineProps({
   // The partner's own page in edit mode: every value the partner owns edits
   // where it sits; Frappe's (PMM, certifications, its awards) carry a lock.
   editable: { type: Boolean, default: false },
-  // The rate popover's button: "Save" on a Beginner's unlisted page.
-  action: { type: String, default: 'Publish' },
 })
 const emit = defineEmits(['change'])
 
@@ -85,20 +83,27 @@ const industryOverflow = computed(() => shownIndustries.value.slice(CHIP_LIMIT))
 // partner added without one.
 const address = computed(() => props.partner.address ?? props.partner.city)
 
-// How the firm works and the smallest project it takes. Both decide which
-// briefs reach it, so a business sees them too.
+// The firm's other offices, each its own listing and its own partner
+// agreement, so Frappe sets the link and the partner can't edit it. A Tag,
+// not a Badge: it opens the other profile.
+const alsoIn = computed(() =>
+  (props.partner.alsoIn ?? [])
+    .map((id) => PARTNERS.find((p) => p.id === id))
+    .filter(Boolean)
+    .map((p) => ({ id: p.id, label: countryShort(p.countries[0]) })),
+)
+
+// How the firm works decides which briefs reach it, so a business sees it too.
+// Countries served and the smallest project are hidden for now; the directory's
+// filters still read both.
 const WORKS = { onsite: 'On site', remote: 'Remote', both: 'On site or remote' }
-const bands = budgetBandsFor('India').filter((b) => b.value !== 'unsure')
-const smallest = computed(() => bands[(props.partner.minBand ?? 1) - 1]?.label)
 
 // ── Editing ──────────────────────────────────────────────────────────────────
 const workOptions = Object.entries(WORKS).map(([value, label]) => ({ label, value }))
-const bandOptions = bands.map((b, i) => ({ label: b.label, value: i + 1 }))
 const industryOptions = INDUSTRIES.map((i) => ({
   group: i.label,
   options: i.segments.map((s) => ({ label: s, value: s })),
 }))
-const countryOptions = COUNTRIES.map((c) => ({ label: c, value: c }))
 const appOptions = APPS.map((a) => ({ label: a.label, value: a.value }))
 const migrationOptions = ['Tally to ERPNext', 'SAP to ERPNext', 'QuickBooks to ERPNext'].map((m) => ({ label: m, value: m }))
 
@@ -109,7 +114,6 @@ function changeList(key, next) {
   emit('change', { [key]: next })
 }
 const LISTS = {
-  countries: { label: 'Countries served', options: countryOptions, chip: (v) => v },
   industries: { label: 'Industries served', options: industryOptions, chip: (v) => v },
   apps: { label: 'Apps', options: appOptions, chip: appLabel },
   migrations: { label: 'Migration', options: migrationOptions, chip: (v) => v },
@@ -231,6 +235,13 @@ const LOCK = 'Set by Frappe'
               />
             </dd>
             <dd v-else class="mt-1.5 text-p-base leading-6 text-ink-gray-6">{{ address }}</dd>
+            <dd v-if="alsoIn.length" class="mt-2 flex flex-wrap items-center gap-1.5 text-p-sm text-ink-gray-6">
+              Also in
+              <Tag v-for="o in alsoIn" :key="o.id" :label="o.label" :to="`/connect/partners/${o.id}`" />
+              <Tooltip v-if="editable" :text="LOCK">
+                <span class="lucide-lock size-4 text-ink-gray-5" :aria-label="LOCK" />
+              </Tooltip>
+            </dd>
           </div>
         </dl>
       </div>
@@ -253,7 +264,7 @@ const LOCK = 'Set by Frappe'
             <dt class="text-p-sm text-ink-gray-7">Rate</dt>
             <!-- The rate edits in a popover with where it sits in the market. -->
             <dd v-if="editable" class="mt-1">
-              <RateEditor :partner="partner" :action="action" @publish="emit('change', { rate: $event })" />
+              <RateEditor :partner="partner" @publish="emit('change', { rate: $event })" />
             </dd>
             <dd v-else class="mt-1.5 text-p-base tabular-nums text-ink-gray-8">
               <template v-if="partner.rate">From ${{ partner.rate }}/hr</template>
@@ -300,28 +311,8 @@ const LOCK = 'Set by Frappe'
                 />
               </dd>
             </div>
-            <div class="py-3.5">
-              <dt class="text-p-sm text-ink-gray-7">Smallest project</dt>
-              <dd class="mt-1">
-                <Select
-                  class="-mx-2"
-                  variant="ghost"
-                  :model-value="partner.minBand ?? 1"
-                  :options="bandOptions"
-                  aria-label="Smallest project you take"
-                  @update:model-value="emit('change', { minBand: $event })"
-                />
-              </dd>
-            </div>
           </template>
           <template v-else>
-            <div class="py-3.5">
-              <dt class="text-p-sm text-ink-gray-7">Countries served</dt>
-              <dd class="mt-1.5 flex flex-wrap gap-1.5">
-                <Badge v-for="c in partner.countries" :key="c" v-bind="CHIP" :label="c" />
-              </dd>
-            </div>
-
             <div class="py-3.5">
               <dt class="text-p-sm text-ink-gray-7">Industries served</dt>
               <dd class="mt-1.5 flex flex-wrap gap-1.5">
@@ -375,10 +366,6 @@ const LOCK = 'Set by Frappe'
             <div v-if="partner.workStyle" class="py-3.5">
               <dt class="text-p-sm text-ink-gray-7">Works</dt>
               <dd class="mt-1.5 text-p-base text-ink-gray-8">{{ WORKS[partner.workStyle] }}</dd>
-            </div>
-            <div v-if="smallest" class="py-3.5">
-              <dt class="text-p-sm text-ink-gray-7">Smallest project</dt>
-              <dd class="mt-1.5 text-p-base text-ink-gray-8">{{ smallest }}</dd>
             </div>
           </template>
         </dl>

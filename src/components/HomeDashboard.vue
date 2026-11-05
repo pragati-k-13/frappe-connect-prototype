@@ -174,7 +174,7 @@ const create = (details) => {
               <span class="mt-1 block max-w-[62ch] text-p-base leading-relaxed text-ink-gray-6">
                 {{ featured.body }}
               </span>
-              <span class="mt-2 flex items-center gap-2 text-p-sm text-ink-gray-5">
+              <span class="mt-2 flex items-center gap-2 text-p-base text-ink-gray-6">
                 By Frappe
                 <span class="text-ink-gray-4" aria-hidden="true">·</span>
                 <span>{{ featured.tag }}</span>
@@ -187,13 +187,13 @@ const create = (details) => {
             <span class="min-w-0 text-left">
               <span class="block text-p-lg font-medium text-ink-gray-7">{{ post.title }}</span>
               <span class="mt-0.5 block text-p-base text-ink-gray-6">{{ post.body }}</span>
-              <span class="mt-2 flex items-center gap-2 text-p-sm text-ink-gray-5">
+              <span class="mt-2 flex items-center gap-2 text-p-base text-ink-gray-6">
                 By Frappe
                 <span class="text-ink-gray-4" aria-hidden="true">·</span>
                 <span>{{ post.tag }}</span>
               </span>
               <!-- ⚠️ INVENTED FIGURES. See the note on `POSTS` in `data/home.js`. -->
-              <span class="mt-2 flex items-center gap-4 text-p-sm text-ink-gray-5">
+              <span class="mt-2 flex items-center gap-4 text-p-base text-ink-gray-6">
                 <span class="flex items-center gap-1">
                   <IconHeart class="size-3.5" />
                   {{ post.likes }}

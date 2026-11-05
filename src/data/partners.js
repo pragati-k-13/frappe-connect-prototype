@@ -117,9 +117,9 @@ const VISION = {
     author: { name: 'Rajarajan Anbalagan', role: 'CEO & Founder' },
     quote:
       'I believe technology should serve business goals, not complicate them. My leadership philosophy combines clear strategy with disciplined execution, ensuring every initiative delivers measurable value.',
-    why: 'We aim for excellence in every line of code, every UI interaction, and every customer conversation. We focus on implementations for mid-sized manufacturing and distribution businesses. Our core strength is migrating companies off spreadsheets and legacy systems onto modern software, with deep experience in inventory, operations, and multi-location workflows. We also handle custom app development and third-party integrations (accounting, e-commerce, logistics) for teams with deeper needs.',
+    why: 'Mid-sized manufacturers and distributors moving off spreadsheets and legacy systems. Inventory, operations and multi-location work are our strength, with custom apps and integrations when needed.',
     together: {
-      text: 'Transparency, honesty, and trust form the core of our work ethic. We believe in doing the right thing even when no one is watching. We have dedicated teams working with you to ensure quality, focus, and accountability.',
+      text: 'A dedicated team for your project, accountable for quality from start to finish. We tell you what we see, including what you may not want to hear.',
       tags: [
         'Team syncs',
         'Remote team syncs',
@@ -139,7 +139,7 @@ const VISION = {
     author: { name: 'Anuja Deshmukh', role: 'Managing Director' },
     quote:
       'An ERP is a set of decisions about how a business runs, not a piece of software you install. We would rather spend a week arguing about a workflow than a year unpicking the wrong one.',
-    why: 'We work with discrete manufacturers and trading businesses in and around Mumbai, usually at the point where a spreadsheet-and-Tally setup has stopped scaling. Payroll and people processes are where we go deepest — Frappe HR alongside ERPNext, one system rather than two that disagree.',
+    why: 'Manufacturers and traders around Mumbai whose spreadsheets and Tally have stopped scaling. Payroll is where we go deepest, with Frappe HR and ERPNext as one system.',
     together: {
       text: 'One project lead, named on day one, who stays with you to go-live. Weekly demos on your own data rather than a slide deck, so what you sign off on is what you will actually use.',
       tags: ['Dedicated project lead', 'Weekly demos', 'Shared backlog', 'Async updates'],
@@ -154,7 +154,7 @@ const VISION = {
     author: { name: 'Shreyas Kulkarni', role: 'Director' },
     quote:
       'Public institutions and schools do not need the fastest software. They need software that still works in five years, with staff who can run it themselves.',
-    why: 'Process manufacturing, education and government, largely in Maharashtra. Regulated environments and public procurement are slow and specific, and we have learnt to work inside them rather than around them.',
+    why: 'Process manufacturing, education and government, mostly in Maharashtra. Regulated work and public procurement are slow and specific, and we know how to work inside them.',
     together: {
       text: 'We plan around your academic or audit calendar, not ours. Documentation is written as we go, in the language your staff actually use.',
       tags: ['Team syncs', 'Documentation handover', 'Phased rollout'],
@@ -169,7 +169,7 @@ const VISION = {
     author: { name: 'Nikhil Ranade', role: 'Co-founder' },
     quote:
       'Manufacturing runs on the shop floor, not in a boardroom. If the operator will not use it, it does not matter how good the report looks.',
-    why: 'Automotive and pharmaceutical manufacturing, where traceability is not optional. We spend the first fortnight of any project on the floor, watching how work actually moves before we configure anything.',
+    why: 'Automotive and pharmaceutical manufacturers, where traceability is not optional. We spend the first two weeks on the floor, watching how work moves before we configure anything.',
     together: {
       text: 'Short cycles with something working at the end of each one. Insights dashboards go up early, so you can see your own numbers while decisions are still open.',
       tags: ['Weekly demos', 'Shared backlog', 'Team syncs'],
@@ -199,7 +199,7 @@ const VISION = {
     author: { name: 'Vivek Menon', role: 'Chief Executive' },
     quote:
       'We would rather turn down a project than staff it badly. Everything we have built has come from work we were able to see through properly.',
-    why: 'Food and beverage, retail, healthcare and education across Kerala and the Gulf. Multi-outlet businesses are our centre of gravity — kitchens, clinics and campuses that need one system across several sites.',
+    why: 'Food and beverage, retail, healthcare and education across Kerala and the Gulf. Our focus is multi-outlet businesses: kitchens, clinics and campuses that need one system across sites.',
     together: {
       text: 'A named team per project, and a helpdesk your staff can reach directly rather than through us. Site visits during the first month.',
       tags: [
@@ -249,7 +249,7 @@ const VISION = {
     author: { name: 'Jonas Weber', role: 'Managing Director' },
     quote:
       'German mid-sized companies are asked to choose between software that does not fit and software they cannot afford. Open source is the third option.',
-    why: 'Discrete manufacturing, real estate and rental businesses in the DACH region. We know what German accounting, DATEV exports and works-council processes require, and we build for GDPR from the start rather than retrofitting it.',
+    why: 'Manufacturing, real estate and rental businesses in the DACH region. We know German accounting, DATEV exports and works-council processes, and build for GDPR from day one.',
     together: {
       text: 'Documentation and training in German; project management in English if your team prefers. Fixed-scope phases with a price per phase.',
       tags: ['Phased rollout', 'Team syncs', 'Documentation handover'],
@@ -346,9 +346,9 @@ const visionFor = (name) => {
 // partners' own account before this is shown to anyone outside the team.
 //
 // Two things keep it as harmless as invented copy about a real company can be.
-// The stories name NO PEOPLE — every one is "two engineers", "the founders",
-// "a team that had been doing X" — so nothing here attributes a biography to a
-// real person, which is the line `VISION.author` had to stop at too. And the
+// The stories name NO PEOPLE: each is told by the firm as "we", in first
+// person because the section is "In their words", so nothing here attributes
+// a biography to a real person, which is the line `VISION.author` had to stop at too. And the
 // `year` is the one figure a reader could take as fact, so it is kept
 // deliberately vague in the prose ("the mid-2000s", "a decade in") and stated
 // once, plainly, as a date the page labels rather than a claim the copy makes.
@@ -359,112 +359,102 @@ const visionFor = (name) => {
 // foot would be the mock contradicting itself in the one place a reader is
 // most likely to check.
 //
-// `story` is an array of paragraphs rather than one string: the section sets
-// them at a reading measure and the break between them is the beat between
-// "how it started" and "where it got to". Two is the shape; a third would turn
-// the section into the essay the Partner vision section already is.
+// `story` is one paragraph, at most `STORY_MAX` characters: the profile
+// shows it as the first row of "In their words", and a long story there
+// outweighs the answers below it. Still an array, so a partner can add a
+// paragraph break within the limit.
+export const STORY_MAX = 400
+// Each answer under it is shorter: a line or two, not a second story.
+export const ANSWER_MAX = 200
 const FOUNDING = {
   'tridots-tech': {
     year: 2006,
     story: [
-      'Tridots Tech started in Chennai in the mid-2000s, out of a run of consulting jobs that kept ending the same way: a manufacturer with good people, a warehouse full of stock nobody could account for, and a spreadsheet that three departments each kept their own copy of. The founders had spent years writing bespoke software for that problem one company at a time, and had come round to the view that the software was rarely the hard part.',
-      'The firm has stayed close to that first kind of customer — mid-sized manufacturing and distribution businesses, mostly in Tamil Nadu, increasingly beyond it. What has changed is how much of the work happens before anyone opens an editor. The teams here spend their first weeks on the floor and in the finance office, and treat a rollout as finished when the client stops needing them, not when the last ticket closes.',
+      'Tridots Tech started in Chennai in 2006, consulting for manufacturers. Every job looked the same: capable people, a warehouse no one could count, and three departments each keeping their own spreadsheet. We learned that software is rarely the hard part. So we still start on the shop floor and in the finance office, and stay until you no longer need us.',
     ],
   },
 
   'software-work': {
     year: 2011,
     story: [
-      'Software@Work was founded in Mumbai in 2011 by a group who had been running payroll and plant operations from inside other people’s companies rather than selling to them. They had watched several ERP projects arrive, consume a year, and leave the business running two systems that disagreed about the same headcount.',
-      'That experience set the firm’s habit of arguing about a workflow for a week before configuring anything for it. The practice grew from payroll outward — Frappe HR alongside ERPNext, one system rather than two — and the client list is still mostly discrete manufacturers and traders around Mumbai who reached the point where Tally and a shared drive stopped scaling.',
+      'Software@Work was founded in Mumbai in 2011 by people who had run payroll and plant operations from the inside. We had watched ERP projects take a year and leave behind two systems that disagreed on headcount. So we settle how a workflow should run before we configure it. Payroll is still where we go deepest, with Frappe HR and ERPNext working as one system.',
     ],
   },
 
   'new-indictrans': {
     year: 2004,
     story: [
-      'New Indictrans began in Pune in the early 2000s as a language-technology group, building tools that let public institutions work in Marathi and Hindi rather than only in English. Open source was not a positioning decision — it was the only way to ship software to a government department that had to be able to maintain it after the contract ended.',
-      'The ERP practice grew out of that constraint rather than away from it. Schools, cooperatives and state bodies came asking for systems that would still run in five years, staffed by people who had not been hired yet. The firm still plans around academic and audit calendars, still writes documentation in the language the staff actually use, and still measures itself on whether the client needs them next year.',
+      'New Indictrans began in Pune in the early 2000s, building software that let public institutions work in Marathi and Hindi. Open source wasn’t a stance for us. It was the only way to give a department software it could maintain after our contract ended. That thinking shaped our ERP work: schools, cooperatives and state bodies come to us for systems that will still run in five years.',
     ],
   },
 
   '8848-digital': {
     year: 2016,
     story: [
-      '8848 Digital was started in Pune by engineers who had spent their careers inside automotive and pharmaceutical plants, on the manufacturing side rather than the software side. The founding argument was simple and slightly contrarian: most plant software is designed for the people reading the reports, not the people entering the data, and the operator decides whether any of it works.',
-      'So the firm built a practice around going to the floor first. A project starts with a fortnight of watching how material and paperwork actually move, before a single doctype is configured. Traceability work — batch, quality, audit — became the specialism because it is the part that has to survive somebody else’s inspection, and the part clients had most often been sold and not given.',
+      '8848 Digital was started in Pune by engineers from automotive and pharmaceutical plants. We saw that plant software is built for the people who read the reports, while the operator decides whether it works. So every project we take on starts with two weeks on the floor. Traceability became our specialty because it has to hold up in someone else’s audit.',
     ],
   },
 
   'greycube-technologies': {
     year: 2018,
     story: [
-      'Greycube Technologies is a small studio in Mumbai, and it was founded as one on purpose. It started when two implementers left larger firms after one too many projects where a fifteen-person trading business was sold the same programme as a fifteen-hundred-person one, and spent the next year not using most of it.',
-      'The studio has stayed deliberately small, which is the whole product: the people you talk to are the people doing the work, and most questions are answered the same day. The work is retail, trading and e-commerce, usually under fifty staff, and the goal is eight screens set up properly rather than a system nobody has the time to grow into.',
+      'Greycube Technologies is a small Mumbai studio, and small on purpose. We left larger firms after watching a fifteen-person trading business get sold the same program as a fifteen-hundred-person one, then use a fraction of it. Here, the people you talk to are the people doing the work. Our goal is a few screens set up well, not a system nobody has time to grow into.',
     ],
   },
 
   wahni: {
     year: 2013,
     story: [
-      'Wahni started in Kochi with a single restaurant group that had four kitchens and four different ways of closing the day. The founders took the job on the condition that they could fix all four rather than automate the mess, and the multi-outlet problem has been the firm’s centre of gravity ever since.',
-      'Growth followed the same shape of customer into retail, healthcare and education, and out of Kerala into the Gulf as clients opened there. The firm has turned down more work than it has taken, on the principle that a project it cannot staff properly costs more than the revenue is worth — and every reference it has comes from work it saw through.',
+      'Wahni started in Kochi with one restaurant group: four kitchens, and four different ways of closing the day. We took the job on one condition, that we fix all four rather than automate the mess. Businesses with many outlets have been our focus ever since, across retail, healthcare and education, in Kerala and the Gulf. We turn down work we can’t staff properly.',
     ],
   },
 
   hybrowlabs: {
     year: 2019,
     story: [
-      'Hybrowlabs began in Pune as a two-person consultancy taking on custom app work that other shops were quoting as ground-up builds. The founding observation was that most of what a growing company asks for already exists in the Frappe framework, and that the job is usually to build less rather than more.',
-      'The team stayed framework-first as it grew: custom apps, integrations and portals for software companies, e-commerce and professional-services firms whose processes never did fit a standard ERP. Working across timezones from the start made async the default, which is why everything runs off a shared backlog a client can read at any hour without asking.',
+      'Hybrowlabs began in Pune as a two-person consultancy, taking on custom work other shops quoted as builds from scratch. We saw that most of what a growing company asks for already exists in the Frappe framework, so the real job is usually to build less. We have worked across timezones from the start, from a shared backlog you can read at any hour.',
     ],
   },
 
   'finbyz-tech': {
     year: 2015,
     story: [
-      'Finbyz Tech was founded in Ahmedabad by people who came out of finance rather than software — costing, import-export documentation, the month-end close. They kept meeting ERP implementations that had done the sales and inventory modules well and left the parts a finance team lives in half-finished.',
-      'The firm was built to finish those parts. Chemical manufacturers, traders and logistics businesses came for multi-currency and landed-cost work that other implementations had skipped, and stayed for a close they could trust without a parallel spreadsheet. The finance lead is still in the room fortnightly on every project, which is not a courtesy — it is who the system is designed for.',
+      'Finbyz Tech was founded by people from finance, not software: costing, export paperwork, the month-end close. We kept finding ERP projects in Ahmedabad that handled sales and inventory well and left finance half-finished. We built the firm to finish that work, for chemical manufacturers, traders and logistics businesses, and your finance lead joins every review.',
     ],
   },
 
   alyf: {
     year: 2020,
     story: [
-      'ALYF was founded in Munich on a question German mid-sized companies keep being asked and keep answering badly: pay for software that does not fit, or make do with software you have outgrown. The founders had implemented both of the usual answers and thought open source was a third one that nobody in the Mittelstand was being offered.',
-      'That meant doing the unglamorous work up front — DATEV exports, works-council processes, GDPR designed in rather than retrofitted — before the firm could credibly sell to a manufacturer or a property business here. Documentation and training are in German, project management in English if the client prefers, and phases are priced one at a time so nobody signs a year they cannot see the end of.',
+      'ALYF was founded in Munich for mid-sized German companies stuck between software that doesn’t fit and software they’ve outgrown. We believed open source was a third option nobody was offering. Before selling it, we did the groundwork: DATEV exports, works-council processes and GDPR built in from the start. We train in German, and price every phase on its own.',
     ],
   },
 
   'craft-interactive': {
     year: 2012,
     story: [
-      'Craft Interactive started in Dubai in 2012, at the point where several of its founders’ clients were opening a second entity in a second country and discovering their books had not been built for it. The firm was set up around that moment rather than around a technology: a business in the Gulf is rarely in one jurisdiction for long.',
-      'VAT arrived, then e-invoicing, then Saudi expansion for half the client list, and each one was absorbed as routine rather than as a project. The team works in Arabic and English throughout, is physically present through go-live week, and tends to stay on retainer through a client’s first full year of returns — which is the year the design of the thing gets tested.',
+      'Craft Interactive started in Dubai in 2012, just as our clients were opening entities in new countries and finding their books weren’t built for it. VAT, e-invoicing and Saudi expansion followed, and we made each one routine. We work in Arabic and English, stay on site through go-live week, and often see a client through their first full year of tax returns.',
     ],
   },
 
   'kingstech-services': {
     year: 2017,
     story: [
-      'Kingstech Services was founded in Singapore by consultants who had just finished what was nominally one regional rollout and had in practice been four unrelated ones, run by four teams, in four countries, arriving at four charts of accounts. The firm exists to not do that again.',
-      'Its work is regional groups — trading, e-commerce, logistics, professional services — running a single ERP across several jurisdictions. One project lead sits in Singapore and delivery happens across timezones, with decisions written down rather than held in meetings, because a group rollout is mostly an argument about which differences between markets are real.',
+      'Kingstech Services was founded in Singapore right after a regional rollout that turned out to be four: four teams, four countries, four charts of accounts. We exist so that doesn’t happen to you. We run a single ERP across several countries for regional groups, with one project lead in Singapore and every decision written down.',
     ],
   },
 
   navari: {
     year: 2014,
     story: [
-      'Navari was founded in Nairobi by developers who were tired of deploying software that assumed reliable power, reliable connectivity and a desk. The systems worked in the demo and failed in the field, and the gap between those two was not a bug list — it was an assumption the software had been built on somewhere else.',
-      'So the firm builds for the conditions its clients actually work in: mobile money, offline-tolerant workflows, donor reporting that has to reconcile. The work is agriculture, trading, logistics and nonprofits across East Africa, training happens in Swahili and English, and a lot of it is delivered on site because most of the people using it are nowhere near an office.',
+      'Navari was founded in Nairobi by developers tired of software that assumed steady power, a good connection and a desk. It worked in the demo and failed in the field. So we build for the conditions our clients actually work in: mobile money, workflows that survive going offline, and donor reports that add up, for farms, traders, logistics firms and nonprofits across East Africa.',
     ],
   },
 
   korecent: {
     year: 2009,
     story: [
-      'Korecent started in Chicago serving medical device manufacturers, which shaped everything about how the firm works. In a regulated plant the ERP is not a business tool sitting next to the quality system — it is part of the quality system, and an auditor will eventually ask it to prove something.',
-      'The practice was built backwards from that audit. Phases are structured with documented sign-off at each one because the documentation is itself a deliverable, and validation and traceability are the reason clients choose the firm over a cheaper quote. It has since taken the same approach into healthcare and professional services across North America.',
+      'Korecent started in Chicago working with medical device makers. There, the ERP is part of the quality system, and an auditor will eventually ask it to prove something. So we work backward from the audit: each phase ends with documented sign-off, and validation and traceability are why clients choose us over a cheaper quote. We now do the same for healthcare.',
     ],
   },
 }
@@ -472,6 +462,17 @@ const FOUNDING = {
 // A partner with no entry simply has no closing section — the profile ends on
 // the marketplace row, the same way it already ends early for the five partners
 // with nothing published there. Better a missing section than a stub.
+// Wahni's UAE office is its own listing (frappe.io/partners/united-arab-emirates/
+// wahni-it-solutions-fze). Its story is that listing's real overview; its
+// answers and quote are the firm's, shared with the India office.
+FOUNDING['wahni-it-solutions-fze'] = {
+  year: 2021,
+  story: [
+    'Wahni IT Solutions FZE is a premier IT solutions provider with a significant presence in the UAE, India, and Qatar. Our team consists of leadership-certified Frappe consultants and highly experienced professionals who have successfully executed over 100+ ERPNext implementations.',
+  ],
+}
+VISION['wahni-it-solutions-fze'] = VISION.wahni
+
 const foundingFor = (name) => FOUNDING[slug(name)] ?? null
 
 // Certified members, per certification. Frappe's programme certifies people on
@@ -491,6 +492,8 @@ const CERTIFIED_MEMBERS = {
   '8848-digital': { erpnext: 5, framework: 1 },
   'greycube-technologies': { erpnext: 2, framework: 3 },
   wahni: { erpnext: 3, framework: 1 },
+  // Real, from the UAE listing.
+  'wahni-it-solutions-fze': { erpnext: 3, framework: 1 },
   hybrowlabs: { erpnext: 2, framework: 2 },
   'finbyz-tech': { erpnext: 4, framework: 1 },
   alyf: { erpnext: 2 },
@@ -607,6 +610,9 @@ const P = (
     // See the note above `tier` — invented, one of 'remote' | 'onsite' | 'both'.
     workStyle = 'both',
     pmm = PMM_BY_TIER[tier] ?? 1,
+    // The firm's listings in other countries, by id. Each is its own partner
+    // with its own agreement, so Frappe sets this, not the partner.
+    alsoIn = [],
   },
 ) => ({
   id: slug(name),
@@ -629,6 +635,7 @@ const P = (
   migrations: MIGRATIONS_BY_MARKET[marketOf(city, region)] ?? DEFAULT_MIGRATIONS,
   vision: visionFor(name),
   founding: foundingFor(name),
+  alsoIn,
   tier,
   workStyle,
   // ⚠️ INVENTED, like `workStyle` and the rates: the smallest project a firm
@@ -785,6 +792,29 @@ export const PARTNERS = [
     industries: ['Food and Beverages', 'Retail', 'Healthcare', 'Education'],
     apps: ['erpnext', 'helpdesk', 'frappe-hr', 'school'],
     packs: ['accounts-sales-purchase-stock', 'manufacturing', 'hrms'],
+    alsoIn: ['wahni-it-solutions-fze'],
+  }),
+  // Wahni's UAE office: a separate listing and partner agreement. Tagline,
+  // address, tier and apps are the real listing's; rate, rating, reviews and
+  // response time are invented like everyone else's.
+  P('Wahni IT Solutions FZE', {
+    tagline: 'Your 100% success-driven ERPNext partner in the UAE',
+    address: '2nd Floor, 2-08 Al Nisf Building, Airport Road, Dubai, United Arab Emirates',
+    tier: 'gold',
+    workStyle: 'both',
+    city: 'Dubai, United Arab Emirates',
+    region: 'middle-east',
+    initials: 'WA',
+    color: '#00b4f5',
+    rate: 95,
+    rating: 4.5,
+    reviews: 9,
+    responds: '4h',
+    stories: 3,
+    industries: ['Goods Trading', 'Discrete Manufacturing'],
+    apps: ['erpnext'],
+    packs: ['accounts-sales-purchase-stock'],
+    alsoIn: ['wahni'],
   }),
   P('Hybrowlabs', {
     tagline: 'Building less on Frappe, so you maintain less',
@@ -1065,6 +1095,11 @@ export const INDIA_CITIES = [
 // The city a partner is in, without its country — the same derivation the list
 // above is built from, so a filter cannot disagree with its own options.
 export const cityOf = (partner) => partner.city.split(',')[0].trim()
+
+// Short country names where a common one exists, without periods (American
+// style): UAE, US, UK. Everything else stays in full.
+const SHORT = { 'United Arab Emirates': 'UAE', 'United States': 'US', 'United Kingdom': 'UK' }
+export const countryShort = (country) => SHORT[country] ?? country
 
 // ── Frappe, implementing a Starter Pack ─────────────────────────────────────
 // ⚠️ STARTER PACKS ARE IMPLEMENTED BY FRAPPE'S OWN TEAM, for now. Buying one

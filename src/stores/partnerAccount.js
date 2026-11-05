@@ -188,11 +188,14 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
     disconnectCrm() {
       this.edits.crm = null
     },
-    // `id` is the firm's directory id: the taking-work answer also reaches
-    // the client's lists through `data/availability`.
-    setProfile(patch, id) {
+    setProfile(patch) {
       Object.assign(this.edits.profile, patch)
-      if ('taking' in patch && id) setTakingWork(id, patch.taking)
+    },
+    // Firm settings › Leads. `id` is the firm's directory id: the answer also
+    // reaches the client's lists through `data/takingWork`.
+    setTaking(on, id) {
+      this.edits.profile.taking = on
+      setTakingWork(id, on)
     },
     setMedia(list) {
       this.edits.media = list

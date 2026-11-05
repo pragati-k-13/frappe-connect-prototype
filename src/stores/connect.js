@@ -251,6 +251,9 @@ export const useConnectStore = defineStore('connect', {
     //   partnershipState  one of PARTNERSHIP_STATES; Bronze and up only
     partnerTier: 'bronze-up',
     partnerRole: 'owner',
+    // Opens Firm settings on a tab from anywhere (the Leads page's alert);
+    // ConnectShell owns the dialog and clears this when it closes.
+    firmSettingsTab: null,
     partnershipState: 'working',
     // See ACCOUNT_STATES above. Deliberately NOT cleared by `reset()`: it's
     // which demo you're in, not something the quiz collected — same as `role`.
@@ -737,6 +740,9 @@ export const useConnectStore = defineStore('connect', {
       if (tier !== 'beginner' && tier !== 'bronze-up') return
       this.partnerTier = tier
       this.partnershipState = 'working'
+    },
+    openFirmSettings(tab) {
+      this.firmSettingsTab = tab
     },
     setPartnerRole(role) {
       if (!['owner', 'sales', 'finance', 'member'].includes(role)) return

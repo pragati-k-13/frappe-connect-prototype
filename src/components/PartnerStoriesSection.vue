@@ -1,97 +1,85 @@
 <script setup>
 import { computed } from 'vue'
-import { Badge } from 'frappe-ui'
-import { storyCovers } from '../data/media'
+import { Badge, Button } from 'frappe-ui'
+import { List, ListCell, ListRow, ListRows } from 'frappe-ui/list'
 import { storiesFor } from '../data/stories'
 
-// SCREEN 6, sixth section — "Success stories".
+// SCREEN 6 — "Success stories", as a list. No covers: partners used stock or
+// generated thumbnails, which made the section look worse than the work. Each
+// row leads with the client's logo in a fixed tile (initials when there's
+// none), then the title and the industry. Stories live on frappe.io, so every row opens
+// there.
 //
-// ⚠️ The story titles and the clients they name are invented — see
-// `data/stories.js`. The segments are real: each story's industry label comes
-// from the partner's own `industries`.
-//
-// There used to be a row of three stat tiles above the stories — "800+ FC
-// sites", "75% Would recommend", "17y Years operating". Removed. Two of the
-// three were invented claims a directory would have to source, and the middle
-// one openly disagreed with the 4.5★ the Reviews section showed two sections
-// later, because the two numbers were generated independently. The section is
-// about the write-ups; the tiles were a scoreboard bolted to the top of it.
+// The stories are real, from each partner's frappe.io page; see
+// `data/stories.js`.
 const props = defineProps({
   partner: { type: Object, required: true },
 })
 
 const stories = computed(() => storiesFor(props.partner))
-const total = computed(() => props.partner.stories)
-
-// Three covers against up to nine tiles, so the index wraps. `% length` rather
-// than clamping, because clamping would give every story past the third the
-// same picture.
-const covers = storyCovers()
-const coverFor = (i) => covers[i % covers.length]
+// The first story the partner lists leads, its headline large; the rest
+// follow as rows.
+const featured = computed(() => stories.value[0] ?? null)
+const rest = computed(() => stories.value.slice(1))
+const initials = (name) => name.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+const open = (href) => window.open(href, '_blank', 'noopener')
 </script>
 
 <template>
   <section>
-    <!-- The count belongs to the title: it's how many there are, not a
-         separate fact. No badge at zero — a "0" chip is noise where the empty
-         line below already says it. -->
     <h2 class="flex items-center gap-2 text-base font-semibold text-ink-gray-8">
       Success stories
-      <Badge v-if="total" theme="gray" variant="subtle" size="md" :label="`${total}`" />
+      <Badge v-if="stories.length" :label="String(stories.length)" />
     </h2>
 
-    <!-- ── The pinned story ────────────────────────────────────────────── -->
-    <!-- One story the partner leads with, at full width. Not repeated in the
-         grid below — the design mock shows it twice, which reads as a
-         duplicate rather than as emphasis. `aspect-[4/1]` is the design's
-         banner crop; the grid tiles are 2:1. -->
-    <article v-if="stories.pinned" class="mt-4">
+    <!-- ── The featured story ───────────────────────────────────────── -->
+    <!-- The headline is the hero: the result, large, so it registers without
+         a click. The client's logo small above it names them; a description
+         from the story's opening says who they are. No panel, no fill: size
+         and space set it apart from the rows. One subtle button, since the
+         story lives on frappe.io. -->
+    <article v-if="featured" class="mt-6">
+      <!-- Scaled down only, never up, so a small logo never blurs. -->
       <img
-        :src="coverFor(stories.pinned.cover).src"
-        :alt="coverFor(stories.pinned.cover).alt"
-        class="aspect-[4/1] w-full rounded-5 bg-surface-gray-2 object-cover"
+        v-if="featured.client.src"
+        :src="featured.client.src"
+        :alt="featured.client.name"
+        class="h-7 max-w-36 object-contain object-left"
       />
-      <p class="mt-3 text-p-xs text-ink-gray-5">
-        {{ stories.pinned.segment }}
-      </p>
-      <p class="mt-1 text-base text-ink-gray-7">{{ stories.pinned.title }}</p>
+      <p v-else class="text-base font-medium text-ink-gray-7">{{ featured.client.name }}</p>
+      <h3 class="mt-3 max-w-prose text-2xl font-semibold text-ink-gray-9">{{ featured.title }}</h3>
+      <p v-if="featured.description" class="mt-1 max-w-prose text-p-base text-ink-gray-6">{{ featured.description }}</p>
+      <Button class="mt-3" label="Read the story" @click="open(featured.href)" />
     </article>
 
-    <!-- ── The rest ────────────────────────────────────────────────────── -->
-    <!-- `gap-y` is larger than `gap-x`: each tile is a picture plus two lines
-         of text, so rows need more air between them than columns do or the
-         next cover reads as part of the title above it.
-
-         ⚠️ The top margin depends on what's above. Following the pinned story
-         it's 24px, separating two different treatments of the same thing.
-         Following the HEADING — which is now the common case, since pinning
-         needs four stories — it's 16px, the same title-to-content gap Reviews
-         and Pricing use. At a flat 24px this section sat visibly lower under
-         its own title than every other section on the page. -->
-    <div
-      v-if="stories.rest.length"
-      class="grid gap-x-4 gap-y-6 sm:grid-cols-3"
-      :class="stories.pinned ? 'mt-6' : 'mt-4'"
-    >
-      <article v-for="s in stories.rest" :key="s.id">
-        <img
-          :src="coverFor(s.cover).src"
-          :alt="coverFor(s.cover).alt"
-          class="aspect-[2/1] w-full rounded-4 bg-surface-gray-2 object-cover"
-        />
-        <p class="mt-3 text-p-xs text-ink-gray-5">{{ s.segment }}</p>
-        <!-- `ink-7`, the same as the pinned story's title above. What separates
-             the pinned one is its 4:1 cover and its `text-base`; the ink is the
-             same across the whole section, so a card title never competes with
-             a section heading for the darkest thing on the page. -->
-        <p class="mt-1 text-p-base text-ink-gray-7">{{ s.title }}</p>
-      </article>
+    <!-- Pulled out by the rows' 20px padding, so each row's logo lines up
+         with the featured logo and the hover fill bleeds past the column, as
+         frappe lists do. -->
+    <div v-if="rest.length" class="-mx-5 mt-9">
+      <!-- Every logo fitted to the same 56×40 box (wide enough for a
+           wordmark), in full color, no outline, scaled down only so it never
+           blurs. The files are the originals from frappe.io, uncropped. A firm
+           with no usable logo
+           gets its initials in the same box. -->
+      <List :columns="['3.5rem', 'minmax(0,1fr)']" :row-height="72" class="list-gap-3 list-row-px-5">
+        <ListRows :items="rest" v-slot="{ item }">
+          <ListRow :on-click="() => open(item.href)">
+            <ListCell>
+              <span class="grid h-10 w-14 place-items-center overflow-hidden rounded-4">
+                <img v-if="item.client.src" :src="item.client.src" :alt="item.client.name" class="max-h-full max-w-full object-contain" />
+                <span v-else class="grid size-10 place-items-center rounded-4 bg-surface-gray-2 text-sm font-medium text-ink-gray-6" :aria-label="item.client.name">{{ initials(item.client.name) }}</span>
+              </span>
+            </ListCell>
+            <ListCell>
+              <div class="flex min-w-0 flex-col gap-1">
+                <p class="truncate text-base font-medium text-ink-gray-8">{{ item.title }}</p>
+                <p v-if="item.segment" class="text-p-base text-ink-gray-6">{{ item.segment }}</p>
+              </div>
+            </ListCell>
+          </ListRow>
+        </ListRows>
+      </List>
     </div>
-
-    <!-- Two of the thirteen partners have none, which is what makes this state
-         worth having rather than assuming every profile is full. -->
-    <!-- Same 16px as the grid's un-pinned case: it's the section's content, and
-         it sits where the content would. -->
-    <p v-if="!total" class="mt-4 text-p-base text-ink-gray-6">No success stories published yet.</p>
+    <p v-if="!stories.length" class="mt-4 text-p-base text-ink-gray-6">No success stories published yet.</p>
   </section>
 </template>
