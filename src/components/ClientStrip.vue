@@ -110,15 +110,30 @@ const clientAt = (i) => props.clients[slots.value[i]]
     @mouseenter="stop"
     @mouseleave="start"
   >
+    <!-- One gray for every logo, whatever its colors. Grayscale alone keeps
+         each logo's lightness, so a pale-blue mark came out far fainter than
+         a black one. This curve darkens every mid-tone toward ink while white
+         stays white, so a JPG's white background doesn't turn gray (a CSS
+         `brightness` or `contrast` filter moves white too). -->
+    <svg class="absolute size-0" aria-hidden="true" focusable="false">
+      <filter id="client-ink" color-interpolation-filters="sRGB">
+        <feColorMatrix type="saturate" values="0" />
+        <feComponentTransfer>
+          <feFuncR type="gamma" exponent="4" />
+          <feFuncG type="gamma" exponent="4" />
+          <feFuncB type="gamma" exponent="4" />
+        </feComponentTransfer>
+      </filter>
+    </svg>
     <!-- Each slot is a fixed-height, capped-width box so the row's rhythm never
          shifts as logos of different widths swap through it. `min-w-0` plus
-         `flex-1` lets a slot shrink below 132px on a narrow screen instead of
+         `flex-1` lets a slot shrink below 128px on a narrow screen instead of
          forcing a wrap, and `object-contain` letterboxes the logo inside
          whatever the slot ends up being. -->
     <div
       v-for="(_, i) in slots"
       :key="i"
-      class="relative h-8 min-w-0 max-w-[132px] flex-1"
+      class="relative h-8 min-w-0 max-w-32 flex-1"
       :aria-live="rotates ? 'off' : undefined"
     >
       <Transition name="client">
@@ -127,7 +142,7 @@ const clientAt = (i) => props.clients[slots.value[i]]
           :key="clientAt(i).slug"
           :src="clientAt(i).src"
           :alt="clientAt(i).name"
-          class="absolute inset-0 size-full object-contain opacity-70"
+          class="absolute inset-0 size-full object-contain opacity-50 [filter:url(#client-ink)]"
           loading="lazy"
         />
       </Transition>

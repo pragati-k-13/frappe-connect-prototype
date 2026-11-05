@@ -165,7 +165,7 @@ const open = computed(() => rows.value.find((r) => r.id === openId.value) || nul
               <ListCell class="min-w-0">
                 <div class="min-w-0">
                   <div class="truncate text-ink-gray-8">{{ item.own ? 'Your account' : item.customer }}</div>
-                  <div v-if="emailOf(item)" class="mt-1 truncate text-ink-gray-5">{{ emailOf(item) }}</div>
+                  <div v-if="emailOf(item)" class="mt-1 truncate text-p-base text-ink-gray-6">{{ emailOf(item) }}</div>
                 </div>
               </ListCell>
               <ListCell class="hidden whitespace-nowrap tabular-nums text-ink-gray-5 sm:flex">{{ item.invoice }}</ListCell>

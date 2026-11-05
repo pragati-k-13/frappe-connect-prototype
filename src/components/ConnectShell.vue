@@ -25,7 +25,7 @@ const collapsed = ref(true)
 </script>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   Alert,
@@ -129,14 +129,14 @@ const partnerRail = computed(() => {
   // Invoices is the firm's money with Frappe, so it sits with the firm, after
   // the firm's own listing.
   const firm = [
-    { label: 'Listing', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile') },
+    { label: 'Public profile', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile') },
     !member && role !== 'sales' && { label: 'Invoices', to: '/connect/invoices', icon: 'lucide-receipt', active: at('invoices') },
   ].filter(Boolean)
   // Only Leads carries a count: replies are the one thing that can't wait.
   // The firm group gets a label; the work group, at the top, needs none.
   // Four rows or fewer is one plain list: a list that short scans without
   // groups, and a label over it would only say the obvious (a Member's
-  // Partnership and Listing). Five or more keeps the two groups.
+  // Partnership and Public profile). Five or more keeps the two groups.
   if (work.length + firm.length <= 4) return [{ items: [...work, ...firm] }]
   return [
     { items: work },
@@ -190,6 +190,12 @@ const feedback = ref(false)
 const settings = ref(false)
 
 const partnerSettings = ref(false)
+// A page can ask for Firm settings on a tab (the Leads page's alert does).
+watch(
+  () => store.firmSettingsTab,
+  (t) => t && (partnerSettings.value = true),
+)
+watch(partnerSettings, (o) => !o && store.openFirmSettings(null))
 const partnerAccount = ref(false)
 
 // ── The partner's footer: the signed-in person ──────────────────────────────
@@ -641,7 +647,7 @@ defineProps({
 
     <FeedbackDialog v-model:open="feedback" />
     <AppSettingsDialog v-model:open="settings" />
-    <PartnerSettingsDialog v-model:open="partnerSettings" />
+    <PartnerSettingsDialog v-model:open="partnerSettings" :initial-tab="store.firmSettingsTab" />
     <PartnerAccountDialog v-model:open="partnerAccount" />
 
     <div class="relative flex min-w-0 flex-1 flex-col">
@@ -730,8 +736,11 @@ defineProps({
             </span>
           </slot>
         </nav>
-        <span v-else class="whitespace-nowrap px-0.5 py-1 text-lg-medium text-ink-gray-9">
+        <span v-else class="flex items-center gap-2 whitespace-nowrap px-0.5 py-1 text-lg-medium text-ink-gray-9">
           {{ rootLabel }}
+          <!-- A state that belongs to the whole page, beside its name (the
+               Public profile's "Unlisted"). -->
+          <slot name="title-suffix" />
         </span>
 
         <!-- The trailing control. A page fills it through `#action` — the

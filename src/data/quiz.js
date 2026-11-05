@@ -27,7 +27,7 @@ export const INDUSTRIES = [
       'Electronics Manufacturing',
       'Food and Beverages',
       'Furniture Manufacturing',
-      'Jewellery Manufacturing',
+      'Jewelry Manufacturing',
       'Medical Device Manufacturing',
       'Pharmaceutical Manufacturing',
       'Process Manufacturing',
@@ -74,6 +74,28 @@ export const INDUSTRIES = [
     ],
   },
 ]
+
+// Shorter names for chips, where a long industry name wraps a chip onto its
+// own line. Hand-picked, not truncated: most are long only because they end
+// in "Manufacturing", which the chip can drop. Discrete and Process
+// Manufacturing keep it: "Discrete" alone means nothing. The picker and
+// screen readers keep the full name.
+const SHORT = {
+  'Automotive Manufacturing': 'Automotive',
+  'Chemical Manufacturing': 'Chemical',
+  'Electronics Manufacturing': 'Electronics',
+  'Furniture Manufacturing': 'Furniture',
+  'Jewelry Manufacturing': 'Jewelry',
+  'Medical Device Manufacturing': 'Medical devices',
+  'Pharmaceutical Manufacturing': 'Pharmaceutical',
+  'Steel Manufacturing': 'Steel',
+  'Textile Manufacturing': 'Textile',
+  'Fast Moving Consumer Goods': 'FMCG',
+  'Banking, Insurance and Broking': 'Banking and insurance',
+  'Hotels, Restaurants and Cafes': 'Hospitality',
+  'Engineering and Construction': 'Construction',
+}
+export const industryShort = (name) => SHORT[name] ?? name
 
 // Real partner counts. Africa is a chip here (the wireframe left it to the map)
 // because at 14 partners it outranks Europe; hiding it would be arbitrary.

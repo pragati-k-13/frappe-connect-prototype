@@ -15,6 +15,7 @@
 // Bands also let someone answer truthfully when the truth is "we don't know
 // yet, somewhere in this order of magnitude".
 import { PARTNERS, cityOf } from './partners'
+import { takingWork } from './takingWork'
 import { marketFor } from './packs'
 import { GEO_CHOICES, GROUP_OF_SEGMENT, INDUSTRIES, REGION_OF, REGIONS } from './quiz'
 
@@ -410,6 +411,7 @@ export const matchingPartners = (intake, brief) => {
   const wanted = groupsOf(intake?.segments)
   const geo = geoPicked(brief)
   return PARTNERS.filter((p) => {
+    if (!takingWork(p)) return false
     // The brief's own region chips win over the business's country when set.
     // Asked and left empty is anywhere.
     if (geo ? !inGeo(p, geo) : !anywhere(brief) && region && p.region !== region) return false

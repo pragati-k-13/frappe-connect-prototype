@@ -2,10 +2,10 @@
 // SCREEN 6 — the partner profile.
 //
 // Every section is built: header, media gallery, client strip, the About /
-// Services and Expertise card, Partner vision, Reviews, Success
-// stories, Marketplace contributions, and "How they began" last. Two of them
-// can be absent for a given partner — the marketplace row and the founding
-// story — and those own their top margins rather than taking one from a
+// Services and Expertise card, In their words, Featured by Frappe, Reviews,
+// Success stories, the quote, and Marketplace contributions last. Some can be
+// absent for a given partner (featured items, the quote, the marketplace
+// row), and those own their top margins rather than taking one from a
 // wrapper here, because an empty `<div class="mt-24">` collapses its margins
 // through itself and leaves the gap behind.
 
@@ -17,14 +17,16 @@ import TierIcon from '../components/TierIcon.vue'
 import MediaGallery from '../components/MediaGallery.vue'
 import ClientStrip from '../components/ClientStrip.vue'
 import PartnerAboutCard from '../components/PartnerAboutCard.vue'
-import PartnerVisionSection from '../components/PartnerVisionSection.vue'
+import PartnerWordsSection from '../components/PartnerWordsSection.vue'
+import PartnerFeaturedSection from '../components/PartnerFeaturedSection.vue'
+import PartnerQuoteSection from '../components/PartnerQuoteSection.vue'
 import PartnerReviewsSection from '../components/PartnerReviewsSection.vue'
 import PartnerStoriesSection from '../components/PartnerStoriesSection.vue'
 import { useConnectStore } from '../stores/connect'
 import { useAuthGate } from '../utils/auth'
 import PartnerMarketplaceSection from '../components/PartnerMarketplaceSection.vue'
-import PartnerFoundingSection from '../components/PartnerFoundingSection.vue'
 import { PARTNERS } from '../data/partners'
+import { takingWork } from '../data/takingWork'
 import { logoFor } from '../data/logos'
 import { clientsFor, mediaFor } from '../data/media'
 import { savedToast } from '../feedback'
@@ -34,6 +36,9 @@ const route = useRoute()
 const router = useRouter()
 
 const partner = computed(() => PARTNERS.find((p) => p.id === route.params.id) ?? null)
+// A firm that isn't taking new work is only reached by a link or from Saved:
+// the page stays, without Contact. Save stays, for when it's back.
+const open = computed(() => takingWork(partner.value))
 const logo = computed(() => (partner.value ? logoFor(partner.value.id) : null))
 const media = computed(() => (partner.value ? mediaFor(partner.value.id) : []))
 const clients = computed(() => (partner.value ? clientsFor(partner.value.id) : []))
@@ -148,7 +153,7 @@ onBeforeUnmount(() => observer?.disconnect())
         leave-to-class="opacity-0"
       >
         <Button
-          v-if="!pageContactVisible"
+          v-if="open && !pageContactVisible"
           variant="ghost"
           class="-mr-2"
           label="Contact"
@@ -174,13 +179,10 @@ onBeforeUnmount(() => observer?.disconnect())
       </div>
     </div>
 
-    <!-- `pb-48` against the top's `pt-8`. The page ends on the founding story,
-         which is the one thing here meant to be read straight through rather
-         than scanned, and 32px of tail put the browser edge right under the
-         last line — the passage read as cut off rather than finished. 192px is
-         twice the 96px that separates the sections, which is the smallest gap
-         that reads as "nothing follows" rather than as another section break. -->
-    <div v-else class="fc-page-read pb-48 pt-8">
+    <!-- `pb-16`: the page ends on a short list (Marketplace contributions),
+         not long prose, so it needs room to clear the Demo button and no more.
+         192px read as a missing section. -->
+    <div v-else class="fc-page-read pb-16 pt-8">
       <!-- ── Header ──────────────────────────────────────────────────────
            Identity left, actions right. The actions are ordered by weight, not
            by frequency: Contact is the page's one solid button because it is
@@ -245,6 +247,7 @@ onBeforeUnmount(() => observer?.disconnect())
                Passing the toast as the gated action also means it fires after a
                sign-in that was triggered from this button. -->
           <Button
+            v-if="open"
             ref="pageContact"
             variant="solid"
             label="Contact"
@@ -274,7 +277,7 @@ onBeforeUnmount(() => observer?.disconnect())
            No heading either. A row of client marks reads as "these are their
            clients" without being told, and a label would give the strip more
            weight in the page than it has earned. -->
-      <div v-if="clients.length" class="mx-auto mt-10 max-w-[600px]">
+      <div v-if="clients.length" class="mx-auto mt-12 max-w-[600px]">
         <ClientStrip :clients="clients" :visible="5" />
       </div>
 
@@ -282,56 +285,42 @@ onBeforeUnmount(() => observer?.disconnect())
            The first framed block on the page. Everything above it is the
            partner presenting themselves; this is the specification, and the
            frame is what marks the change of register. -->
-      <div class="mt-16">
+      <!-- Same 48px under the logo strip as above it; 64px straight after
+           the gallery when there's no strip. -->
+      <div :class="clients.length ? 'mt-12' : 'mt-16'">
         <PartnerAboutCard :partner="partner" />
       </div>
 
-      <!-- ── Partner vision ──────────────────────────────────────────────
-           Back to unframed, after the card. The card is the specification;
-           this is the partner talking, so it reads better without a border
-           around it. -->
-      <div class="mt-24">
-        <PartnerVisionSection :partner="partner" />
-      </div>
+      <!-- ── In their words ──────────────────────────────────────────────
+           Back to unframed, after the card: the partner's own account. Owns
+           its margin, like every section that can be absent below. -->
+      <PartnerWordsSection class="mt-24" :partner="partner" />
+
+      <!-- ── Featured by Frappe ──────────────────────────────────────────
+           Frappe's account of the firm, after the firm's own. Seven of the
+           seventeen partners have any. -->
+      <PartnerFeaturedSection class="mt-24 py-8" :partner="partner" />
 
       <!-- ── Reviews ─────────────────────────────────────────────────────
-           Last, and after the pricing: what it costs is the partner's claim,
-           what it was like is somebody else's. -->
+           Clients' account, after Frappe's. -->
       <div class="mt-24">
         <PartnerReviewsSection :partner="partner" />
       </div>
 
-      <!-- ── Success stories ─────────────────────────────────────────────
-           After the reviews. The reviews are other people's account of the
-           partner and the stories are the partner's own, so the independent
-           evidence reads first and the case studies expand on it. -->
+      <!-- ── Success stories ───────────────────────────────────────────── -->
       <div class="mt-24">
         <PartnerStoriesSection :partner="partner" />
       </div>
 
-      <!-- Last, and it renders for only eight of the thirteen partners. What a
-           partner has published to the marketplace isn't about the engagement
-           you're weighing up — it's evidence of what they build unpaid — so it
-           comes after everything that is.
+      <!-- ── The quote ───────────────────────────────────────────────────
+           Optional. Closes the partner's own account, before the marketplace. -->
+      <PartnerQuoteSection class="mt-24" :partner="partner" />
 
-           ⚠️ No wrapper div, unlike every section above. This is the only
-           section that can be absent, and an empty `<div class="mt-24">` still
-           contributes its margin (a block with no height, border or padding
-           collapses its margins THROUGH itself), which left 96px of dead space
-           at the foot of five profiles. So this one owns its own top margin. -->
+      <!-- What a partner has published to the marketplace isn't about the
+           engagement you're weighing up, so it comes after everything that is, the quote included.
+           ⚠️ No wrapper div: this section can be absent, and an empty
+           `<div class="mt-24">` still contributes its margin. -->
       <PartnerMarketplaceSection :partner="partner" />
-
-      <!-- ── How they began ──────────────────────────────────────────────
-           The last thing on the page, and after the marketplace row for the
-           same reason that row comes after everything else: nothing here helps
-           you choose. Every section above answers a question a visitor
-           weighing up partners is actually asking — what they do, what it
-           costs, what it was like, what they've shipped. This one answers the
-           question you only ask once you've decided you like them.
-
-           ⚠️ Owns its own `mt-24`, no wrapper — see the component, and the note
-           on the marketplace section above. -->
-      <PartnerFoundingSection :partner="partner" />
     </div>
 
   </ConnectShell>

@@ -2,8 +2,9 @@
 import { computed, ref, watch } from 'vue'
 import { Button, Dialog, Slider } from 'frappe-ui'
 
-// Adding a photo or video to the profile, with the checks that catch poor
-// media before it's saved. Assume partners upload whatever they have.
+// Adding (or replacing) one photo or video in the profile's gallery, with the
+// checks that catch poor media before it's saved. Assume partners upload
+// whatever they have.
 //
 // Photos: shown cropped to the gallery's 16:9 tile, so the crop is judged on
 // the real shape; low resolution is flagged; big files are compressed without
@@ -11,6 +12,11 @@ import { Button, Dialog, Slider } from 'frappe-ui'
 // since the first frame is usually black or a title card. No trimming: the
 // length limit does that job.
 const open = defineModel('open', { type: Boolean, default: false })
+const props = defineProps({
+  replacing: { type: Boolean, default: false },
+  // False once the gallery holds its most videos: photos only then.
+  allowVideo: { type: Boolean, default: true },
+})
 const emit = defineEmits(['add'])
 
 const MIN_WIDTH = 1200
@@ -59,6 +65,7 @@ function pick(e) {
   notes.value = []
   poster.value = ''
   at.value = [0]
+  if (kind.value === 'video' && !props.allowVideo) issues.value.push('Your gallery has its two videos. Remove one to add another.')
   if (f.size > 2 * 1024 * 1024) notes.value.push(`Compressed from ${(f.size / 1024 / 1024).toFixed(1)} MB`)
   if (kind.value === 'image') {
     const img = new Image()
@@ -95,13 +102,15 @@ function add() {
 </script>
 
 <template>
-  <Dialog v-model:open="open" title="Add photo or video">
+  <Dialog v-model:open="open" :title="replacing ? 'Replace' : allowVideo ? 'Add photo or video' : 'Add photo'" size="md">
     <div class="space-y-4">
       <label class="flex cursor-pointer flex-col items-center gap-2 rounded-6 border border-dashed border-outline-gray-2 px-4 py-8 text-center transition-colors hover:bg-surface-gray-1">
         <span class="lucide-upload size-4 text-ink-gray-5" aria-hidden="true" />
         <span class="text-base text-ink-gray-7">{{ file ? file.name : 'Choose a file' }}</span>
-        <span class="text-p-sm text-ink-gray-5">Photos at least {{ MIN_WIDTH }} px wide. Videos under {{ MAX_SECONDS / 60 }} minutes.</span>
-        <input type="file" accept="image/*,video/*" class="sr-only" @change="pick" />
+        <span class="text-p-sm text-ink-gray-5">
+          Photos at least {{ MIN_WIDTH }} px wide.<template v-if="allowVideo"> Videos under {{ MAX_SECONDS / 60 }} minutes.</template>
+        </span>
+        <input type="file" :accept="allowVideo ? 'image/*,video/*' : 'image/*'" class="sr-only" @change="pick" />
       </label>
 
       <div v-if="url" class="aspect-video overflow-hidden rounded-6 bg-surface-gray-2">
@@ -118,7 +127,6 @@ function add() {
           @loadeddata="capture"
         />
       </div>
-      <p v-if="url && kind === 'image'" class="text-p-sm text-ink-gray-5">As it shows in your gallery.</p>
       <div v-if="url && kind === 'video' && duration" class="space-y-2">
         <p class="text-p-sm text-ink-gray-5">Drag to pick the cover</p>
         <Slider v-model="at" :min="0" :max="duration" :step="0.1" aria-label="Cover frame" />
@@ -133,7 +141,7 @@ function add() {
 
       <div class="flex justify-end gap-2 pt-2">
         <Button label="Cancel" @click="open = false" />
-        <Button variant="solid" label="Add to gallery" :disabled="!canAdd" @click="add" />
+        <Button variant="solid" :label="replacing ? 'Replace' : 'Add'" :disabled="!canAdd" @click="add" />
       </div>
     </div>
   </Dialog>

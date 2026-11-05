@@ -58,7 +58,7 @@ const ICON = { Call: 'lucide-phone', Demo: 'lucide-presentation', Email: 'lucide
                 {{ item.mode }}<template v-if="item.spokeTo"> with {{ item.spokeTo }}</template>
               </span>
               <span v-if="item.notes" class="mt-1 block text-p-sm text-ink-gray-7">{{ item.notes }}</span>
-              <span class="mt-1 block text-sm text-ink-gray-5">{{ nameOf(item.by) }}</span>
+              <span class="mt-1 block text-p-base text-ink-gray-6">{{ nameOf(item.by) }}</span>
             </span>
           </ListCell>
           <ListCell class="items-start whitespace-nowrap text-sm text-ink-gray-5">{{ shortDate(new Date(item.at).toISOString().slice(0, 10)) }}</ListCell>

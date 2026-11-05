@@ -27,5 +27,7 @@ export const LOGOS = {
   ),
   frappe: frappeMark,
 }
+// Wahni's UAE office uses the firm's logo.
+LOGOS['wahni-it-solutions-fze'] = LOGOS.wahni
 
 export const logoFor = (id) => LOGOS[id] ?? null

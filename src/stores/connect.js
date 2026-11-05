@@ -20,6 +20,7 @@ import { modulesFor } from '../data/modules'
 import { sharedAnswers } from '../data/company'
 import { INDUSTRIES } from '../data/quiz'
 import { emptyBrief, matchingPartners } from '../data/custom'
+import { takingWork } from '../data/takingWork'
 import { bidFor, repliesToBrief } from '../data/bids'
 import { STARTER_PACKS, packConflicts } from '../data/packs'
 import { recommendedPackValues } from '../data/recommendation'
@@ -176,6 +177,8 @@ const criteriaFrom = (state) => ({
 // about what the other filters mean — the bug you get the moment the filter
 // logic is written out twice.
 const matches = (p, c, skip = null) => {
+  // Never lifted: a firm that isn't taking new work isn't a suggestion either.
+  if (!takingWork(p)) return false
   // Region and country are ONE dimension — `geo` — selected through a single
   // control, so they combine as a UNION and not an intersection. "All of Asia"
   // plus "Germany" has to mean either, the same way two regions or two segments
@@ -248,6 +251,9 @@ export const useConnectStore = defineStore('connect', {
     //   partnershipState  one of PARTNERSHIP_STATES; Bronze and up only
     partnerTier: 'bronze-up',
     partnerRole: 'owner',
+    // Opens Firm settings on a tab from anywhere (the Leads page's alert);
+    // ConnectShell owns the dialog and clears this when it closes.
+    firmSettingsTab: null,
     partnershipState: 'working',
     // See ACCOUNT_STATES above. Deliberately NOT cleared by `reset()`: it's
     // which demo you're in, not something the quiz collected — same as `role`.
@@ -734,6 +740,9 @@ export const useConnectStore = defineStore('connect', {
       if (tier !== 'beginner' && tier !== 'bronze-up') return
       this.partnerTier = tier
       this.partnershipState = 'working'
+    },
+    openFirmSettings(tab) {
+      this.firmSettingsTab = tab
     },
     setPartnerRole(role) {
       if (!['owner', 'sales', 'finance', 'member'].includes(role)) return
