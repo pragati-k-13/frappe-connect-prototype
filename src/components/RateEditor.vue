@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Button, Popover, Slider, Switch } from 'frappe-ui'
+import { Button, Popover, Slider, Switch, TextInput } from 'frappe-ui'
 import { PARTNERS } from '../data/partners'
 import { REGIONS } from '../data/quiz'
 
@@ -32,6 +32,22 @@ function onOpen(v) {
   value.value = [props.partner.rate ?? 60]
   show.value = Boolean(props.partner.rate)
 }
+// The number field and the slider edit the same value. Typing only moves the
+// slider once the number is in range, so "5" on the way to "50" doesn't jump
+// it to the minimum; leaving the field clamps it.
+const clamp = (n) => Math.min(MAX, Math.max(MIN, Math.round(n)))
+const typed = computed({
+  get: () => String(value.value[0]),
+  set: (v) => {
+    const n = Number(v)
+    if (v !== '' && n >= MIN && n <= MAX) value.value = [Math.round(n)]
+  },
+})
+function settle(e) {
+  const n = Number(e.target.value)
+  value.value = [clamp(Number.isFinite(n) && e.target.value !== '' ? n : value.value[0])]
+  e.target.value = value.value[0]
+}
 function publish() {
   emit('publish', show.value ? value.value[0] : null)
   open.value = false
@@ -49,14 +65,13 @@ const peers = computed(() => {
   return near.length >= MIN_PEERS ? { label: region.label, rates: near.map((p) => p.rate) } : null
 })
 const sorted = computed(() => [...(peers.value?.rates ?? [])].sort((a, b) => a - b))
-// The middle half of the market, as a shaded band behind the dots.
+// The middle half of the market: the "Most charge" range.
 const quantile = (q) => {
   const s = sorted.value
   const i = (s.length - 1) * q
   return Math.round(s[Math.floor(i)] + (s[Math.ceil(i)] - s[Math.floor(i)]) * (i % 1))
 }
 const band = computed(() => (peers.value ? [quantile(0.25), quantile(0.75)] : null))
-const at = (rate) => `${((rate - MIN) / (MAX - MIN)) * 100}%`
 const standing = computed(() => {
   if (!peers.value) return ''
   const n = sorted.value.length
@@ -72,39 +87,39 @@ const standing = computed(() => {
 <template>
   <Popover :open="open" side="bottom" align="start" @update:open="onOpen">
     <template #trigger>
-      <!-- The value is the control, as the chips are. It keeps the hover
-           fill while the popover is open, so it's clear what's being edited. -->
+      <!-- A gray field with a chevron, like the card's other editable values.
+           It stays filled darker while the popover is open. -->
       <button
         type="button"
-        class="-mx-2 rounded-4 px-2 py-1 text-left text-p-base tabular-nums text-ink-gray-8 transition-colors hover:bg-surface-gray-2 focus-visible:focus-ring data-[state=open]:bg-surface-gray-3"
+        class="flex min-h-7 w-full items-center justify-between gap-2 rounded-4 bg-surface-gray-2 px-2 py-1 text-left text-p-base tabular-nums text-ink-gray-8 transition-colors hover:bg-surface-gray-3 focus-visible:focus-ring data-[state=open]:bg-surface-gray-3"
         aria-label="Edit rate"
       >
-        <template v-if="partner.rate">From ${{ partner.rate }}/hr</template>
-        <span v-else class="text-ink-gray-5">Undisclosed</span>
+        <span>
+          <template v-if="partner.rate">From ${{ partner.rate }}/hr</template>
+          <span v-else class="text-ink-gray-5">Undisclosed</span>
+        </span>
+        <span class="lucide-chevron-down size-4 shrink-0 text-ink-gray-4" aria-hidden="true" />
       </button>
     </template>
     <template #default>
       <div class="w-80 space-y-4 p-3">
-        <p class="text-2xl-semibold tabular-nums" :class="show ? 'text-ink-gray-9' : 'text-ink-gray-4'">
-          From ${{ value[0] }}<span class="text-base font-normal text-ink-gray-5">/hr</span>
-        </p>
-
         <div>
-          <!-- Every published rate as a dot on the slider's own scale, the
-               middle half shaded, so the thumb reads against the market. -->
-          <div v-if="peers" class="relative mb-1 h-3" aria-hidden="true">
-            <span
-              class="absolute top-0 h-3 rounded-full bg-surface-gray-3"
-              :style="{ left: at(band[0]), width: `calc(${at(band[1])} - ${at(band[0])})` }"
-            />
-            <span
-              v-for="(r, i) in sorted"
-              :key="i"
-              class="absolute top-1 size-1 -translate-x-1/2 rounded-full bg-surface-gray-7"
-              :style="{ left: at(r) }"
-            />
-          </div>
-          <Slider v-model="value" :min="MIN" :max="MAX" :step="1" :disabled="!show" aria-label="Hourly rate in dollars" />
+          <TextInput
+            v-model="typed"
+            type="number"
+            size="md"
+            :min="MIN"
+            :max="MAX"
+            :disabled="!show"
+            class="w-32 tabular-nums [&_input::-webkit-inner-spin-button]:appearance-none [&_input]:[appearance:textfield]"
+            aria-label="Hourly rate in dollars"
+            @blur="settle"
+            @keydown.enter="settle"
+          >
+            <template #prefix><span class="text-base text-ink-gray-5">$</span></template>
+            <template #suffix><span class="text-base text-ink-gray-5">/hr</span></template>
+          </TextInput>
+          <Slider v-model="value" class="mt-4" :min="MIN" :max="MAX" :step="1" :disabled="!show" aria-label="Hourly rate slider" />
           <div class="mt-1 flex justify-between text-sm text-ink-gray-5">
             <span>${{ MIN }}</span>
             <span>${{ MAX }}</span>

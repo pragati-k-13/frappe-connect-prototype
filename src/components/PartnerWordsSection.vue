@@ -1,6 +1,5 @@
 <script setup>
 import { computed } from 'vue'
-import { ErrorMessage } from 'frappe-ui'
 import InlineInput from './InlineInput.vue'
 import { ANSWER_MAX, STORY_MAX } from '../data/partners'
 // Imported rather than written as `<LucideHandshake />` tags, because the rows
@@ -85,6 +84,8 @@ const missing = (key) => props.errors.includes(key)
           <InlineInput
             v-if="row.key === 'story'"
             multiline
+            boxed
+            :error="missing(row.key) && !storyText.trim() ? 'Required' : ''"
             :rows="7"
             :max="STORY_MAX"
             :model-value="storyText"
@@ -95,14 +96,15 @@ const missing = (key) => props.errors.includes(key)
           <InlineInput
             v-else
             multiline
-            :rows="3"
+            boxed
+            :error="missing(row.key) && !row.answer?.trim() ? 'Required' : ''"
+            :rows="4"
             :max="ANSWER_MAX"
             :model-value="row.answer"
             :label="row.question"
             placeholder="Answer in your own words"
             @commit="setAnswer(row.key, $event)"
           />
-          <ErrorMessage v-if="missing(row.key)" class="mt-1" message="Required" />
         </dd>
         <dd v-else-if="row.key === 'story'" class="min-w-0 space-y-4">
           <p v-for="(para, i) in story" :key="i" class="text-p-base text-ink-gray-6">{{ para }}</p>

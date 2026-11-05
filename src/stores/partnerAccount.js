@@ -29,9 +29,8 @@ const blank = () => ({
   roles: {},
   removed: [],
   crm: null,
-  // Profile: plain fields that publish at once; the media list once the
-  // partner has managed it; client logos once edited, each `pending` until
-  // Frappe approves it.
+  // Profile: the published fields, media list and client logos, each set by
+  // the profile page's Publish.
   profile: {},
   media: null,
   logos: null,

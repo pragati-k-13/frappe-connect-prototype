@@ -14,6 +14,9 @@ import { storiesFor } from '../data/stories'
 // `data/stories.js`.
 const props = defineProps({
   partner: { type: Object, required: true },
+  // Inside a compact row on the partner's own page, which already shows the
+  // title: the section renders without its own heading.
+  headless: { type: Boolean, default: false },
 })
 
 const stories = computed(() => storiesFor(props.partner))
@@ -27,7 +30,7 @@ const open = (href) => window.open(href, '_blank', 'noopener')
 
 <template>
   <section>
-    <h2 class="flex items-center gap-2 text-base font-semibold text-ink-gray-8">
+    <h2 v-if="!headless" class="flex items-center gap-2 text-base font-semibold text-ink-gray-8">
       Success stories
       <Badge v-if="stories.length" :label="String(stories.length)" />
     </h2>
@@ -38,7 +41,7 @@ const open = (href) => window.open(href, '_blank', 'noopener')
          from the story's opening says who they are. No panel, no fill: size
          and space set it apart from the rows. One subtle button, since the
          story lives on frappe.io. -->
-    <article v-if="featured" class="mt-6">
+    <article v-if="featured" :class="!headless && 'mt-6'">
       <!-- Scaled down only, never up, so a small logo never blurs. -->
       <img
         v-if="featured.client.src"

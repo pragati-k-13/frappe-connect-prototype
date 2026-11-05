@@ -15,8 +15,9 @@ const props = defineProps({
   items: { type: Array, required: true },
 })
 
-// The first item is the cover and takes the large slot. The partner sets it
-// ("Make cover" in the media manager), so the order is theirs to decide.
+// The first item is the cover and takes the large slot. A video, if there is
+// one, is always first; otherwise the partner picks the cover photo
+// ("Make cover" in the media manager).
 const lead = computed(() => props.items[0] ?? null)
 const rest = computed(() => props.items.filter((m) => m !== lead.value))
 // Two tiles beside the lead, as designed. Anything beyond that is reachable

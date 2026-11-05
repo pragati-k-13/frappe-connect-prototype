@@ -1,7 +1,9 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
-import { Avatar, Badge, Button, Dialog, Dropdown, ErrorMessage, FormControl, Textarea, Tooltip, dialog, toast } from 'frappe-ui'
+import { Avatar, Badge, Button, Dialog, Dropdown, ErrorMessage, FormControl, TabButtons, Textarea, Tooltip, dialog, toast } from 'frappe-ui'
+import IconEdit from '~icons/lucide/pencil'
+import IconPreview from '~icons/lucide/eye'
 import ConnectShell from '../components/ConnectShell.vue'
 import ClientLogoGrid from '../components/ClientLogoGrid.vue'
 import InlineInput from '../components/InlineInput.vue'
@@ -14,12 +16,16 @@ import PartnerQuoteSection from '../components/PartnerQuoteSection.vue'
 import PartnerReviewsSection from '../components/PartnerReviewsSection.vue'
 import PartnerStoriesSection from '../components/PartnerStoriesSection.vue'
 import PartnerMarketplaceSection from '../components/PartnerMarketplaceSection.vue'
+import CompactSection from '../components/CompactSection.vue'
 import MediaGrid from '../components/MediaGrid.vue'
 import TierIcon from '../components/TierIcon.vue'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
-import { PARTNERS } from '../data/partners'
+import { ANSWER_MAX, PARTNERS, STORY_MAX } from '../data/partners'
 import { clientsFor, mediaFor } from '../data/media'
+import { featuredFor } from '../data/featured'
+import { storiesFor } from '../data/stories'
+import { contributionsFor } from '../data/marketplace'
 import { logoFor } from '../data/logos'
 import { firmFor } from '../data/partnership'
 
@@ -79,40 +85,119 @@ const base = computed(() => {
   }
 })
 // ── The draft ───────────────────────────────────────────────────────────────
-// `draft` holds changed profile fields, `draftMedia` the whole media list once
-// it's touched. The page always shows published + draft.
+// `draft` holds changed profile fields, `draftMedia` and `draftLogos` the
+// whole media or logo list once it's touched. The page always shows
+// published + draft.
 const draft = ref({})
 const draftMedia = ref(null)
+const draftLogos = ref(null)
 const published = computed(() => ({ ...base.value, ...account.edits.profile }))
 const p = computed(() => ({ ...published.value, ...draft.value }))
-const dirty = computed(() => Object.keys(draft.value).length > 0 || draftMedia.value !== null)
+const dirty = computed(() => Object.keys(draft.value).length > 0 || draftMedia.value !== null || draftLogos.value !== null)
 const edit = (patch) => Object.assign(draft.value, patch)
 
 const logo = computed(() => (beginner.value ? null : logoFor(p.value.id)))
 const publishedMedia = computed(() => account.edits.media ?? (beginner.value ? [] : mediaFor(p.value.id)))
 const media = computed(() => draftMedia.value ?? publishedMedia.value)
-// Every logo in the partner's order, new ones `pending` until Frappe approves
-// them. Only approved logos reach the profile.
-const logos = computed(() => account.edits.logos ?? (beginner.value ? [] : clientsFor(p.value.id)).map((c) => ({ ...c, pending: false })))
-const clients = computed(() => logos.value.filter((l) => !l.pending))
+// Every logo in the partner's order. Logos are part of the draft like
+// everything else: they publish with Publish, and Discard drops them.
+const publishedLogos = computed(() => account.edits.logos ?? (beginner.value ? [] : clientsFor(p.value.id)))
+const logos = computed(() => draftLogos.value ?? publishedLogos.value)
+const clients = computed(() => logos.value.filter((l) => l.src))
 
 // ── Edit or preview ─────────────────────────────────────────────────────────
 // In the URL, so a reload keeps it. People who can't edit only ever see the
 // preview.
 const mode = computed(() => (canEdit.value && route.query.preview !== '1' ? 'edit' : 'preview'))
 const editing = computed(() => mode.value === 'edit')
-const setMode = (m) => router.replace({ query: { ...route.query, preview: m === 'preview' ? '1' : undefined } })
+// Switching keeps the reader on the section they were looking at: the two
+// modes lay sections out differently (compact rows, a grid against a gallery),
+// so the scroll offset alone would land somewhere else. Each top-level section
+// carries a `data-anchor` with the same name in both modes. The new mode fades
+// in over 150ms, opacity only, so a full-page swap doesn't read as a reload.
+const pageEl = ref(null)
+const scrollerOf = (el) => {
+  for (let n = el?.parentElement; n; n = n.parentElement) {
+    if (/(auto|scroll)/.test(getComputedStyle(n).overflowY)) return n
+  }
+  return document.scrollingElement
+}
+// Switching back without scrolling in between returns to the exact starting
+// place: the anchor is remembered from the first switch, so the 80px clamp
+// and the end of the page can't make it drift.
+let held = null
+async function setMode(m) {
+  if (m === mode.value) return
+  const scroller = scrollerOf(pageEl.value)
+  const top = scroller.getBoundingClientRect().top
+  let anchor, offset
+  const returning = held && Math.abs(scroller.scrollTop - held.scrollTop) < 1
+  if (returning) {
+    ;({ anchor, offset } = held)
+  } else {
+    const anchors = [...(pageEl.value?.querySelectorAll(':scope > [data-anchor]') ?? [])]
+    const current = anchors.filter((a) => a.getBoundingClientRect().top <= top + 1).pop()
+    anchor = current?.dataset.anchor
+    offset = current ? current.getBoundingClientRect().top - top : 0
+  }
+  await router.replace({ query: { ...route.query, preview: m === 'preview' ? '1' : undefined } })
+  await nextTick()
+  const next = anchor && pageEl.value?.querySelector(`:scope > [data-anchor="${anchor}"]`)
+  if (next) {
+    // A section that got shorter keeps at least its last 80px in view. Not on
+    // the way back: the original offset is exact there.
+    const shift = returning ? offset : Math.max(offset, 80 - next.offsetHeight)
+    scroller.scrollTop += next.getBoundingClientRect().top - top - shift
+    held = returning ? null : { anchor, offset, scrollTop: scroller.scrollTop }
+  } else held = null
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    pageEl.value?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' })
+  }
+}
+
+// The mode switch: frappe-ui's segmented control, so the current mode is the
+// selected segment. Icons alone on a phone (the label stays as their
+// accessible name), icon and label otherwise.
+const narrow = ref(window.matchMedia('(max-width: 639px)').matches)
+const mq = window.matchMedia('(max-width: 639px)')
+const onNarrow = (e) => (narrow.value = e.matches)
+mq.addEventListener('change', onNarrow)
+onBeforeUnmount(() => mq.removeEventListener('change', onNarrow))
+const modeOptions = computed(() =>
+  [
+    { value: 'edit', label: 'Edit', icon: IconEdit },
+    { value: 'preview', label: 'Preview', icon: IconPreview },
+  ].map(({ icon, ...o }) => (narrow.value ? { ...o, icon } : { ...o, iconLeft: icon })),
+)
+
+// ── Sections the partner can't edit ─────────────────────────────────────────
+// Folded to one row each in edit mode; View opens the full section in place.
+const featured = computed(() => featuredFor(p.value.id))
+const stories = computed(() => storiesFor(p.value))
+const apps = computed(() => contributionsFor(p.value))
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
+const featuredLine = computed(() => {
+  const pods = featured.value.filter((f) => f.kind === 'podcast').length
+  const posts = featured.value.length - pods
+  return [pods && plural(pods, 'podcast episode', 'podcast episodes'), posts && plural(posts, 'partner story', 'partner stories')]
+    .filter(Boolean)
+    .join(' and ')
+})
 
 // ── Required fields ─────────────────────────────────────────────────────────
 // Checked when Publish is pressed, then live, so each "Required" clears as
 // the partner fills it in.
 const attempted = ref(false)
+// Empty or over its character limit: either one stops Publish. The field
+// itself says which.
 const missing = computed(() => {
   const v = p.value.vision ?? {}
+  const story = (p.value.founding?.story ?? []).join('\n\n')
+  const bad = (text, max) => !text?.trim() || text.length > max
   return [
-    !(p.value.founding?.story?.length) && 'story',
-    !v.why?.trim() && 'why',
-    !v.together?.text?.trim() && 'together',
+    bad(story, STORY_MAX) && 'story',
+    bad(v.why, ANSWER_MAX) && 'why',
+    bad(v.together?.text, ANSWER_MAX) && 'together',
   ].filter(Boolean)
 })
 const errors = computed(() => (attempted.value ? missing.value : []))
@@ -129,12 +214,14 @@ async function publish() {
   }
   account.setProfile(draft.value)
   if (draftMedia.value) account.setMedia(draftMedia.value)
+  if (draftLogos.value) account.setLogos(draftLogos.value)
   clearDraft()
-  toast.success('Published', { id: 'profile-saved' })
+  toast.success('Published', { id: 'profile-saved', action: { label: 'Copy link', onClick: shareLink } })
 }
 function clearDraft() {
   draft.value = {}
   draftMedia.value = null
+  draftLogos.value = null
   attempted.value = false
 }
 const confirmDiscard = (onDiscard) =>
@@ -162,14 +249,6 @@ const warnUnload = (e) => {
 }
 window.addEventListener('beforeunload', warnUnload)
 onBeforeUnmount(() => window.removeEventListener('beforeunload', warnUnload))
-
-// ── Logos ───────────────────────────────────────────────────────────────────
-// Outside the draft: a new logo claims a client relationship, so it waits for
-// Frappe; removing or reordering claims nothing and applies at once.
-function changeLogos(list, how) {
-  account.setLogos(list)
-  toast.success(how === 'added' ? 'Sent to Frappe for review' : 'Saved', { id: 'logos-saved' })
-}
 
 // ── The quote ───────────────────────────────────────────────────────────────
 // Optional. With a quote, its author's name, role and photo are all required.
@@ -249,36 +328,34 @@ const shareLink = async () => {
         <Badge theme="gray" variant="subtle" size="md" label="Unlisted" />
       </Tooltip>
     </template>
-    <!-- Both page actions in the bar. Preview is a button named for where it
-         goes: "Preview" while editing, "Edit" while previewing. People who
-         can't edit only ever see the page as businesses do. -->
+    <!-- Copy link (Preview, nothing unpublished), then the mode switch, then
+         Discard and Publish with a draft, so Publish sits at the right edge.
+         People who can't edit only ever see the page as businesses do: no
+         switch. -->
     <template #action>
-      <!-- Icons alone on a phone, where the bar can't fit the labels beside
-           the title; the label stays for screen readers. The toggle keeps one
-           width in both states so it doesn't shift when clicked. -->
       <div class="flex items-center gap-2">
-        <!-- While there's a draft: what's unpublished, a way to drop it, and
-             the page's one primary action. Publish stays in Preview too: that's
-             where you check a draft before publishing it. -->
-        <template v-if="canEdit && dirty">
-          <span class="text-sm text-ink-gray-5 max-md:hidden">Unpublished changes</span>
-          <Button label="Discard" @click="confirmDiscard()" />
-        </template>
-        <Button v-if="canEdit" class="sm:min-w-24" :icon-left="editing ? 'lucide-eye' : 'lucide-pencil'" @click="setMode(editing ? 'preview' : 'edit')">
-          <span class="max-sm:sr-only">{{ editing ? 'Preview' : 'Edit' }}</span>
-        </Button>
-        <!-- On a phone with a draft, Copy link steps aside so Publish fits:
-             there's nothing new at the link until it's published. -->
-        <Button icon-left="lucide-link" :class="dirty && 'max-sm:hidden'" @click="shareLink">
-          <span class="max-sm:sr-only">Copy link</span>
-        </Button>
-        <Button v-if="canEdit && dirty" variant="solid" label="Publish" @click="publish" />
+        <!-- The link opens the published page, so it's offered only when
+             that's what Preview shows: never with a draft. Publishing offers
+             it again, in the toast. An icon is enough on its own here. -->
+        <Tooltip v-if="!editing && !dirty" text="Copy link">
+          <Button icon="lucide-link" aria-label="Copy link" @click="shareLink" />
+        </Tooltip>
+        <TabButtons v-if="canEdit" :model-value="mode" :options="modeOptions" @update:model-value="setMode" />
+        <!-- Discard and Publish appear only with a draft: their arriving is
+             the "unpublished changes" signal, so there's no label for it.
+             They fade in over 150ms; gone at once when the draft is. -->
+        <Transition enter-active-class="transition-opacity duration-150 ease-out motion-reduce:transition-none" enter-from-class="opacity-0">
+          <div v-if="canEdit && dirty" class="flex items-center gap-2">
+            <Button label="Discard" @click="confirmDiscard()" />
+            <Button variant="solid" label="Publish" @click="publish" />
+          </div>
+        </Transition>
       </div>
     </template>
 
-    <div class="fc-page-read space-y-12 pb-24 pt-8">
+    <div ref="pageEl" class="fc-page-read space-y-24 pb-24 pt-8">
       <!-- ── Header ───────────────────────────────────────────────────── -->
-      <div>
+      <div data-anchor="header">
         <div class="flex items-start gap-3">
           <Avatar v-if="logo" :image="logo" :label="`${p.name} logo`" size="3xl" shape="square" class="fc-logo-avatar" />
           <div
@@ -312,31 +389,34 @@ const shareLink = async () => {
       <!-- ── Media ────────────────────────────────────────────────────── -->
       <!-- Edit mode shows every item in a grid, edited in place, the same shape
            as the logos; Preview shows the gallery as the directory does. -->
-      <section v-if="editing">
+      <section v-if="editing" data-anchor="media">
         <MediaGrid :items="media" @change="draftMedia = $event" />
       </section>
-      <MediaGallery v-else-if="media.length" :items="media" />
+      <MediaGallery v-else-if="media.length" data-anchor="media" :items="media" />
 
       <!-- ── Client logos ─────────────────────────────────────────────── -->
       <!-- Edit mode shows every logo, still, and edits them in place; the
            directory's rotating strip is for reading, not editing. -->
-      <section v-if="editing">
-        <ClientLogoGrid :logos="logos" @change="changeLogos" />
+      <section v-if="editing" data-anchor="logos">
+        <ClientLogoGrid :logos="logos" @change="draftLogos = $event" />
       </section>
       <!-- The public profile's own measure for the strip, so Preview matches it. -->
-      <div v-else-if="clients.length" class="mx-auto max-w-[600px]"><!-- design-lint-ignore -->
+      <div v-else-if="clients.length" data-anchor="logos" class="mx-auto max-w-[600px]"><!-- design-lint-ignore -->
         <ClientStrip :clients="clients" :visible="5" />
       </div>
 
       <!-- ── About ────────────────────────────────────────────────────── -->
-      <PartnerAboutCard :partner="p" :editable="editing" @change="edit" />
+      <PartnerAboutCard data-anchor="about" :partner="p" :editable="editing" @change="edit" />
 
       <!-- ── In their words, then Frappe's ────────────────────────────── -->
-      <PartnerWordsSection :partner="p" :editable="editing" :errors="errors" @change="edit" />
-      <PartnerFeaturedSection :partner="p" />
+      <PartnerWordsSection data-anchor="words" :partner="p" :editable="editing" :errors="errors" @change="edit" />
+      <CompactSection v-if="editing && featured.length" data-anchor="featured" title="Featured by Frappe" :count="featured.length" :description="featuredLine">
+        <template #full><PartnerFeaturedSection :partner="p" headless /></template>
+      </CompactSection>
+      <PartnerFeaturedSection v-else-if="!editing" data-anchor="featured" :partner="p" />
 
       <!-- ── Reviews: Frappe's. The partner replies or reports. ────────── -->
-      <PartnerReviewsSection v-if="p.reviews" :partner="p" own>
+      <PartnerReviewsSection v-if="p.reviews" data-anchor="reviews" :partner="p" own>
         <template #actions="{ review: r }">
           <!-- The reply shows in preview too: it's public. -->
           <div v-if="account.edits.reviewReplies[r.id] && replyingTo !== r.id" class="mt-4 border-l-2 border-outline-gray-2 pl-3">
@@ -370,19 +450,34 @@ const shareLink = async () => {
       </PartnerReviewsSection>
 
       <!-- ── Case studies: submitted on frappe.io ───────────────────────── -->
-      <div>
-        <PartnerStoriesSection :partner="p" />
-        <Button v-if="editing" class="mt-3" label="Submit on frappe.io" href="https://frappe.io/partners" />
-      </div>
+      <CompactSection
+        v-if="editing"
+        data-anchor="stories"
+        title="Success stories"
+        :count="stories.length"
+        :description="stories.length ? 'Published on frappe.io' : 'None published yet'"
+      >
+        <!-- Just the verb on a phone, so the title keeps its line. -->
+        <Button icon-right="lucide-external-link" href="https://frappe.io/partners">Submit<span class="max-sm:sr-only"> on frappe.io</span></Button>
+        <template v-if="stories.length" #full><PartnerStoriesSection :partner="p" headless /></template>
+      </CompactSection>
+      <PartnerStoriesSection v-else data-anchor="stories" :partner="p" />
 
       <!-- ── The quote: optional, before the marketplace ─────────────────────────────────── -->
-      <PartnerQuoteSection :partner="p" :editable="editing" @edit="editQuote" />
+      <PartnerQuoteSection data-anchor="quote" :partner="p" :editable="editing" @edit="editQuote" />
 
       <!-- ── Marketplace: Frappe Cloud's, read-only here ──────────────── -->
-      <div>
-        <PartnerMarketplaceSection class="!mt-0" :partner="p" />
-        <Button v-if="editing" class="mt-3" label="Manage on Frappe Cloud" href="https://frappecloud.com/marketplace" />
-      </div>
+      <CompactSection
+        v-if="editing"
+        data-anchor="marketplace"
+        title="Marketplace contributions"
+        :count="apps.length"
+        :description="apps.length ? 'Listed on the Frappe Cloud Marketplace' : 'Hidden from clients until you publish an app'"
+      >
+        <Button icon-right="lucide-external-link" href="https://frappecloud.com/marketplace">Manage<span class="max-sm:sr-only"> on Frappe Cloud</span></Button>
+        <template v-if="apps.length" #full><PartnerMarketplaceSection :partner="p" headless /></template>
+      </CompactSection>
+      <PartnerMarketplaceSection v-else data-anchor="marketplace" class="!mt-0" :partner="p" />
     </div>
 
     <!-- ── The quote ──────────────────────────────────────────────────── -->

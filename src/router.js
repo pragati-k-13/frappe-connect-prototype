@@ -262,7 +262,10 @@ export default createRouter({
   // Two frames, not one: on a cold load — which is what the modal's link does,
   // since it opens a new tab — the route component is lazily imported, and its
   // section isn't in the DOM when the first frame runs.
-  scrollBehavior: (to) => {
+  scrollBehavior: (to, from) => {
+    // A change of query alone (Edit / Preview, a filter) is the same page:
+    // the page keeps its own place.
+    if (!to.hash && to.path === from.path) return false
     if (!to.hash) return { top: 0 }
     return new Promise((resolve) => {
       requestAnimationFrame(() =>

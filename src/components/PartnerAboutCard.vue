@@ -5,7 +5,7 @@ import InlineInput from './InlineInput.vue'
 import RateEditor from './RateEditor.vue'
 import Tag from './Tag.vue'
 import { APPS, PARTNERS, countryShort } from '../data/partners'
-import { INDUSTRIES } from '../data/quiz'
+import { INDUSTRIES, industryShort } from '../data/quiz'
 import { useConnectStore } from '../stores/connect'
 
 // SCREEN 6, second section — the About / Services and Expertise card.
@@ -114,11 +114,10 @@ function changeList(key, next) {
   emit('change', { [key]: next })
 }
 const LISTS = {
-  industries: { label: 'Industries served', options: industryOptions, chip: (v) => v },
+  industries: { label: 'Industries served', options: industryOptions, chip: industryShort },
   apps: { label: 'Apps', options: appOptions, chip: appLabel },
   migrations: { label: 'Migration', options: migrationOptions, chip: (v) => v },
 }
-const LOCK = 'Set by Frappe'
 </script>
 
 <template>
@@ -164,9 +163,6 @@ const LOCK = 'Set by Frappe'
               <Tooltip :text="PMM_HELP">
                 <LucideInfo class="size-3.5 shrink-0 text-ink-gray-6" />
               </Tooltip>
-              <Tooltip v-if="editable" :text="LOCK">
-                <span class="lucide-lock size-4 text-ink-gray-5" :aria-label="LOCK" />
-              </Tooltip>
             </dt>
             <dd class="mt-1.5 text-p-base tabular-nums text-ink-gray-8">{{ partner.pmm }}</dd>
           </div>
@@ -174,9 +170,6 @@ const LOCK = 'Set by Frappe'
           <div v-if="partner.certifications.length" class="py-3.5">
             <dt class="flex items-center gap-1.5 text-p-sm text-ink-gray-7">
               Certified members
-              <Tooltip v-if="editable" :text="LOCK">
-                <span class="lucide-lock size-4 text-ink-gray-5" :aria-label="LOCK" />
-              </Tooltip>
             </dt>
             <!-- How many of the team hold each Frappe certification, count
                  first: the number is the answer here, and leading with it lets
@@ -199,9 +192,6 @@ const LOCK = 'Set by Frappe'
           <div v-if="partner.accolades.length" class="py-3.5">
             <dt class="flex items-center gap-1.5 text-p-sm text-ink-gray-7">
               Accolades
-              <Tooltip v-if="editable" :text="LOCK">
-                <span class="lucide-lock size-4 text-ink-gray-5" :aria-label="LOCK" />
-              </Tooltip>
             </dt>
             <dd class="mt-1.5 flex flex-wrap gap-2">
               <!-- `w-fit`: the box hugs its title rather than spanning the
@@ -227,7 +217,8 @@ const LOCK = 'Set by Frappe'
             <dd v-if="editable" class="mt-1">
               <InlineInput
                 multiline
-                :rows="2"
+                boxed
+                :rows="3"
                 :model-value="partner.address ?? ''"
                 label="Address"
                 placeholder="Add your address"
@@ -238,9 +229,6 @@ const LOCK = 'Set by Frappe'
             <dd v-if="alsoIn.length" class="mt-2 flex flex-wrap items-center gap-1.5 text-p-sm text-ink-gray-6">
               Also in
               <Tag v-for="o in alsoIn" :key="o.id" :label="o.label" :to="`/connect/partners/${o.id}`" />
-              <Tooltip v-if="editable" :text="LOCK">
-                <span class="lucide-lock size-4 text-ink-gray-5" :aria-label="LOCK" />
-              </Tooltip>
             </dd>
           </div>
         </dl>
@@ -276,23 +264,51 @@ const LOCK = 'Set by Frappe'
             <div v-for="(l, key) in LISTS" :key="key" class="py-3.5">
               <dt class="text-p-sm text-ink-gray-7">{{ l.label }}</dt>
               <dd class="mt-1">
+                <!-- frappe-ui's tags trigger (MultiSelect story "TagsTrigger"):
+                     each pick a Badge with a remove ×, inside a gray field to
+                     match Select and Rate; the first five, then "+N". The last industry has no ×: a firm
+                     with none would match no brief. -->
                 <MultiSelect
                   :model-value="partner[key]"
                   :options="l.options"
                   :placeholder="`Search ${l.label.toLowerCase()}`"
                   @update:model-value="changeList(key, $event)"
                 >
-                  <!-- The chips are the control: clicking them opens the list
-                       in place, so the row reads the same as on the profile. -->
-                  <template #trigger="{ open }">
+                  <template #trigger="{ open, selectedOptions, setOpen }">
                     <button
                       type="button"
-                      class="-mx-1 flex flex-wrap gap-1.5 rounded-4 p-1 text-left transition-colors hover:bg-surface-gray-2 focus-visible:focus-ring"
-                      :class="open && 'bg-surface-gray-3 hover:bg-surface-gray-3'"
+                      :data-state="open ? 'open' : 'closed'"
+                      class="flex min-h-7 w-full cursor-pointer items-center gap-1.5 rounded-4 bg-surface-gray-2 px-1.5 py-1 text-left transition-colors hover:bg-surface-gray-3 data-[state=open]:focus-ring"
                       :aria-label="`Edit ${l.label.toLowerCase()}`"
+                      @click="setOpen(!open)"
                     >
-                      <Badge v-for="v in partner[key]" :key="v" v-bind="CHIP" :label="l.chip(v)" />
-                      <span v-if="!partner[key].length" class="text-p-base text-ink-gray-4">Add {{ l.label.toLowerCase() }}</span>
+                      <span class="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                        <Badge v-for="o in selectedOptions.slice(0, CHIP_LIMIT)" :key="o.value" v-bind="CHIP" class="!bg-surface-base">
+                          {{ l.chip(o.value) }}
+                          <template v-if="!(key === 'industries' && selectedOptions.length === 1)" #suffix>
+                            <span
+                              role="button"
+                              tabindex="-1"
+                              :aria-label="`Remove ${l.chip(o.value)}`"
+                              class="-mr-0.5 inline-flex cursor-pointer items-center justify-center rounded-1 p-0.5 opacity-70 hover:opacity-100"
+                              @click.stop="changeList(key, partner[key].filter((v) => v !== o.value))"
+                              @pointerdown.stop
+                            >
+                              <span class="lucide-x size-3" />
+                            </span>
+                          </template>
+                        </Badge>
+                        <!-- Past five, the rest is a count: twenty chips would make the
+                             field six lines tall. The picker lists them all. -->
+                        <Badge
+                          v-if="selectedOptions.length > CHIP_LIMIT"
+                          v-bind="CHIP"
+                          class="!bg-surface-base"
+                          :label="`+${selectedOptions.length - CHIP_LIMIT}`"
+                        />
+                        <span v-if="!selectedOptions.length" class="px-1 text-base text-ink-gray-4">Add {{ l.label.toLowerCase() }}</span>
+                      </span>
+                      <span :class="['lucide-chevron-down size-4 shrink-0 text-ink-gray-4 transition-transform', open && 'rotate-180']" aria-hidden="true" />
                     </button>
                   </template>
                 </MultiSelect>
@@ -302,8 +318,7 @@ const LOCK = 'Set by Frappe'
               <dt class="text-p-sm text-ink-gray-7">Works</dt>
               <dd class="mt-1">
                 <Select
-                  class="-mx-2"
-                  variant="ghost"
+                  class="w-full"
                   :model-value="partner.workStyle"
                   :options="workOptions"
                   aria-label="How you work"
@@ -320,9 +335,11 @@ const LOCK = 'Set by Frappe'
                   v-for="i in shownIndustries.slice(0, CHIP_LIMIT)"
                   :key="i"
                   v-bind="CHIP"
-                  :label="i"
+                  :label="industryShort(i)"
+                  :title="industryShort(i) === i ? undefined : i"
                 >
-                  {{ i }}
+                  {{ industryShort(i) }}
+                  <span v-if="industryShort(i) !== i" class="sr-only">({{ i }})</span>
                   <!-- The check is the only thing separating a matched chip from
                        an unmatched one, so it needs a text equivalent rather
                        than an aria-hidden glyph on its own. -->
@@ -334,7 +351,7 @@ const LOCK = 'Set by Frappe'
                 <!-- The rest by name, not just a count: "+2" alone asks the
                      visitor to take it on trust that their industry isn't in
                      there. -->
-                <Tooltip v-if="industryOverflow.length" :text="industryOverflow.join(', ')">
+                <Tooltip v-if="industryOverflow.length" :text="industryOverflow.map(industryShort).join(', ')">
                   <Badge v-bind="CHIP" :label="`+${industryOverflow.length}`" />
                 </Tooltip>
               </dd>

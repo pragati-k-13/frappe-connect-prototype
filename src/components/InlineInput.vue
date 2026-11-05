@@ -1,6 +1,6 @@
 <script setup>
-import { ref, watch } from 'vue'
-import { Textarea, TextInput } from 'frappe-ui'
+import { computed, ref, watch } from 'vue'
+import { ErrorMessage, Textarea, TextInput } from 'frappe-ui'
 
 // A value that is its own control, as Frappe CRM's side panel does it: a ghost
 // input that reads as text until it's hovered or focused. It keeps its own
@@ -19,6 +19,13 @@ const props = defineProps({
   rows: { type: Number, default: 3 },
   // A character limit for a multi-line field, with a count under it.
   max: { type: Number, default: null },
+  // A visible field (frappe-ui's gray-filled textarea) instead of the ghost
+  // that reads as text: for writing several sentences, where the partner
+  // needs to see the box, empty or not.
+  boxed: { type: Boolean, default: false },
+  // Shown under the field, on the count's line, so it sits right under the
+  // box rather than below the count's reserved space.
+  error: { type: String, default: '' },
 })
 const emit = defineEmits(['commit'])
 
@@ -34,6 +41,11 @@ const FIELD =
   '[&_[data-slot=control]:hover]:bg-surface-gray-2 [&_[data-slot=control]:focus]:bg-surface-base [&_[data-slot=control]:focus]:ring-1 [&_[data-slot=control]:focus]:ring-outline-gray-4'
 
 const draft = ref(props.modelValue ?? '')
+// The limit is soft: typing or pasting past it is allowed, so nothing is cut
+// off unseen. Over it, the count turns red with an error, focused or not, and
+// the page's Publish refuses until it's shortened.
+const over = computed(() => props.max != null && String(draft.value).length > props.max)
+const shownError = computed(() => (over.value ? `Shorten to ${props.max} characters` : props.error))
 watch(
   () => props.modelValue,
   (v) => (draft.value = v ?? ''),
@@ -51,20 +63,28 @@ function cancel(e) {
 </script>
 
 <template>
-  <div v-if="multiline || wrap">
+  <!-- The count fades in (150ms) only while typing. Hidden by opacity, not
+       `v-if`, so its line stays reserved and the row doesn't jump on focus. -->
+  <div v-if="multiline || wrap" class="group">
     <Textarea
       v-model="draft"
-      variant="ghost"
+      :variant="boxed ? 'subtle' : 'ghost'"
       :rows="wrap ? 1 : rows"
-      :maxlength="max ?? undefined"
       :placeholder="placeholder"
       :aria-label="label"
-      :class="['-mx-2 resize-none', AREA, wrap && '!min-h-7 !py-1 [field-sizing:content]']"
+      :class="['resize-none', boxed ? '!text-p-base' : ['-mx-2', AREA], wrap && '!min-h-7 !py-1 [field-sizing:content]']"
       @blur="commit"
       @keydown.enter="wrap && ($event.preventDefault(), $event.target.blur())"
       @keydown.esc.prevent="cancel"
     />
-    <p v-if="max" class="mt-1 pr-2 text-right text-p-sm tabular-nums text-ink-gray-5">{{ String(draft).length }}/{{ max }}</p>
+    <div v-if="max || error" class="mt-1 flex items-start gap-3" :class="!boxed && 'pr-2'">
+      <ErrorMessage v-if="shownError" :message="shownError" />
+      <p
+        v-if="max"
+        class="ml-auto text-p-sm tabular-nums"
+        :class="over ? 'text-ink-red-7' : 'text-ink-gray-5 opacity-0 transition-opacity duration-150 ease-out motion-reduce:transition-none group-focus-within:opacity-100'"
+      >{{ String(draft).length }}/{{ max }}</p>
+    </div>
   </div>
   <TextInput
     v-else

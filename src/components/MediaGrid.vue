@@ -1,8 +1,9 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Button, Dropdown, Tooltip } from 'frappe-ui'
+import { Badge, Button, Dropdown, Tooltip } from 'frappe-ui'
 import EmptyState from './EmptyState.vue'
 import MediaUploadDialog from './MediaUploadDialog.vue'
+import { tileMotion } from '../lib/gridMotion'
 
 // The profile's photos and video in edit mode: every item in a grid, edited
 // where it sits, the same shape as the client logos below it. The public
@@ -10,8 +11,9 @@ import MediaUploadDialog from './MediaUploadDialog.vue'
 // view for managing them; Preview shows that layout.
 //
 // From the comp (Airbnb, Etsy, Mindtrip): the first item is the cover and says
-// so; tiles drag to reorder; each tile's menu makes it the cover, moves it,
-// replaces it or removes it (the menu is also the way to reorder without
+// so; tiles drag to reorder; each tile's menu moves it, replaces it or removes
+// it, and makes a photo the cover when there's no video. A video is always the
+// cover: videos lead the list, and nothing can be moved in front of them (the menu is also the way to reorder without
 // dragging). Adding is a button in the section header, as "Link certificate"
 // is on Partnership: it stays put however many items there are, and the grid
 // holds only media. Only adding and replacing open a dialog, for the upload
@@ -32,18 +34,26 @@ const MAX_VIDEOS = 2
 const videos = computed(() => props.items.filter((m) => m.kind === 'video').length)
 const full = computed(() => props.items.length >= MAX)
 
+// Videos first, in their own order, then photos: a video is always the cover.
+const isVideo = (m) => m?.kind === 'video'
+const videosFirst = (list) => [...list.filter(isVideo), ...list.filter((m) => !isVideo(m))]
+const change = (list) => emit('change', videosFirst(list))
+
 function move(from, to) {
   if (to < 0 || to >= props.items.length || from === to) return
   const next = [...props.items]
   next.splice(to, 0, next.splice(from, 1)[0])
-  emit('change', next)
+  change(next)
 }
-const remove = (i) => emit('change', props.items.filter((_, j) => j !== i))
+const remove = (i) => change(props.items.filter((_, j) => j !== i))
+// A move only shows where it would stick: within the videos, or within the
+// photos.
+const canSwap = (a, b) => b >= 0 && b < props.items.length && isVideo(props.items[a]) === isVideo(props.items[b])
 const menu = (i) =>
   [
-    i > 0 && { label: 'Make cover', icon: 'lucide-image', onClick: () => move(i, 0) },
-    i > 0 && { label: 'Move earlier', icon: 'lucide-chevron-left', onClick: () => move(i, i - 1) },
-    i < props.items.length - 1 && { label: 'Move later', icon: 'lucide-chevron-right', onClick: () => move(i, i + 1) },
+    i > 0 && !videos.value && { label: 'Make cover', icon: 'lucide-image', onClick: () => move(i, 0) },
+    canSwap(i, i - 1) && { label: 'Move earlier', icon: 'lucide-chevron-left', onClick: () => move(i, i - 1) },
+    canSwap(i, i + 1) && { label: 'Move later', icon: 'lucide-chevron-right', onClick: () => move(i, i + 1) },
     { label: 'Replace', icon: 'lucide-replace', onClick: () => startUpload(i) },
     { label: 'Remove', icon: 'lucide-trash-2', theme: 'red', onClick: () => remove(i) },
   ].filter(Boolean)
@@ -68,7 +78,7 @@ function startUpload(i = null) {
 const allowVideo = computed(() => videos.value < MAX_VIDEOS || props.items[replacing.value]?.kind === 'video')
 function add(item) {
   const r = replacing.value
-  emit('change', r === null ? [...props.items, item] : props.items.map((m, i) => (i === r ? item : m)))
+  change(r === null ? [...props.items, item] : props.items.map((m, i) => (i === r ? item : m)))
 }
 const thumb = (m) => (m.kind === 'video' ? (m.poster ?? m.src) : m.src)
 
@@ -76,9 +86,11 @@ const thumb = (m) => (m.kind === 'video' ? (m.poster ?? m.src) : m.src)
 
 <template>
   <div class="mb-4 flex items-center justify-between gap-3">
-    <h2 class="text-base font-semibold text-ink-gray-8">Photos and video</h2>
+    <h2 class="flex items-center gap-2 text-base font-semibold text-ink-gray-8">
+      Photos and video
+      <Badge :label="`${items.length} of ${MAX}`" />
+    </h2>
     <div class="flex items-center gap-3">
-      <span class="whitespace-nowrap text-sm text-ink-gray-5">{{ items.length }} of {{ MAX }}</span>
       <!-- A disabled button gets no pointer events, so the tooltip sits on a
            wrapper. -->
       <Tooltip v-if="full" text="Remove one to add another">
@@ -92,7 +104,9 @@ const thumb = (m) => (m.kind === 'video' ? (m.poster ?? m.src) : m.src)
   </div>
 
   <EmptyState v-if="!items.length" icon="lucide-image" title="No photos or videos yet" />
-  <ul v-else class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+  <!-- Tiles slide when reordered and fade when added or removed
+       (`lib/gridMotion.js`). -->
+  <TransitionGroup v-else v-bind="tileMotion" class="relative grid grid-cols-2 gap-3 sm:grid-cols-4">
     <li
       v-for="(m, i) in items"
       :key="m.id"
@@ -116,7 +130,7 @@ const thumb = (m) => (m.kind === 'video' ? (m.poster ?? m.src) : m.src)
         </Dropdown>
       </div>
     </li>
-  </ul>
+  </TransitionGroup>
 
   <MediaUploadDialog v-model:open="uploading" :replacing="replacing !== null" :allow-video="allowVideo" @add="add" />
 </template>

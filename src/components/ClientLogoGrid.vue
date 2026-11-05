@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { Avatar, Badge, Button, Dropdown, Popover, TextInput, Tooltip } from 'frappe-ui'
 import EmptyState from './EmptyState.vue'
+import { tileMotion } from '../lib/gridMotion'
 
 // The partner's client logos in edit mode: every logo in a grid, edited where
 // it sits. The public strip rotates five at a time, which is the wrong view for
@@ -11,24 +12,21 @@ import EmptyState from './EmptyState.vue'
 // From the comp (Fiverr, Polywork, Upwork, Frappe CRM): add by the client's
 // website first, upload only as the fallback, from a button in the section
 // header (it stays put however many logos there are); remove and reorder in place
-// (drag, or the ⋯ menu that media tiles have too);
-// review status on each new logo, where it sits. A new logo claims a client
-// relationship, so it's Pending until Frappe approves it and doesn't show on
-// the profile meanwhile. Removing and reordering claim nothing, so they apply
-// at once.
+// (drag, or the ⋯ menu that media tiles have too). Every change is part of
+// the page's draft and goes live with Publish; there is no review step.
 //
 // ⚠️ Fetching is faked: the website's name becomes the client, shown as
 // initials. The real thing pulls the site's logo, as Frappe CRM's "Enrich"
 // does.
 const props = defineProps({
-  // `{ slug, name, src, pending }`, in the profile's order.
+  // `{ slug, name, src }`, in the profile's order.
   logos: { type: Array, required: true },
 })
 const emit = defineEmits(['change'])
 
 const MIN_WIDTH = 200
 // Twenty: the strip shows five at a time, so that's four full turns. Past it a
-// logo rarely reaches anyone. New ones count, pending or not.
+// logo rarely reaches anyone.
 const MAX = 20
 
 // ── Adding ──────────────────────────────────────────────────────────────────
@@ -39,7 +37,7 @@ function fetchLogo(close) {
   if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(host)) return (error.value = 'Enter a website, like acme.com')
   if (props.logos.some((l) => l.slug === host)) return (error.value = 'Already in your logos')
   const name = host.split('.')[0].replace(/(^|-)(\w)/g, (_, s, c) => (s ? ' ' : '') + c.toUpperCase())
-  emit('change', [...props.logos, { slug: host, name, src: null, pending: true }], 'added')
+  emit('change', [...props.logos, { slug: host, name, src: null }], 'added')
   site.value = ''
   error.value = ''
   close()
@@ -51,7 +49,7 @@ function upload(e, close) {
   const img = new Image()
   img.onload = () => {
     if (img.naturalWidth < MIN_WIDTH) return (error.value = `Too small: use at least ${MIN_WIDTH} px wide`)
-    emit('change', [...props.logos, { slug: `upload-${Date.now()}`, name: f.name.replace(/\.[^.]+$/, ''), src, pending: true }], 'added')
+    emit('change', [...props.logos, { slug: `upload-${Date.now()}`, name: f.name.replace(/\.[^.]+$/, ''), src }], 'added')
     error.value = ''
     close()
   }
@@ -88,9 +86,11 @@ function drop(i) {
 
 <template>
   <div class="mb-4 flex items-center justify-between gap-3">
-    <h2 class="text-base font-semibold text-ink-gray-8">Client logos</h2>
+    <h2 class="flex items-center gap-2 text-base font-semibold text-ink-gray-8">
+      Client logos
+      <Badge :label="`${logos.length} of ${MAX}`" />
+    </h2>
     <div class="flex items-center gap-3">
-      <span class="whitespace-nowrap text-sm text-ink-gray-5">{{ logos.length }} of {{ MAX }}</span>
       <!-- A disabled button gets no pointer events, so the tooltip sits on a
            wrapper. -->
       <Tooltip v-if="logos.length >= MAX" text="Remove one to add another">
@@ -123,11 +123,13 @@ function drop(i) {
   </div>
 
   <EmptyState v-if="!logos.length" icon="lucide-building-2" title="No client logos yet" />
-  <ul v-else class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+  <!-- Tiles slide when reordered and fade when added or removed
+       (`lib/gridMotion.js`). -->
+  <TransitionGroup v-else v-bind="tileMotion" class="relative grid grid-cols-2 gap-3 sm:grid-cols-4">
     <li
       v-for="(l, i) in logos"
       :key="l.slug"
-      class="group relative flex h-16 cursor-grab flex-col items-center justify-center gap-1 rounded-6 border border-outline-gray-2 px-3 active:cursor-grabbing"
+      class="group relative flex h-16 cursor-grab flex-col items-center justify-center gap-1 rounded-6 bg-surface-gray-2 px-3 active:cursor-grabbing"
       :class="over === i && dragging !== i && 'ring-2 ring-outline-gray-4'"
       draggable="true"
       @dragstart="dragging = i"
@@ -137,20 +139,21 @@ function drop(i) {
       @dragend="dragging = null; over = null"
     >
       <!-- One height and one tone, as the strip shows them. -->
-      <img v-if="l.src" :src="l.src" :alt="l.name" class="max-h-7 max-w-full object-contain opacity-70 grayscale" draggable="false" />
+      <!-- Filled like the photo tiles. `mix-blend-multiply` drops a JPG's
+           white background into the fill instead of showing a white box. -->
+      <img v-if="l.src" :src="l.src" :alt="l.name" class="max-h-7 max-w-full object-contain opacity-70 mix-blend-multiply grayscale" draggable="false" />
       <span v-else class="flex min-w-0 items-center gap-2">
         <Avatar :label="l.name" size="sm" shape="square" />
         <span class="truncate text-sm text-ink-gray-7">{{ l.name }}</span>
       </span>
       <!-- Under the logo, in flow, so the tile stays centered. -->
-      <Badge v-if="l.pending" theme="amber" variant="subtle" size="sm" label="Pending" />
       <!-- Positioned by a wrapper: Dropdown doesn't pass a class to its
            trigger. -->
       <div class="absolute right-1.5 top-1.5">
-        <Dropdown :options="menu(i)">
+        <Dropdown :options="menu(i, l)">
           <Button class="data-[state=open]:bg-surface-gray-3" icon="lucide-ellipsis" :aria-label="`Actions for ${l.name}`" />
         </Dropdown>
       </div>
     </li>
-  </ul>
+  </TransitionGroup>
 </template>

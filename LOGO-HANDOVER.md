@@ -3,7 +3,7 @@
 Read this before touching any logo or thumbnail in Connect. Update it whenever a
 logo decision changes.
 
-Last updated: 2026-11-05.
+Last updated: 2026-11-05 (logos joined the draft, review removed).
 
 ## Rules from Pragati
 
@@ -64,6 +64,14 @@ A firm with two country listings shares one logo. `wahni-it-solutions-fze` maps 
   white stays white, so pale logos match dark ones and JPG white backgrounds
   don't turn gray. Plain `grayscale` left pale logos (Santi, Exotherm) faint, and
   `contrast-200` pushed them to white.
+
+## Partner editing (edit page)
+
+- Client logos are part of the page draft (`draftLogos` in
+  `OwnProfilePage.vue`): adding, removing or reordering waits for Publish, and
+  Discard undoes it. There is no Frappe review and no "Pending" badge
+  (removed 2026-11-05).
+- The edit grid (`ClientLogoGrid.vue`) caps logos at 20.
 
 ## Known gaps
 
