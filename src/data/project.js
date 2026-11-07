@@ -167,7 +167,7 @@ const hostingTasks = (prefix = '') => [
     action: 'fc-login',
     optional: true,
   }),
-  task(`${prefix}fc-code`, 'Copy your partner’s referral code', {
+  task(`${prefix}fc-code`, 'Copy the partner code', {
     hint: 'You enter it on Frappe Cloud in the next task.',
     action: 'copy-code',
     optional: true,

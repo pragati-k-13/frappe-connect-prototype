@@ -41,8 +41,12 @@ import { emptyBrief } from '../data/custom'
 import { stagesFor } from '../data/project'
 import { PARTNERSHIP_STATES } from '../data/partnership'
 import { useConnectStore } from '../stores/connect'
+import { usePartnerAccountStore } from '../stores/partnerAccount'
+import { crmLabel, declineHireRequest, hiredElsewhere, isClosed, isCrm, reopenLead, threadFor, useLeads, winLead } from '../composables/useLeads'
 
 const store = useConnectStore()
+const account = usePartnerAccountStore()
+const leads = useLeads()
 const router = useRouter()
 const route = useRoute()
 
@@ -138,6 +142,39 @@ const stages = computed(() => (project.value ? stagesFor(project.value.service) 
 const awaitingReplies = computed(
   () => Boolean(project.value?.broadcast) && !project.value?.bids?.length,
 )
+// ⚠️ LEAD TO CUSTOMER, as menu items. Both happen outside the partner's
+// screens: the business hires in Connect, and a CRM lead moves in the CRM. So
+// the product has no button for them, and the demo plays the other side. Only
+// on the lead or customer they belong to. See "Lead to customer" in the plan.
+const lead = computed(() => (route.name === 'lead' ? leads.value.find((l) => l.id === route.params.id) : null))
+const leadEvents = computed(() => {
+  const l = lead.value
+  if (!l) return []
+  if (isCrm(l))
+    return l.stage === 'Won'
+      ? [{ label: `Reopened in ${crmLabel(account)}`, icon: 'lucide-rotate-ccw', onClick: () => reopenLead(l, 'Negotiation', account) }]
+      : [{ label: `Won in ${crmLabel(account)}`, icon: 'lucide-trophy', onClick: () => winLead(l, account) }]
+  // A business can only hire you once it's shortlisted you, which is when its
+  // name reaches you. It can hire someone else at any point.
+  if (isClosed(l)) return []
+  return [
+    l.company && { label: 'Business hires you', icon: 'lucide-handshake', onClick: () => winLead(l, account) },
+    { label: 'Business hires another partner', icon: 'lucide-user-x', onClick: () => hiredElsewhere(l, account) },
+    l.hireRequest && { label: 'Business declines the request', icon: 'lucide-x', onClick: () => declineHireRequest(l, account) },
+  ].filter(Boolean)
+})
+// The business side of a hire request: the partner asks, from the lead.
+const hireAskable = computed(
+  () => store.role === 'business' && project.value?.service === 'custom' && !project.value.partnerId && !project.value.hireRequest,
+)
+const customer = computed(() => (route.name === 'customer' ? account.customers.find((c) => c.id === route.params.id) : null))
+function customerWrites() {
+  const t = threadFor(customer.value, leads.value, account)
+  const m = { id: `m-${Date.now()}`, from: 'them', kind: 'text', at: Date.now(), body: '<p>Quick one: can we move Monday’s session to 11?</p>' }
+  if (t.lead) t.lead.messages.push(m)
+  else account.postToCustomer(customer.value.id, m)
+}
+
 const checkStage = (key) => (project.value?.stage === key ? 'lucide-check' : 'lucide-minus')
 
 const options = computed(() => [
@@ -271,6 +308,24 @@ const options = computed(() => [
           })),
         },
       ]
+    : []),
+  ...(leadEvents.value.length ? [{ group: 'This lead', options: leadEvents.value }] : []),
+  ...(hireAskable.value
+    ? [
+        {
+          group: 'This project',
+          options: [
+            {
+              label: 'Software@Work asks to be hired',
+              icon: 'lucide-handshake',
+              onClick: () => store.demoHireRequest(project.value.id, 'software-work'),
+            },
+          ],
+        },
+      ]
+    : []),
+  ...(customer.value && threadFor(customer.value, leads.value, account)
+    ? [{ group: 'This customer', options: [{ label: 'Customer sends a message', icon: 'lucide-message-square', onClick: customerWrites }] }]
     : []),
   ...(awaitingReplies.value
     ? [

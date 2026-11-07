@@ -11,7 +11,7 @@ import { OPEN_MONTH, TIERS, contributionMonths, contributionsFor, firmFor } from
 // ── Customers ───────────────────────────────────────────────────────────────
 // `source` 'connect' | 'own'. `billing` 'customer' | 'partner'. `stage`
 // 'onboarding' | 'live' | 'churned'. `linked` is when the partner code was
-// linked; `codeShared` is for a customer added by hand who hasn't linked yet.
+// linked.
 const SILVER_CUSTOMERS = [
   { name: 'Halcyon', contact: 'Ritu Sharma', email: 'ritu@halcyon.example', source: 'own', billing: 'customer', stage: 'live', linked: '2023-04-11', region: 'Mumbai' },
   { name: 'Kestrel', contact: 'Arjun Nair', email: 'arjun@kestrel.example', source: 'connect', billing: 'partner', stage: 'live', linked: '2025-08-02', region: 'Mumbai', project: 'Stock and purchase on ERPNext' },
@@ -22,7 +22,6 @@ const SILVER_CUSTOMERS = [
   { name: 'Silverpine', contact: 'Neha Kulkarni', email: 'neha@silverpine.example', source: 'own', billing: 'partner', stage: 'live', linked: '2024-09-30', region: 'Mumbai' },
   { name: 'Bluecrest', contact: 'Dev Patel', email: 'dev@bluecrest.example', source: 'own', billing: 'customer', stage: 'live', linked: '2025-05-12', region: 'Mumbai' },
   { name: 'Rivermark Textiles', contact: 'Kavya Iyer', email: 'kavya@rivermark.example', source: 'connect', billing: 'customer', stage: 'onboarding', region: 'Mumbai', project: 'Manufacturing on ERPNext' },
-  { name: 'Coastal Traders', contact: 'Sameer Joshi', email: 'sameer@coastal.example', source: 'own', billing: 'customer', stage: 'onboarding', codeShared: '2026-10-21', region: 'Mumbai' },
   { name: 'Granite Works', contact: 'Rohan Das', email: 'rohan@granite.example', source: 'own', billing: 'customer', stage: 'churned', linked: '2023-09-01', region: 'Mumbai' },
 ]
 
@@ -63,8 +62,8 @@ export const customerInvoices = (tier, state, name) =>
     .filter(Boolean)
 
 // ── Link requests ───────────────────────────────────────────────────────────
-// A customer entered the partner code in Frappe Cloud. `matches` names a
-// customer added by hand with the same email or company.
+// A customer entered the partner code in Frappe Cloud. Approving one makes it
+// a customer; nobody adds customers by hand.
 const SILVER_REQUESTS = [
   {
     id: 'req-coastal',
@@ -72,7 +71,6 @@ const SILVER_REQUESTS = [
     contact: 'Sameer Joshi',
     email: 'sameer@coastal.example',
     at: '2026-10-29',
-    matches: 'coastal-traders',
     sites: [{ name: 'coastal-traders.frappe.cloud', plan: 'Business', region: 'Mumbai' }],
   },
   {

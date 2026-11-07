@@ -1,6 +1,6 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
-import { Button, Checkbox, Dialog } from 'frappe-ui'
+import { computed, nextTick, ref, watch } from 'vue'
+import { Button, Checkbox, Dialog, ErrorMessage, TextInput } from 'frappe-ui'
 
 // Hiring a partner: the terms, then the commitment, then one question.
 //
@@ -39,15 +39,19 @@ const props = defineProps({
   partner: { type: Object, default: null },
   // The quote being accepted, `{ price, weeks }`, when there is one.
   bid: { type: Object, default: null },
+  // Opened from the partner's hire request: the footer answers it, Decline
+  // request beside Hire, and the × closes without deciding.
+  fromRequest: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['update:open', 'hire', 'why'])
+const emit = defineEmits(['update:open', 'hire', 'why', 'decline'])
 
-// ⚠️ ONE-TAP, FOUR OPTIONS, NO FREE TEXT. It is the second of the two feedback
+// ⚠️ ONE-TAP, FOUR OPTIONS, THEN OTHER. It is the second of the two feedback
 // moments in a project's life — the other is the rating at go-live — and what
 // it buys is the only signal saying which of price, speed, profile and
 // responsiveness actually decides these. That is what the comparison table
-// should be sorted by and currently is not.
+// should be sorted by and currently is not. The four stay countable; Other
+// opens one line of free text for the reasons they don't cover.
 const WHY = ['Price', 'Timeline', 'Their profile', 'How they replied']
 
 const name = computed(() => props.partner?.name ?? 'this partner')
@@ -75,6 +79,18 @@ const terms = computed(() => [
 
 const agreed = ref(false)
 const step = ref('terms')
+// Hire stays enabled: a disabled button can't say why. Pressing it without
+// agreeing says so under the checkbox instead.
+const needsAgreement = ref(false)
+const other = ref(false)
+const otherText = ref('')
+watch(agreed, (v) => v && (needsAgreement.value = false))
+const otherForm = ref(null)
+const pickOther = async () => {
+  other.value = true
+  await nextTick()
+  otherForm.value?.querySelector('input')?.focus()
+}
 
 // Reset on open, not on close: a dialog that empties while it is fading out is
 // the flash this codebase has now fixed three times.
@@ -84,12 +100,18 @@ watch(
     if (isOpen) {
       agreed.value = false
       step.value = 'terms'
+      needsAgreement.value = false
+      other.value = false
+      otherText.value = ''
     }
   },
 )
 
 const hire = () => {
-  if (!agreed.value) return
+  if (!agreed.value) {
+    needsAgreement.value = true
+    return
+  }
   emit('hire')
   step.value = 'why'
 }
@@ -103,7 +125,7 @@ const answer = (why) => {
 <template>
   <Dialog
     :model-value="open"
-    :title="step === 'terms' ? `Hire ${name}` : `Why ${name}?`"
+    :title="step === 'terms' ? `Hire ${name}` : 'What made you choose them?'"
     @update:model-value="emit('update:open', $event)"
   >
     <!-- ⚠️ The DEFAULT slot, not `#body-content`: this version of frappe-ui's
@@ -113,9 +135,9 @@ const answer = (why) => {
       <template v-if="step === 'terms'">
         <!-- The quote being accepted, so the terms are read against it. -->
         <dl v-if="bid" class="grid grid-cols-[96px_minmax(0,1fr)] gap-y-2 text-base">
-          <dt class="text-ink-gray-5">Quote</dt>
+          <dt class="text-ink-gray-6">Quote</dt>
           <dd class="tabular-nums text-ink-gray-8">{{ bid.price }}</dd>
-          <dt class="text-ink-gray-5">Timeline</dt>
+          <dt class="text-ink-gray-6">Timeline</dt>
           <dd class="text-ink-gray-8">{{ bid.weeks }} weeks</dd>
         </dl>
 
@@ -129,26 +151,55 @@ const answer = (why) => {
           </li>
         </ul>
 
-        <Checkbox
-          v-model="agreed"
-          class="mt-6"
-          size="md"
-          label="I agree to these terms of engagement"
-        />
+        <!-- Label through the slot: Checkbox fixes its own label at 13px, and
+             this one is the sentence being agreed to, read with the terms. -->
+        <Checkbox v-model="agreed" class="mt-6" size="md">
+          <template #label>
+            <span class="text-base text-ink-gray-8">I agree to these terms of engagement</span>
+          </template>
+        </Checkbox>
       </template>
 
-      <div v-else class="flex flex-wrap gap-2">
-        <Button v-for="w in WHY" :key="w" :label="w" @click="answer(w)" />
-      </div>
+      <template v-else>
+        <div class="flex flex-wrap gap-2">
+          <Button v-for="w in WHY" :key="w" :label="w" @click="answer(w)" />
+          <Button label="Other" @click="pickOther" />
+        </div>
+        <!-- Always laid out, hidden until Other, so the dialog keeps its size. -->
+        <form ref="otherForm" class="mt-4" :class="other ? '' : 'invisible'" @submit.prevent="otherText.trim() && answer(otherText.trim())">
+          <TextInput
+            v-model="otherText"
+            size="md"
+            placeholder="They already know our industry"
+            aria-label="What made you choose them"
+            :tabindex="other ? 0 : -1"
+          />
+        </form>
+      </template>
     </template>
 
     <template #actions>
-      <div class="flex justify-end gap-2">
+      <div class="flex items-center justify-end gap-2">
+        <!-- The error sits beside Hire, in space the footer already has, so
+             nothing moves when it appears. -->
+        <ErrorMessage
+          v-if="step === 'terms' && needsAgreement"
+          class="mr-auto"
+          message="Agree to the terms to hire"
+        />
         <template v-if="step === 'terms'">
-          <Button variant="ghost" label="Cancel" @click="emit('update:open', false)" />
-          <Button variant="solid" :label="`Hire ${name}`" :disabled="!agreed" @click="hire" />
+          <Button
+            v-if="fromRequest"
+            label="Decline request"
+            @click="emit('decline'); emit('update:open', false)"
+          />
+          <Button v-else variant="ghost" label="Cancel" @click="emit('update:open', false)" />
+          <Button variant="solid" label="Hire" @click="hire" />
         </template>
-        <Button v-else variant="ghost" label="Skip" @click="answer(null)" />
+        <template v-else>
+          <Button variant="ghost" label="Skip" @click="answer(null)" />
+          <Button v-if="other" variant="solid" label="Send" :disabled="!otherText.trim()" @click="answer(otherText.trim())" />
+        </template>
       </div>
     </template>
   </Dialog>

@@ -7,14 +7,19 @@ import EmptyState from '../components/EmptyState.vue'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { useConnectStore } from '../stores/connect'
 import { PRM_STAGES } from '../data/partnerAccount'
-import { companyName, lastAt, needsReply, useLeads } from '../composables/useLeads'
+import { companyName, crmLabel, isClosed, isCrm, lastAt, needsReply, useLeads } from '../composables/useLeads'
 
 // SCREEN — Leads, styled as Frappe CRM's list: a plain breadcrumb, quick
 // filters with Refresh, Filter, Sort and Columns beside
 // them, then a full-width table and a footer with page size and count. A row opens the lead's own page. See PARTNER-VIEW-PLAN.md, Leads.
 //
-// No Create: every lead here is a Connect brief. Every tier gets them,
+// No Create: leads are Connect briefs, plus the firm's CRM leads while CRM
+// sync is on. Adding one by hand belongs in the CRM. Every tier gets briefs,
 // Beginners included.
+//
+// Open leads by default: Won, Lost, Junk and Closed leave the view and stay a
+// filter away. No count on the rail; a lead waiting on a reply is bold, and
+// Needs reply narrows to those.
 
 const account = usePartnerAccountStore()
 const store = useConnectStore()
@@ -36,8 +41,15 @@ const nameOf = (id) => account.team.find((p) => p.id === id)?.name
 
 // ── Quick filters ───────────────────────────────────────────────────────────
 const query = ref('')
+const view = ref('open')
+const VIEWS = [
+  { label: 'Open leads', value: 'open' },
+  { label: 'Needs reply', value: 'reply' },
+  { label: 'All leads', value: 'all' },
+]
 const stage = ref('')
 const owner = ref('')
+const crmOn = computed(() => Boolean(account.edits.crm))
 const stageOptions = [{ label: 'Any stage', value: '' }, ...PRM_STAGES.map((s) => ({ label: s, value: s }))]
 const ownerOptions = computed(() => [
   { label: 'Anyone', value: '' },
@@ -46,15 +58,34 @@ const ownerOptions = computed(() => [
 ])
 
 // ── Filter, sort, columns, page size: CRM's controls ───────────────────────
-// Filter holds what the quick filters don't: probability.
+// Filter holds what the quick filters don't: probability, and the source
+// while a CRM is connected. Source isn't a column: a row's source rarely
+// changes how you treat it, and the lead's panel says it.
 const probability = ref('')
-const filterMenu = computed(() =>
-  ['', 'Hot', 'Warm', 'Cold'].map((p) => ({
-    label: p || 'Any probability',
-    icon: probability.value === p ? 'lucide-check' : 'lucide-blank',
-    onClick: () => (probability.value = p),
-  })),
-)
+const source = ref('')
+const filterMenu = computed(() => [
+  {
+    group: 'Probability',
+    options: ['', 'Hot', 'Warm', 'Cold'].map((p) => ({
+      label: p || 'Any probability',
+      icon: probability.value === p ? 'lucide-check' : 'lucide-blank',
+      onClick: () => (probability.value = p),
+    })),
+  },
+  ...(crmOn.value
+    ? [
+        {
+          group: 'Source',
+          options: [['', 'Any source'], ['connect', 'Connect'], ['crm', crmLabel(account)]].map(([v, l]) => ({
+            label: l,
+            icon: source.value === v ? 'lucide-check' : 'lucide-blank',
+            onClick: () => (source.value = v),
+          })),
+        },
+      ]
+    : []),
+])
+const filterCount = computed(() => [probability.value, crmOn.value && source.value].filter(Boolean).length)
 const SORTS = [
   { value: 'reply', label: 'Last reply' },
   { value: 'stage', label: 'Stage' },
@@ -99,9 +130,11 @@ const rows = computed(() => {
   const q = query.value.trim().toLowerCase()
   return inView.value
     .filter((t) => !q || t.project.toLowerCase().includes(q) || t.company?.name.toLowerCase().includes(q))
+    .filter((t) => (view.value === 'reply' ? needsReply(t) : view.value === 'all' || stage.value || !isClosed(t)))
     .filter((t) => !stage.value || t.stage === stage.value)
     .filter((t) => !owner.value || (owner.value === 'none' ? !t.owner : t.owner === owner.value))
     .filter((t) => !probability.value || t.probability === probability.value)
+    .filter((t) => !crmOn.value || !source.value || (source.value === 'crm') === isCrm(t))
     .sort((a, b) => {
       if (sort.value === 'stage') return PRM_STAGES.indexOf(a.stage) - PRM_STAGES.indexOf(b.stage)
       if (sort.value === 'probability') return ['Hot', 'Warm', 'Cold', undefined].indexOf(a.probability) - ['Hot', 'Warm', 'Cold', undefined].indexOf(b.probability)
@@ -110,9 +143,11 @@ const rows = computed(() => {
     })
 })
 const page = computed(() => rows.value.slice(0, pageSize.value))
-const filtered = computed(() => Boolean(query.value.trim() || stage.value || owner.value || probability.value))
+const filtered = computed(() => Boolean(query.value.trim() || view.value !== 'open' || stage.value || owner.value || filterCount.value))
 const clear = () => {
   query.value = ''
+  source.value = ''
+  view.value = 'open'
   stage.value = ''
   owner.value = ''
   probability.value = ''
@@ -146,6 +181,7 @@ const time = (at) => {
           <TextInput v-model="query" type="search" placeholder="Lead or company" class="w-full sm:w-56">
             <template #prefix><span class="lucide-search size-4 text-ink-gray-5" aria-hidden="true" /></template>
           </TextInput>
+          <Select v-model="view" :options="VIEWS" class="min-w-36" aria-label="Show" />
           <Select v-model="stage" :options="stageOptions" class="min-w-36" aria-label="Stage" />
           <Select v-model="owner" :options="ownerOptions" class="min-w-36" aria-label="Assigned to" />
           <Button v-if="filtered" variant="ghost" label="Clear" @click="clear" />
@@ -156,8 +192,8 @@ const time = (at) => {
           <Button icon="lucide-refresh-ccw" aria-label="Refresh" tooltip="Refresh" :loading="refreshing" @click="refresh" />
           <Dropdown :options="filterMenu" align="end">
             <Button label="Filter" icon-left="lucide-list-filter">
-              <template v-if="probability" #suffix>
-                <span class="grid size-5 place-items-center rounded-4 bg-surface-base text-xs font-medium shadow-sm">1</span>
+              <template v-if="filterCount" #suffix>
+                <span class="grid size-5 place-items-center rounded-4 bg-surface-base text-xs font-medium shadow-sm">{{ filterCount }}</span>
               </template>
             </Button>
           </Dropdown>
@@ -203,7 +239,7 @@ const time = (at) => {
               </ListCell>
               <ListCell v-if="show('stage')" class="hidden min-w-0 gap-2 md:flex">
                 <span :class="dot(item.stage)" class="size-2 shrink-0 rounded-full" aria-hidden="true" />
-                <span class="truncate text-base text-ink-gray-7">{{ item.stage }}</span>
+                <span class="truncate text-base text-ink-gray-7">{{ item.stage }}<template v-if="item.hireRequest"> · Hire sent</template></span>
               </ListCell>
               <ListCell v-if="show('owner')" class="hidden min-w-0 gap-2 md:flex">
                 <template v-if="item.owner">
@@ -221,7 +257,7 @@ const time = (at) => {
         <EmptyState
           v-else
           icon="lucide-inbox"
-          :title="filtered ? 'No leads match' : 'No leads yet'"
+          :title="view === 'reply' && !stage && !owner && !query.trim() ? 'No one is waiting on a reply' : filtered ? 'No leads match' : 'No leads yet'"
         >
           <Button v-if="filtered" label="Clear filters" @click="clear" />
         </EmptyState>

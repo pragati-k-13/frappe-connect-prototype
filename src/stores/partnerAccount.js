@@ -8,7 +8,7 @@ import {
 } from '../data/partnerAccount'
 import { activitySeed, customerFacts, followUpsSeed } from '../data/records'
 
-// What the partner changes in the demo: customers added and approved, link
+// What the partner changes in the demo: customers approved, link
 // requests handled, billing switches, notes, the team, the CRM connection.
 // Seeds come from `data/partnerAccount.js`; this holds only the changes, kept
 // per demo tier so switching tier shows each firm as it was left.
@@ -17,7 +17,6 @@ import { activitySeed, customerFacts, followUpsSeed } from '../data/records'
 // side, and that store is already the whole business demo.
 
 const blank = () => ({
-  added: [],
   // Edits to a customer's details, and customers unlinked or deleted.
   customerEdits: {},
   removedCustomers: [],
@@ -43,6 +42,11 @@ const blank = () => ({
   // Per lead or customer id: follow-ups logged, activity recorded here.
   followUps: {},
   activity: {},
+  // Lead to customer: customers made by a win, leads added to a customer that
+  // already existed, and messages on a Connect customer that has no lead here.
+  won: [],
+  projects: {},
+  threads: {},
 })
 
 export const usePartnerAccountStore = defineStore('partnerAccount', {
@@ -59,13 +63,9 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
     customers() {
       const connect = useConnectStore()
       const approved = linkRequestsFor(this.tier).filter((r) => this.edits.handled[r.id] === 'approved')
-      const seeded = customersFor(this.tier, connect.partnershipState).map((c) => {
-        const req = approved.find((r) => r.matches === c.id)
-        return req ? { ...c, codeShared: null, linked: '2026-10-30', linkedSites: req.sites } : c
-      })
-      // An approved request with no hand-added match becomes a new customer.
+      const seeded = customersFor(this.tier, connect.partnershipState)
+      // An approved request becomes a customer.
       const fromRequests = approved
-        .filter((r) => !r.matches)
         .map((r) => ({
           id: r.id.replace('req-', ''),
           name: r.company,
@@ -80,10 +80,11 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
           sites: [],
           linkedSites: r.sites,
         }))
-      return [...seeded, ...fromRequests, ...this.edits.added]
+      return [...seeded, ...fromRequests, ...this.edits.won]
         .filter((c) => !this.edits.removedCustomers.includes(c.id))
         .map((c) => ({
         ...c,
+        leadIds: [...(c.leadIds ?? []), ...(this.edits.projects[c.id] ?? [])],
         ...customerFacts(c.id),
         ...(this.edits.customerEdits[c.id] ?? {}),
         billingSwitch: this.edits.billing[c.id] ?? null,
@@ -123,34 +124,48 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
     undoRequest(id) {
       delete this.edits.handled[id]
     },
-    addCustomer({ name, contact, email }) {
-      const id = `added-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
-      this.edits.added.push({
+    // A lead won with no customer to add it to. Onboarding and not on Frappe
+    // Cloud yet; the partner code is the next step.
+    addWonCustomer(lead) {
+      const id = `won-${lead.id}`
+      this.edits.won.push({
         id,
-        name,
-        contact,
-        email,
-        source: 'own',
+        name: lead.company.name,
+        contact: lead.company.contact,
+        email: lead.company.email,
+        phone: lead.company.phone,
+        industry: lead.brief?.segments?.[0] ?? '',
+        country: lead.brief?.country ?? '',
+        source: lead.source === 'crm' ? 'crm' : 'connect',
         billing: 'customer',
         stage: 'onboarding',
-        codeShared: null,
+        owner: lead.owner,
         mrr: 0,
         sites: [],
+        project: lead.project,
+        leadIds: [lead.id],
+        hired: Date.now(),
       })
       return id
     },
-    markCodeShared(id) {
-      const c = this.edits.added.find((x) => x.id === id)
-      if (c) c.codeShared = '2026-10-30'
+    dropWonCustomer(id) {
+      this.edits.won = this.edits.won.filter((c) => c.id !== id)
+    },
+    attachLead(id, leadId) {
+      ;(this.edits.projects[id] ??= []).push(leadId)
+    },
+    detachLead(id, leadId) {
+      this.edits.projects[id] = (this.edits.projects[id] ?? []).filter((x) => x !== leadId)
+    },
+    // Messages on a Connect customer whose bid isn't in this demo's leads.
+    postToCustomer(id, message) {
+      ;(this.edits.threads[id] ??= []).push(message)
     },
     editCustomer(id, patch) {
       this.edits.customerEdits[id] = { ...(this.edits.customerEdits[id] ?? {}), ...patch }
     },
     removeCustomer(id) {
       this.edits.removedCustomers.push(id)
-    },
-    restoreCustomer(id) {
-      this.edits.removedCustomers = this.edits.removedCustomers.filter((x) => x !== id)
     },
     requestPartnerPays(id) {
       this.edits.billing[id] = { to: 'partner', from: '2026-11-01' }

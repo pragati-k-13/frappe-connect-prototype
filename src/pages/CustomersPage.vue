@@ -1,11 +1,12 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Avatar, Badge, Button, Dialog, Dropdown, FormControl, Select, TabButtons, TextInput, Tooltip, dialog, toast } from 'frappe-ui'
+import { Alert, Avatar, Badge, Button, Dialog, Dropdown, FormControl, Select, TabButtons, TextInput, Tooltip, dialog, toast } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
 import PartnerCode from '../components/PartnerCode.vue'
+import { crmLabel, customerNeedsReply, useLeads } from '../composables/useLeads'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { customerInvoices } from '../data/partnerAccount'
@@ -25,10 +26,18 @@ const account = usePartnerAccountStore()
 const firm = computed(() => firmFor(store.partnerTier))
 
 const isOwner = computed(() => store.partnerRole === 'owner')
-const canAdd = computed(() => store.partnerRole !== 'finance')
 
 // ── Quick filters and controls ──────────────────────────────────────────────
 const query = ref('')
+// A customer's message waiting on a reply makes the row bold; Needs reply
+// narrows to those. No count on the rail.
+const leads = useLeads()
+const waiting = (c) => customerNeedsReply(c, leads.value, account)
+const view = ref('all')
+const VIEWS = [
+  { label: 'All customers', value: 'all' },
+  { label: 'Needs reply', value: 'reply' },
+]
 const stage = ref('')
 const pays = ref('')
 const source = ref('')
@@ -46,7 +55,7 @@ const paysOptions = [
 ]
 // Filter holds what the quick filters don't: where the customer came from.
 const filterMenu = computed(() =>
-  [['', 'Any source'], ['connect', 'Connect'], ['own', 'Added by you']].map(([v, l]) => ({
+  [['', 'Any source'], ['connect', 'Connect'], ['own', 'Added by you'], ['crm', crmLabel(account)]].map(([v, l]) => ({
     label: l,
     icon: source.value === v ? 'lucide-check' : 'lucide-blank',
     onClick: () => (source.value = v),
@@ -110,6 +119,7 @@ const rows = computed(() => {
   const q = query.value.trim().toLowerCase()
   return account.customers
     .filter((c) => !q || c.name.toLowerCase().includes(q) || c.contact?.toLowerCase().includes(q))
+    .filter((c) => view.value !== 'reply' || waiting(c))
     .filter((c) => !stage.value || c.stage === stage.value)
     .filter(() => stage.value !== 'requested')
     .filter((c) => !pays.value || c.billing === pays.value)
@@ -118,20 +128,12 @@ const rows = computed(() => {
       sort.value === 'mrr' ? b.mrr - a.mrr : sort.value === 'linked' ? (b.linked ?? '').localeCompare(a.linked ?? '') : a.name.localeCompare(b.name),
     )
 })
-// Requests come first, since they wait on the owner. A filter they can't
-// match (who pays, source, a customer stage) leaves them out.
-const requestRows = computed(() => {
-  const q = query.value.trim().toLowerCase()
-  if ((stage.value && stage.value !== 'requested') || pays.value || source.value) return []
-  return account.requests
-    .filter((r) => !q || r.company.toLowerCase().includes(q) || r.contact?.toLowerCase().includes(q))
-    .map((r) => ({ ...r, name: r.company, request: true }))
-})
-const all = computed(() => [...requestRows.value, ...rows.value])
+const all = rows
 const page = computed(() => all.value.slice(0, pageSize.value))
-const filtered = computed(() => Boolean(query.value.trim() || stage.value || pays.value || source.value))
+const filtered = computed(() => Boolean(query.value.trim() || view.value !== 'all' || stage.value || pays.value || source.value))
 const clear = () => {
   query.value = ''
+  view.value = 'all'
   stage.value = ''
   pays.value = ''
   source.value = ''
@@ -147,18 +149,18 @@ const BILLING = { customer: 'Customer pays', partner: 'Partner pays' }
 const nameOf = (id) => account.team.find((p) => p.id === id)?.name
 
 // ── Link requests ───────────────────────────────────────────────────────────
-const openId = ref(null)
-const open = computed(() => account.requests.find((r) => r.id === openId.value) ?? null)
-const match = computed(() =>
-  open.value?.matches ? account.customers.find((c) => c.id === open.value.matches) : null,
-)
+// Not customers yet, so not in the table: every row opens a customer page. A
+// bar above the list says how many wait, to owners only (they approve), and
+// Review steps through them in a dialog.
+const reviewing = ref(false)
+const open = computed(() => account.requests[0] ?? null)
+watch(open, (r) => !r && (reviewing.value = false))
 
 // A few seconds to undo instead of an "Are you sure?" dialog: approving by
 // mistake exposes a stranger's invoices, declining sends a rejection.
-function handle(outcome, request = open.value) {
-  const req = request
+function handle(outcome) {
+  const req = open.value
   account.handleRequest(req.id, outcome)
-  openId.value = null
   const done = outcome === 'approved' ? `${req.company} linked` : `${req.company} declined`
   toast.success(done, { action: { label: 'Undo', onClick: () => account.undoRequest(req.id) } })
 }
@@ -166,18 +168,10 @@ function handle(outcome, request = open.value) {
 // ── Row actions ─────────────────────────────────────────────────────────────
 // What each role can do from the list, without opening the customer first.
 // Removing a linked customer unlinks it: its MRR stops counting toward tier,
-// so it asks first. One added by hand that never linked is just deleted.
+// so it asks first.
 const canEdit = computed(() => ['owner', 'sales'].includes(store.partnerRole))
 const seesInvoices = computed(() => store.partnerRole !== 'sales')
 function actionsFor(item) {
-  if (item.request) {
-    return isOwner.value
-      ? [
-          { label: 'Approve', icon: 'lucide-check', onClick: () => handle('approved', item) },
-          { label: 'Decline', icon: 'lucide-x', onClick: () => handle('declined', item) },
-        ]
-      : []
-  }
   const linked = Boolean(item.linked || item.sites.length)
   const last = seesInvoices.value ? customerInvoices(store.partnerTier, store.partnershipState, item.name).find((i) => !i.open) : null
   return [
@@ -199,7 +193,6 @@ function actionsFor(item) {
       route: `/connect/customers/${item.id}`,
     },
     isOwner.value && linked && { label: 'Unlink', icon: 'lucide-unlink', theme: 'red', onClick: () => unlink(item) },
-    canEdit.value && !linked && { label: 'Delete', icon: 'lucide-trash-2', theme: 'red', onClick: () => remove(item) },
   ].filter(Boolean)
 }
 
@@ -213,10 +206,6 @@ function unlink(item) {
       toast.success(`${item.name} unlinked`)
     },
   })
-}
-function remove(item) {
-  account.removeCustomer(item.id)
-  toast.success(`${item.name} deleted`, { action: { label: 'Undo', onClick: () => account.restoreCustomer(item.id) } })
 }
 
 const editing = ref(null)
@@ -240,55 +229,15 @@ function saveEdit() {
 }
 
 
-// ── Add customer ────────────────────────────────────────────────────────────
-// Saved as Onboarding, then the dialog ends on the partner code: sharing it
-// is the next step, and nothing links until the customer enters it.
-const adding = ref(false)
-const step = ref('form')
-const form = ref({ name: '', contact: '', email: '' })
-const errors = ref({})
-const addedId = ref(null)
-
-function startAdd() {
-  form.value = { name: '', contact: '', email: '' }
-  errors.value = {}
-  step.value = 'form'
-  adding.value = true
-}
-
-function save() {
-  const f = form.value
-  const e = {}
-  if (!f.name.trim()) e.name = 'Enter the company name'
-  if (!/^\S+@\S+\.\S+$/.test(f.email.trim())) e.email = 'Enter a valid email, like name@company.com'
-  const dupe = account.customers.find(
-    (c) => c.name.toLowerCase() === f.name.trim().toLowerCase() || c.email === f.email.trim().toLowerCase(),
-  )
-  if (dupe) e.name = `${dupe.name} is already in your customers`
-  errors.value = e
-  if (Object.keys(e).length) return
-  addedId.value = account.addCustomer({ name: f.name.trim(), contact: f.contact.trim(), email: f.email.trim().toLowerCase() })
-  step.value = 'share'
-}
-
-function finishAdd() {
-  account.markCodeShared(addedId.value)
-  adding.value = false
-}
 </script>
 
 <template>
   <ConnectShell root-label="Customers" flush>
-    <!-- The firm's own code, the same for every customer, and Add customer as
-         the one solid button, where CRM puts Create. -->
+    <!-- The firm's own code, the same for every customer: the way in. Nobody
+         adds a customer by hand; they arrive by a hire, a CRM win, or a link
+         through this code. -->
     <template #action>
-      <div class="flex items-center gap-2">
-        <div class="hidden md:block"><PartnerCode :code="firm.code" :firm="firm.name" /></div>
-        <!-- Subtle while a request is open: Approve is the one primary then. -->
-        <Button v-if="canAdd" class="hidden sm:inline-flex" :variant="openId ? 'subtle' : 'solid'" icon-left="lucide-plus" label="Add customer" @click="startAdd" />
-        <!-- Phones: icon only, so the title keeps its room. -->
-        <Button v-if="canAdd" class="sm:hidden" :variant="openId ? 'subtle' : 'solid'" icon="lucide-plus" aria-label="Add customer" @click="startAdd" />
-      </div>
+      <PartnerCode :code="firm.code" />
     </template>
 
     <div class="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -298,6 +247,7 @@ function finishAdd() {
           <TextInput v-model="query" type="search" placeholder="Customer or contact" class="w-full sm:w-56">
             <template #prefix><span class="lucide-search size-4 text-ink-gray-5" aria-hidden="true" /></template>
           </TextInput>
+          <Select v-model="view" :options="VIEWS" class="min-w-36" aria-label="Show" />
           <Select v-model="stage" :options="stageOptions" class="min-w-36" aria-label="Stage" />
           <Select v-model="pays" :options="paysOptions" class="min-w-36" aria-label="Who pays" />
           <Button v-if="filtered" variant="ghost" label="Clear" @click="clear" />
@@ -321,11 +271,19 @@ function finishAdd() {
         </div>
       </div>
 
+      <!-- ── Link requests, owners only ────────────────────────────────── -->
+      <div v-if="isOwner && account.requests.length" class="shrink-0 px-3 pb-3 sm:px-5">
+        <Alert
+          :title="account.requests.length === 1 ? '1 company wants to link to your partner code' : `${account.requests.length} companies want to link to your partner code`"
+          :primary-action="{ label: 'Review', onClick: () => (reviewing = true) }"
+        />
+      </div>
+
       <!-- ── The table, full width ─────────────────────────────────────── -->
       <!-- Scrolls sideways too: with the request panel docked, the columns
            can be wider than what's left, and the panel must stay in view. -->
       <div class="min-h-0 flex-1 overflow-auto px-3 sm:px-5">
-        <List v-if="page.length" v-model:active="openId" class="list-row-px-2" :columns="gridColumns" :row-height="40">
+        <List v-if="page.length" class="list-row-px-2" :columns="gridColumns" :row-height="40">
             <ListHeader class="mb-2 rounded-4 bg-surface-gray-2 px-2">
               <ListHeaderCell>Customer</ListHeaderCell>
               <ListHeaderCell v-if="show('contact')" class="hidden md:flex">Contact</ListHeaderCell>
@@ -338,36 +296,10 @@ function finishAdd() {
               <ListHeaderCell><span class="sr-only">Actions</span></ListHeaderCell>
             </ListHeader>
             <ListRows :items="page" v-slot="{ item }">
-              <!-- A link request: opens in the docked panel. -->
-              <ListRow v-if="item.request" :value="item.id" @click="openId = item.id">
-                <ListCell class="min-w-0 gap-2">
-                  <Avatar :label="item.name" size="sm" shape="square" />
-                  <span class="truncate text-base text-ink-gray-9">{{ item.name }}</span>
-                </ListCell>
-                <ListCell v-if="show('contact')" class="hidden min-w-0 md:flex">
-                  <span class="truncate text-base text-ink-gray-7">{{ item.contact }}</span>
-                </ListCell>
-                <ListCell v-if="show('stage')" class="hidden min-w-0 gap-2 md:flex">
-                  <span :class="STAGE.requested.dot" class="size-2 shrink-0 rounded-full" aria-hidden="true" />
-                  <span class="truncate text-base text-ink-gray-7">{{ STAGE.requested.label }}</span>
-                </ListCell>
-                <ListCell v-if="show('pays')" class="hidden text-base text-ink-gray-5 md:flex">—</ListCell>
-                <ListCell v-if="show('owner')" class="hidden text-base text-ink-gray-5 md:flex">—</ListCell>
-                <ListCell v-if="show('sites')" class="hidden text-base tabular-nums text-ink-gray-7 md:flex">{{ item.sites.length }}</ListCell>
-                <ListCell v-if="show('mrr')" class="hidden justify-end text-base text-ink-gray-5 md:flex">—</ListCell>
-                <ListCell class="md:hidden">
-                  <span :class="STAGE.requested.dot" class="size-2 rounded-full" :aria-label="STAGE.requested.label" />
-                </ListCell>
-                <ListCell class="justify-end" @click.stop.prevent>
-                  <Dropdown v-if="actionsFor(item).length" :options="actionsFor(item)" align="end">
-                    <Button variant="ghost" icon="lucide-ellipsis" :aria-label="`Actions for ${item.name}`" />
-                  </Dropdown>
-                </ListCell>
-              </ListRow>
-              <ListRow v-else :to="`/connect/customers/${item.id}`">
+              <ListRow :to="`/connect/customers/${item.id}`">
                 <ListCell class="min-w-0 gap-2 overflow-hidden">
                   <Avatar :label="item.name" size="sm" shape="square" />
-                  <span class="truncate text-base text-ink-gray-9">{{ item.name }}</span>
+                  <span class="truncate text-base text-ink-gray-9" :class="waiting(item) && 'font-medium'">{{ item.name }}</span>
                   <Tooltip v-if="isUnpaid(item)" :text="`${lastClosed.label} invoice unpaid`">
                     <Badge class="shrink-0" theme="amber" variant="subtle" size="sm" label="Unpaid" />
                   </Tooltip>
@@ -407,8 +339,10 @@ function finishAdd() {
               </ListRow>
             </ListRows>
           </List>
-        <EmptyState v-else icon="lucide-building-2" :title="filtered ? 'No customers match' : 'No customers yet'">
+        <EmptyState v-else icon="lucide-building-2" :title="view === 'reply' && !query.trim() && !stage && !pays && !source ? 'No one is waiting on a reply' : filtered ? 'No customers match' : 'No customers yet'">
           <Button v-if="filtered" label="Clear filters" @click="clear" />
+          <!-- A new firm's next step: the code is how customers arrive. -->
+          <PartnerCode v-else :code="firm.code" />
         </EmptyState>
       </div>
 
@@ -419,24 +353,15 @@ function finishAdd() {
       </div>
     </div>
 
-    <!-- ── A link request, docked ───────────────────────────────────────── -->
-    <template v-if="open" #panel>
-      <div class="flex items-start justify-between gap-3 border-b border-outline-gray-1 p-4">
-        <div class="min-w-0">
-          <p class="truncate text-base-semibold text-ink-gray-9">{{ open.company }}</p>
-          <p class="mt-1 text-sm text-ink-gray-5">Entered your code {{ shortDate(open.at) }}</p>
-        </div>
-        <Button variant="ghost" icon="lucide-x" aria-label="Close" @click="openId = null" />
-      </div>
-      <div class="min-h-0 flex-1 space-y-6 overflow-y-auto p-4">
+    <!-- ── Link requests, one at a time ──────────────────────────────── -->
+    <Dialog v-model:open="reviewing" :title="open ? open.company : 'Link requests'">
+      <!-- Fixed height, so Decline and Approve stay put while stepping through. -->
+      <div v-if="open" class="h-64 space-y-6 overflow-hidden">
+        <p class="text-p-base text-ink-gray-5">Entered your code {{ shortDate(open.at) }}</p>
         <div>
           <p class="text-sm text-ink-gray-5">Contact</p>
           <p class="mt-1 text-base text-ink-gray-8">{{ open.contact }}</p>
           <p class="mt-0.5 text-sm text-ink-gray-5">{{ open.email }}</p>
-        </div>
-        <div v-if="match">
-          <p class="text-sm text-ink-gray-5">Matches</p>
-          <p class="mt-1 text-base text-ink-gray-8">{{ match.name }}, added by you</p>
         </div>
         <div>
           <p class="text-sm text-ink-gray-5">Sites it links</p>
@@ -448,14 +373,16 @@ function finishAdd() {
           </ul>
         </div>
       </div>
-      <div class="border-t border-outline-gray-1 p-4">
-        <div v-if="isOwner" class="flex gap-2">
-          <Button variant="solid" label="Approve" class="flex-1" @click="handle('approved')" />
-          <Button label="Decline" class="flex-1" @click="handle('declined')" />
+      <template #actions>
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-p-sm tabular-nums text-ink-gray-5">{{ account.requests.length }} waiting</span>
+          <div class="flex gap-2">
+            <Button label="Decline" @click="handle('declined')" />
+            <Button variant="solid" label="Approve" @click="handle('approved')" />
+          </div>
         </div>
-        <p v-else class="text-p-sm text-ink-gray-5">Your firm’s owner approves link requests.</p>
-      </div>
-    </template>
+      </template>
+    </Dialog>
 
     <!-- ── Edit details ─────────────────────────────────────────────────── -->
     <Dialog :open="editing !== null" title="Edit details" @update:open="(v) => !v && (editing = null)">
@@ -470,33 +397,5 @@ function finishAdd() {
       </form>
     </Dialog>
 
-    <!-- ── Add customer ─────────────────────────────────────────────────── -->
-    <Dialog v-model:open="adding" :title="step === 'form' ? 'Add customer' : 'Share your partner code'">
-      <form v-if="step === 'form'" class="space-y-4" @submit.prevent="save">
-        <FormControl v-model="form.name" label="Company" required :error="errors.name" />
-        <FormControl v-model="form.contact" label="Contact name" />
-        <FormControl
-          v-model="form.email"
-          type="email"
-          label="Contact email"
-          placeholder="name@company.com"
-          required
-          :error="errors.email"
-        />
-        <div class="flex justify-end gap-2 pt-2">
-          <Button label="Cancel" @click="adding = false" />
-          <Button variant="solid" type="submit" label="Add" />
-        </div>
-      </form>
-      <div v-else class="space-y-4">
-        <p class="text-p-base text-ink-gray-7">
-          {{ form.name }} links once they enter this code in Frappe Cloud and you approve the request.
-        </p>
-        <PartnerCode :code="firm.code" :firm="firm.name" />
-        <div class="flex justify-end pt-2">
-          <Button variant="solid" label="Done" @click="finishAdd" />
-        </div>
-      </div>
-    </Dialog>
   </ConnectShell>
 </template>

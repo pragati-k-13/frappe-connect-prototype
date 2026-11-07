@@ -80,7 +80,7 @@ const ACTION_LABELS = {
             v-if="t.action === 'copy-code'"
             size="sm"
             variant="ghost"
-            aria-label="Copy referral code"
+            aria-label="Copy partner code"
             @click="emit('act', t)"
           >
             <template #icon><IconCopy class="size-4" /></template>

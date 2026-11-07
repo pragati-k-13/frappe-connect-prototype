@@ -49,7 +49,6 @@ import AppSettingsDialog from './settings/AppSettingsDialog.vue'
 import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
 import { firmFor, longDate, standingFor } from '../data/partnership'
-import { needsReply, useLeads } from '../composables/useLeads'
 import LeadsIcon from './icons/LeadsIcon.vue'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import PartnerSettingsDialog from './settings/PartnerSettingsDialog.vue'
@@ -101,28 +100,25 @@ const inHome = computed(() => HOME_ROUTES.has(route.name))
 
 // ── The partner's rail ──────────────────────────────────────────────────────
 // Each role sees the areas it works in (the roles table in the plan): Sales
-// has no Invoices, Finance has no Messages. Counts are what waits on THIS
-// person: link requests and expiring certificates are the owner's, an unpaid
-// invoice is finance's, unanswered leads are sales'.
+// has no Invoices, Finance has no Messages.
 const account = usePartnerAccountStore()
-const leads = useLeads()
 const partnerRail = computed(() => {
   const role = store.partnerRole
   // Member is view-only: standing, the profile and resources. The team is in
   // Settings → Users, which every role can open.
   const member = role === 'member'
   const beginner = store.partnerTier === 'beginner'
-  const waiting = leads.value.filter(needsReply).length
   const at = (...names) => names.includes(route.name)
   // Two groups: the work you do daily, then your firm. Resources isn't a place you work (it's links
   // out), so it lives in the header menu.
-  // Leads first: the daily queue, and the one row with a count. Partnership
+  // Leads first: the daily queue. No counts on the rail: a row waiting on a
+  // reply is bold in its list instead (PARTNER-VIEW-PLAN.md). Partnership
   // is checked now and then, so it follows the work — except for a Beginner,
   // whose main job is the milestones to Bronze, so it leads for them.
   const partnership = { label: 'Partnership', to: '/connect/partnership', icon: 'lucide-handshake', active: at('partnership') }
   const work = [
     beginner && partnership,
-    !member && role !== 'finance' && { label: 'Leads', to: '/connect/leads', iconComp: LeadsIcon, active: at('leads', 'lead'), count: waiting },
+    !member && role !== 'finance' && { label: 'Leads', to: '/connect/leads', iconComp: LeadsIcon, active: at('leads', 'lead') },
     !member && { label: 'Customers', to: '/connect/customers', icon: 'lucide-building-2', active: at('customers', 'customer') },
     !beginner && partnership,
   ].filter(Boolean)
@@ -132,7 +128,6 @@ const partnerRail = computed(() => {
     { label: 'Public profile', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile') },
     !member && role !== 'sales' && { label: 'Invoices', to: '/connect/invoices', icon: 'lucide-receipt', active: at('invoices') },
   ].filter(Boolean)
-  // Only Leads carries a count: replies are the one thing that can't wait.
   // The firm group gets a label; the work group, at the top, needs none.
   // Four rows or fewer is one plain list: a list that short scans without
   // groups, and a label over it would only say the obvious (a Member's
