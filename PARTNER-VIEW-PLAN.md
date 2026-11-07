@@ -15,8 +15,8 @@ The rail is two groups: daily work (Leads, Customers, Invoices) with no label, t
 (Partnership, Listing) under "Your firm". Each role sees only its own rows. Resources is links out, not a
 place you work, so it sits in the header menu as "Help and resources", with Firm settings and
 Partner managers. The sidebar's footer is the signed-in person: their settings, theme and log
-out. Only Leads shows a count: replies are the one thing that can't wait, and counts on every
-row were distracting. Collapsed, Leads shows a dot instead.
+out. No rail item shows a count: rows waiting on a reply are bold in their list, and a
+notification or email says when a business writes.
 
 Firm settings open as a dialog, not a rail item: Users for everyone, CRM sync and leaving for owners.
 
@@ -148,7 +148,7 @@ They're shown in three places:
 
 Each is an email link, not a channel inside Connect.
 
-**Partner code.** On Partnership too, with Copy and Share, because partners already look for
+**Partner code.** On Partnership too, with a copy icon, because partners already look for
 it here in the PRM portal's Overview.
 
 **Customers, sorted by MRR.** Behind the MRR row: every linked customer with their MRR, so the
@@ -225,13 +225,11 @@ confirmed or replaced:
 
 ## 2. Customers
 
-**The list is Frappe CRM's, like Leads:** a plain breadcrumb, with link requests at the top of
-the one list (stage "Wants to link"), quick filters (search, stage, who pays) with Refresh, Filter (source), Sort and
+**The list is Frappe CRM's, like Leads:** a plain breadcrumb, quick filters (show, search, stage, who pays) with Refresh, Filter (source), Sort and
 Columns, a full-width table (customer, contact, stage, who pays, owner, sites, MRR), and a
 footer with page size and count. A row opens the customer's page; its menu carries the quick
-trips — open in Frappe Cloud, download the last invoice — so there's no peek sheet. Add customer
-is the solid button in the top bar, beside the firm's partner code. Link requests open in the
-docked panel.
+trips — open in Frappe Cloud, download the last invoice — so there's no peek sheet. Every row
+behaves the same: it opens a customer page. The top bar holds only the firm's partner code.
 
 **One record shape for leads and customers,** after Frappe CRM's deal page. Owner and stage sit
 in the top bar (in the thread header on Leads). Leads work like Helpdesk tickets: a list
@@ -242,7 +240,7 @@ tabs Messages (opens first, reply box always open, goes only to the business), F
 (calls, demos, emails and meetings held outside Connect), Activity (what the team changed)
 and Notes (the team's own, never sent), with the same
 docked panel (lead, project, company). Notes never reach the business. A customer's record is in tabs: Sites, Invoices, Follow-ups, Activity, Notes and,
-if it came through Connect, Connect. A side panel holds the facts, edited in place and logged
+if it came through Connect, Messages. A side panel holds the facts, edited in place and logged
 to Activity: contact (name, email, phone), details (industry, country, source; probability on
 leads), and billing on customers. Follow-ups are a call, demo, email or meeting with who was
 spoken to and notes; with a CRM synced they come from it and are read-only. On a phone, the
@@ -252,28 +250,30 @@ customer's panel is a Details tab and the lead's opens from the top bar.
 customer came from doesn't change how the firm works with them.
 
 - **Through Connect.** A business enters the list when it **hires** the partner. Until then it
-  is a lead and stays in Messages, even after it shortlists the partner and its name is shared.
+  is a lead and stays in Leads, even after it shortlists the partner and its name is shared.
+- **From the firm's CRM.** A synced CRM lead enters the list when the CRM marks it Won. See
+  "Lead to customer" under Messages.
 - **The partner's own.** These come from the partner's Frappe Cloud partner code. Nothing
   links on its own: the customer enters the code in Frappe Cloud, and the partner approves or
-  declines the request. The partner can also add a customer by hand before the site exists.
+  declines the request.
 
-**Partner code.** Sits in the Customers header, next to Add customer: the code with a Copy
-button, and Share, which copies a short message with the code and the steps to enter it in
-Frappe Cloud. The Add customer dialog ends on the same code and Share, since sharing it is the
-next step. An empty Customers list leads with it too.
+**No Add customer.** Every customer arrives from an event: a hire in Connect, a Won in the
+firm's CRM, or an approved partner-code link. Typing one in by hand is the same as typing in a
+lead, which belongs in the CRM. The trade-off: a firm with no CRM can't track a customer
+before it links.
 
-**Link requests.** In the same list, at the top: a request is a customer that hasn't linked
-yet. Each row has the company and contact, and "Wants to link" in the Stage column; it opens in
-the docked panel rather than a customer page. A row opens in the docked aside with what the owner needs
-to judge it: the contact, every site and server it covers with plan and region, and the match
-to a customer added by hand, with Approve and Decline at the bottom. Approving adds the customer to the list. Declining
-removes the request and tells the customer. Each gets a few seconds to undo, rather than an
-"Are you sure?" dialog: approving by mistake exposes a stranger's invoices, and declining sends
-a rejection. Only the owner can act on requests, and gets an email when one arrives.
+**Partner code.** The Customers header holds the code and a copy icon, nothing else. It copies
+the code alone: a business that came through Connect gets the how-to on its own project, and
+anyone else hears it from the partner. An empty Customers list shows the code as its next step.
+One name everywhere: "Partner code", on the business side too (it was "Referral code").
 
-If the request matches a customer added by hand (same email or company), the row says so:
-"Matches Acme, added 3 Oct". A customer added by hand shows "Code shared on 3 Oct" until their
-request arrives, so the wait is visible.
+**Link requests.** Not customers yet, so not in the table. Owners see a bar above the list, "2
+companies want to link to your partner code", with Review. Review steps through them in a
+dialog with what the owner needs to judge each: the contact, every site and server it covers
+with plan and region, and Decline and Approve. Approving adds the customer to the list.
+Declining removes the request and tells the customer. Each gets a few seconds to undo, rather
+than an "Are you sure?" dialog: approving by mistake exposes a stranger's invoices, and
+declining sends a rejection. Only the owner sees the bar, and gets an email when one arrives.
 
 **Two billing modes.** Each linked customer has one, and it sets what the partner can see:
 
@@ -323,15 +323,15 @@ and the main area for what changes over time.
     Cloud". Partner-pays customers show plan and amount only.
   - **Invoices:** for Customer-pays customers, their Frappe Cloud invoices, read-only, with
     unpaid ones flagged. For Partner-pays customers, the per-customer invoices from Billing.
-  - **Connect:** the message thread and project, for customers who came through Connect.
+  - **Messages:** the thread and project, for customers who came through Connect. Opens
+    first while they're Onboarding.
   - **Notes:** the partner's own.
 - **Out of scope:** invoices the partner sends the customer for their own work. Partners do
   that in their own ERPNext.
 
-**Adding a customer (happy path):** company name and contact email → saved as Onboarding with
-"Not on Frappe Cloud yet" → the partner shares their partner code → the customer enters it in
-Frappe Cloud → the request shows under Link requests → the partner approves → the first billed
-site moves them to Live.
+**Linking an own customer (happy path):** the partner copies their code and sends it → the
+customer enters it in Frappe Cloud → the request shows in the bar above the list → the owner
+approves → the first billed site moves them to Live.
 
 **Error paths**
 
@@ -339,7 +339,6 @@ site moves them to Live.
   change who it is billed under.
 - A link request from a company the partner doesn't recognise: Decline is the safe default,
   and nothing about the customer's account is shown until the partner approves.
-- A duplicate (same company or email already in the list): open the existing record instead.
 - A site is suspended or a customer cancels: their MRR stops counting. If that brings the
   partner below their tier floor, Partnership shows At risk and the customer row links to it.
 
@@ -414,7 +413,7 @@ order of preference, by what happens in Connect, then by a CRM sync, then by han
 | Brief reaches the partner                           | Open                             |
 | Partner sends a quote                               | Proposal/Quotation               |
 | Business shortlists the partner                     | Negotiation                      |
-| Business hires them, or links through the partner code | Won                           |
+| Business hires them in Connect                      | Won                              |
 | Business picks someone else                         | Lost, "Lost to competitor"       |
 | Brief withdrawn                                     | Lost or Closed, *to confirm*     |
 | Partner flags a brief as spam or not genuine        | Junk                             |
@@ -427,14 +426,13 @@ portal's list.
 
 - **What it asked about:** the brief, its industry, and the Starter Pack, if it picked one.
 
-**Only Connect briefs are leads here.** A lead Frappe passes on, or one the firm finds itself,
-isn't on Connect: that business has no reason to sign up just to message the partner. The firm
-works it in its own CRM, and Connect sees it once it links through the partner code, as a
-customer.
+**Two sources: Connect briefs and the firm's CRM.** A lead Frappe passes on, or one the firm
+finds itself, isn't on Connect: that business has no reason to sign up just to message the
+partner. The firm works it in its own CRM, and with CRM sync on it shows here as a lead too.
+Nobody adds a lead by hand in Connect: that belongs in the CRM, so there's one copy.
 
 The other changes:
 
-- Once a thread is won, the sidebar links to its customer record.
 - **Error paths to design:** a message fails to send (keep the draft and offer a retry); the
   business hires someone else or withdraws the brief (the lead closes with that stage and
   reason, and the thread stays as a read-only record of the bid); a quote is sent after the brief
@@ -444,6 +442,66 @@ The other changes:
 - **Beginner:** Connect sends them briefs too, so Leads works the same at every tier. Their rail
   puts Partnership first, since the milestones to Bronze are their main job; from Bronze up
   the rail runs Leads, Customers, Partnership.
+
+### Lead to customer
+
+**Two records, linked.** A lead is one brief or deal; a customer is the company. Winning a lead
+closes it and creates the customer, or adds a project to the customer it matches. Frappe CRM
+works the same way: a converted lead is hidden from the list, not deleted, and the deal links
+back to it. Customers keeps its name: in CRM terms it's the organization, and the lead is the
+deal.
+
+**Who sets Won depends on the source.** Won never earns tier credit or MRR on its own; those
+come only from an approved partner-code link. So Connect records what happened, it doesn't
+need anyone to sign.
+
+| Source        | Won comes from                    | Messages tab | Stage set by            |
+| ------------- | --------------------------------- | ------------ | ----------------------- |
+| Connect brief | The business hiring in Connect    | Yes          | Connect, then sync, then by hand (Won asks the business) |
+| CRM           | The CRM's Won status, synced      | No           | The CRM. Read-only here, "Set in your CRM" |
+
+**Asking to be hired.** When the business agrees outside Connect, the partner picks Won from
+the stage menu. Won is always in the menu, so the rule shows where you'd look for it:
+
+- On a named lead: "Ask Northwind to confirm the hire?" with Send request. The stage stays put.
+  The thread says "You asked Northwind to confirm the hire", the panel has a Hire request row,
+  "Waiting for Northwind", with Withdraw, and the list's Stage cell reads "Negotiation · Hire
+  sent". Accepted: the stage turns Won as below. Declined or withdrawn: a line in the thread.
+  Moving the lead to Lost, Junk or Closed withdraws it.
+- On an anonymous lead: "Not yet. They need to shortlist you before they can hire you."
+- The business sees a bar at the top of the project, "Software@Work asked you to confirm the
+  hire", with Decline and Review and hire, which opens the existing hire dialog with the terms.
+
+**At the win:**
+
+- The lead stays a lead, closed as Won, and leaves the default view. It opens as itself:
+  the thread ends at "Northwind hired you", and the reply box becomes "Northwind is a customer
+  now" with **View in Customers**. No redirect: you clicked a lead, you land on a lead.
+- The customer is created as Onboarding, not on Frappe Cloud yet. When a Connect-hired business links through the code, it's approved
+  without the usual step: the firm already knows them.
+- The thread continues on the customer's page in the **Messages** tab, on any customer won from a Connect brief (not "Connect"),
+  with the bid folded above the hire. The business sees nothing change: one thread on their
+  project. CRM leads and CRM-only customers have no Messages tab.
+
+**Matching an existing customer is asked when the company is known, not at Won.** Knowing it's
+Kestrel changes how Sales works the lead, and a question at Won gets in the way. Inline in the
+lead's side panel, in the Lead section where the Customer link then shows, never a dialog, never blocking:
+
+- A Connect business that came through Connect before: same account, linked without asking.
+- A customer the firm linked itself: suggested from the email domain, "Is this Kestrel, your
+  customer?" with Yes, link and Not them.
+- A CRM lead: the CRM's organization settles it; it only asks if the names don't match.
+- Unanswered at Won: a new customer is created, and the two can be merged later.
+
+**Reopening.** If the CRM moves a lead out of Won, it's a live lead again at that stage. The
+customer the win created goes too, unless it has sites or other projects, in which case only
+this project comes off it. The lead's Activity says what happened.
+
+**No counts on the rail.** Rows waiting on a reply are bold, Leads and Customers both have a
+Needs reply filter, and a notification or email goes out when the business writes.
+
+**No Source column on Leads.** A row's source rarely changes how you treat it, and the lead's
+panel says it. Source is a group in Filter while a CRM is connected.
 
 ## 5. Users and certificates
 
@@ -471,7 +529,7 @@ but don't work leads or money. Roles are fixed: there's no screen for making new
 | See Partnership, Users, Profile, Resources            | Yes   | Yes   | Yes     | Yes    |
 | See Invoices, All customers                           | Yes   | No    | Yes     | No     |
 | See Customers                                         | Yes   | Yes   | Yes     | No     |
-| Add customers and notes                               | Yes   | Yes   | No      | No     |
+| Add notes and follow-ups                              | Yes   | Yes   | No      | No     |
 | See a customer's invoices                             | Yes   | No    | Yes     | No     |
 | Approve or decline link requests                      | Yes   | No    | No      | No     |
 | See and export Your Frappe bill                       | Yes   | No    | Yes     | No     |
@@ -584,8 +642,8 @@ everyone sees, read-only unless you're an owner; CRM sync and leaving are the ow
   statuses to the PRM stages. For Frappe CRM and ERPNext the mapping comes prefilled. It can be
   changed later.
 - **What syncs:** Connect pushes a lead once the business is named, so an anonymous brief stays
-  in Connect. Stage changes come back from the CRM. Won from the partner code link always
-  wins over a CRM status.
+  in Connect. Stage changes come back from the CRM, except Won on a Connect brief, which only
+  the hire sets. The CRM's own leads come into Leads, and its Won creates the customer.
 - **Status:** connected, with the last sync time, or paused with the reason.
 
 **Leaving the partnership.** The last row in Settings. Leaving removes everything: customer
@@ -620,12 +678,14 @@ Who acts is in brackets. *Outside* means the step happens outside Connect.
    link request on Customers → $100 and $300 tick on Partnership → request the audit → Bronze
    → check the profile before it goes public → one-time notice that the landing changes.
 2. **Lead to customer** (Sales): brief in "Needs reply" → reply, send a quote → shortlisted →
-   hired, Won → customer on Customers as Onboarding → Live. Not chosen → Lost, "Lost to
-   competitor", thread kept read-only.
-3. **Link an own customer** (Owner, Sales): add the customer → share the partner code ("Code
-   shared on" shows) → customer enters it in Frappe Cloud (*outside*) → link request, matched
-   to the customer added by hand → Owner approves, with undo → Customer pays, first site → Live.
-   Decline → request removed, customer told.
+   hired, Won → lead leaves the default view, "View in Customers" → customer as Onboarding,
+   thread continues in its Messages tab → linked through the partner code, approved without
+   the usual step → Live. Not chosen → Lost, "Lost to competitor", thread kept read-only. A
+   CRM lead: Won in the CRM → customer as Onboarding; moved back out of Won → a lead again.
+3. **Link an own customer** (Owner, Sales): copy the partner code and send it (*outside*) →
+   customer enters it in Frappe Cloud (*outside*) → link request in the bar on Customers →
+   Owner reviews and approves, with undo → Customer pays, first site → Live. Decline → request
+   removed, customer told.
 4. **Edit the profile** (Owner): plain details go live at once. Client logos or a claim →
    Submit for review → In review → approved, live. Rejected → reason on the section, draft
    kept. Case studies → frappe.io (*outside*).
@@ -650,8 +710,9 @@ Who acts is in brackets. *Outside* means the step happens outside Connect.
 - **D. Slipping a tier** (Owner, Frappe): see the proposed rule under Partnership.
 - **E. Profile review** (Owner, Frappe): client logos and claims, as in flow 4. Case studies
   are reviewed on frappe.io.
-- **F. A lead passed by Frappe:** not on Connect. Frappe passes it outside Connect and the firm
-  works it in its CRM; it appears here only once it links as a customer.
+- **F. A lead passed by Frappe:** not a Connect brief. Frappe passes it outside Connect and the
+  firm works it in its CRM; with CRM sync on it shows in Leads as a CRM lead, otherwise only
+  once it links as a customer.
 - **G. Disputing a figure** (Owner): figure looks wrong → email the partner manager, with the
   partner code, the figure and the month (*outside*) → Frappe corrects it → the figure updates with a new
   sync time.
@@ -697,7 +758,7 @@ sections above. These are left open:
 11. **Shared consultants.** Can a certificate count for two partners if a consultant works
     with both?
 12. **Partner code link.** Can Frappe Cloud take the code in a link, so a customer opens it and
-    the code is filled in? If so, Share copies the link instead of the steps.
+    the code is filled in? If so, the copy icon copies the link instead of the code.
 13. **Beginner to Bronze.** The milestones stop at $300 MRR, but Bronze has been $750 and PMM 3.
     Is there a step between, or has Bronze changed? Ask whoever wrote the milestone list, or
     the partner team. Until then the prototype shows the five milestones and calls the last
@@ -711,3 +772,5 @@ sections above. These are left open:
     do the same wrap-up rules apply?
 17. **Changing the rubric.** When Frappe changes the thresholds, how much notice do partners
     get? Partnership would show the new figure and the date it applies from.
+18. **One code or one per project.** The business project page showed a code generated per
+    project; the partner side shows one per firm. Which does Frappe Cloud issue?

@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<title>Lead to Customer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a canvas walkthrough. A pannable flow map up top, then one board per step: prototype screenshots on a dotted canvas with numbered redline pins, and the spec for each pin beside it. Reference tables last. Screens are 2x captures of the running prototype; the iris hue is the annotation layer only. */
+:root {
+  --bg: #ffffff;
+  --canvas: #f6f6f7;
+  --dot: #dcdce0;
+  --surface: #f8f8f8;
+  --surface-2: #f1f1f2;
+  --line: #ececee;
+  --line-strong: #d9d9dd;
+  --ink: #171717;
+  --ink-2: #525256;
+  --ink-3: #7c7c82;
+  --pin: #5b5bd6;
+  --won: #16794c; --won-bg: #e4f5ec;
+  --amber: #8a5a00; --amber-bg: #fdf4dd;
+  --blue: #0269c4; --blue-bg: #e6f4ff;
+  --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161617; --canvas: #1c1c1e; --dot: #303034; --surface: #202022; --surface-2: #29292c; --line: #2c2c30; --line-strong: #3b3b40;
+    --ink: #f1f1f2; --ink-2: #c0c0c4; --ink-3: #8f8f96; --pin: #9b9bf3;
+    --won: #5fd39b; --won-bg: #12301f; --amber: #f2c45a; --amber-bg: #33270b; --blue: #6cb8ff; --blue-bg: #10283d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161617; --canvas: #1c1c1e; --dot: #303034; --surface: #202022; --surface-2: #29292c; --line: #2c2c30; --line-strong: #3b3b40;
+  --ink: #f1f1f2; --ink-2: #c0c0c4; --ink-3: #8f8f96; --pin: #9b9bf3;
+  --won: #5fd39b; --won-bg: #12301f; --amber: #f2c45a; --amber-bg: #33270b; --blue: #6cb8ff; --blue-bg: #10283d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.6 var(--font); }
+.wrap { max-width: 86rem; margin: 0 auto; padding-block: 44px 96px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1 { font-size: 28px; line-height: 1.2; font-weight: 600; letter-spacing: -.02em; margin: 8px 0 10px; text-wrap: balance; }
+h2 { font-size: 19px; line-height: 1.3; font-weight: 600; letter-spacing: -.01em; margin: 0; text-wrap: balance; }
+h3 { font-size: 13px; font-weight: 600; margin: 0 0 8px; }
+p { margin: 0; }
+.lede { font-size: 16px; color: var(--ink-2); max-width: 62ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12.5px; color: var(--ink-3); margin-top: 14px; }
+code, .mono { font-family: var(--mono); font-size: 12px; }
+code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+a { color: var(--blue); }
+a:focus-visible, .scroller:focus-visible { outline: 2px solid var(--pin); outline-offset: 2px; }
+.eyebrow { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; }
+.section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin: 56px 0 14px; }
+.section-head p { color: var(--ink-3); font-size: 13px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 22px; font-size: 12.5px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend .sw { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--line-strong); background: var(--bg); }
+.legend .sw.dash { border-style: dashed; }
+
+/* Flow map */
+.scroller { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background-color: var(--canvas); background-image: radial-gradient(var(--dot) 1px, transparent 1.2px); background-size: 16px 16px; cursor: grab; }
+.scroller.drag { cursor: grabbing; user-select: none; }
+.map { position: relative; width: 1700px; height: 430px; }
+.lane-label { position: absolute; left: 16px; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); font-weight: 500; }
+.lane-rule { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--line-strong); }
+.map svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.map svg path.edge { fill: none; stroke: var(--ink-3); stroke-width: 1.25; }
+.map svg path.edge.dash { stroke-dasharray: 4 4; }
+.map svg marker path { fill: var(--ink-3); }
+.map svg text { fill: var(--ink-3); font: 11px var(--font); }
+.node { position: absolute; width: 178px; padding: 9px 11px 10px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--bg); color: var(--ink); text-decoration: none; font-size: 12.5px; line-height: 1.4; box-shadow: 0 1px 2px rgb(0 0 0 / .04); transition: border-color .15s; }
+a.node:hover { border-color: var(--pin); }
+.node b { display: block; font-weight: 600; }
+.node small { display: block; color: var(--ink-3); font-size: 11.5px; margin-top: 2px; }
+.node > .n { position: absolute; top: -9px; left: -9px; }
+.node.ext { border-style: dashed; background: var(--canvas); }
+.node.rec { background: var(--surface); }
+.hint { font-size: 12.5px; color: var(--ink-3); margin-top: 10px; }
+
+/* Pins */
+.n { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 999px; background: var(--pin); color: var(--bg); font: 600 11px/1 var(--font); font-variant-numeric: tabular-nums; flex: none; }
+.pinned { position: relative; }
+.pinned > .n { position: absolute; top: -10px; right: -10px; z-index: 2; box-shadow: 0 0 0 2px var(--canvas); }
+.pinned.l > .n { right: auto; left: -10px; }
+
+/* Step boards */
+.board { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; margin-top: 20px; scroll-margin-top: 20px; }
+.board .stage { padding: 32px 28px; background-color: var(--canvas); background-image: radial-gradient(var(--dot) 1px, transparent 1.2px); background-size: 16px 16px; min-width: 0; display: flex; flex-direction: column; gap: 24px; }
+.board .spec { padding: 24px 22px; border-left: 1px solid var(--line); min-width: 0; display: flex; flex-direction: column; gap: 18px; }
+.board .head { display: flex; gap: 12px; align-items: flex-start; }
+.stepnum { font: 500 12px/1 var(--mono); color: var(--ink-3); padding-top: 5px; }
+.tags { display: flex; gap: 4px; margin-bottom: 6px; }
+.who { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 5px; background: var(--surface-2); color: var(--ink-2); font-size: 11.5px; font-weight: 500; }
+.who.biz { background: var(--amber-bg); color: var(--amber); }
+.who.sys { background: var(--blue-bg); color: var(--blue); }
+.notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.notes li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; font-size: 13px; color: var(--ink-2); }
+.notes li b { color: var(--ink); font-weight: 600; }
+.data { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font: 11.5px/1.7 var(--mono); color: var(--ink-2); white-space: pre-wrap; overflow-x: auto; min-width: 0; }
+.data .k { color: var(--ink); font-weight: 500; }
+.data .add { color: var(--won); }
+.data .del { color: var(--ink-3); text-decoration: line-through; }
+.data .c { color: var(--ink-3); }
+.why { border-top: 1px solid var(--line); padding-top: 14px; font-size: 13px; color: var(--ink-2); display: grid; gap: 10px; }
+.why b { display: block; color: var(--ink); font-weight: 600; }
+.cap { font-size: 12px; color: var(--ink-3); text-align: center; margin-top: -10px; }
+
+/* Screenshots from the prototype */
+.shots { display: flex; gap: 16px; justify-content: center; align-items: flex-start; }
+.shot { position: relative; display: block; min-width: 0; border-radius: 8px; box-shadow: 0 0 0 1px var(--line-strong), 0 10px 28px -14px rgb(0 0 0 / .25); background: #fff; }
+.shot img { display: block; width: 100%; height: auto; border-radius: 8px; }
+.shot .n { position: absolute; transform: translate(-50%, -50%); box-shadow: 0 0 0 2px var(--bg); z-index: 1; }
+.shot:hover { box-shadow: 0 0 0 1px var(--pin), 0 10px 28px -14px rgb(0 0 0 / .25); }
+.shot:focus-visible { outline: 2px solid var(--pin); outline-offset: 3px; }
+.duo { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.duo > * { min-width: 0; }
+
+.cases { margin-top: 20px; }
+.cases td:last-child { white-space: nowrap; color: var(--ink-3); }
+
+/* State diagram */
+.sm { overflow-x: auto; }
+.sm svg { display: block; width: 100%; min-width: 520px; height: auto; }
+.sm rect { fill: var(--bg); stroke: var(--line-strong); }
+.sm rect.won { fill: var(--won-bg); stroke: var(--won); }
+.sm text { fill: var(--ink); font: 500 12px var(--font); }
+.sm text.lbl { fill: var(--ink-3); font: 11px var(--font); }
+.sm path { fill: none; stroke: var(--ink-3); stroke-width: 1.25; }
+.sm marker path { fill: var(--ink-3); stroke: none; }
+
+/* Reference */
+.ref { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 32px; }
+.ref > * { min-width: 0; }
+.ref .wide { grid-column: 1 / -1; }
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th, td { text-align: left; vertical-align: top; padding: 8px 11px; }
+tbody tr + tr td { border-top: 1px solid var(--line); }
+thead th { background: var(--surface); font-weight: 500; color: var(--ink-2); font-size: 12px; white-space: nowrap; border-bottom: 1px solid var(--line); }
+td:first-child { font-weight: 500; }
+.mini td, .mini th { padding: 6px 9px; font-size: 12px; }
+ul.plain { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--ink-2); font-size: 13px; }
+ul.plain b { color: var(--ink); font-weight: 600; }
+
+@media (max-width: 900px) {
+  .board { grid-template-columns: minmax(0, 1fr); }
+  .board .spec { border-left: 0; border-top: 1px solid var(--line); }
+  .ref { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .board .stage { padding: 28px 16px 24px; }
+  .shots { flex-direction: column; align-items: center; }
+  .shot { flex: none !important; width: 100%; }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <p class="eyebrow">Frappe Connect · Partner view · Developer handoff</p>
+  <h1>Lead to Customer</h1>
+  <p class="lede">How a brief on Connect becomes a lead, a hire and a customer, step by step: the screens, the data each step changes, and why it works this way.</p>
+  <div class="meta"><span>Updated 7 Nov 2026</span><span>Source of truth: <code>PARTNER-VIEW-PLAN.md</code> § Lead to customer</span></div>
+  <div class="legend" aria-label="Legend">
+    <span><i class="sw"></i>Screen or event</span>
+    <span><i class="sw" style="background:var(--surface)"></i>Record</span>
+    <span><i class="sw dash"></i>Outside Connect</span>
+    <span><i class="n">1</i>Step, or a note on a screen</span>
+  </div>
+</header>
+
+<div class="section-head"><h2>The whole flow</h2><p>Drag to pan. Click a step to jump to it.</p></div>
+<div class="scroller" id="scroller" tabindex="0" aria-label="Flow map, scrolls sideways">
+  <div class="map" id="map">
+    <div class="lane-label" style="top:14px">Business</div>
+    <div class="lane-rule" style="top:146px"></div>
+    <div class="lane-label" style="top:156px">Partner</div>
+    <div class="lane-rule" style="top:290px"></div>
+    <div class="lane-label" style="top:300px">Records</div>
+
+    <a class="node" id="b0" href="#step-1" style="left:24px;top:46px"><b>Posts a brief</b><small>Reaches matching partners</small></a>
+    <a class="node" id="b1" href="#step-2" style="left:234px;top:46px"><b>Shortlists you</b><small>Shares contact details</small></a>
+    <a class="node" id="b4" href="#step-5" style="left:864px;top:46px"><span class="n">5</span><b>Hires</b><small>Agrees the terms, or declines</small></a>
+    <a class="node" id="b7" href="#step-8" style="left:1494px;top:46px"><b>Enters partner code</b><small>On Frappe Cloud</small></a>
+
+    <a class="node" id="p0" href="#step-1" style="left:24px;top:190px"><span class="n">1</span><b>Lead, anonymous</b><small>Brief and your quote</small></a>
+    <a class="node" id="p1" href="#step-2" style="left:234px;top:190px"><span class="n">2</span><b>Lead, named</b><small>Match question if unsure</small></a>
+    <a class="node" id="p2" href="#step-3" style="left:444px;top:190px"><span class="n">3</span><b>Stage › Won</b><small>Sends a hire request</small></a>
+    <a class="node" id="p3" href="#step-4" style="left:654px;top:190px"><span class="n">4</span><b>Hire sent</b><small>Stage unchanged, Withdraw</small></a>
+    <a class="node" id="p5" href="#step-6" style="left:1074px;top:190px"><span class="n">6</span><b>Lead Won</b><small>Links to the customer</small></a>
+    <a class="node" id="p6" href="#step-7" style="left:1284px;top:190px"><span class="n">7</span><b>Customer page</b><small>Messages carry on here</small></a>
+    <a class="node" id="p7" href="#step-8" style="left:1494px;top:190px"><span class="n">8</span><b>Approve link</b><small>Review dialog</small></a>
+
+    <div class="node ext" id="crm" style="left:654px;top:330px"><b>Won in Frappe CRM</b><small>CRM leads, while sync is on</small></div>
+    <a class="node rec" id="s5" href="#step-6" style="left:1074px;top:330px"><b>Customer</b><small>Created, or the project is added</small></a>
+    <a class="node rec" id="s7" href="#step-8" style="left:1494px;top:330px"><b>Linked</b><small>Credit and MRR count</small></a>
+
+    <svg id="edges" aria-hidden="true"><defs><marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z"/></marker></defs></svg>
+  </div>
+</div>
+<p class="hint">CRM leads skip steps 1 to 5: Won in the CRM goes straight to the customer. Credit and MRR come only from step 8.</p>
+
+<div class="section-head"><h2>Step by step</h2><p>Screens from the prototype. Click one to open it full size.</p></div>
+
+<!-- STEP 1 -->
+<section class="board" id="step-1" aria-labelledby="s1h">
+  <div class="stage">
+    <div class="shots"><a class="shot" href="lead-to-customer/1-anonymous.png" target="_blank" rel="noopener" style="flex:1.6000 1 0;max-width:1280px"><img src="lead-to-customer/1-anonymous.png" width="2560" height="1600" alt="Anonymous lead page with brief card, quote and side panel"><i class="n" style="left:69.38%;top:22.25%">1</i><i class="n" style="left:69.38%;top:45.75%">2</i><i class="n" style="left:98.13%;top:41.88%">3</i></a></div>
+  </div>
+  <div class="spec">
+    <div class="head"><span class="stepnum">01</span><div><div class="tags"><span class="who">Partner</span></div><h2 id="s1h">A brief reaches the partner</h2></div></div>
+    <ol class="notes">
+      <li><span class="n">1</span><span><b>Brief card.</b> Title, scope clamped to two lines, and Read brief, which opens the full brief dialog. Budget and industry stay in the panel.</span></li>
+      <li><span class="n">2</span><span><b>Your quote.</b> Price, weeks, note. "Waiting on their decision" shows until the business shows interest.</span></li>
+      <li><span class="n">3</span><span><b>Brief as a link field.</b> Plain text led by a file icon, gray fill on hover. No underline, no chevron.</span></li>
+    </ol>
+    <div class="data"><span class="k">lead</span> = {
+  source: 'connect',
+  company: null,     <span class="c">// until shortlisted</span>
+  stage: 'Open',
+  closed: null,
+  hireRequest: null,
+}</div>
+    <div class="why"><p><b>No manual leads.</b>Leads come from Connect briefs, or from the firm's CRM while sync is on. Adding one by hand belongs in the CRM, so there's one copy.</p></div>
+  </div>
+</section>
+
+<!-- STEP 2 -->
+<section class="board" id="step-2" aria-labelledby="s2h">
+  <div class="stage">
+    <div class="shots"><a class="shot" href="lead-to-customer/2-match.png" target="_blank" rel="noopener" style="flex:1.6000 1 0;max-width:1280px"><img src="lead-to-customer/2-match.png" width="2560" height="1600" alt="Lead page after the business shared its details, with the match question in the panel"><i class="n" style="left:18.99%;top:59.47%">1</i><i class="n" style="left:98.44%;top:17.63%">2</i></a></div>
+    <div class="shots"><a class="shot" href="lead-to-customer/2-linked.png" target="_blank" rel="noopener" style="flex:1.1000 1 0;max-width:352px"><img src="lead-to-customer/2-linked.png" width="704" height="640" alt="Side panel after Yes, link, showing the Customer field"><i class="n" style="left:64.03%;top:85.63%">3</i></a></div>
+  </div>
+  <div class="spec">
+    <div class="head"><span class="stepnum">02</span><div><div class="tags"><span class="who biz">Business</span><span class="who">Partner</span></div><h2 id="s2h">The business shows interest</h2></div></div>
+    <ol class="notes">
+      <li><span class="n">1</span><span><b>Thread event</b> <code>shared</code>. The lead now has a company: name, contact, email, phone.</span></li>
+      <li><span class="n">2</span><span><b>Match question.</b> If the lead's email domain matches one of your customers, we ask if they're the same company. It sits under the company name, and goes away once someone answers or the lead closes. Only Owners and Sales see it.</span></li>
+      <li><span class="n">3</span><span><b>Yes, link</b> adds the Customer field, logs "Customer: Not set → Halcyon", toasts "Linked to Halcyon". <b>Not them</b> hides the box; a win makes a new customer.</span></li>
+    </ol>
+    <div class="tbl mini"><table>
+      <thead><tr><th>Matches when</th><th>Asks?</th></tr></thead>
+      <tbody>
+        <tr><td>Already won into a customer</td><td>No</td></tr>
+        <tr><td>CRM organization = customer name</td><td>No</td></tr>
+        <tr><td>Same Connect company</td><td>No</td></tr>
+        <tr><td>Email domain of an own customer</td><td>Yes</td></tr>
+      </tbody></table></div>
+    <div class="why"><p><b>Asked now, not at Won.</b>Knowing it's an existing customer changes how Sales works the lead. A question at the win gets in the way of a good moment.</p></div>
+  </div>
+</section>
+
+<!-- STEP 3 -->
+<section class="board" id="step-3" aria-labelledby="s3h">
+  <div class="stage">
+    <div class="shots"><a class="shot" href="lead-to-customer/3-menu.png" target="_blank" rel="noopener" style="flex:1.4545 1 0;max-width:640px"><img src="lead-to-customer/3-menu.png" width="1280" height="880" alt="Stage menu open with Won highlighted"><i class="n" style="left:95.94%;top:55.04%">1</i></a><a class="shot" href="lead-to-customer/3-dialog.png" target="_blank" rel="noopener" style="flex:1.6000 1 0;max-width:464px"><img src="lead-to-customer/3-dialog.png" width="928" height="580" alt="Ask Northwind to confirm the hire dialog"><i class="n" style="left:91.38%;top:13.79%">2</i></a></div>
+    <div class="shots"><a class="shot" href="lead-to-customer/3-not-yet.png" target="_blank" rel="noopener" style="flex:1.6000 1 0;max-width:464px"><img src="lead-to-customer/3-not-yet.png" width="928" height="580" alt="Not yet dialog for an anonymous lead"><i class="n" style="left:91.38%;top:13.79%">3</i></a></div>
+  </div>
+  <div class="spec">
+    <div class="head"><span class="stepnum">03</span><div><div class="tags"><span class="who">Partner</span></div><h2 id="s3h">The partner picks Won</h2></div></div>
+    <ol class="notes">
+      <li><span class="n">1</span><span><b>Won stays in the stage menu</b>, so the rule shows up where a partner would look for it.</span></li>
+      <li><span class="n">2</span><span><b>Named lead:</b> a hire request dialog, size sm. Send request toasts "Sent to Northwind".</span></li>
+      <li><span class="n">3</span><span><b>Anonymous lead:</b> "Not yet", Close only.</span></li>
+    </ol>
+    <div class="data"><span class="k">lead</span>.hireRequest = <span class="add">{ at }</span>
+<span class="k">lead</span>.messages += <span class="add">{ kind: 'hire-sent' }</span>
+<span class="k">project</span>.hireRequest = <span class="add">partnerId</span>  <span class="c">// business</span></div>
+    <div class="why">
+      <p><b>A partner can't set Won on a Connect lead.</b>The business is on Connect, and the hire is where they agree the terms. A partner-set Won would leave their project saying nobody is hired.</p>
+      <p><b>CRM leads</b> have a read-only stage badge. Won comes from the CRM.</p>
+    </div>
+  </div>
+</section>
+
+<!-- STEP 4 -->
+<section class="board" id="step-4" aria-labelledby="s4h">
+  <div class="stage">
+    <div class="shots"><a class="shot" href="lead-to-customer/4-pending.png" target="_blank" rel="noopener" style="flex:1.6000 1 0;max-width:1280px"><img src="lead-to-customer/4-pending.png" width="2560" height="1600" alt="Lead page with the hire request out"><i class="n" style="left:31.32%;top:81.75%">1</i><i class="n" style="left:97.5%;top:34.25%">2</i></a></div>
+    <div class="shots"><a class="shot" href="lead-to-customer/4-list.png" target="_blank" rel="noopener" style="flex:4.5714 1 0;max-width:1280px"><img src="lead-to-customer/4-list.png" width="2560" height="560" alt="Leads list with Negotiation, Hire sent"><i class="n" style="left:64.99%;top:55.7%">3</i></a></div>
+    <div class="sm" role="img" aria-label="Hire request states: none, sent, then accepted, declined or withdrawn">
+      <svg viewBox="0 0 640 170">
+        <defs><marker id="ah2" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L8 4 L0 8 z"/></marker></defs>
+        <rect x="4" y="62" width="96" height="36" rx="8"/><text x="52" y="85" text-anchor="middle">None</text>
+        <rect x="196" y="62" width="96" height="36" rx="8"/><text x="244" y="85" text-anchor="middle">Sent</text>
+        <rect class="won" x="444" y="8" width="180" height="36" rx="8"/><text x="534" y="31" text-anchor="middle">Accepted → Won</text>
+        <rect x="444" y="62" width="180" height="36" rx="8"/><text x="534" y="85" text-anchor="middle">Declined → None</text>
+        <rect x="444" y="116" width="180" height="36" rx="8"/><text x="534" y="139" text-anchor="middle">Withdrawn → None</text>
+        <path d="M100 80 H192" marker-end="url(#ah2)"/><text class="lbl" x="146" y="72" text-anchor="middle">Won in menu</text>
+        <path d="M292 72 C360 50 380 26 440 26" marker-end="url(#ah2)"/><text class="lbl" x="350" y="36" text-anchor="middle">business hires</text>
+        <path d="M292 80 H440" marker-end="url(#ah2)"/><text class="lbl" x="368" y="74" text-anchor="middle">business declines</text>
+        <path d="M292 88 C360 110 380 134 440 134" marker-end="url(#ah2)"/><text class="lbl" x="334" y="150" text-anchor="middle">Withdraw, or Lost / Junk / Closed</text>
+      </svg>
+    </div>
+  </div>
+  <div class="spec">
+    <div class="head"><span class="stepnum">04</span><div><div class="tags"><span class="who">Partner</span></div><h2 id="s4h">The request is out</h2></div></div>
+    <ol class="notes">
+      <li><span class="n">1</span><span><b>Thread line</b> <code>hire-sent</code>. Withdrawn and declined add their own lines.</span></li>
+      <li><span class="n">2</span><span><b>Panel row</b> while the request is out. Withdraw acts at once with an Undo toast, no confirm dialog.</span></li>
+      <li><span class="n">3</span><span><b>Leads list:</b> the Stage cell appends "· Hire sent".</span></li>
+    </ol>
+    <ul class="plain">
+      <li>The stage doesn't change while waiting.</li>
+      <li>A pending request blocks a second one.</li>
+      <li>Lost, Junk or Closed withdraws it automatically.</li>
+      <li>After a decline the partner can send again.</li>
+    </ul>
+    <div class="why"><p><b>No "Won · waiting" stage.</b>It called a lead Won before it was, and would count as Won wherever stages are summed. The request is a status beside the stage.</p></div>
+  </div>
+</section>
+
+<!-- STEP 5 -->
+<section class="board" id="step-5" aria-labelledby="s5h">
+  <div class="stage">
+    <div class="shots"><a class="shot" href="lead-to-customer/5-bar.png" target="_blank" rel="noopener" style="flex:1.6000 1 0;max-width:1280px"><img src="lead-to-customer/5-bar.png" width="2560" height="1600" alt="Business project page: the hire request bar, and Software@Work first under Interested with a Requested badge"><i class="n" style="left:13.75%;top:10.99%">1</i><i class="n" style="left:27.11%;top:34.51%">3</i></a></div>
+    <div class="shots"><a class="shot" href="lead-to-customer/5-request.png" target="_blank" rel="noopener" style="flex:1.0358 1 0;max-width:592px"><img src="lead-to-customer/5-request.png" width="1184" height="1143" alt="Hire dialog opened from the request, with Decline request beside Hire"><i class="n" style="left:80.56%;top:83.2%">2</i></a></div>
+    <div class="shots"><a class="shot" href="lead-to-customer/5-hire.png" target="_blank" rel="noopener" style="flex:1.0358 1 0;max-width:592px"><img src="lead-to-customer/5-hire.png" width="1184" height="1143" alt="Hire dialog with the error shown when Hire is pressed before agreeing"><i class="n" style="left:37.35%;top:84.35%">4</i></a><a class="shot" href="lead-to-customer/5-why.png" target="_blank" rel="noopener" style="flex:1.8272 1 0;max-width:592px"><img src="lead-to-customer/5-why.png" width="1184" height="648" alt="What made you choose them, with Other picked and a reason typed"><i class="n" style="left:89.19%;top:48.15%">5</i></a></div>
+    <div class="shots"><a class="shot" href="lead-to-customer/5-hired.png" target="_blank" rel="noopener" style="flex:1.6000 1 0;max-width:1280px"><img src="lead-to-customer/5-hired.png" width="2560" height="1600" alt="Project page after the hire: step 2 and the partner in the rail"><i class="n" style="left:84.77%;top:12.26%">6</i></a></div>
+  </div>
+  <div class="spec">
+    <div class="head"><span class="stepnum">05</span><div><div class="tags"><span class="who biz">Business</span></div><h2 id="s5h">The business hires</h2></div></div>
+    <ol class="notes">
+      <li><span class="n">1</span><span><b>A one-row frappe-ui Alert</b>, like the link requests on the partner's Customers list: who asked and when, with Review on the right. Review opens the hire dialog.</span></li>
+      <li><span class="n">2</span><span><b>Opened from a request</b>, the footer answers it: Decline request (subtle) beside Hire, and the × closes without deciding. Decline clears the request with an Undo toast; the firm stays in Interested and its thread gets <code>hire-declined</code>. From any other row the footer is Cancel and Hire.</span></li>
+      <li><span class="n">3</span><span><b>Requested</b> marks the firm that asked, sorted first so the bar has a row to point at. Every row's Hire is subtle.</span></li>
+      <li><span class="n">4</span><span><b>The partner's name is in the title</b>, which wraps for long legal names. The button just says Hire. It stays enabled; without the box ticked, "Agree to the terms to hire" appears on the left of the footer, so nothing moves.</span></li>
+      <li><span class="n">5</span><span><b>One question once they've hired.</b> Four one-tap reasons, or Other with a line of text. Skip or closing loses nothing; the hire is already done.</span></li>
+      <li><span class="n">6</span><span><b>Lands on step 2.</b> The quotes table goes away and the partner moves to the rail. Toast: "Tridots Tech is your partner".</span></li>
+    </ol>
+    <div class="data"><span class="k">choosePartner</span>(project, partner) <span class="c">// clears hireRequest</span>
+<span class="k">declineHire</span>(project)           <span class="c">// clears hireRequest</span>
+<span class="k">project</span>.hireRequestAt          <span class="c">// for "· 2:10 pm"</span></div>
+    <div class="why">
+      <p><b>The partner doesn't confirm the hire.</b>Their quote is the offer, and the other terms are in their partner agreement. A second yes would leave the project in limbo.</p>
+      <p><b>No line telling the business others will be told.</b>They'd expect it, and there's nothing for them to do about it.</p>
+    </div>
+  </div>
+</section>
+
+<div class="cases" id="hiring-cases">
+  <h3>Hiring, every case</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Case</th><th>What happens</th><th>Prototype</th></tr></thead>
+    <tbody>
+      <tr><td>Hire an Interested firm</td><td>Terms, Hire, the one question, then step 2. That partner's lead turns Won and a customer is made on their side (step 6).</td><td>Yes</td></tr>
+      <tr><td>Hire the firm that asked</td><td>From the alert, the dialog has Decline request beside Hire; from its row, Cancel and Hire. Either way the request clears on hire.</td><td>Yes</td></tr>
+      <tr><td>Hire firm A while B's request is out</td><td>B's request closes. B's lead goes Lost, "Lost to competitor", with "Hire request closed · Northwind hired another partner" in its thread.</td><td>Yes</td></tr>
+      <tr><td>Everyone else in Interested</td><td>Lead goes Lost, "Lost to competitor", and the thread closes for both sides.</td><td>Yes, partner side</td></tr>
+      <tr><td>A firm under Others</td><td>No Hire. The business marks them Interested first, which shares its contact details.</td><td>Yes</td></tr>
+      <tr><td>Hire without ticking the terms</td><td>"Agree to the terms to hire" under the checkbox.</td><td>Yes</td></tr>
+      <tr><td>Skip or close the question</td><td>Nothing lost; already hired.</td><td>Yes</td></tr>
+      <tr><td>Starter Pack project</td><td>No Hire. Frappe assigns the partner at payment.</td><td>Yes</td></tr>
+      <tr><td>Quote older than 30 days</td><td>"Quote expired" in place of the price, and Ask again in place of Hire.</td><td>Planned</td></tr>
+      <tr><td>Request arrives, or a partner is hired or loses</td><td>Notification and email, each linking to the project or lead.</td><td>Planned</td></tr>
+      <tr><td>Change partner</td><td>From the partner card's menu in the rail, behind a confirmation. Rules still to decide.</td><td>Not designed</td></tr>
+    </tbody></table></div>
+</div>
+
+<!-- STEP 6 -->
+<section class="board" id="step-6" aria-labelledby="s6h">
+  <div class="stage">
+    <div class="shots"><a class="shot" href="lead-to-customer/6-won.png" target="_blank" rel="noopener" style="flex:1.6000 1 0;max-width:1280px"><img src="lead-to-customer/6-won.png" width="2560" height="1600" alt="Won lead page with the Customer field and footer"><i class="n" style="left:98.44%;top:2%">1</i><i class="n" style="left:91.34%;top:34.25%">2</i><i class="n" style="left:6.88%;top:95.69%">3</i></a></div>
+    <div class="duo">
+      <div class="data" style="flex:1 1 15rem;background:var(--bg)"><span class="k">lead</span>
+stage:  <span class="del">'Negotiation'</span> <span class="add">'Won'</span>
+closed: <span class="add">{ stage: 'Won' }</span>
+hireRequest: <span class="del">{ at }</span> <span class="add">null</span>
+customerId: <span class="add">'won-pv-northwind'</span>
+createdCustomer: <span class="add">true</span></div>
+      <div class="data" style="flex:1 1 15rem;background:var(--bg)"><span class="k">customer</span> <span class="add">new</span>
+name, contact, email, phone <span class="c">← lead.company</span>
+industry, country <span class="c">← brief</span>
+source: 'connect' | 'crm'
+billing: 'customer'
+stage: 'onboarding', mrr: 0, sites: []
+leadIds: [lead.id]</div>
+    </div>
+    <p class="cap" style="margin:0">Or the business hires someone else</p>
+    <div class="shots"><a class="shot" href="lead-to-customer/6-lost.png" target="_blank" rel="noopener" style="flex:1.6000 1 0;max-width:1280px"><img src="lead-to-customer/6-lost.png" width="2560" height="1600" alt="Lead page after the business hired another partner: Lost to competitor"><i class="n" style="left:33.09%;top:87.19%">4</i><i class="n" style="left:98.13%;top:25.99%">5</i><i class="n" style="left:38.13%;top:94.94%">6</i></a></div>
+  </div>
+  <div class="spec">
+    <div class="head"><span class="stepnum">06</span><div><div class="tags"><span class="who sys">Records</span></div><h2 id="s6h">The win</h2></div></div>
+    <ol class="notes">
+      <li><span class="n">1</span><span><b>Stage is a badge</b> once Won, so a hired lead can't be reopened by a slip. The lead leaves Open leads; it stays under All leads or a Won filter.</span></li>
+      <li><span class="n">2</span><span><b>Customer field</b> with the customer's avatar. Opens the customer page.</span></li>
+      <li><span class="n">3</span><span><b>Footer</b> replaces the reply box. View in Customers opens the customer on Messages (<code>?tab=messages</code>).</span></li>
+      <li><span class="n">4</span><span><b>Hired another partner.</b> Thread line <code>hired-other</code>, starting "Hire request closed" if one was out.</span></li>
+      <li><span class="n">5</span><span><b>Lost</b>, reason "Lost to competitor". No customer is made.</span></li>
+      <li><span class="n">6</span><span><b>The thread closes</b> for both sides.</span></li>
+    </ol>
+    <ul class="plain">
+      <li><b>Matched</b> (auto or "Yes, link"): the lead id is added to that customer. No new record.</li>
+      <li><b>No match:</b> a new customer, as shown.</li>
+      <li><b>CRM lead:</b> the same, from the CRM's Won, without thread events.</li>
+      <li><b>CRM reopens it:</b> the customer the win created is removed if it has no sites and no other leads. Otherwise only this project comes off it.</li>
+    </ul>
+    <div class="why">
+      <p><b>Two records, linked.</b>The lead keeps the bid history the pipeline and win rate need. The customer is where work continues. This is Frappe CRM's lead and deal shape.</p>
+      <p><b>No redirect.</b>Opening a won lead shows the lead. Landing on a different kind of record than the one clicked was confusing in review.</p>
+    </div>
+  </div>
+</section>
+
+<!-- STEP 7 -->
+<section class="board" id="step-7" aria-labelledby="s7h">
+  <div class="stage">
+    <div class="shots"><a class="shot" href="lead-to-customer/7-list.png" target="_blank" rel="noopener" style="flex:3.0476 1 0;max-width:1280px"><img src="lead-to-customer/7-list.png" width="2560" height="840" alt="Customers list with Northwind in bold"><i class="n" style="left:13.62%;top:97.13%">1</i></a></div>
+    <div class="shots"><a class="shot" href="lead-to-customer/7-customer.png" target="_blank" rel="noopener" style="flex:1.6000 1 0;max-width:1280px"><img src="lead-to-customer/7-customer.png" width="2560" height="1600" alt="Customer page Messages tab after the hire"><i class="n" style="left:45.19%;top:14.12%">2</i><i class="n" style="left:68.67%;top:90.13%">3</i><i class="n" style="left:98.13%;top:67.5%">4</i></a></div>
+  </div>
+  <div class="spec">
+    <div class="head"><span class="stepnum">07</span><div><div class="tags"><span class="who">Partner</span></div><h2 id="s7h">Work continues on the customer</h2></div></div>
+    <ol class="notes">
+      <li><span class="n">1</span><span><b>Bold row</b> when the last message is a text from the business. Both lists have a Needs reply view. No counts on the rail.</span></li>
+      <li><span class="n">2</span><span><b>One thread.</b> The bid before the hire folds into one button; expanding shows it all, brief card included.</span></li>
+      <li><span class="n">3</span><span><b>Same layout as the lead page:</b> full width, its own scroll area, reply box docked, scrolled to the latest.</span></li>
+      <li><span class="n">4</span><span><b>Leads section</b> lists won leads as link fields.</span></li>
+    </ol>
+    <ul class="plain">
+      <li>Messages opens first while Onboarding, or with <code>?tab=messages</code>. Otherwise Sites.</li>
+      <li>CRM-only customers have no Messages tab.</li>
+      <li>The business sees nothing change: one thread on their project.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- STEP 8 -->
+<section class="board" id="step-8" aria-labelledby="s8h">
+  <div class="stage">
+    <div class="shots"><a class="shot" href="lead-to-customer/8-customers.png" target="_blank" rel="noopener" style="flex:3.0476 1 0;max-width:1280px"><img src="lead-to-customer/8-customers.png" width="2560" height="840" alt="Customers list with the partner code and link requests alert"><i class="n" style="left:98.44%;top:2%">1</i><i class="n" style="left:97.97%;top:26.19%">2</i></a></div>
+    <div class="shots"><a class="shot" href="lead-to-customer/8-review.png" target="_blank" rel="noopener" style="flex:1.1746 1 0;max-width:592px"><img src="lead-to-customer/8-review.png" width="1184" height="1008" alt="Review dialog for a link request"><i class="n" style="left:93.24%;top:7.94%">3</i></a><a class="shot" href="lead-to-customer/8-whopays.png" target="_blank" rel="noopener" style="flex:1.2138 1 0;max-width:352px"><img src="lead-to-customer/8-whopays.png" width="704" height="580" alt="Billing section with the Who pays select"><i class="n" style="left:93.18%;top:67.59%">4</i></a></div>
+  </div>
+  <div class="spec">
+    <div class="head"><span class="stepnum">08</span><div><div class="tags"><span class="who biz">Business</span><span class="who">Partner</span></div><h2 id="s8h">The partner code links the customer</h2></div></div>
+    <ol class="notes">
+      <li><span class="n">1</span><span><b>Partner code</b> in the header with a copy icon only ("Copy code", toast "Code copied"). The empty list shows it too.</span></li>
+      <li><span class="n">2</span><span><b>Alert above the table</b>, owners only. Requests aren't rows, so every row opens a customer page.</span></li>
+      <li><span class="n">3</span><span><b>Review dialog</b> steps through one request at a time. Fixed body height so buttons don't move. Each action toasts with Undo; it closes after the last.</span></li>
+      <li><span class="n">4</span><span><b>Who pays</b> is a ghost select for the owner while the customer pays, is linked and hasn't churned. "You" opens the existing Switch to Partner pays confirmation.</span></li>
+    </ol>
+    <div class="why">
+      <p><b>Credit and MRR only from here.</b>Won is a record of what happened, not a claim on money. That's why CRM wins need no signature from the business.</p>
+      <p><b>Planned:</b> a business hired in Connect is approved without review when it links. Not in the prototype.</p>
+    </div>
+  </div>
+</section>
+
+<!-- REFERENCE -->
+<div class="section-head"><h2>Reference</h2><p>For building and testing</p></div>
+<div class="ref">
+  <div>
+    <h3>Message kinds</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Kind</th><th>From</th><th>Renders</th></tr></thead>
+      <tbody>
+        <tr><td><code>brief</code></td><td>them</td><td>Brief card</td></tr>
+        <tr><td><code>bid</code></td><td>you</td><td>Quote card</td></tr>
+        <tr><td><code>shared</code></td><td>them</td><td>Line: shared their contact details</td></tr>
+        <tr><td><code>text</code></td><td>either</td><td>Reply card</td></tr>
+        <tr><td><code>hire-sent</code></td><td>you</td><td>Line: You asked X to confirm the hire</td></tr>
+        <tr><td><code>hire-withdrawn</code></td><td>you</td><td>Line: Hire request withdrawn</td></tr>
+        <tr><td><code>hire-declined</code></td><td>them</td><td>Line: X declined the hire request</td></tr>
+        <tr><td><code>hired</code></td><td>them</td><td>Line: X hired you. The fold splits here.</td></tr>
+        <tr><td><code>hired-other</code></td><td>them</td><td>Line: [Hire request closed ·] X hired another partner</td></tr>
+      </tbody></table></div>
+  </div>
+  <div>
+    <h3>Data model</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Field</th><th>Shape</th></tr></thead>
+      <tbody>
+        <tr><td><code>lead.source</code></td><td><code>'connect' | 'crm'</code>, absent means Connect</td></tr>
+        <tr><td><code>lead.closed</code></td><td><code>{ stage, reason? } | null</code></td></tr>
+        <tr><td><code>lead.hireRequest</code></td><td><code>{ at } | null</code></td></tr>
+        <tr><td><code>lead.customerMatch</code></td><td><code>'yes' | 'no' | undefined</code></td></tr>
+        <tr><td><code>lead.customerId</code></td><td>id or null</td></tr>
+        <tr><td><code>lead.createdCustomer</code></td><td>boolean; decides what reopening removes</td></tr>
+        <tr><td><code>lead.organization</code></td><td>CRM leads, for matching</td></tr>
+        <tr><td><code>customer.source</code></td><td><code>'connect' | 'own' | 'crm'</code></td></tr>
+        <tr><td><code>customer.leadIds</code></td><td>Oldest first; the latest Connect lead's thread is Messages</td></tr>
+        <tr><td><code>customer.billingSwitch</code></td><td><code>{ to, from } | null</code></td></tr>
+        <tr><td><code>project.hireRequest</code></td><td>Partner id, business side</td></tr>
+        <tr><td><code>project.hireRequestAt</code></td><td>When it was sent</td></tr>
+      </tbody></table></div>
+  </div>
+  <div class="wide">
+    <h3>States by screen</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Screen</th><th>States</th></tr></thead>
+      <tbody>
+        <tr><td>Lead · Connect</td><td>Anonymous · named · match question · hire request out · Won · Lost (reason) · Junk / Closed · read-only for roles other than Sales and Owner</td></tr>
+        <tr><td>Lead · CRM</td><td>Open (stage badge, "Set in Frappe CRM" on hover) · Won (Customer field) · reopened. Tabs: Follow-ups, Activity, Notes; opens on Follow-ups.</td></tr>
+        <tr><td>Leads list</td><td>Open leads (default) · Needs reply · All leads · caught up ("No one is waiting on a reply") · no match · filtered by probability or source</td></tr>
+        <tr><td>Customer</td><td>Onboarding, Messages first · Live, Sites first · Churned · not linked yet · Partner pays waiting · CRM customer, no Messages</td></tr>
+        <tr><td>Customers list</td><td>Requests waiting (owner) · none · Needs reply · empty, shows the partner code · no match</td></tr>
+        <tr><td>Review dialog</td><td>One request · several, stepping · last handled, closes</td></tr>
+        <tr><td>Business project</td><td>Choosing with a hire request on top · hired (cleared) · declined (cleared)</td></tr>
+      </tbody></table></div>
+  </div>
+  <div>
+    <h3>Copy</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Where</th><th>Text</th></tr></thead>
+      <tbody>
+        <tr><td>Toasts</td><td>Sent to Northwind · Hire request withdrawn (Undo) · Linked to Halcyon · Coastal Traders linked (Undo) · Elmwood Retail declined (Undo) · Code copied</td></tr>
+        <tr><td>Panel row</td><td>Hire request · Waiting for Northwind · Withdraw</td></tr>
+        <tr><td>Who pays</td><td>The customer · You (Partner pays) · You from 1 Nov · waiting</td></tr>
+        <tr><td>Hire dialog</td><td>Hire [name] · I agree to these terms of engagement · Agree to the terms to hire · Cancel or Decline request · Hire</td></tr>
+        <tr><td>After the hire</td><td>What made you choose them? · Price · Timeline · Their profile · How they replied · Other · Skip · Send</td></tr>
+        <tr><td>Request alert</td><td>Software@Work asked you to confirm the hire · 2:10 pm · Review · Requested</td></tr>
+        <tr><td>Business task</td><td>Copy the partner code</td></tr>
+        <tr><td>Terms</td><td>"Partner code" on both sides. "Starter Packs", not "go-live". Never say Frappe implements.</td></tr>
+      </tbody></table></div>
+  </div>
+  <div>
+    <h3>Edge cases</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Case</th><th>Behavior</th></tr></thead>
+      <tbody>
+        <tr><td>Lost with a request out</td><td>Withdrawn automatically, line in the thread</td></tr>
+        <tr><td>Won, match unanswered</td><td>New customer; merge later</td></tr>
+        <tr><td>Own customer wins a brief</td><td>Project added; it gains a Messages tab</td></tr>
+        <tr><td>Another partner hired</td><td>Lost, "Lost to competitor"; thread closed. See Hiring, every case.</td></tr>
+        <tr><td>Brief withdrawn</td><td>Lost or Closed, to confirm with Frappe</td></tr>
+      </tbody></table></div>
+  </div>
+  <div>
+    <h3>Open questions</h3>
+    <ul class="plain">
+      <li><b>Connect leads with CRM sync on.</b> Their stage is read-only, so no hire request. Should Won still send it?</li>
+      <li><b>Switching back to Customer pays.</b> Not in the select yet.</li>
+      <li><b>One partner code or one per project.</b> Which does Frappe Cloud issue?</li>
+      <li><b>Merging customers</b> after an unanswered match. Not designed.</li>
+      <li><b>Change partner.</b> What happens to sessions already run, money already paid, and the old partner's say.</li>
+    </ul>
+  </div>
+  <div>
+    <h3>Prototype files</h3>
+    <div class="tbl"><table>
+      <tbody>
+        <tr><td><code>composables/useLeads.js</code></td><td>Sources, matching, win, reopen, hire request, threads</td></tr>
+        <tr><td><code>stores/partnerAccount.js</code></td><td>Won customers, attached leads, threads, billing</td></tr>
+        <tr><td><code>pages/LeadPage.vue</code></td><td>Stage menu, dialogs, match, panel</td></tr>
+        <tr><td><code>pages/LeadsPage.vue</code></td><td>Views, filters, Hire sent</td></tr>
+        <tr><td><code>pages/CustomerPage.vue</code></td><td>Messages, Leads, Who pays</td></tr>
+        <tr><td><code>pages/CustomersPage.vue</code></td><td>Requests alert, Review dialog</td></tr>
+        <tr><td><code>pages/ProjectPage.vue</code></td><td>Business hire request bar</td></tr>
+        <tr><td><code>components/ProjectBids.vue</code></td><td>Quotes table, Requested badge</td></tr>
+        <tr><td><code>components/HirePartnerDialog.vue</code></td><td>Terms, Hire, the one question</td></tr>
+        <tr><td><code>components/DemoSwitch.vue</code></td><td>Prototype only: plays the other side</td></tr>
+      </tbody></table></div>
+  </div>
+</div>
+</div>
+
+<script>
+(() => {
+  const svg = document.getElementById('edges');
+  // [from, to, label, dashed]
+  const edges = [
+    ['b0', 'b1'], ['b0', 'p0', 'brief'], ['b1', 'p1'], ['p0', 'p1'],
+    ['p1', 'p2'], ['p2', 'p3'], ['p3', 'b4', 'request'], ['b4', 'p5', 'hired'],
+    ['crm', 's5', 'sync', true], ['p5', 's5'], ['s5', 'p6'], ['p6', 'p7'], ['b7', 'p7'], ['p7', 's7'],
+  ];
+  const box = (id) => { const el = document.getElementById(id); return { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight }; };
+  const NS = 'http://www.w3.org/2000/svg';
+  function draw() {
+    svg.querySelectorAll('path.edge, text').forEach((n) => n.remove());
+    for (const [f, t, label, dash] of edges) {
+      const a = box(f), b = box(t);
+      let d, lx, ly;
+      if (Math.abs(a.x - b.x) < 20) {
+        const down = b.y > a.y, x = a.x + a.w / 2;
+        const y1 = down ? a.y + a.h : a.y, y2 = down ? b.y - 3 : b.y + b.h + 3;
+        d = `M${x} ${y1} L${x} ${y2}`; lx = x + 8; ly = (y1 + y2) / 2 + 4;
+      } else {
+        const x1 = a.x + a.w, y1 = a.y + a.h / 2, x2 = b.x - 3, y2 = b.y + b.h / 2, m = (x1 + x2) / 2;
+        d = `M${x1} ${y1} C${m} ${y1} ${m} ${y2} ${x2} ${y2}`; lx = m + 6; ly = (y1 + y2) / 2 - 6;
+      }
+      const p = document.createElementNS(NS, 'path');
+      p.setAttribute('d', d); p.setAttribute('class', 'edge' + (dash ? ' dash' : '')); p.setAttribute('marker-end', 'url(#ah)');
+      svg.appendChild(p);
+      if (label) {
+        const tx = document.createElementNS(NS, 'text');
+        tx.setAttribute('x', lx); tx.setAttribute('y', ly); tx.textContent = label; svg.appendChild(tx);
+      }
+    }
+  }
+  draw();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+
+  // Drag to pan with a mouse; a drag doesn't count as a click on a step.
+  const sc = document.getElementById('scroller');
+  let down = false, moved = false, sx = 0, sl = 0;
+  sc.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse' || e.button !== 0) return; down = true; moved = false; sx = e.clientX; sl = sc.scrollLeft; });
+  window.addEventListener('pointermove', (e) => { if (!down) return; const dx = e.clientX - sx; if (Math.abs(dx) > 4) { moved = true; sc.classList.add('drag'); } if (moved) sc.scrollLeft = sl - dx; });
+  window.addEventListener('pointerup', () => { down = false; sc.classList.remove('drag'); });
+  sc.addEventListener('click', (e) => { if (moved) { e.preventDefault(); moved = false; } }, true);
+  sc.addEventListener('dragstart', (e) => e.preventDefault());
+})();
+</script>
+</body>
+</html>

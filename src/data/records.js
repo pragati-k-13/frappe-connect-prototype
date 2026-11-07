@@ -69,7 +69,6 @@ const CUSTOMER_FACTS = {
   silverpine: { phone: '+91 98201 77310', industry: 'Food and beverage', country: 'India', owner: 'farhan-qureshi' },
   bluecrest: { phone: '+91 98923 10046', industry: 'Healthcare', country: 'India', owner: 'rahul-verma' },
   'rivermark-textiles': { phone: '+91 98336 90218', industry: 'Manufacturing', country: 'India', owner: 'rahul-verma' },
-  'coastal-traders': { phone: '', industry: 'Distribution', country: 'India', owner: 'rahul-verma' },
   'granite-works': { phone: '+91 98210 66503', industry: 'Manufacturing', country: 'India', owner: 'farhan-qureshi' },
   aurelia: { phone: '+973 3390 2210', industry: 'Retail', country: 'Bahrain', owner: 'sana-malik' },
   'brightwell-foods': { phone: '+973 3655 1408', industry: 'Food and beverage', country: 'Bahrain', owner: 'sana-malik' },

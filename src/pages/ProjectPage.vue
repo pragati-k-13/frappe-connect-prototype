@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Badge, Button, Dialog, Dropdown, ScrollArea, toast } from 'frappe-ui'
+import { Alert, Badge, Button, Dialog, Dropdown, ScrollArea, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import FeedbackDialog from '../components/FeedbackDialog.vue'
 import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
@@ -18,7 +18,7 @@ import PackWelcomeDialog from '../components/PackWelcomeDialog.vue'
 import BookSlotDialog from '../components/BookSlotDialog.vue'
 import RatePartnerDialog from '../components/RatePartnerDialog.vue'
 import IconMore from '~icons/lucide/ellipsis'
-import { implementerFor, isFrappe } from '../data/partners'
+import { PARTNERS, implementerFor, isFrappe } from '../data/partners'
 import { DEFAULT_REGION, STARTER_PACKS, checkoutFor, marketFor } from '../data/packs'
 import {
   FRAPPE_CLOUD_PARTNER_URL,
@@ -227,9 +227,9 @@ const copyCode = async (task) => {
   const code = partnerCodeFor(project.value, partner.value)
   try {
     await navigator.clipboard.writeText(code)
-    toast.success('Referral code copied', { description: code })
+    toast.success('Partner code copied', { description: code })
   } catch {
-    toast.info(`Your referral code is ${code}`, {
+    toast.info(`Your partner code is ${code}`, {
       description: 'Your browser blocked the clipboard. Copy it from here.',
     })
   }
@@ -295,8 +295,12 @@ const chosenBid = computed(
   () => (project.value?.bids ?? []).find((b) => b.partnerId === chosen.value?.id) ?? null,
 )
 
+// Fixed when the dialog opens, so the footer doesn't change while it fades
+// out after a decline clears the request.
+const chosenFromRequest = ref(false)
 const choose = (partnerRecord) => {
   chosen.value = partnerRecord
+  chosenFromRequest.value = project.value?.hireRequest === partnerRecord.id
   hiring.value = true
 }
 
@@ -313,6 +317,32 @@ const hire = () => {
 }
 
 const recordWhy = (why) => store.setChooseReason(project.value.id, why)
+
+// ── A partner asking to be hired ────────────────────────────────────────────
+// When the business agreed outside Connect, the partner sends the hire here,
+// since this is where the terms are agreed. Review opens the same hire dialog.
+const requester = computed(() =>
+  project.value?.hireRequest && !project.value.partnerId ? PARTNERS.find((p) => p.id === project.value.hireRequest) ?? null : null,
+)
+const requestedAt = computed(() => {
+  const at = project.value?.hireRequestAt
+  if (!at) return ''
+  const d = new Date(at)
+  return new Date().toDateString() === d.toDateString()
+    ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase()
+    : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+})
+// From the hire dialog's Decline request. Undo rather than a confirmation:
+// declining only clears the request, and the partner stays in Interested.
+const declineRequest = () => {
+  const { id, name } = requester.value
+  const projectId = project.value.id
+  store.declineHire(projectId)
+  toast(`Declined ${name}’s request`, {
+    id: `decline-${id}`,
+    action: { label: 'Undo', onClick: () => store.requestHire(projectId, id) },
+  })
+}
 
 // ── Moving on ───────────────────────────────────────────────────────────────
 // Optional tasks do not hold the step up — see `isStageDone`.
@@ -403,6 +433,13 @@ const complete = () => {
 
             <template v-else-if="stage">
               <div :class="draft ? 'mt-10' : ''">
+                <!-- frappe-ui Alert, as the partner side's link requests use. -->
+                <Alert
+                  v-if="requester"
+                  class="mb-6"
+                  :title="`${requester.name} asked you to confirm the hire${requestedAt ? ` · ${requestedAt}` : ''}`"
+                  :primary-action="{ label: 'Review', onClick: () => choose(requester) }"
+                />
                 <ProjectStages :project="project" @act="act" @terms="termsOpen = true" />
               </div>
 
@@ -567,6 +604,8 @@ const complete = () => {
       v-model:open="hiring"
       :partner="chosen"
       :bid="chosenBid"
+      :from-request="chosenFromRequest"
+      @decline="declineRequest"
       @hire="hire"
       @why="recordWhy"
     />

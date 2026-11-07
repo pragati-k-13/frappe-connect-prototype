@@ -96,6 +96,44 @@ export const partnerThreads = () => [
       },
     ],
   },
+  // From an address at a company the firm already linked itself, so the lead
+  // asks whether it's that customer. See "Lead to customer" in the plan.
+  {
+    id: 'pv-halcyon',
+    stage: 'Negotiation',
+    owner: 'anuja-deshmukh',
+    probability: 'Hot',
+    project: 'Payroll for three new stores',
+    brief: {
+      scope:
+        'We are opening three stores in Pune and want their staff on payroll and attendance in the same system as our Mumbai stores, with shift rosters the store managers can change themselves.',
+      modules: { hrms: ['payroll', 'attendance'] },
+      budget: 'inr-1',
+      country: 'India',
+      segments: ['Retail'],
+      employees: '51 to 200',
+      cities: [],
+      tiers: [],
+      workStyle: '',
+      timeline: 'quarter',
+      operations: 'disconnected',
+      apps: [],
+      problems: ['manual-work'],
+    },
+    company: { name: 'Halcyon Retail', contact: 'Ritu Sharma', email: 'ritu@halcyon.example', phone: '+91 98200 41120' },
+    messages: [
+      { id: 'h1', from: 'them', kind: 'brief', at: hoursAgo(52) },
+      {
+        id: 'h2',
+        from: 'you',
+        kind: 'bid',
+        at: hoursAgo(40),
+        bid: { price: '₹2,40,000', weeks: 4, note: 'Payroll and attendance for the three stores, with rosters store managers can edit.' },
+      },
+      { id: 'h3', from: 'them', kind: 'shared', at: hoursAgo(30) },
+      { id: 'h4', from: 'them', kind: 'text', at: hoursAgo(7), body: '<p>Can the Pune stores go live before the Mumbai payroll run on the 1st?</p>' },
+    ],
+  },
   {
     id: 'pv-anonymous',
     stage: 'Proposal/Quotation',
@@ -272,3 +310,48 @@ export const beginnerThreads = () => [
     ],
   },
 ]
+
+// ── Leads from the firm's CRM ───────────────────────────────────────────────
+// Only with CRM sync on. The business isn't on Connect, so there's no thread:
+// a CRM lead is the deal's facts, and its stage belongs to the CRM. Won there
+// makes the customer here. `organization` is the CRM's own, which settles the
+// match to an existing customer without asking.
+// ⚠️ Invented, like the rest.
+export const crmLeads = (tier) =>
+  tier === 'beginner'
+    ? [
+        {
+          id: 'crm-dune',
+          source: 'crm',
+          stage: 'Proposal/Quotation',
+          owner: 'yusuf-karim',
+          project: 'Fleet and delivery tracking',
+          need: 'Twelve trucks across Bahrain. Dispatch is on WhatsApp and proof of delivery is a photo nobody files.',
+          company: { name: 'Dune Logistics', contact: 'Ali Mansoor', email: 'ali@dune.example', phone: '+973 3644 0912' },
+          at: hoursAgo(30),
+        },
+      ]
+    : [
+        {
+          id: 'crm-orchid',
+          source: 'crm',
+          stage: 'Negotiation',
+          owner: 'rahul-verma',
+          probability: 'Warm',
+          project: 'Point of sale for 14 outlets',
+          need: 'Replacing a billing app at 14 garment outlets, with stock moving between them every evening.',
+          company: { name: 'Orchid Apparel', contact: 'Sneha Pillai', email: 'sneha@orchid.example', phone: '+91 98211 40327' },
+          at: hoursAgo(26),
+        },
+        {
+          id: 'crm-granite',
+          source: 'crm',
+          stage: 'Qualification',
+          owner: 'farhan-qureshi',
+          project: 'Second plant on ERPNext',
+          need: 'A second stone-cutting plant in Rajasthan, on the same site as the first.',
+          company: { name: 'Granite Works', contact: 'Rohan Das', email: 'rohan@granite.example', phone: '+91 98210 66503' },
+          organization: 'Granite Works',
+          at: hoursAgo(75),
+        },
+      ]

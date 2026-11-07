@@ -62,7 +62,12 @@ const rows = computed(() =>
     .sort((a, b) => tierRank(a.partner) - tierRank(b.partner) || a.amount - b.amount),
 )
 
-const shortlisted = computed(() => rows.value.filter((r) => r.state === 'shortlisted'))
+// The firm that asked to be hired goes first, so the bar above has its row.
+const shortlisted = computed(() =>
+  rows.value
+    .filter((r) => r.state === 'shortlisted')
+    .sort((a, b) => (b.partnerId === props.project.hireRequest) - (a.partnerId === props.project.hireRequest)),
+)
 // ⚠️ NOT-INTERESTED LEAVES THE LIST. A firm you turned down is a decision
 // made, and a row that stays to say so is one more line to read past while
 // comparing the rest. The way back is the Undo on the toast; the quote itself
@@ -187,6 +192,7 @@ const moreFor = (row) => [
                       {{ row.partner.name }}
                     </RouterLink>
                     <TierIcon :tier="row.partner.tier" />
+                    <Badge v-if="project.hireRequest === row.partnerId" theme="blue" label="Requested" />
                   </span>
                   <span class="mt-1 block truncate text-base text-ink-gray-6">
                     {{ cityOf(row.partner) }}
@@ -208,9 +214,11 @@ const moreFor = (row) => [
                   <IconMessage class="size-4" />
                 </Button>
                 <Badge v-if="project.partnerId === row.partnerId" theme="green" label="Hired" />
+                <!-- Subtle: one row's Hire isn't the page's main action, and
+                     several solid buttons in a column fight each other. -->
                 <Button
                   v-else-if="!project.partnerId"
-                  variant="solid"
+                  variant="subtle"
                   label="Hire"
                   @click="emit('choose', row.partner)"
                 />

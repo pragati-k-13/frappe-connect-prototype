@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   Avatar,
@@ -7,8 +7,10 @@ import {
   Button,
   Dialog,
   Dropdown,
+  Select,
   TabList,
   TabPanel,
+  ScrollArea,
   Tabs,
   TabTrigger,
   Textarea,
@@ -22,15 +24,28 @@ import FollowUps from '../components/FollowUps.vue'
 import ActivityFeed from '../components/ActivityFeed.vue'
 import PanelSection from '../components/PanelSection.vue'
 import PanelField from '../components/PanelField.vue'
+import PanelLink from '../components/PanelLink.vue'
+import LeadsIcon from '../components/icons/LeadsIcon.vue'
+import ThreadMessages from '../components/ThreadMessages.vue'
+import ReplyBox from '../components/ReplyBox.vue'
+import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
+import { crmLabel, threadFor, useLeads } from '../composables/useLeads'
+import { PARTNER_SELF } from '../data/partnerView'
+import { PARTNERS } from '../data/partners'
+import { logoFor } from '../data/logos'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { CRMS, customerInvoices } from '../data/partnerAccount'
-import { TIERS, firmFor, longDate, money } from '../data/partnership'
+import { TIERS, firmFor, longDate, money, shortDate } from '../data/partnership'
 
 // SCREEN — one customer, laid out like a deal in Frappe CRM: owner and stage
 // in the top bar, the record in tabs, and a side panel of facts you edit in
 // place. The same tabs a lead has (Follow-ups, Activity, Notes), so a lead
 // that's won keeps its history. See PARTNER-VIEW-PLAN.md §2.
+//
+// A customer who came through Connect has Messages: the same thread as the
+// lead it was won from, carrying on after the hire. It opens first while
+// they're Onboarding, since that's where the work is.
 
 const route = useRoute()
 const router = useRouter()
@@ -39,6 +54,9 @@ const account = usePartnerAccountStore()
 const firm = computed(() => firmFor(store.partnerTier))
 
 const c = computed(() => account.customers.find((x) => x.id === route.params.id) ?? null)
+const leads = useLeads()
+// Customers with a Connect thread: came through Connect, or won from a brief.
+const thread = computed(() => (c.value ? threadFor(c.value, leads.value, account) : null))
 
 const isOwner = computed(() => store.partnerRole === 'owner')
 const canEdit = computed(() => ['owner', 'sales'].includes(store.partnerRole))
@@ -78,12 +96,12 @@ const ownerMenu = computed(() =>
 // ── Tabs ────────────────────────────────────────────────────────────────────
 const tabs = computed(() =>
   [
+    thread.value && { value: 'messages', label: 'Messages', icon: 'lucide-message-square' },
     { value: 'sites', label: 'Sites', icon: 'lucide-globe' },
     seesInvoices.value && { value: 'invoices', label: 'Invoices', icon: 'lucide-receipt' },
     { value: 'followups', label: 'Follow-ups', icon: 'lucide-phone' },
     { value: 'activity', label: 'Activity', icon: 'lucide-history' },
     { value: 'notes', label: 'Notes', icon: 'lucide-notebook-pen' },
-    c.value?.source === 'connect' && { value: 'connect', label: 'Connect', icon: 'lucide-message-square' },
   ].filter(Boolean),
 )
 // On a phone the side panel is a tab of its own, so the record comes first
@@ -92,9 +110,37 @@ const PHONE = '(max-width: 1023px)'
 const mq = typeof window !== 'undefined' ? window.matchMedia(PHONE) : null
 const narrow = ref(mq?.matches ?? false)
 mq?.addEventListener('change', (e) => (narrow.value = e.matches))
-watch(narrow, (v) => !v && tab.value === 'details' && (tab.value = 'sites'))
-const tab = ref('sites')
-watch(() => route.params.id, () => (tab.value = 'sites'))
+const firstTab = () =>
+  thread.value && (route.query.tab === 'messages' || c.value?.stage === 'onboarding') ? 'messages' : 'sites'
+const tab = ref(firstTab())
+watch(narrow, (v) => !v && tab.value === 'details' && (tab.value = firstTab()))
+watch(() => route.params.id, () => (tab.value = firstTab()))
+
+// ── Messages ────────────────────────────────────────────────────────────────
+const self = computed(() =>
+  store.partnerTier === 'beginner' ? { name: firm.value.name } : PARTNERS.find((p) => p.id === PARTNER_SELF.partnerId),
+)
+const selfLogo = computed(() => (store.partnerTier === 'beginner' ? null : logoFor(PARTNER_SELF.partnerId)))
+const authorOf = (m) => (m.from === 'you' ? (m.by ? nameOf(m.by) : PARTNER_SELF.person) : thread.value?.company?.contact || c.value.name)
+const reply = ref(null)
+const briefOpen = ref(false)
+// The thread reads from the bottom, like the lead page.
+const feed = ref(null)
+const toBottom = () =>
+  nextTick(() => {
+    const el = feed.value?.$el?.querySelector('[data-reka-scroll-area-viewport]') ?? null
+    if (el) el.scrollTop = el.scrollHeight
+  })
+watch(tab, (t) => t === 'messages' && toBottom(), { immediate: true })
+function send(body) {
+  const m = { id: `m-${Date.now()}`, from: 'you', kind: 'text', at: Date.now(), body, by: me.value }
+  if (thread.value.lead) thread.value.lead.messages.push(m)
+  else account.postToCustomer(c.value.id, m)
+  toBottom()
+}
+// The leads this customer was won from, newest last.
+const wonLeads = computed(() => (c.value?.leadIds ?? []).map((id) => leads.value.find((l) => l.id === id)).filter(Boolean))
+const SOURCE = { connect: 'Connect', own: 'Added by you' }
 
 // Sites linked by an approved request, before their first bill.
 const sites = computed(() =>
@@ -170,7 +216,6 @@ const linked = computed(() => Boolean(c.value?.linked || c.value?.sites.length))
 const moreMenu = computed(() =>
   [
     isOwner.value && linked.value && { label: 'Unlink', icon: 'lucide-unlink', theme: 'red', onClick: unlink },
-    canEdit.value && !linked.value && { label: 'Delete', icon: 'lucide-trash-2', theme: 'red', onClick: remove },
   ].filter(Boolean),
 )
 function unlink() {
@@ -186,17 +231,24 @@ function unlink() {
     },
   })
 }
-function remove() {
-  const { id, name } = c.value
-  account.removeCustomer(id)
-  router.push('/connect/customers')
-  toast.success(`${name} deleted`, { action: { label: 'Undo', onClick: () => account.restoreCustomer(id) } })
-}
 
 // ── Switching to Partner pays ───────────────────────────────────────────────
 // The owner starts it; the customer confirms in Frappe Cloud, since their
 // billing moves away from them. See the plan's switching flow.
 const switching = ref(false)
+// Who pays is changed on its own row, like any other field. Picking "You"
+// opens the confirmation; the row then shows the switch waiting on them.
+const canSwitch = computed(
+  () => isOwner.value && !partnerPays.value && !c.value?.billingSwitch && c.value?.stage !== 'churned' && Boolean(c.value?.linked),
+)
+const PAYS_OPTIONS = [
+  { label: 'The customer', value: 'customer' },
+  { label: 'You (Partner pays)', value: 'partner' },
+]
+const pickPays = (v) => v === 'partner' && (switching.value = true)
+const paysText = computed(() =>
+  c.value?.billingSwitch ? `You from ${shortDate(c.value.billingSwitch.from)} · waiting` : partnerPays.value ? 'You' : 'The customer',
+)
 const discount = computed(() => TIERS[store.partnerTier === 'beginner' ? 'bronze' : 'silver'].discount)
 function requestSwitch() {
   account.requestPartnerPays(c.value.id)
@@ -237,7 +289,12 @@ function requestSwitch() {
       <!-- ── The main area ─────────────────────────────────────────────── -->
       <!-- The tabs row runs edge to edge, as in Frappe CRM: padding is on the
            tabs and the panels, not on this column. -->
-      <div class="min-w-0 shrink-0 pb-6 lg:flex-1 lg:shrink lg:overflow-y-auto">
+      <!-- Messages is the lead page's thread exactly: its own scroll and the
+           reply box docked under it. The other tabs scroll the column. -->
+      <div
+        class="flex min-w-0 shrink-0 flex-col lg:min-h-0 lg:flex-1 lg:shrink"
+        :class="tab === 'messages' ? 'lg:overflow-hidden' : 'pb-6 lg:overflow-y-auto'"
+      >
         <Tabs v-model="tab">
           <!-- Helpdesk's tabs bar: `md`, an icon with each, the rule edge to
                edge. The scroll sits on a wrapper, not the TabList: the
@@ -341,18 +398,30 @@ function requestSwitch() {
             </div>
           </TabPanel>
 
-          <TabPanel value="connect" class="px-3 sm:px-10">
-            <div>
-              <div class="mb-3 mt-3 flex items-center justify-between gap-3 sm:mb-4 sm:mt-8">
-              <h2 class="flex h-8 items-center text-2xl-semibold text-ink-gray-8">Connect</h2>
-            </div>
-              <div>
-                <p class="text-sm text-ink-gray-5">Project</p>
-                <p class="mt-1 text-base text-ink-gray-8">{{ c.project }}</p>
-              </div>
-            </div>
-          </TabPanel>
         </Tabs>
+        <template v-if="tab === 'messages' && thread">
+          <ScrollArea ref="feed" class="min-h-0 flex-1">
+            <div class="px-3 pb-6 sm:px-10">
+              <ThreadMessages
+                :messages="thread.messages"
+                :company="thread.company"
+                :project="thread.project"
+                :brief="thread.brief"
+                :self="self"
+                :self-logo="selfLogo"
+                :author-of="authorOf"
+                :can-reply="canEdit"
+                fold
+                @quote="(text) => reply?.quote(text)"
+                @read-brief="briefOpen = true"
+              />
+              <EmptyState v-if="!thread.messages.length" icon="lucide-message-square" title="No messages yet" />
+            </div>
+          </ScrollArea>
+          <div v-if="canEdit" class="shrink-0 px-3 py-2.5 sm:px-10">
+            <ReplyBox ref="reply" :placeholder="`Reply to ${thread.company.contact || c.name}…`" @send="send" />
+          </div>
+        </template>
       </div>
 
       <!-- ── The side panel ────────────────────────────────────────────── -->
@@ -400,7 +469,7 @@ function requestSwitch() {
             </PanelField>
             <template v-if="group.title === 'Details'">
               <PanelField label="Source">
-                <span class="px-2">{{ c.source === 'connect' ? 'Connect' : 'Added by you' }}</span>
+                <span class="px-2">{{ SOURCE[c.source] ?? crmLabel(account) }}</span>
               </PanelField>
               <!-- Phones only: the top bar has no room for the owner. -->
               <PanelField class="sm:hidden" label="Owner">
@@ -415,21 +484,31 @@ function requestSwitch() {
             </p>
           </PanelSection>
 
+          <PanelSection v-if="wonLeads.length" title="Leads">
+            <PanelField v-for="l in wonLeads" :key="l.id" :label="l.stage">
+              <PanelLink :label="l.project" :to="`/connect/leads/${l.id}`">
+                <template #icon><LeadsIcon /></template>
+              </PanelLink>
+            </PanelField>
+          </PanelSection>
+
           <PanelSection title="Billing">
             <PanelField label="MRR">
               <span class="px-2 tabular-nums">{{ c.mrr ? money(c.mrr, firm.currency) : '—' }}</span>
             </PanelField>
             <PanelField label="Who pays">
-              <span class="px-2">{{ partnerPays ? 'You' : 'The customer' }}</span>
+              <Select
+                v-if="canSwitch"
+                variant="ghost"
+                model-value="customer"
+                :options="PAYS_OPTIONS"
+                @update:model-value="pickPays"
+              />
+              <span v-else class="truncate px-2">{{ paysText }}</span>
             </PanelField>
-            <p v-if="c.billingSwitch" class="px-3 text-p-sm text-ink-gray-5">You pay once they confirm in Frappe Cloud</p>
-            <div v-else-if="!partnerPays && isOwner && c.stage !== 'churned' && c.linked" class="px-3">
-              <Button label="Switch to Partner pays" @click="switching = true" />
-            </div>
             <PanelField label="Partner code">
               <span class="px-2">
                 <template v-if="c.linked">Linked {{ longDate(c.linked) }}</template>
-                <template v-else-if="c.codeShared">Shared {{ longDate(c.codeShared) }}, not linked yet</template>
                 <template v-else>Not linked yet</template>
               </span>
             </PanelField>
@@ -438,6 +517,11 @@ function requestSwitch() {
       </aside>
     </div>
 
+    <BriefDetailsDialog
+      v-if="thread?.brief"
+      v-model:open="briefOpen"
+      :brief="{ ...thread.brief, project: thread.project }"
+    />
     <Dialog v-if="c" v-model:open="switching" title="Switch to Partner pays?">
       <ul class="space-y-2 text-p-base text-ink-gray-7">
         <li>Frappe bills you for {{ c.name }} once {{ c.contact || c.name }} confirms in Frappe Cloud.</li>

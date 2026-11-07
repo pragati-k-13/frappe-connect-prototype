@@ -1727,6 +1727,55 @@ export const useConnectStore = defineStore('connect', {
       if (!project) return
       project.partnerId = partnerId
       project.termsAt = Date.now()
+      project.hireRequest = null
+      project.hireRequestAt = null
+    },
+
+    // A partner asking to be hired, once the business has agreed it outside
+    // Connect. It sits at the top of the project until they hire or decline.
+    // See "Lead to customer" in PARTNER-VIEW-PLAN.md.
+    requestHire(projectId, partnerId) {
+      const project = this.projects.find((p) => p.id === projectId)
+      if (project && !project.partnerId) {
+        project.hireRequest = partnerId
+        project.hireRequestAt = Date.now()
+      }
+    },
+    declineHire(projectId) {
+      const project = this.projects.find((p) => p.id === projectId)
+      if (project) {
+        project.hireRequest = null
+        project.hireRequestAt = null
+      }
+    },
+
+    // The demo's version: a partner can only ask a business it is already
+    // talking to, so the firm is put where it would really be first: its quote
+    // in, marked Interested, and a reply after the call. Then the request.
+    demoHireRequest(projectId, partnerId) {
+      const project = this.projects.find((p) => p.id === projectId)
+      const partner = PARTNERS.find((p) => p.id === partnerId)
+      if (!project || !partner || project.partnerId) return
+      let thread = this.threads.find((t) => t.partnerId === partnerId)
+      if (!thread) {
+        thread = briefThread(partner, project.brief ?? {})
+        this.threads.push(thread)
+      }
+      if (!(project.bids ?? []).some((b) => b.partnerId === partnerId)) {
+        const bid = { ...bidFor(partner, { country: this.company.country }), state: 'pending' }
+        ;(project.bids ??= []).push(bid)
+        thread.messages.push({ ...bidMessage(bid), at: Date.now() - 2 * 86400000 })
+      }
+      this.setBidState(projectId, partnerId, 'shortlisted')
+      thread.messages.push({
+        id: `m-hr-${Date.now()}`,
+        from: 'them',
+        at: Date.now(),
+        kind: 'text',
+        author: repFor(partner.name),
+        body: 'Good to speak today. I’ve sent the hire request, so you can confirm it here.',
+      })
+      this.requestHire(projectId, partnerId)
     },
 
     // ⚠️ SEPARATE FROM THE HIRE, and it has to be: the hire is a commitment and
