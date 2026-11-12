@@ -25,9 +25,11 @@ import ConnectShell from '../components/ConnectShell.vue'
 import { List, ListCell, ListRow } from 'frappe-ui/list'
 import CompanyDetailsDialog from '../components/CompanyDetailsDialog.vue'
 import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
-import { implementerFor, isFrappe } from '../data/partners'
+import EditRequirementsDialog from '../components/EditRequirementsDialog.vue'
+import DescriptionText from '../components/DescriptionText.vue'
+import { PARTNERS, implementerFor, isFrappe } from '../data/partners'
 import { logoFor } from '../data/logos'
-import { STATUS_LABELS, isActive, lastAt, threadStatus } from '../data/messages'
+import { STATUS_LABELS, changeLine, isActive, isUpdate, lastAt, quoteStanding, threadStatus } from '../data/messages'
 import { useConnectStore } from '../stores/connect'
 
 // SCREEN — messages. The destination the confirmed screen has been promising
@@ -44,8 +46,8 @@ const router = useRouter()
 
 // ⚠️ A PARTNER, OR FRAPPE. A Starter Pack's thread is with Frappe's own team —
 // Frappe implements packs itself — and `FRAPPE_TEAM` carries the name, city and
-// response time the header reads. It has no profile, so View profile is
-// partner-only below.
+// response time the header reads. It has no profile, so the header's name
+// links to a profile for partners only.
 const partnerOf = (id) => implementerFor(id)
 
 // Newest conversation first, which is the order an inbox is read in.
@@ -224,6 +226,8 @@ const preview = (thread) => {
                 m.brief.project
               : asText(m.body)
   if (m.kind === 'company') return `${companyName.value} · shared`
+  if (m.kind === 'confirmed') return 'Confirmed their quote'
+  if (m.kind === 'hire-declined') return 'You declined the hire request'
   return m.from === 'you' ? `You: ${body}` : body
 }
 
@@ -254,6 +258,45 @@ const details = ref(false)
 const briefDetails = ref(null)
 // False when opened from the Requirements row, which sits under the brief.
 const briefOmit = ref([])
+// The version an update replaced, so the dialog can strike the old values.
+const briefPrevious = ref(null)
+const openBrief = (brief, { omit = [], previous = null } = {}) => {
+  briefOmit.value = omit
+  briefPrevious.value = previous
+  briefDetails.value = brief
+}
+
+// ── Editing sent requirements ───────────────────────────────────────────────
+// docs/edit-requirements.md. The business edits from the Requirements dialog;
+// a pack booking's requirements aren't editable, and a hired project's are
+// locked, with the dialog saying why.
+const briefProject = computed(() => store.projects.find((p) => p.id === briefDetails.value?.projectId) ?? null)
+const canEdit = computed(() => Boolean(briefProject.value && !briefDetails.value?.packs && !briefProject.value.partnerId))
+const lockNote = computed(() => {
+  const p = briefProject.value
+  if (!p?.partnerId || briefDetails.value?.packs) return ''
+  const hired = PARTNERS.find((x) => x.id === p.partnerId)
+  return `Hired. Changes go through ${hired?.name ?? 'your partner'} now`
+})
+const editing = ref(null)
+const startEdit = () => {
+  editing.value = briefProject.value?.id ?? null
+  briefDetails.value = null
+}
+const onSaved = ({ sent }) => {
+  toast.success(`Sent to ${sent} ${sent === 1 ? 'partner' : 'partners'}`)
+  toBottom()
+}
+
+// The one question after an edit: shown under the newest update in this
+// thread, once, until answered or dismissed.
+const EDIT_REASONS = ['A partner asked', 'Our needs changed', 'Fixing a mistake', 'Other']
+const reasonFor = (m) => {
+  const p = store.projects.find((x) => x.id === m.brief?.projectId)
+  const ask = p?.editReasonAsk
+  if (!ask || ask.answered || m.from !== 'you' || m.at < ask.at) return null
+  return open.value.messages.findLast(isUpdate) === m ? p : null
+}
 
 const companyName = computed(() => store.company.name || store.viewer.company)
 
@@ -604,46 +647,49 @@ watch(
       <!-- ── The conversation ───────────────────────────────────────────── -->
       <section v-if="open" class="flex min-h-0 min-w-0 flex-1 flex-col">
         <header class="flex shrink-0 items-center gap-3 border-b border-outline-gray-1 px-5 py-3">
-          <Avatar
-            v-if="logo"
-            :image="logo"
-            :label="open.partner.name"
-            size="2xl"
-            shape="square"
-            class="fc-logo-avatar"
-          />
-          <Avatar v-else :label="open.partner.name" size="2xl" shape="square" />
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-base font-medium text-ink-gray-8">{{ open.partner.name }}</p>
-            <p class="mt-0.5 truncate text-p-sm text-ink-gray-5">
-              {{ open.partner.city }} · Typically {{ open.partner.responds }}
-            </p>
-          </div>
+          <!-- The logo and name are the way to the partner's profile, as a name
+               is in most messaging apps. Frappe's own team has no profile, so
+               its name isn't a link. -->
+          <component
+            :is="isFrappe(open.partner) ? 'div' : 'RouterLink'"
+            :to="isFrappe(open.partner) ? undefined : `/connect/partners/${open.partnerId}`"
+            class="flex min-w-0 items-center gap-3 rounded-4 focus-visible:ring-0 focus-visible:focus-ring"
+          >
+            <Avatar
+              v-if="logo"
+              :image="logo"
+              :label="open.partner.name"
+              size="2xl"
+              shape="square"
+              class="fc-logo-avatar"
+            />
+            <Avatar v-else :label="open.partner.name" size="2xl" shape="square" />
+            <div class="min-w-0">
+              <p class="truncate text-base font-medium text-ink-gray-8">{{ open.partner.name }}</p>
+              <p class="mt-0.5 truncate text-p-sm text-ink-gray-5">
+                {{ open.partner.city }} · Typically {{ open.partner.responds }}
+              </p>
+            </div>
+          </component>
+          <span class="flex-1" />
           <!-- ⚠️ NO HIRE BUTTON, though the design has one. Hiring is a
                comparison and lives on the project page; a thread shows one
                quote. "Compare quotes" is the way back there, and when it shows
-               it is the next step, so it takes the fill and View profile drops
-               to ghost. It sits last, at the edge, where the next step goes.
+               it is the next step, so it takes the fill. It sits last, at the
+               edge, where the next step goes.
                Hidden below `lg`, where two buttons squeeze the partner's name
                to nothing — the name is what the header is for. -->
           <!-- Hidden below `lg` like Compare quotes: the requirements are in the
                thread itself, and the partner's name needs the room. -->
           <div v-if="headerBrief" class="hidden shrink-0 lg:block">
             <Button
-              variant="ghost"
+              variant="subtle"
               size="sm"
               icon-left="lucide-file-text"
               label="Requirements"
-              @click="briefOmit = []; briefDetails = headerBrief"
+              @click="openBrief(headerBrief)"
             />
           </div>
-          <Button
-            v-if="!isFrappe(open.partner)"
-            :variant="compareProject ? 'ghost' : 'subtle'"
-            size="sm"
-            label="View profile"
-            :route="`/connect/partners/${open.partnerId}`"
-          />
           <div v-if="compareProject" class="hidden shrink-0 lg:block">
             <Button
               variant="subtle"
@@ -653,7 +699,7 @@ watch(
             />
           </div>
           <Dropdown :options="threadMenu" align="end">
-            <Button variant="ghost" size="sm" aria-label="More">
+            <Button variant="subtle" size="sm" aria-label="More">
               <template #icon><IconMore class="size-4" /></template>
             </Button>
           </Dropdown>
@@ -673,7 +719,34 @@ watch(
                  A person is a circle and a company is a square, which is the
                  shape rule the rest of the app already follows — every partner
                  logo in the listing, the profile and the inbox is square. -->
-            <template v-for="m in open.messages" :key="m.id">
+            <template v-for="(m, i) in open.messages" :key="m.id">
+            <!-- An update is an event in the thread's history, said the way
+                 the thread's other events are; the card under it is what was
+                 sent. -->
+            <template v-if="isUpdate(m)">
+              <p class="mt-6 text-center text-p-sm text-ink-gray-5">
+                <span class="text-ink-gray-7">You updated the requirements</span>
+                · {{ changeLine(m) }} · {{ time(m.at) }}
+              </p>
+              <div v-if="reasonFor(m)" class="mt-3 flex flex-wrap items-center justify-center gap-2">
+                <span class="text-p-sm text-ink-gray-6">What made you change it?</span>
+                <Button
+                  v-for="r in EDIT_REASONS"
+                  :key="r"
+                  variant="subtle"
+                  size="sm"
+                  :label="r"
+                  @click="store.recordEditReason(m.brief.projectId, r)"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon="lucide-x"
+                  aria-label="Dismiss"
+                  @click="store.recordEditReason(m.brief.projectId, null)"
+                />
+              </div>
+            </template>
             <!-- ⚠️ SHARING THE COMPANY IS A LINE, NOT A CARD. The card
                  repeated three facts the company already knows about itself;
                  what it needs from the thread is WHEN they went out and to
@@ -683,7 +756,13 @@ watch(
                  — so that moment needs a mark. Everywhere else the company went
                  with the requirements and is listed inside their card, with no
                  separate "sharing happened" line to read like an alert. -->
-            <template v-if="m.kind === 'company'">
+            <p v-if="m.kind === 'confirmed'" class="mt-6 text-center text-p-sm text-ink-gray-5">
+              <span class="text-ink-gray-7">{{ open.partner.name }}</span> confirmed their quote · {{ time(m.at) }}
+            </p>
+            <p v-else-if="m.kind === 'hire-declined'" class="mt-6 text-center text-p-sm text-ink-gray-5">
+              You declined <span class="text-ink-gray-7">{{ open.partner.name }}</span>’s hire request · {{ time(m.at) }}
+            </p>
+            <template v-else-if="m.kind === 'company'">
               <p v-if="open.broadcast" class="mt-6 text-center text-p-sm text-ink-gray-5">
                 <button
                   type="button"
@@ -817,14 +896,14 @@ watch(
                      until one of their replies is approved none of them are
                      told who sent it. The partner sees the same message. -->
                 <div v-else-if="m.kind === 'brief'" class="mt-1 max-w-xl">
-                  <p class="whitespace-pre-line text-p-base text-ink-gray-8">{{ m.brief.scope }}</p>
+                  <DescriptionText :text="m.brief.scope" :prev="m.prev?.scope ?? null" :rewritten="m.rewritten" />
                   <Button
                     class="mt-2.5"
                     variant="subtle"
                     size="sm"
                     icon-left="lucide-file-text"
                     label="Requirements"
-                    @click="briefOmit = ['description']; briefDetails = m.brief"
+                    @click="openBrief(m.brief, { omit: ['description'], previous: m.prev })"
                   />
                 </div>
 
@@ -861,7 +940,7 @@ watch(
                     variant="subtle"
                     size="sm"
                     label="View details"
-                    @click="briefOmit = []; briefDetails = m.brief"
+                    @click="openBrief(m.brief)"
                   />
                 </div>
 
@@ -924,6 +1003,12 @@ watch(
                     <p class="text-p-base text-ink-gray-6">about {{ m.bid.weeks }} weeks</p>
                   </div>
                   <p class="mt-2 text-p-base leading-relaxed text-ink-gray-6">{{ m.bid.note }}</p>
+                  <Badge
+                    v-if="quoteStanding(open.messages, i)"
+                    class="mt-3"
+                    theme="gray"
+                    :label="quoteStanding(open.messages, i) === 'replaced' ? 'Replaced' : 'Quoted before the requirements changed'"
+                  />
                 </div>
               </div>
 
@@ -1093,12 +1178,22 @@ watch(
       :with-requirements="Boolean(open?.broadcast)"
       @close="details = false"
     />
+    <EditRequirementsDialog
+      :open="Boolean(editing)"
+      :project-id="editing"
+      @update:open="!$event && (editing = null)"
+      @saved="onSaved"
+    />
     <BriefDetailsDialog
       :open="Boolean(briefDetails)"
       :brief="briefDetails"
       :omit="briefOmit"
+      :previous="briefPrevious"
       :company-name="briefCompany"
+      :editable="canEdit"
+      :lock-note="lockNote"
       own
+      @edit="startEdit"
       @update:open="!$event && (briefDetails = null)"
     />
   </ConnectShell>

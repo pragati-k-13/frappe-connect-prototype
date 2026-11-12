@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Alert, Avatar, Button, Dropdown, Select, TabButtons, TextInput } from 'frappe-ui'
+import { Alert, Avatar, Badge, Button, Dropdown, Select, TabButtons, TextInput } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -233,6 +233,8 @@ const time = (at) => {
                 >
                   {{ item.project }}
                 </span>
+                <!-- Until they confirm or requote. See docs/edit-requirements.md. -->
+                <Badge v-if="item.requirementsUpdated" class="shrink-0" theme="gray" label="Requirements updated" />
               </ListCell>
               <ListCell v-if="show('company')" class="hidden min-w-0 md:flex">
                 <span class="truncate text-base text-ink-gray-7">{{ companyName(item) }}</span>

@@ -5,6 +5,7 @@ import { Alert, Badge, Button, Dialog, Dropdown, ScrollArea, toast } from 'frapp
 import ConnectShell from '../components/ConnectShell.vue'
 import FeedbackDialog from '../components/FeedbackDialog.vue'
 import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
+import EditRequirementsDialog from '../components/EditRequirementsDialog.vue'
 import HirePartnerDialog from '../components/HirePartnerDialog.vue'
 import NewProjectDialog from '../components/NewProjectDialog.vue'
 import PackScopeDialog from '../components/PackScopeDialog.vue'
@@ -126,7 +127,7 @@ const reviewed = computed(() => store.feedback.some((f) => f.projectId === proje
 const brief = computed(() => {
   const sent = store.threads
     .flatMap((t) => t.messages ?? [])
-    .find((m) => m.brief?.projectId === project.value?.id)?.brief
+    .findLast((m) => m.brief?.projectId === project.value?.id)?.brief
   // ⚠️ A PACK'S ANSWERS COME AFTER ITS SNAPSHOT: the booking card is written
   // at checkout, and the company questions are asked once paid. So the live
   // answers go over it — the ones a pack asks, and nothing it no longer does.
@@ -202,8 +203,23 @@ const menu = computed(() => [
         { label: 'Edit draft', icon: 'lucide-pencil', onClick: () => (editing.value = true) },
         { label: 'Delete draft', icon: 'lucide-trash-2', onClick: () => (deleting.value = true) },
       ]
-    : []),
+    : sent.value
+      ? [{ label: 'Edit requirements', icon: 'lucide-pencil', onClick: () => (editingSent.value = true) }]
+      : []),
 ])
+
+// ── Editing sent requirements ───────────────────────────────────────────────
+// Custom work whose requirements went out and that has no partner yet. See
+// docs/edit-requirements.md. Locked once hired.
+const sent = computed(
+  () =>
+    project.value?.service === 'custom' &&
+    !project.value.partnerId &&
+    store.threads.some((t) => t.messages.some((m) => m.kind === 'brief' && m.brief?.projectId === project.value.id)),
+)
+const editingSent = ref(false)
+const hiredName = computed(() => (project.value?.partnerId ? PARTNERS.find((p) => p.id === project.value.partnerId)?.name : ''))
+const onRequirementsSaved = ({ sent: n }) => toast.success(`Sent to ${n} ${n === 1 ? 'partner' : 'partners'}`)
 
 // ── Acting on a task ────────────────────────────────────────────────────────
 const rating = ref(false)
@@ -599,7 +615,19 @@ const complete = () => {
       size="sm"
       :actions="[{ label: 'Delete', variant: 'solid', theme: 'red', onClick: deleteDraft }]"
     />
-    <BriefDetailsDialog v-model:open="briefOpen" :brief="brief" own />
+    <BriefDetailsDialog
+      v-model:open="briefOpen"
+      :brief="brief"
+      :editable="sent"
+      :lock-note="project?.service === 'custom' && hiredName ? `Hired. Changes go through ${hiredName} now` : ''"
+      own
+      @edit="briefOpen = false; editingSent = true"
+    />
+    <EditRequirementsDialog
+      v-model:open="editingSent"
+      :project-id="project?.id ?? null"
+      @saved="onRequirementsSaved"
+    />
     <HirePartnerDialog
       v-model:open="hiring"
       :partner="chosen"
