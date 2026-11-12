@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { Dialog } from 'frappe-ui'
+import { Dialog, ScrollArea } from 'frappe-ui'
 import IconBuilding from '~icons/lucide/building-2'
 import IconPackage from '~icons/lucide/package'
 import IconFactory from '~icons/lucide/factory'
@@ -41,6 +41,11 @@ const props = defineProps({
   // The business reading its own requirements, rather than a partner reading
   // them. Only the wording changes: "you", not "they".
   own: { type: Boolean, default: false },
+  // What the caller already shows, so the dialog doesn't repeat it:
+  //   'description'  opened from under a message, whose text it is
+  //   'facts'        the partner Lead page, whose side panel lists the short
+  //                  facts and the modules
+  omit: { type: Array, default: () => [] },
   // The company's name, when it went out with these requirements rather than
   // separately (a pack booking, a direct contact). Leads the facts.
   companyName: { type: String, default: '' },
@@ -72,8 +77,7 @@ const facts = computed(() => {
 })
 
 const modulesLine = computed(() => {
-  const m = scopeSentence(props.brief?.modules)
-  return m ? `Covers the ${m} ${m.includes(' and ') ? 'modules' : 'module'}.` : ''
+  return scopeSentence(props.brief?.modules) || ''
 })
 
 // How they run today, as a few sentences rather than three rows.
@@ -126,7 +130,7 @@ const lookingFor = computed(() =>
        about 75 characters. -->
   <Dialog
     :model-value="open"
-    :title="brief?.project || (own ? 'Your requirements' : 'Requirements')"
+    :title="own ? 'Your requirements' : 'Requirements'"
     size="md"
     @update:model-value="$emit('update:open', $event)"
   >
@@ -135,13 +139,16 @@ const lookingFor = computed(() =>
     <template #default>
       <!-- No negative margin: the pinned header has a solid background, and
            content pulled up under it loses its first line. -->
-      <div v-if="brief" class="flex flex-col gap-7">
+      <!-- A ScrollArea, as in `PackTermsDialog`: frappe-ui's scrollbar, shown
+           on scroll, in place of the browser's. -->
+      <ScrollArea v-if="brief" class="fc-scroll-dialog -mr-4 sm:-mr-6" viewport-class="pr-4 sm:pr-6">
+      <div class="flex flex-col gap-7">
         <!-- The deciding facts, straight under the title. The one loud thing
              here; everything below is quiet prose. `aria-label` names each
              icon, since the icon is the label. -->
         <!-- One per line, the card's own layout. A two-column grid wrapped
              them into uneven pairs whose columns meant nothing. -->
-        <ul class="flex flex-col gap-2 text-p-base text-ink-gray-6">
+        <ul v-if="!omit.includes('facts')" class="flex flex-col gap-2 text-p-base text-ink-gray-6">
           <li
             v-for="f in facts"
             :key="f.label"
@@ -175,14 +182,19 @@ const lookingFor = computed(() =>
           </ul>
         </section>
 
-        <section v-else class="flex flex-col gap-2">
-          <h4 class="text-base font-medium text-ink-gray-8">
-            {{ own ? 'What you need built' : 'What they need built' }}
-          </h4>
+        <!-- "Description", the word an update names when this text changes
+             (docs/edit-requirements.md). Left out when the dialog opens from
+             under the message, since there it is that message's own text. -->
+        <section v-if="!packs && !omit.includes('description')" class="flex flex-col gap-2">
+          <h4 class="text-base font-medium text-ink-gray-8">Description</h4>
           <p class="whitespace-pre-line text-p-base leading-relaxed text-ink-gray-6">
             {{ brief.scope }}
           </p>
-          <p v-if="modulesLine" class="text-p-base text-ink-gray-6">{{ modulesLine }}</p>
+        </section>
+
+        <section v-if="!packs && modulesLine && !omit.includes('facts')" class="flex flex-col gap-2">
+          <h4 class="text-base font-medium text-ink-gray-8">Modules</h4>
+          <p class="text-p-base text-ink-gray-6">{{ modulesLine }}</p>
         </section>
 
         <section v-if="today.length" class="flex flex-col gap-2">
@@ -213,6 +225,7 @@ const lookingFor = computed(() =>
           <p class="text-p-base leading-relaxed text-ink-gray-6">{{ lookingFor }}</p>
         </section>
       </div>
+      </ScrollArea>
     </template>
   </Dialog>
 </template>

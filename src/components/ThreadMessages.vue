@@ -13,7 +13,6 @@ import IconBuilding from '~icons/lucide/building-2'
 const props = defineProps({
   messages: { type: Array, required: true },
   company: { type: Object, default: null },
-  project: { type: String, default: '' },
   brief: { type: Object, default: null },
   self: { type: Object, default: null },
   selfLogo: { type: String, default: null },
@@ -45,8 +44,10 @@ const copy = (text, done) =>
   navigator.clipboard
     ? navigator.clipboard.writeText(text).then(() => toast.success(done), () => toast.error('Couldn’t copy'))
     : toast.error('Couldn’t copy')
+// The brief is a message like any other: what the business wrote is its text.
+const textOf = (m) => (m.kind === 'brief' ? (props.brief?.scope ?? '') : plain(m.body))
 const messageMenu = (m) => [
-  { label: 'Copy text', icon: 'lucide-copy', onClick: () => copy(plain(m.body), 'Copied') },
+  { label: 'Copy text', icon: 'lucide-copy', onClick: () => copy(textOf(m), 'Copied') },
   { label: 'Copy link', icon: 'lucide-link', onClick: () => copy(`${window.location.href.split('#')[0]}#msg-${m.id}`, 'Link copied') },
 ]
 </script>
@@ -100,7 +101,12 @@ const messageMenu = (m) => [
         </Avatar>
         <!-- A reply, as Helpdesk draws one: a full-width card with who and
              when on its header row, and its own actions on the right. -->
-        <div v-if="m.kind === 'text'" class="min-w-0 flex-1 rounded-5 border border-outline-gray-2">
+        <!-- The brief takes the same shape: what the business wrote, in full,
+             with the requirements they picked as a row under it. -->
+        <div
+          v-if="m.kind === 'text' || (m.kind === 'brief' && brief)"
+          class="min-w-0 flex-1 rounded-5 border border-outline-gray-2"
+        >
           <div class="flex items-center gap-1.5 py-1 pl-3 pr-1">
             <span class="truncate text-p-sm font-medium text-ink-gray-8">{{ authorOf(m) }}</span>
             <span class="text-p-sm text-ink-gray-5">·</span>
@@ -112,14 +118,25 @@ const messageMenu = (m) => [
                 icon="lucide-reply"
                 aria-label="Reply to this message"
                 tooltip="Reply"
-                @click="emit('quote', plain(m.body))"
+                @click="emit('quote', textOf(m))"
               />
               <Dropdown :options="messageMenu(m)" align="end">
                 <Button variant="ghost" icon="lucide-ellipsis" aria-label="More actions" />
               </Dropdown>
             </div>
           </div>
-          <div class="fc-message px-3 pb-3 text-p-base text-ink-gray-8" v-html="m.body" />
+          <div v-if="m.kind === 'brief'" class="px-3 pb-3">
+            <p class="whitespace-pre-line text-p-base text-ink-gray-8">{{ brief.scope }}</p>
+            <Button
+              class="mt-2.5"
+              variant="subtle"
+              size="sm"
+              icon-left="lucide-file-text"
+              label="Requirements"
+              @click="emit('read-brief')"
+            />
+          </div>
+          <div v-else class="fc-message px-3 pb-3 text-p-base text-ink-gray-8" v-html="m.body" />
         </div>
 
         <div v-else class="min-w-0 flex-1">
@@ -129,13 +146,7 @@ const messageMenu = (m) => [
             <span class="text-ink-gray-5">{{ time(m.at) }}</span>
           </p>
 
-          <div v-if="m.kind === 'brief' && brief" class="mt-1.5 w-full rounded-5 border border-outline-gray-2 p-3.5">
-            <p class="text-p-base font-medium text-ink-gray-8">{{ project }}</p>
-            <p class="mt-1.5 line-clamp-2 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7">{{ brief.scope }}</p>
-            <Button class="mt-3" label="Read brief" @click="emit('read-brief')" />
-          </div>
-
-          <div v-else-if="m.kind === 'bid'" class="mt-1.5 w-full rounded-5 border border-outline-gray-2 p-3.5">
+          <div v-if="m.kind === 'bid'" class="mt-1.5 w-full rounded-5 border border-outline-gray-2 p-3.5">
             <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
               <p class="text-p-lg font-semibold tabular-nums text-ink-gray-9">{{ m.bid.price }}</p>
               <p class="text-p-base text-ink-gray-6">about {{ m.bid.weeks }} weeks</p>

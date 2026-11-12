@@ -28,7 +28,6 @@ import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
 import { implementerFor, isFrappe } from '../data/partners'
 import { logoFor } from '../data/logos'
 import { STATUS_LABELS, isActive, lastAt, threadStatus } from '../data/messages'
-import { budgetLabel } from '../data/custom'
 import { useConnectStore } from '../stores/connect'
 
 // SCREEN — messages. The destination the confirmed screen has been promising
@@ -253,8 +252,17 @@ const details = ref(false)
 // requirements, and a dialog opened by a flag would show whichever one the
 // template found first.
 const briefDetails = ref(null)
+// False when opened from the Requirements row, which sits under the brief.
+const briefOmit = ref([])
 
 const companyName = computed(() => store.company.name || store.viewer.company)
+
+
+// ── Requirements, from the header ─────────────────────────────────────────
+// A thread opens at its newest message, so once a few replies are in, the
+// requirements message is out of sight. The header button opens them, with the
+// description, without scrolling the thread, so the reader keeps their place.
+const headerBrief = computed(() => open.value?.messages.findLast((m) => m.kind === 'brief')?.brief ?? null)
 
 // The company, inside the requirements card's details, wherever it went out
 // WITH the requirements — a pack booking or a direct contact. On a broadcast
@@ -618,6 +626,17 @@ watch(
                to ghost. It sits last, at the edge, where the next step goes.
                Hidden below `lg`, where two buttons squeeze the partner's name
                to nothing — the name is what the header is for. -->
+          <!-- Hidden below `lg` like Compare quotes: the requirements are in the
+               thread itself, and the partner's name needs the room. -->
+          <div v-if="headerBrief" class="hidden shrink-0 lg:block">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon-left="lucide-file-text"
+              label="Requirements"
+              @click="briefOmit = []; briefDetails = headerBrief"
+            />
+          </div>
           <Button
             v-if="!isFrappe(open.partner)"
             :variant="compareProject ? 'ghost' : 'subtle'"
@@ -753,7 +772,7 @@ watch(
                    sanitises on the way in. -->
                 <div
                   v-if="m.kind === 'text'"
-                  class="fc-message mt-1 max-w-[480px] text-p-base text-ink-gray-8"
+                  class="fc-message mt-1 max-w-xl text-p-base text-ink-gray-8"
                   v-html="m.body"
                 />
 
@@ -788,57 +807,24 @@ watch(
                   </Button>
                 </div>
 
-                <!-- ── The brief a broadcast carried ──────────────────────
-                     ⚠️ WHAT THIS CARD DOES NOT CONTAIN is the point of it: no
-                     company name, no contact, no size band beyond the headcount
-                     — a dozen firms got this, and until one of their replies is
-                     approved none of them are told who sent it. The customer
-                     sees the same card the partner got, in their own thread,
-                     which is what makes "we sent your requirements to twelve
-                     partners" a checkable claim rather than a promise. -->
-                <div
-                  v-else-if="m.kind === 'brief'"
-                  class="mt-1.5 w-full max-w-[480px] rounded-5 p-3.5 shadow-sm"
-                >
-                  <p class="text-p-base font-medium text-ink-gray-7">{{ m.brief.project }}</p>
-                  <!-- ⚠️ THREE FACTS AND A DOOR, where this printed nine. The
-                       brief grew a module list, a budget and five
-                       criteria, and the card grew with it until it WAS the
-                       brief — at which point the thing it is for, deciding
-                       whether to read the brief, had to be done by reading the
-                       brief. What is left is what that decision is made on:
-                       what they need, what they will pay, what trade they are
-                       in, and how much more there is. Everything else is one
-                       press away.
-                       ⚠️ TWO LINES, because a scope can run to paragraphs and
-                       the card is read to decide whether to open it — two is
-                       enough to say what the job is.
-                       ⚠️ `line-clamp-2`, not a truncated string. The scope is
-                       whatever somebody typed, and cutting it in JavaScript
-                       picks a length for a box whose width nobody knows. -->
-                  <p
-                    class="mt-1.5 line-clamp-2 whitespace-pre-line text-p-base leading-relaxed text-ink-gray-6"
-                  >
-                    {{ m.brief.scope }}
-                  </p>
-                  <!-- Icon facts, one per line, the listing's idiom: the icon
-                       names the field, so no label word is spent on it. -->
-                  <ul class="mt-3 space-y-1.5 text-p-base text-ink-gray-6">
-                    <li class="flex items-center gap-2">
-                      <LucideWallet class="size-4 shrink-0 text-ink-gray-6" aria-label="Budget" />
-                      {{ budgetLabel(m.brief.budget) }}
-                    </li>
-                    <li v-if="m.brief.segments?.[0]" class="flex items-center gap-2">
-                      <LucideFactory class="size-4 shrink-0 text-ink-gray-6" aria-label="Industry" />
-                      {{ m.brief.segments[0] }}
-                    </li>
-                  </ul>
+                <!-- ── A brief ─────────────────────────────────────────────
+                     ⚠️ A MESSAGE, NOT A CARD. What the business wrote is what
+                     a person said, so it reads in full like any other message;
+                     the values they picked sit under it as an attachment row.
+                     A clamped card behind "View details" made the first and
+                     most important message the only one you had to open.
+                     No company name, no contact: a dozen firms got this, and
+                     until one of their replies is approved none of them are
+                     told who sent it. The partner sees the same message. -->
+                <div v-else-if="m.kind === 'brief'" class="mt-1 max-w-xl">
+                  <p class="whitespace-pre-line text-p-base text-ink-gray-8">{{ m.brief.scope }}</p>
                   <Button
-                    class="mt-3"
+                    class="mt-2.5"
                     variant="subtle"
                     size="sm"
-                    label="View details"
-                    @click="briefDetails = m.brief"
+                    icon-left="lucide-file-text"
+                    label="Requirements"
+                    @click="briefOmit = ['description']; briefDetails = m.brief"
                   />
                 </div>
 
@@ -848,7 +834,7 @@ watch(
                      and the answers one press away. See `bookingThread`. -->
                 <div
                   v-else-if="m.kind === 'packs'"
-                  class="mt-1.5 w-full max-w-[480px] rounded-5 p-3.5 shadow-sm"
+                  class="mt-1.5 w-full max-w-xl rounded-5 p-3.5 shadow-sm"
                 >
                   <p class="text-p-base font-medium text-ink-gray-7">{{ m.brief.project }}</p>
                   <!-- Icon facts, the brief card's idiom: the packs on one row,
@@ -875,7 +861,7 @@ watch(
                     variant="subtle"
                     size="sm"
                     label="View details"
-                    @click="briefDetails = m.brief"
+                    @click="briefOmit = []; briefDetails = m.brief"
                   />
                 </div>
 
@@ -903,7 +889,7 @@ watch(
                      the same reason. -->
                 <div
                   v-else-if="m.kind === 'decline' && open.broadcast"
-                  class="mt-1.5 w-fit max-w-[480px] rounded-5 p-3.5 shadow-sm"
+                  class="mt-1.5 w-fit max-w-xl rounded-5 p-3.5 shadow-sm"
                 >
                   <p class="text-p-base font-medium text-ink-gray-8">
                     {{ open.partner.name }} passed on this
@@ -916,7 +902,7 @@ watch(
                      this partner has said. -->
                 <p
                   v-else-if="m.kind === 'decline'"
-                  class="mt-1 max-w-[480px] text-p-base text-ink-gray-8"
+                  class="mt-1 max-w-xl text-p-base text-ink-gray-8"
                 >
                   {{ m.reason }}
                 </p>
@@ -929,7 +915,7 @@ watch(
                      act as approving there. -->
                 <div
                   v-else-if="m.kind === 'bid'"
-                  class="mt-1.5 w-fit max-w-[480px] rounded-5 p-3.5 shadow-sm"
+                  class="mt-1.5 w-fit max-w-xl rounded-5 p-3.5 shadow-sm"
                 >
                   <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
                     <p class="text-p-lg font-semibold tabular-nums text-ink-gray-9">
@@ -1110,7 +1096,9 @@ watch(
     <BriefDetailsDialog
       :open="Boolean(briefDetails)"
       :brief="briefDetails"
+      :omit="briefOmit"
       :company-name="briefCompany"
+      own
       @update:open="!$event && (briefDetails = null)"
     />
   </ConnectShell>

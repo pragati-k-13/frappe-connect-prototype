@@ -405,7 +405,6 @@ function requestSwitch() {
               <ThreadMessages
                 :messages="thread.messages"
                 :company="thread.company"
-                :project="thread.project"
                 :brief="thread.brief"
                 :self="self"
                 :self-logo="selfLogo"
@@ -521,6 +520,7 @@ function requestSwitch() {
       v-if="thread?.brief"
       v-model:open="briefOpen"
       :brief="{ ...thread.brief, project: thread.project }"
+      :omit="['description']"
     />
     <Dialog v-if="c" v-model:open="switching" title="Switch to Partner pays?">
       <ul class="space-y-2 text-p-base text-ink-gray-7">
