@@ -9,6 +9,7 @@ import {
 import { activitySeed, customerFacts, followUpsSeed } from '../data/records'
 import { auditsSeed, todayIso } from '../data/audits'
 import { firmFor } from '../data/partnership'
+import { originOf } from '../composables/useLeads'
 
 // What the partner changes in the demo: customers approved, link
 // requests handled, billing switches, notes, the team, the CRM connection.
@@ -23,6 +24,9 @@ const blank = () => ({
   customerEdits: {},
   removedCustomers: [],
   handled: {},
+  // Per approved request: the lead it was matched to, `{ leadId, origin, owner, into }`.
+  // `into` is that lead's customer when it already had one.
+  requestLinks: {},
   billing: {},
   notes: {},
   invited: [],
@@ -68,14 +72,20 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
       const connect = useConnectStore()
       const approved = linkRequestsFor(this.tier).filter((r) => this.edits.handled[r.id] === 'approved')
       const seeded = customersFor(this.tier, connect.partnershipState)
-      // An approved request becomes a customer.
+      // An approved request becomes a customer, or gives its sites to the
+      // customer its lead already has.
+      const linkOf = (r) => this.edits.requestLinks[r.id] ?? {}
       const fromRequests = approved
+        .filter((r) => !linkOf(r).into)
         .map((r) => ({
           id: r.id.replace('req-', ''),
           name: r.company,
           contact: r.contact,
           email: r.email,
           source: 'own',
+          origin: linkOf(r).origin ?? null,
+          owner: linkOf(r).owner ?? null,
+          leadIds: linkOf(r).leadId ? [linkOf(r).leadId] : [],
           billing: 'customer',
           stage: 'onboarding',
           linked: '2026-10-30',
@@ -84,10 +94,12 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
           sites: [],
           linkedSites: r.sites,
         }))
+      const joined = Object.fromEntries(approved.filter((r) => linkOf(r).into).map((r) => [linkOf(r).into, r]))
       return [...seeded, ...fromRequests, ...this.edits.won]
         .filter((c) => !this.edits.removedCustomers.includes(c.id))
         .map((c) => ({
         ...c,
+        ...(joined[c.id] ? { linked: c.linked ?? '2026-10-30', linkedSites: [...(c.linkedSites ?? []), ...joined[c.id].sites] } : {}),
         leadIds: [...(c.leadIds ?? []), ...(this.edits.projects[c.id] ?? [])],
         ...customerFacts(c.id),
         ...(this.edits.customerEdits[c.id] ?? {}),
@@ -126,11 +138,13 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
   },
 
   actions: {
-    handleRequest(id, outcome) {
+    handleRequest(id, outcome, link = null) {
       this.edits.handled[id] = outcome
+      if (link) this.edits.requestLinks[id] = link
     },
     undoRequest(id) {
       delete this.edits.handled[id]
+      delete this.edits.requestLinks[id]
     },
     // A lead won with no customer to add it to. Onboarding and not on Frappe
     // Cloud yet; the partner code is the next step.
@@ -145,6 +159,7 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
         industry: lead.brief?.segments?.[0] ?? '',
         country: lead.brief?.country ?? '',
         source: lead.source === 'crm' ? 'crm' : 'connect',
+        origin: originOf(lead),
         billing: 'customer',
         stage: 'onboarding',
         owner: lead.owner,

@@ -29,7 +29,7 @@ import LeadsIcon from '../components/icons/LeadsIcon.vue'
 import ThreadMessages from '../components/ThreadMessages.vue'
 import ReplyBox from '../components/ReplyBox.vue'
 import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
-import { crmLabel, threadFor, useLeads } from '../composables/useLeads'
+import { originLabel, threadFor, useLeads } from '../composables/useLeads'
 import { PARTNER_SELF } from '../data/partnerView'
 import { PARTNERS } from '../data/partners'
 import { logoFor } from '../data/logos'
@@ -140,7 +140,6 @@ function send(body) {
 }
 // The leads this customer was won from, newest last.
 const wonLeads = computed(() => (c.value?.leadIds ?? []).map((id) => leads.value.find((l) => l.id === id)).filter(Boolean))
-const SOURCE = { connect: 'Connect', own: 'Added by you' }
 
 // Sites linked by an approved request, before their first bill.
 const sites = computed(() =>
@@ -468,7 +467,7 @@ function requestSwitch() {
             </PanelField>
             <template v-if="group.title === 'Details'">
               <PanelField label="Source">
-                <span class="px-2">{{ SOURCE[c.source] ?? crmLabel(account) }}</span>
+                <span class="px-2">{{ originLabel(c) }}</span>
               </PanelField>
               <!-- Phones only: the top bar has no room for the owner. -->
               <PanelField class="sm:hidden" label="Owner">

@@ -55,7 +55,7 @@ import PartnerAccountDialog from './settings/PartnerAccountDialog.vue'
 import NotificationsPanel from './NotificationsPanel.vue'
 import NotificationsRailItem from './NotificationsRailItem.vue'
 import SearchPalette from './SearchPalette.vue'
-import { notifications } from '../data/notifications'
+import { notifications, readRequestNotification, requestNotification } from '../data/notifications'
 
 const store = useConnectStore()
 const router = useRouter()
@@ -278,14 +278,19 @@ const logOut = () => {
 //
 // Wire to real unread state when that screen lands. Note `RailItem` caps its own
 // badge at "99+" — anything here that could exceed two digits wants the same.
-const notifItems = computed(() =>
-  store.role === 'partner' ? notifications.partner : store.hasProject ? notifications.business : [],
-)
+// Link requests join the partner's list for owners and sales, newest first
+// with the rest.
+const canReviewLinks = computed(() => ['owner', 'sales'].includes(store.partnerRole))
+const notifItems = computed(() => {
+  if (store.role !== 'partner') return store.hasProject ? notifications.business : []
+  const requests = canReviewLinks.value ? account.requests.map(requestNotification) : []
+  return [...notifications.partner, ...requests].sort((a, b) => b.time - a.time)
+})
 const unread = computed(() => notifItems.value.filter((n) => !n.read).length)
 const notifOpen = ref(false)
 const searchOpen = ref(false)
-const readNotification = (n) => (n.read = true)
-const readAllNotifications = () => notifItems.value.forEach((n) => (n.read = true))
+const readNotification = (n) => (n.requestId ? readRequestNotification(n.requestId) : (n.read = true))
+const readAllNotifications = () => notifItems.value.forEach(readNotification)
 // Search's empty state: the places in the rail.
 const searchPlaces = computed(() =>
   partnerRail.value.flatMap((g) => g.items).map((i) => ({ to: i.to, label: i.label, icon: i.icon, iconComp: i.iconComp })),

@@ -22,9 +22,27 @@ const BUSINESS = () => [
   { id: 'bn3', from: { name: 'Frappe' }, action: 'moved', target: 'ERPNext implementation for Northwind to the next stage', time: minutesAgo(60 * 20), read: false, route: '/connect/projects' },
 ]
 
-export const notifications = reactive({ partner: PARTNER(), business: BUSINESS() })
+export const notifications = reactive({ partner: PARTNER(), business: BUSINESS(), readRequests: [] })
+
+// A link request waiting on the firm, for the people who can approve it
+// (owners and sales). Made from the request itself, so it goes once the
+// request is handled. Opens Customers with that request's review open.
+export const requestNotification = (r) => ({
+  id: `nr-${r.id}`,
+  from: { name: r.company },
+  action: 'wants to link to',
+  target: 'your partner code',
+  time: new Date(`${r.at}T10:00:00`).getTime(),
+  read: notifications.readRequests.includes(r.id),
+  route: `/connect/customers?review=${r.id}`,
+  requestId: r.id,
+})
+export const readRequestNotification = (id) => {
+  if (!notifications.readRequests.includes(id)) notifications.readRequests.push(id)
+}
 
 export const resetNotifications = () => {
   notifications.partner = PARTNER()
   notifications.business = BUSINESS()
+  notifications.readRequests = []
 }

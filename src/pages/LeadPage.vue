@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Avatar, Badge, Button, Dialog, Dropdown, ScrollArea, Select, TabList, Tabs, TabTrigger, Textarea, toast } from 'frappe-ui'
+import { Avatar, Badge, Button, Dialog, Dropdown, ScrollArea, Select, TabList, Tabs, TabTrigger, TextInput, Textarea, toast } from 'frappe-ui'
 import IconBuilding from '~icons/lucide/building-2'
 import IconClose from '~icons/lucide/x'
 import ConnectShell from '../components/ConnectShell.vue'
@@ -24,7 +24,7 @@ import { PARTNER_SELF, PRM_LOST_REASONS } from '../data/partnerView'
 import { CRMS, PRM_STAGES } from '../data/partnerAccount'
 import { PROBABILITY } from '../data/records'
 import { firmFor } from '../data/partnership'
-import { companyName, confirmQuote, crmLabel, isClosed, isCrm, matchFor, meFor, sendHireRequest, sendQuote, stageTheme, useLeads, withdrawHireRequest } from '../composables/useLeads'
+import { companyName, confirmQuote, crmLabel, hasThread, winLead, isClosed, isCrm, originLabel, matchFor, meFor, sendHireRequest, sendQuote, stageTheme, useLeads, withdrawHireRequest } from '../composables/useLeads'
 import SendQuoteDialog from '../components/SendQuoteDialog.vue'
 
 // SCREEN — one lead, the same shape as a customer: tabs (Messages,
@@ -58,6 +58,8 @@ const lead = computed(() => leads.value.find((t) => t.id === route.params.id) ??
 const closed = computed(() => (lead.value ? isClosed(lead.value) : false))
 const won = computed(() => lead.value?.stage === 'Won')
 const fromCrm = computed(() => (lead.value ? isCrm(lead.value) : false))
+// CRM leads and leads added here: the business isn't on Connect, so no thread.
+const threaded = computed(() => (lead.value ? hasThread(lead.value) : false))
 const crm = computed(() => account.edits.crm)
 const customer = computed(() => account.customers.find((c) => c.id === lead.value?.customerId) ?? null)
 
@@ -98,9 +100,21 @@ const losing = ref(false)
 const lostReason = ref(PRM_LOST_REASONS[0])
 const askingHire = ref(false)
 const notYet = ref(false)
+function renameLead(title) {
+  const t = title.trim()
+  if (!t || t === lead.value.project) return
+  logChange('Title', lead.value.project, t)
+  lead.value.project = t
+}
 function setStage(stage) {
   if (stage === lead.value.stage) return
   if (stage === 'Won') {
+    // No thread, so no hire to ask for: Won is the partner's to set.
+    if (!threaded.value) {
+      winLead(lead.value, account, meName.value)
+      toast.success(`${lead.value.company.name} is now a customer`)
+      return
+    }
     if (lead.value.hireRequest) return
     if (lead.value.company) askingHire.value = true
     else notYet.value = true
@@ -171,7 +185,7 @@ const probabilityOptions = PROBABILITY.map((p) => ({ label: p, value: p }))
 // A CRM lead has no Messages: there's no thread to show.
 const TABS = computed(() =>
   [
-    !fromCrm.value && { value: 'messages', label: 'Messages', icon: 'lucide-message-square' },
+    threaded.value && { value: 'messages', label: 'Messages', icon: 'lucide-message-square' },
     { value: 'followups', label: 'Follow-ups', icon: 'lucide-phone' },
     { value: 'activity', label: 'Activity', icon: 'lucide-history' },
     { value: 'notes', label: 'Notes', icon: 'lucide-sticky-note' },
@@ -259,7 +273,7 @@ function readBrief({ brief = null, previous = null } = {}) {
 
 // ── Answering a requirements update ─────────────────────────────────────────
 const quoting = ref(false)
-const lastBid = computed(() => lead.value?.messages.findLast((m) => m.kind === 'bid' && m.from === 'you')?.bid ?? null)
+const lastBid = computed(() => lead.value?.messages?.findLast((m) => m.kind === 'bid' && m.from === 'you')?.bid ?? null)
 function keepQuote() {
   confirmQuote(lead.value)
   toast.success('Quote confirmed')
@@ -282,7 +296,7 @@ const companyRows = computed(() => {
 // A message arriving while the thread is open (a requirements update, say)
 // lands in view, with whatever it asks of you.
 watch(
-  () => lead.value?.messages.length,
+  () => lead.value?.messages?.length,
   (n, was) => {
     if (was != null && n > was) toBottom()
   },
@@ -292,7 +306,7 @@ watch(
   () => route.params.id,
   () => {
     sideOpen.value = false
-    tab.value = lead.value && isCrm(lead.value) ? 'followups' : 'messages'
+    tab.value = lead.value && !hasThread(lead.value) ? 'followups' : 'messages'
     reply.value?.clear()
     noteDraft.value = ''
     toBottom()
@@ -507,7 +521,12 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
                   @update:model-value="setProbability"
                 />
               </PanelField>
-              <PanelField label="Source"><span class="px-2">{{ fromCrm ? crmLabel(account) : 'Connect' }}</span></PanelField>
+              <PanelField label="Source"><span class="px-2">{{ originLabel(lead) }}</span></PanelField>
+              <!-- Where the lead is tracked, whatever its source: every lead
+                   syncs while a CRM is connected. -->
+              <PanelField v-if="crm" label="CRM">
+                <PanelLink :label="crmLabel(account)" :href="crm.url" />
+              </PanelField>
               <template v-if="lead.hireRequest">
                 <PanelField label="Hire request">
                   <div class="px-2">
@@ -519,13 +538,25 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
               <PanelField v-if="linkedCustomer" label="Customer">
                 <PanelLink :label="linkedCustomer.name" :avatar="linkedCustomer.name" :to="`/connect/customers/${linkedCustomer.id}`" />
               </PanelField>
-              <div v-if="fromCrm && crm?.url" class="px-3">
-                <Button :label="`Open in ${crmLabel(account)}`" :href="crm.url" />
-              </div>
             </PanelSection>
 
-            <PanelSection v-if="fromCrm" title="Project">
-              <p class="whitespace-pre-line px-3 text-p-base leading-relaxed text-ink-gray-7">{{ lead.need }}</p>
+            <PanelSection v-if="!threaded" title="Project">
+              <!-- A lead added here is titled from its apps; renamed here. -->
+              <PanelField v-if="lead.source === 'added'" label="Title">
+                <TextInput
+                  v-if="canAct && !closed"
+                  :model-value="lead.project"
+                  variant="ghost"
+                  aria-label="Title"
+                  @change="renameLead($event.target.value)"
+                  @keydown.enter="$event.target.blur()"
+                />
+                <span v-else class="truncate px-2">{{ lead.project }}</span>
+              </PanelField>
+              <PanelField v-if="lead.apps?.length" label="Apps">
+                <span class="px-2">{{ lead.apps.join(', ') }}</span>
+              </PanelField>
+              <p v-if="lead.need" class="whitespace-pre-line px-3 text-p-base leading-relaxed text-ink-gray-7">{{ lead.need }}</p>
             </PanelSection>
             <PanelSection v-else title="Project">
               <PanelField v-for="row in projectRows" :key="row.label" :label="row.label">

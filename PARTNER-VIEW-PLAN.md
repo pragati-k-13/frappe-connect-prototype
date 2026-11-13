@@ -241,7 +241,7 @@ confirmed or replaced:
 ## 2. Customers
 
 **The list is Frappe CRM's, like Leads:** a plain breadcrumb, quick filters (show, search, stage, who pays) with Refresh, Filter (source), Sort and
-Columns, a full-width table (customer, contact, stage, who pays, owner, sites, MRR), and a
+Columns, a full-width table (customer, stage, source, owner, sites, MRR), and a
 footer with page size and count. A row opens the customer's page; its menu carries the quick
 trips — open in Frappe Cloud, download the last invoice — so there's no peek sheet. Every row
 behaves the same: it opens a customer page. The top bar holds only the firm's partner code.
@@ -261,6 +261,22 @@ leads), and billing on customers. Follow-ups are a call, demo, email or meeting 
 spoken to and notes; with a CRM synced they come from it and are read-only. On a phone, the
 customer's panel is a Details tab and the lead's opens from the top bar.
 
+**Contact and Who pays aren't columns.** Both are looked up on the customer's page, not
+scanned down a list. Search still matches the contact; Who pays stays a quick filter.
+
+**Source is who found the business,** one value per lead, carried by its customer, the same
+in the column and in Filter on both lists:
+
+| Source          | Was, in Frappe Cloud | Means                                                   |
+| --------------- | -------------------- | ------------------------------------------------------- |
+| Connect         | Partner Listing      | The business found the firm in Connect, from the directory or by sending its requirements |
+| Frappe referral | Passed to Partner    | The business asked Frappe, and Frappe suggested the firm |
+| Your team       | Partner Owned        | The firm found the business, whether added here or in its CRM |
+| —               | —                    | A business that linked to the partner code with no lead behind it |
+
+The CRM is never a source: any lead can sit in it. The lead's panel links to it instead (a CRM
+row, while a CRM is connected). Connect reads darker in the column; the rest are gray.
+
 **One list.** Customers arrive two ways, but the list doesn't split by source: where a
 customer came from doesn't change how the firm works with them.
 
@@ -273,22 +289,26 @@ customer came from doesn't change how the firm works with them.
   declines the request.
 
 **No Add customer.** Every customer arrives from an event: a hire in Connect, a Won in the
-firm's CRM, or an approved partner-code link. Typing one in by hand is the same as typing in a
-lead, which belongs in the CRM. The trade-off: a firm with no CRM can't track a customer
-before it links.
+firm's CRM, a Won on a lead added here, or an approved partner-code link. A firm with no CRM
+starts with Add lead on Leads, not here.
 
 **Partner code.** The Customers header holds the code and a copy icon, nothing else. It copies
 the code alone: a business that came through Connect gets the how-to on its own project, and
 anyone else hears it from the partner. An empty Customers list shows the code as its next step.
 One name everywhere: "Partner code", on the business side too (it was "Referral code").
 
-**Link requests.** Not customers yet, so not in the table. Owners see a bar above the list, "2
-companies want to link to your partner code", with Review. Review steps through them in a
-dialog with what the owner needs to judge each: the contact, every site and server it covers
-with plan and region, and Decline and Approve. Approving adds the customer to the list.
+**Link requests.** Not customers yet, so not in the table, and not a stage filter. Owners and
+sales see a bar above the list, "2 companies want to link to your partner code", with Review,
+and one notification per request that opens it (`?review=<id>`). Review steps through them in a
+dialog with what they need to judge each: the contact, every site and server it covers
+with plan and region, a Lead select, and Decline and Approve. The Lead select comes prefilled
+with the firm's lead for that business (same email, then same company name), or "No lead".
+Approving with a lead gives the sites to that lead's customer, or makes it with the lead's
+source and owner, so a won lead never comes back as a second customer. With no lead, the
+customer's source is "—".
 Declining removes the request and tells the customer. Each gets a few seconds to undo, rather
 than an "Are you sure?" dialog: approving by mistake exposes a stranger's invoices, and
-declining sends a rejection. Only the owner sees the bar, and gets an email when one arrives.
+declining sends a rejection.
 
 **Two billing modes.** Each linked customer has one, and it sets what the partner can see:
 
@@ -441,10 +461,13 @@ portal's list.
 
 - **What it asked about:** the brief, its industry, and the Starter Pack, if it picked one.
 
-**Two sources: Connect briefs and the firm's CRM.** A lead Frappe passes on, or one the firm
-finds itself, isn't on Connect: that business has no reason to sign up just to message the
-partner. The firm works it in its own CRM, and with CRM sync on it shows here as a lead too.
-Nobody adds a lead by hand in Connect: that belongs in the CRM, so there's one copy.
+**Three kinds: Connect briefs, the firm's CRM, and Add lead.** A lead Frappe passes on, or one
+the firm finds itself, isn't on Connect: that business has no reason to sign up just to message
+the partner. A firm with a CRM works it there, and with CRM sync on it shows here as a lead too.
+A firm without one uses **Add lead** on Leads (owners and sales): Company, Contact name, Email,
+Apps (required), Requirements and Owner (defaults to you). The title is built from the apps,
+"Frappe HR and ERPNext for Halcyon", and renamed in the lead's panel. It lands on the new lead,
+source "Your team". Add lead is hidden while a CRM is connected, so there's one copy.
 
 The other changes:
 
@@ -474,6 +497,7 @@ need anyone to sign.
 | ------------- | --------------------------------- | ------------ | ----------------------- |
 | Connect brief | The business hiring in Connect    | Yes          | Connect, then sync, then by hand (Won asks the business) |
 | CRM           | The CRM's Won status, synced      | No           | The CRM. Read-only here, "Set in your CRM" |
+| Added here    | The partner, from the stage menu  | No           | The partner             |
 
 **Asking to be hired.** When the business agrees outside Connect, the partner picks Won from
 the stage menu. Won is always in the menu, so the rule shows where you'd look for it:
@@ -516,7 +540,7 @@ this project comes off it. The lead's Activity says what happened.
 Needs reply filter, and a notification or email goes out when the business writes.
 
 **No Source column on Leads.** A row's source rarely changes how you treat it, and the lead's
-panel says it. Source is a group in Filter while a CRM is connected.
+panel says it. Source is a group in Filter: Connect, Frappe referral, Your team.
 
 ## 5. Users and certificates
 
@@ -546,7 +570,7 @@ but don't work leads or money. Roles are fixed: there's no screen for making new
 | See Customers                                         | Yes   | Yes   | Yes     | No     |
 | Add notes and follow-ups                              | Yes   | Yes   | No      | No     |
 | See a customer's invoices                             | Yes   | No    | Yes     | No     |
-| Approve or decline link requests                      | Yes   | No    | No      | No     |
+| Approve or decline link requests                      | Yes   | Yes   | No      | No     |
 | See and export Your Frappe bill                       | Yes   | No    | Yes     | No     |
 | Reply to leads, send quotes, change lead stages       | Yes   | Yes   | No      | No     |
 | Request an audit                                      | Yes   | No    | No      | No     |

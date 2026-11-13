@@ -10,15 +10,35 @@ import { updateMessage } from '../data/messages'
 // since each tier is a different firm; it resets on reload like the rest of
 // the demo.
 //
-// Two sources (PARTNER-VIEW-PLAN.md, "Lead to customer"):
+// Three kinds of lead (PARTNER-VIEW-PLAN.md, "Lead to customer"):
 //   Connect brief  its thread, stage, owner and probability
 //   CRM            only while CRM sync is on; no thread, stage set in the CRM
-// Nobody adds a lead by hand in Connect: that belongs in the CRM.
+//   Added here     Add lead, only while no CRM is connected (a CRM firm adds
+//                  leads in the CRM); no thread, stage set here
+//
+// ⚠️ KIND IS NOT SOURCE. `source` says where the record lives (Connect or the
+// CRM). Source, as partners see it, is who found the business: `origin`.
+// A Connect lead or a referral can sit in the CRM too, so the CRM is never a
+// source; the lead page links to it instead.
 
 const byTier = {
-  beginner: { threads: ref(beginnerThreads()), crm: ref(crmLeads('beginner')) },
-  'bronze-up': { threads: ref(partnerThreads()), crm: ref(crmLeads('bronze-up')) },
+  beginner: { threads: ref(beginnerThreads()), crm: ref(crmLeads('beginner')), added: ref([]) },
+  'bronze-up': { threads: ref(partnerThreads()), crm: ref(crmLeads('bronze-up')), added: ref([]) },
 }
+
+// Who found the business. One value per lead, and a customer carries its
+// lead's. A customer with no lead behind it (it linked to the partner code on
+// its own) has none, and shows "—".
+export const ORIGINS = { connect: 'Connect', referral: 'Frappe referral', team: 'Your team' }
+export const originOf = (x) => {
+  if (!x) return null
+  if (x.origin !== undefined) return x.origin
+  if (x.source === 'crm' || x.source === 'added') return 'team'
+  return x.source === 'connect' || x.messages ? 'connect' : null
+}
+export const originLabel = (x) => ORIGINS[originOf(x)] ?? '—'
+// Only a Connect brief has a conversation with the business.
+export const hasThread = (t) => Boolean(t.messages)
 
 export const CLOSED = ['Won', 'Lost', 'Junk', 'Closed']
 export const isClosed = (t) => CLOSED.includes(t.stage)
@@ -36,8 +56,31 @@ export const useLeads = () => {
   const account = usePartnerAccountStore()
   return computed(() => {
     const tier = byTier[store.partnerTier] ?? byTier['bronze-up']
-    return account.edits.crm ? [...tier.threads.value, ...tier.crm.value] : tier.threads.value
+    return [...tier.threads.value, ...(account.edits.crm ? tier.crm.value : []), ...tier.added.value]
   })
+}
+
+// Add lead: the business isn't on Connect, so the lead is the facts the
+// partner typed. Titled from the apps until the partner renames it.
+const listOf = (labels) => (labels.length < 2 ? labels.join('') : `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}`)
+export const leadTitle = (apps, company) => `${listOf(apps)} for ${company}`
+export function addLead(store, form, by) {
+  const tier = byTier[store.partnerTier] ?? byTier['bronze-up']
+  const id = `added-${Date.now()}`
+  tier.added.value.push({
+    id,
+    source: 'added',
+    origin: 'team',
+    stage: 'Open',
+    owner: form.owner === 'none' ? null : form.owner,
+    project: leadTitle(form.apps, form.company),
+    need: form.requirements,
+    apps: form.apps,
+    company: { name: form.company, contact: form.contact, email: form.email },
+    at: Date.now(),
+    addedBy: by,
+  })
+  return id
 }
 
 // Who the demo's signed-in person is, as a Team id: the firm's owner, or its
@@ -105,15 +148,15 @@ export function hiredElsewhere(lead, account) {
   lead.hireRequest = null
 }
 
-export function winLead(lead, account) {
-  const by = isCrm(lead) ? crmLabel(account) : lead.company.contact
+// A lead added here has no hire in Connect: the partner marks it Won (`by`).
+export function winLead(lead, account, by = isCrm(lead) ? crmLabel(account) : lead.company.contact) {
   const match = matchFor(lead, account.customers)
   const target = match && (match.auto || lead.customerMatch === 'yes') ? match.customer : null
   account.log(lead.id, { by, kind: 'change', field: 'Stage', from: lead.stage, to: 'Won' })
   lead.stage = 'Won'
   lead.closed = { stage: 'Won' }
   lead.hireRequest = null
-  if (!isCrm(lead)) lead.messages.push({ id: `hired-${Date.now()}`, from: 'them', kind: 'hired', at: Date.now() })
+  if (hasThread(lead)) lead.messages.push({ id: `hired-${Date.now()}`, from: 'them', kind: 'hired', at: Date.now() })
   if (target) {
     account.attachLead(target.id, lead.id)
     lead.customerId = target.id
@@ -152,7 +195,7 @@ export const crmLabel = (account) => CRMS[account.edits.crm?.crm]?.label ?? 'You
 // A Connect customer's thread: the won lead's, which carries on after the
 // hire, or for a customer whose bid isn't in this demo, what was said since.
 export function threadFor(c, leads, account) {
-  const lead = [...c.leadIds].reverse().map((id) => leads.find((l) => l.id === id)).find((l) => l && !isCrm(l))
+  const lead = [...c.leadIds].reverse().map((id) => leads.find((l) => l.id === id)).find((l) => l && hasThread(l))
   if (lead) return { lead, messages: lead.messages, project: lead.project, company: lead.company, brief: lead.brief }
   if (c.source !== 'connect') return null
   return {

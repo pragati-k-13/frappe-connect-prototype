@@ -42,7 +42,7 @@ import { stagesFor } from '../data/project'
 import { PARTNERSHIP_STATES } from '../data/partnership'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
-import { businessUpdatesRequirements, crmLabel, declineHireRequest, hiredElsewhere, isClosed, isCrm, reopenLead, threadFor, useLeads, winLead } from '../composables/useLeads'
+import { businessUpdatesRequirements, crmLabel, declineHireRequest, hasThread, hiredElsewhere, isClosed, isCrm, reopenLead, threadFor, useLeads, winLead } from '../composables/useLeads'
 import { awaitingRequote } from '../data/messages'
 
 const store = useConnectStore()
@@ -160,6 +160,8 @@ const leadEvents = computed(() => {
     return l.stage === 'Won'
       ? [{ label: `Reopened in ${crmLabel(account)}`, icon: 'lucide-rotate-ccw', onClick: () => reopenLead(l, 'Negotiation', account) }]
       : [{ label: `Won in ${crmLabel(account)}`, icon: 'lucide-trophy', onClick: () => winLead(l, account) }]
+  // Added here: the partner sets every stage, so the business plays no part.
+  if (!hasThread(l)) return []
   // A business can only hire you once it's shortlisted you, which is when its
   // name reaches you. It can hire someone else at any point.
   if (isClosed(l)) return []
