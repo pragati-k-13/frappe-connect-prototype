@@ -257,6 +257,8 @@ export const useConnectStore = defineStore('connect', {
     // Opens Firm settings on a tab from anywhere (the Leads page's alert);
     // ConnectShell owns the dialog and clears this when it closes.
     firmSettingsTab: null,
+    // A person to pick out when Firm settings opens on Users (from search).
+    firmSettingsFocus: null,
     partnershipState: 'working',
     // See ACCOUNT_STATES above. Deliberately NOT cleared by `reset()`: it's
     // which demo you're in, not something the quiz collected — same as `role`.
@@ -745,8 +747,9 @@ export const useConnectStore = defineStore('connect', {
       this.partnerTier = tier
       this.partnershipState = 'working'
     },
-    openFirmSettings(tab) {
+    openFirmSettings(tab, focus = null) {
       this.firmSettingsTab = tab
+      this.firmSettingsFocus = focus
     },
     setPartnerRole(role) {
       if (!['owner', 'sales', 'finance', 'member'].includes(role)) return

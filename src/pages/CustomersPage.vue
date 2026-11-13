@@ -1,12 +1,13 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Alert, Avatar, Badge, Button, Dialog, Dropdown, FormControl, Select, TabButtons, TextInput, Tooltip, dialog, toast } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
+import StageDot from '../components/StageDot.vue'
 import PartnerCode from '../components/PartnerCode.vue'
-import { crmLabel, customerNeedsReply, useLeads } from '../composables/useLeads'
+import { ORIGINS, customerNeedsReply, isClosed, originLabel, originOf, useLeads } from '../composables/useLeads'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { customerInvoices } from '../data/partnerAccount'
@@ -26,6 +27,8 @@ const account = usePartnerAccountStore()
 const firm = computed(() => firmFor(store.partnerTier))
 
 const isOwner = computed(() => store.partnerRole === 'owner')
+// Link requests: owners and sales both bring customers in.
+const canReview = computed(() => ['owner', 'sales'].includes(store.partnerRole))
 
 // ── Quick filters and controls ──────────────────────────────────────────────
 const query = ref('')
@@ -43,7 +46,6 @@ const pays = ref('')
 const source = ref('')
 const stageOptions = [
   { label: 'Any stage', value: '' },
-  { label: 'Wants to link', value: 'requested' },
   { label: 'Onboarding', value: 'onboarding' },
   { label: 'Live', value: 'live' },
   { label: 'Churned', value: 'churned' },
@@ -53,9 +55,10 @@ const paysOptions = [
   { label: 'Customer pays', value: 'customer' },
   { label: 'Partner pays', value: 'partner' },
 ]
-// Filter holds what the quick filters don't: where the customer came from.
+// Filter holds what the quick filters don't: who found the customer, the
+// same values as the Source column.
 const filterMenu = computed(() =>
-  [['', 'Any source'], ['connect', 'Connect'], ['own', 'Added by you'], ['crm', crmLabel(account)]].map(([v, l]) => ({
+  [['', 'Any source'], ...Object.entries(ORIGINS)].map(([v, l]) => ({
     label: l,
     icon: source.value === v ? 'lucide-check' : 'lucide-blank',
     onClick: () => (source.value = v),
@@ -86,13 +89,14 @@ const unpaid = computed(
 )
 const isUnpaid = (c) => c.billing === 'customer' && unpaid.value.has(c.name)
 
+// Contact and Who pays aren't columns: both are looked up on the customer's
+// page, not scanned down a list. Search still matches the contact.
 const COLUMNS = [
-  { key: 'contact', label: 'Contact', width: 'minmax(0,1fr)' },
-  { key: 'stage', label: 'Stage', width: '8rem' },
-  { key: 'pays', label: 'Who pays', width: '8rem' },
-  { key: 'owner', label: 'Owner', width: '10rem' },
-  { key: 'sites', label: 'Sites', width: '5rem' },
-  { key: 'mrr', label: 'MRR', width: '7rem' },
+  { key: 'stage', label: 'Stage', width: 'minmax(8rem,1fr)' },
+  { key: 'source', label: 'Source', width: 'minmax(9rem,1fr)' },
+  { key: 'owner', label: 'Owner', width: 'minmax(10rem,1fr)' },
+  { key: 'sites', label: 'Sites', width: 'minmax(5rem,0.6fr)' },
+  { key: 'mrr', label: 'MRR', width: 'minmax(7rem,0.8fr)' },
 ]
 const shownCols = ref(COLUMNS.map((c) => c.key))
 const show = (k) => shownCols.value.includes(k)
@@ -105,7 +109,7 @@ const columnsMenu = computed(() =>
 )
 const gridColumns = computed(() => ({
   base: ['minmax(0,1fr)', 'auto', '2rem'],
-  md: ['minmax(0,1.5fr)', ...COLUMNS.filter((c) => show(c.key)).map((c) => c.width), '2rem'],
+  md: ['minmax(12rem,2fr)', ...COLUMNS.filter((c) => show(c.key)).map((c) => c.width), '2rem'],
 }))
 const PAGE_SIZES = [20, 50, 100].map((n) => ({ label: String(n), value: n }))
 const pageSize = ref(20)
@@ -121,9 +125,8 @@ const rows = computed(() => {
     .filter((c) => !q || c.name.toLowerCase().includes(q) || c.contact?.toLowerCase().includes(q))
     .filter((c) => view.value !== 'reply' || waiting(c))
     .filter((c) => !stage.value || c.stage === stage.value)
-    .filter(() => stage.value !== 'requested')
     .filter((c) => !pays.value || c.billing === pays.value)
-    .filter((c) => !source.value || c.source === source.value)
+    .filter((c) => !source.value || originOf(c) === source.value)
     .sort((a, b) =>
       sort.value === 'mrr' ? b.mrr - a.mrr : sort.value === 'linked' ? (b.linked ?? '').localeCompare(a.linked ?? '') : a.name.localeCompare(b.name),
     )
@@ -143,26 +146,80 @@ const STAGE = {
   onboarding: { label: 'Onboarding', dot: 'bg-surface-blue-7' },
   live: { label: 'Live', dot: 'bg-surface-green-7' },
   churned: { label: 'Churned', dot: 'bg-surface-gray-5' },
-  requested: { label: 'Wants to link', dot: 'bg-surface-amber-7' },
 }
-const BILLING = { customer: 'Customer pays', partner: 'Partner pays' }
 const nameOf = (id) => account.team.find((p) => p.id === id)?.name
 
 // ── Link requests ───────────────────────────────────────────────────────────
 // Not customers yet, so not in the table: every row opens a customer page. A
 // bar above the list says how many wait, to owners only (they approve), and
 // Review steps through them in a dialog.
+const route = useRoute()
+const router = useRouter()
+// A review session: the requests it covers, fixed when it opens. The banner
+// steps through every request waiting then, with "2 of 3" so the total never
+// shrinks under the reader; one arriving meanwhile waits for the next session.
+// A notification opens its one request, and the dialog closes after it.
 const reviewing = ref(false)
-const open = computed(() => account.requests[0] ?? null)
+const session = ref({ ids: [], single: false })
+const open = computed(() => (reviewing.value || session.value.ids.length ? account.requests.find((r) => session.value.ids.includes(r.id)) ?? null : null))
 watch(open, (r) => !r && (reviewing.value = false))
+// The last request stays on screen while the dialog fades out after it.
+const shown = ref(null)
+watch(open, (r) => r && (shown.value = r), { immediate: true })
+const step = computed(() => Math.min(session.value.ids.filter((id) => !account.requests.some((r) => r.id === id)).length + 1, session.value.ids.length))
+const showStep = computed(() => !session.value.single && session.value.ids.length > 1)
+function reviewAll() {
+  session.value = { ids: account.requests.map((r) => r.id), single: false }
+  reviewing.value = true
+}
+
+// A notification opens one request: Customers with ?review=<id>.
+watch(
+  () => route.query.review,
+  (id) => {
+    if (!id || !canReview.value) return
+    session.value = { ids: [id], single: true }
+    reviewing.value = Boolean(account.requests.find((r) => r.id === id))
+    router.replace({ query: { ...route.query, review: undefined } })
+  },
+  { immediate: true },
+)
+
+// ── The lead behind a request ───────────────────────────────────────────────
+// The firm's lead for this business, by email first, then by company name.
+// Approving gives the sites to that lead's customer (or makes it), so a won
+// lead doesn't come back as a second customer.
+const sameText = (a, b) => Boolean(a && b) && a.trim().toLowerCase() === b.trim().toLowerCase()
+const candidates = computed(() => leads.value.filter((l) => l.company && (!isClosed(l) || l.stage === 'Won')))
+function matchedLead(r) {
+  return candidates.value.find((l) => sameText(l.company.email, r.email)) ?? candidates.value.find((l) => sameText(l.company.name, r.company)) ?? null
+}
+const leadId = ref('')
+watch(open, (r) => (leadId.value = r ? (matchedLead(r)?.id ?? '') : ''), { immediate: true })
+const leadOptions = computed(() => [
+  { label: 'No lead', value: '' },
+  ...candidates.value.map((l) => ({ label: `${l.company.name} · ${l.project}`, value: l.id })),
+])
+const chosenLead = computed(() => leads.value.find((l) => l.id === leadId.value) ?? null)
 
 // A few seconds to undo instead of an "Are you sure?" dialog: approving by
 // mistake exposes a stranger's invoices, declining sends a rejection.
 function handle(outcome) {
   const req = open.value
-  account.handleRequest(req.id, outcome)
+  const lead = outcome === 'approved' ? chosenLead.value : null
+  const into = lead?.customerId ?? null
+  account.handleRequest(req.id, outcome, lead ? { leadId: lead.id, origin: originOf(lead), owner: lead.owner ?? null, into } : null)
+  if (lead && !into) lead.customerId = req.id.replace('req-', '')
   const done = outcome === 'approved' ? `${req.company} linked` : `${req.company} declined`
-  toast.success(done, { action: { label: 'Undo', onClick: () => account.undoRequest(req.id) } })
+  toast.success(done, {
+    action: {
+      label: 'Undo',
+      onClick: () => {
+        account.undoRequest(req.id)
+        if (lead && !into) lead.customerId = null
+      },
+    },
+  })
 }
 
 // ── Row actions ─────────────────────────────────────────────────────────────
@@ -271,11 +328,11 @@ function saveEdit() {
         </div>
       </div>
 
-      <!-- ── Link requests, owners only ────────────────────────────────── -->
-      <div v-if="isOwner && account.requests.length" class="shrink-0 px-3 pb-3 sm:px-5">
+      <!-- ── Link requests, owners and sales ───────────────────────────── -->
+      <div v-if="canReview && account.requests.length" class="shrink-0 px-3 pb-3 sm:px-5">
         <Alert
           :title="account.requests.length === 1 ? '1 company wants to link to your partner code' : `${account.requests.length} companies want to link to your partner code`"
-          :primary-action="{ label: 'Review', onClick: () => (reviewing = true) }"
+          :primary-action="{ label: 'Review', onClick: reviewAll }"
         />
       </div>
 
@@ -286,11 +343,10 @@ function saveEdit() {
         <List v-if="page.length" class="list-row-px-2" :columns="gridColumns" :row-height="40">
             <ListHeader class="mb-2 rounded-4 bg-surface-gray-2 px-2">
               <ListHeaderCell>Customer</ListHeaderCell>
-              <ListHeaderCell v-if="show('contact')" class="hidden md:flex">Contact</ListHeaderCell>
               <ListHeaderCell v-if="show('stage')" class="hidden md:flex">Stage</ListHeaderCell>
-              <ListHeaderCell v-if="show('pays')" class="hidden md:flex">Who pays</ListHeaderCell>
+              <ListHeaderCell v-if="show('source')" class="hidden md:flex">Source</ListHeaderCell>
               <ListHeaderCell v-if="show('owner')" class="hidden md:flex">Owner</ListHeaderCell>
-              <ListHeaderCell v-if="show('sites')" class="hidden md:flex">Sites</ListHeaderCell>
+              <ListHeaderCell v-if="show('sites')" class="hidden justify-end md:flex">Sites</ListHeaderCell>
               <ListHeaderCell v-if="show('mrr')" class="hidden justify-end md:flex">MRR</ListHeaderCell>
               <ListHeaderCell class="md:hidden"><span class="sr-only">Stage</span></ListHeaderCell>
               <ListHeaderCell><span class="sr-only">Actions</span></ListHeaderCell>
@@ -298,20 +354,19 @@ function saveEdit() {
             <ListRows :items="page" v-slot="{ item }">
               <ListRow :to="`/connect/customers/${item.id}`">
                 <ListCell class="min-w-0 gap-2 overflow-hidden">
-                  <Avatar :label="item.name" size="sm" shape="square" />
                   <span class="truncate text-base text-ink-gray-9" :class="waiting(item) && 'font-medium'">{{ item.name }}</span>
                   <Tooltip v-if="isUnpaid(item)" :text="`${lastClosed.label} invoice unpaid`">
                     <Badge class="shrink-0" theme="amber" variant="subtle" size="sm" label="Unpaid" />
                   </Tooltip>
                 </ListCell>
-                <ListCell v-if="show('contact')" class="hidden min-w-0 md:flex">
-                  <span class="truncate text-base text-ink-gray-7">{{ item.contact || '—' }}</span>
-                </ListCell>
                 <ListCell v-if="show('stage')" class="hidden min-w-0 gap-2 md:flex">
-                  <span :class="STAGE[item.stage].dot" class="size-2 shrink-0 rounded-full" aria-hidden="true" />
+                  <StageDot :color="STAGE[item.stage].dot" />
                   <span class="truncate text-base text-ink-gray-7">{{ STAGE[item.stage].label }}</span>
                 </ListCell>
-                <ListCell v-if="show('pays')" class="hidden text-base text-ink-gray-7 md:flex">{{ BILLING[item.billing] }}</ListCell>
+                <!-- Connect stands out: it's the source the product brings. -->
+                <ListCell v-if="show('source')" class="hidden min-w-0 md:flex">
+                  <span class="truncate text-base" :class="originOf(item) === 'connect' ? 'text-ink-gray-8' : 'text-ink-gray-5'">{{ originLabel(item) }}</span>
+                </ListCell>
                 <ListCell v-if="show('owner')" class="hidden min-w-0 gap-2 md:flex">
                   <template v-if="item.owner">
                     <Avatar :label="nameOf(item.owner)" size="sm" />
@@ -319,7 +374,7 @@ function saveEdit() {
                   </template>
                   <span v-else class="text-base text-ink-gray-5">—</span>
                 </ListCell>
-                <ListCell v-if="show('sites')" class="hidden text-base tabular-nums text-ink-gray-7 md:flex">
+                <ListCell v-if="show('sites')" class="hidden justify-end text-base tabular-nums text-ink-gray-7 md:flex">
                   {{ (item.sites.length || item.linkedSites?.length) ?? 0 }}
                 </ListCell>
                 <ListCell v-if="show('mrr')" class="hidden justify-end text-base tabular-nums text-ink-gray-7 md:flex">
@@ -354,28 +409,33 @@ function saveEdit() {
     </div>
 
     <!-- ── Link requests, one at a time ──────────────────────────────── -->
-    <Dialog v-model:open="reviewing" :title="open ? open.company : 'Link requests'">
+    <Dialog v-model:open="reviewing" :title="shown?.company ?? 'Link requests'">
       <!-- Fixed height, so Decline and Approve stay put while stepping through. -->
-      <div v-if="open" class="h-64 space-y-6 overflow-hidden">
-        <p class="text-p-base text-ink-gray-5">Entered your code {{ shortDate(open.at) }}</p>
+      <div v-if="shown" class="h-80 space-y-6 overflow-hidden">
+        <p class="text-p-base text-ink-gray-5">Entered your code {{ shortDate(shown.at) }}</p>
         <div>
           <p class="text-sm text-ink-gray-5">Contact</p>
-          <p class="mt-1 text-base text-ink-gray-8">{{ open.contact }}</p>
-          <p class="mt-0.5 text-sm text-ink-gray-5">{{ open.email }}</p>
+          <p class="mt-1 text-base text-ink-gray-8">{{ shown.contact }}</p>
+          <p class="mt-0.5 text-sm text-ink-gray-5">{{ shown.email }}</p>
         </div>
         <div>
           <p class="text-sm text-ink-gray-5">Sites it links</p>
           <ul class="mt-1 divide-y divide-outline-gray-1">
-            <li v-for="site in open.sites" :key="site.name" class="py-2">
+            <li v-for="site in shown.sites" :key="site.name" class="py-2">
               <p class="truncate text-base text-ink-gray-8">{{ site.name }}</p>
               <p class="mt-0.5 text-sm text-ink-gray-5">{{ site.plan }} · {{ site.region }}</p>
             </li>
           </ul>
         </div>
+        <!-- Prefilled with the firm's lead for this business, if there is one. -->
+        <div>
+          <Select v-model="leadId" :options="leadOptions" label="Lead" />
+          <p v-if="chosenLead" class="mt-1.5 text-sm text-ink-gray-5">{{ chosenLead.stage }} · {{ originLabel(chosenLead) }}</p>
+        </div>
       </div>
       <template #actions>
         <div class="flex items-center justify-between gap-2">
-          <span class="text-p-sm tabular-nums text-ink-gray-5">{{ account.requests.length }} waiting</span>
+          <span class="text-p-sm tabular-nums text-ink-gray-5"><template v-if="showStep">{{ step }} of {{ session.ids.length }}</template></span>
           <div class="flex gap-2">
             <Button label="Decline" @click="handle('declined')" />
             <Button variant="solid" label="Approve" @click="handle('approved')" />

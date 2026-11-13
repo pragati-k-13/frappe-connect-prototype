@@ -2,20 +2,22 @@
 import { computed, ref } from 'vue'
 import { Alert, Avatar, Badge, Button, Dropdown, Select, TabButtons, TextInput } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
+import AddLeadDialog from '../components/AddLeadDialog.vue'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
+import StageDot from '../components/StageDot.vue'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { useConnectStore } from '../stores/connect'
 import { PRM_STAGES } from '../data/partnerAccount'
-import { companyName, crmLabel, isClosed, isCrm, lastAt, needsReply, useLeads } from '../composables/useLeads'
+import { ORIGINS, companyName, isClosed, lastAt, needsReply, originOf, useLeads } from '../composables/useLeads'
 
 // SCREEN — Leads, styled as Frappe CRM's list: a plain breadcrumb, quick
 // filters with Refresh, Filter, Sort and Columns beside
 // them, then a full-width table and a footer with page size and count. A row opens the lead's own page. See PARTNER-VIEW-PLAN.md, Leads.
 //
-// No Create: leads are Connect briefs, plus the firm's CRM leads while CRM
-// sync is on. Adding one by hand belongs in the CRM. Every tier gets briefs,
-// Beginners included.
+// Leads are Connect briefs, the firm's CRM leads while CRM sync is on, and
+// leads added here. Add lead shows only without a CRM: a firm with one adds
+// leads there, and they sync in. Every tier gets briefs, Beginners included.
 //
 // Open leads by default: Won, Lost, Junk and Closed leave the view and stay a
 // filter away. No count on the rail; a lead waiting on a reply is bold, and
@@ -32,6 +34,8 @@ const pausedAction = computed(() =>
   store.partnerRole === 'owner' ? { label: 'Open settings', onClick: () => store.openFirmSettings('leads') } : undefined,
 )
 const leads = useLeads()
+const canAdd = computed(() => !account.edits.crm && ['owner', 'sales'].includes(store.partnerRole))
+const adding = ref(false)
 
 const nameOf = (id) => account.team.find((p) => p.id === id)?.name
 
@@ -49,7 +53,6 @@ const VIEWS = [
 ]
 const stage = ref('')
 const owner = ref('')
-const crmOn = computed(() => Boolean(account.edits.crm))
 const stageOptions = [{ label: 'Any stage', value: '' }, ...PRM_STAGES.map((s) => ({ label: s, value: s }))]
 const ownerOptions = computed(() => [
   { label: 'Anyone', value: '' },
@@ -58,9 +61,9 @@ const ownerOptions = computed(() => [
 ])
 
 // ── Filter, sort, columns, page size: CRM's controls ───────────────────────
-// Filter holds what the quick filters don't: probability, and the source
-// while a CRM is connected. Source isn't a column: a row's source rarely
-// changes how you treat it, and the lead's panel says it.
+// Filter holds what the quick filters don't: probability, and who found the
+// lead. Source isn't a column: a row's source rarely changes how you treat
+// it, and the lead's panel says it.
 const probability = ref('')
 const source = ref('')
 const filterMenu = computed(() => [
@@ -72,20 +75,16 @@ const filterMenu = computed(() => [
       onClick: () => (probability.value = p),
     })),
   },
-  ...(crmOn.value
-    ? [
-        {
-          group: 'Source',
-          options: [['', 'Any source'], ['connect', 'Connect'], ['crm', crmLabel(account)]].map(([v, l]) => ({
-            label: l,
-            icon: source.value === v ? 'lucide-check' : 'lucide-blank',
-            onClick: () => (source.value = v),
-          })),
-        },
-      ]
-    : []),
+  {
+    group: 'Source',
+    options: [['', 'Any source'], ...Object.entries(ORIGINS)].map(([v, l]) => ({
+      label: l,
+      icon: source.value === v ? 'lucide-check' : 'lucide-blank',
+      onClick: () => (source.value = v),
+    })),
+  },
 ])
-const filterCount = computed(() => [probability.value, crmOn.value && source.value].filter(Boolean).length)
+const filterCount = computed(() => [probability.value, source.value].filter(Boolean).length)
 const SORTS = [
   { value: 'reply', label: 'Last reply' },
   { value: 'stage', label: 'Stage' },
@@ -96,11 +95,13 @@ const sort = ref('reply')
 const sortMenu = computed(() =>
   SORTS.map((o) => ({ label: o.label, icon: sort.value === o.value ? 'lucide-check' : 'lucide-blank', onClick: () => (sort.value = o.value) })),
 )
+// Stage second, as on Customers. Every column takes a share of the spare
+// width above its minimum, so the right-hand ones aren't packed together.
 const COLUMNS = [
-  { key: 'company', label: 'Company', width: 'minmax(0,1fr)' },
-  { key: 'stage', label: 'Stage', width: '11rem' },
-  { key: 'owner', label: 'Assigned to', width: '11rem' },
-  { key: 'probability', label: 'Probability', width: '7rem' },
+  { key: 'stage', label: 'Stage', width: 'minmax(10rem,1fr)' },
+  { key: 'company', label: 'Company', width: 'minmax(0,1.5fr)' },
+  { key: 'owner', label: 'Assigned to', width: 'minmax(10rem,1fr)' },
+  { key: 'probability', label: 'Probability', width: 'minmax(7rem,1fr)' },
 ]
 const shownCols = ref(COLUMNS.map((c) => c.key))
 const show = (k) => shownCols.value.includes(k)
@@ -113,7 +114,7 @@ const columnsMenu = computed(() =>
 )
 const gridColumns = computed(() => ({
   base: ['minmax(0,1fr)', 'auto'],
-  md: ['minmax(0,2fr)', ...COLUMNS.filter((c) => show(c.key)).map((c) => c.width), '6rem'],
+  md: ['minmax(14rem,2.5fr)', ...COLUMNS.filter((c) => show(c.key)).map((c) => c.width), '6rem'],
 }))
 const PAGE_SIZES = [20, 50, 100].map((n) => ({ label: String(n), value: n }))
 const pageSize = ref(20)
@@ -134,7 +135,7 @@ const rows = computed(() => {
     .filter((t) => !stage.value || t.stage === stage.value)
     .filter((t) => !owner.value || (owner.value === 'none' ? !t.owner : t.owner === owner.value))
     .filter((t) => !probability.value || t.probability === probability.value)
-    .filter((t) => !crmOn.value || !source.value || (source.value === 'crm') === isCrm(t))
+    .filter((t) => !source.value || originOf(t) === source.value)
     .sort((a, b) => {
       if (sort.value === 'stage') return PRM_STAGES.indexOf(a.stage) - PRM_STAGES.indexOf(b.stage)
       if (sort.value === 'probability') return ['Hot', 'Warm', 'Cold', undefined].indexOf(a.probability) - ['Hot', 'Warm', 'Cold', undefined].indexOf(b.probability)
@@ -170,6 +171,9 @@ const time = (at) => {
 
 <template>
   <ConnectShell root-label="Leads" flush>
+    <template v-if="canAdd" #action>
+      <Button icon-left="lucide-plus" label="Add lead" @click="adding = true" />
+    </template>
 
     <div class="flex min-h-0 min-w-0 flex-1 flex-col">
       <div v-if="paused" class="shrink-0 px-3 pt-4 sm:px-5">
@@ -216,8 +220,8 @@ const time = (at) => {
         >
           <ListHeader class="mb-2 rounded-4 bg-surface-gray-2 px-2">
             <ListHeaderCell>Lead</ListHeaderCell>
-            <ListHeaderCell v-if="show('company')" class="hidden md:flex">Company</ListHeaderCell>
             <ListHeaderCell v-if="show('stage')" class="hidden md:flex">Stage</ListHeaderCell>
+            <ListHeaderCell v-if="show('company')" class="hidden md:flex">Company</ListHeaderCell>
             <ListHeaderCell v-if="show('owner')" class="hidden md:flex">Assigned to</ListHeaderCell>
             <ListHeaderCell v-if="show('probability')" class="hidden md:flex">Probability</ListHeaderCell>
             <ListHeaderCell class="justify-end">Updated</ListHeaderCell>
@@ -236,12 +240,12 @@ const time = (at) => {
                 <!-- Until they confirm or requote. See docs/edit-requirements.md. -->
                 <Badge v-if="item.requirementsUpdated" class="shrink-0" theme="gray" label="Requirements updated" />
               </ListCell>
+              <ListCell v-if="show('stage')" class="hidden min-w-0 gap-2 md:flex">
+                <StageDot :color="dot(item.stage)" />
+                <span class="truncate text-base text-ink-gray-7">{{ item.stage }}<template v-if="item.hireRequest"> · Hire sent</template></span>
+              </ListCell>
               <ListCell v-if="show('company')" class="hidden min-w-0 md:flex">
                 <span class="truncate text-base text-ink-gray-7">{{ companyName(item) }}</span>
-              </ListCell>
-              <ListCell v-if="show('stage')" class="hidden min-w-0 gap-2 md:flex">
-                <span :class="dot(item.stage)" class="size-2 shrink-0 rounded-full" aria-hidden="true" />
-                <span class="truncate text-base text-ink-gray-7">{{ item.stage }}<template v-if="item.hireRequest"> · Hire sent</template></span>
               </ListCell>
               <ListCell v-if="show('owner')" class="hidden min-w-0 gap-2 md:flex">
                 <template v-if="item.owner">
@@ -271,5 +275,6 @@ const time = (at) => {
         <span class="text-base tabular-nums text-ink-gray-5">{{ page.length }} of {{ rows.length }}</span>
       </div>
     </div>
+    <AddLeadDialog v-model:open="adding" />
   </ConnectShell>
 </template>

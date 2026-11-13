@@ -55,7 +55,7 @@ import PartnerAccountDialog from './settings/PartnerAccountDialog.vue'
 import NotificationsPanel from './NotificationsPanel.vue'
 import NotificationsRailItem from './NotificationsRailItem.vue'
 import SearchPalette from './SearchPalette.vue'
-import { notifications } from '../data/notifications'
+import { notifications, readRequestNotification, requestNotification } from '../data/notifications'
 
 const store = useConnectStore()
 const router = useRouter()
@@ -278,14 +278,19 @@ const logOut = () => {
 //
 // Wire to real unread state when that screen lands. Note `RailItem` caps its own
 // badge at "99+" — anything here that could exceed two digits wants the same.
-const notifItems = computed(() =>
-  store.role === 'partner' ? notifications.partner : store.hasProject ? notifications.business : [],
-)
+// Link requests join the partner's list for owners and sales, newest first
+// with the rest.
+const canReviewLinks = computed(() => ['owner', 'sales'].includes(store.partnerRole))
+const notifItems = computed(() => {
+  if (store.role !== 'partner') return store.hasProject ? notifications.business : []
+  const requests = canReviewLinks.value ? account.requests.map(requestNotification) : []
+  return [...notifications.partner, ...requests].sort((a, b) => b.time - a.time)
+})
 const unread = computed(() => notifItems.value.filter((n) => !n.read).length)
 const notifOpen = ref(false)
 const searchOpen = ref(false)
-const readNotification = (n) => (n.read = true)
-const readAllNotifications = () => notifItems.value.forEach((n) => (n.read = true))
+const readNotification = (n) => (n.requestId ? readRequestNotification(n.requestId) : (n.read = true))
+const readAllNotifications = () => notifItems.value.forEach(readNotification)
 // Search's empty state: the places in the rail.
 const searchPlaces = computed(() =>
   partnerRail.value.flatMap((g) => g.items).map((i) => ({ to: i.to, label: i.label, icon: i.icon, iconComp: i.iconComp })),
@@ -642,7 +647,9 @@ defineProps({
            20px centred on a 12px strip it sits under the cursor whenever it's
            visible. `focus-visible:opacity-100` is what keeps it reachable by
            keyboard, since an `opacity-0` control is still focusable. -->
-      <div class="group absolute inset-y-0 -left-1.5 z-20 w-3" @mousemove="onRailMove">
+      <!-- Gone while Notifications is open: the panel covers the seam, and a
+           collapse chevron on the panel's edge reads as the panel's own. -->
+      <div v-if="!notifOpen" class="group absolute inset-y-0 -left-1.5 z-20 w-3" @mousemove="onRailMove">
         <span
           class="absolute left-1/2 top-0 h-full -translate-x-1/2 border-l border-outline-gray-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
           aria-hidden="true"

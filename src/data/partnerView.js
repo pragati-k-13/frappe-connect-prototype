@@ -100,6 +100,8 @@ export const partnerThreads = () => [
   // asks whether it's that customer. See "Lead to customer" in the plan.
   {
     id: 'pv-halcyon',
+    // Halcyon asked Frappe for a partner, and Frappe suggested this firm.
+    origin: 'referral',
     stage: 'Negotiation',
     owner: 'anuja-deshmukh',
     probability: 'Hot',

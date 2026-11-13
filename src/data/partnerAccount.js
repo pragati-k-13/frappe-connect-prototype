@@ -9,25 +9,28 @@
 import { OPEN_MONTH, TIERS, contributionMonths, contributionsFor, firmFor } from './partnership'
 
 // ── Customers ───────────────────────────────────────────────────────────────
-// `source` 'connect' | 'own'. `billing` 'customer' | 'partner'. `stage`
+// `source` 'connect' | 'own' is where the record came from in the app.
+// `origin` is who found the business (see ORIGINS in useLeads): Connect
+// customers carry 'connect' without saying so; null is "—", a business that
+// linked to the code with no lead behind it. `billing` 'customer' | 'partner'. `stage`
 // 'onboarding' | 'live' | 'churned'. `linked` is when the partner code was
 // linked.
 const SILVER_CUSTOMERS = [
-  { name: 'Halcyon', contact: 'Ritu Sharma', email: 'ritu@halcyon.example', source: 'own', billing: 'customer', stage: 'live', linked: '2023-04-11', region: 'Mumbai' },
+  { name: 'Halcyon', origin: 'referral', contact: 'Ritu Sharma', email: 'ritu@halcyon.example', source: 'own', billing: 'customer', stage: 'live', linked: '2023-04-11', region: 'Mumbai' },
   { name: 'Kestrel', contact: 'Arjun Nair', email: 'arjun@kestrel.example', source: 'connect', billing: 'partner', stage: 'live', linked: '2025-08-02', region: 'Mumbai', project: 'Stock and purchase on ERPNext' },
-  { name: 'Vantage', contact: 'Lena Fischer', email: 'lena@vantage.example', source: 'own', billing: 'customer', stage: 'live', linked: '2024-02-19', region: 'Frankfurt' },
+  { name: 'Vantage', origin: 'team', contact: 'Lena Fischer', email: 'lena@vantage.example', source: 'own', billing: 'customer', stage: 'live', linked: '2024-02-19', region: 'Frankfurt' },
   { name: 'Tessellate', contact: 'Priya Menon', email: 'priya@tessellate.example', source: 'connect', billing: 'customer', stage: 'live', linked: '2025-11-20', region: 'Mumbai', project: 'Payroll on Frappe HR' },
-  { name: 'Meridian', contact: 'Vikram Shah', email: 'vikram@meridian.example', source: 'own', billing: 'partner', stage: 'live', linked: '2024-06-07', region: 'Mumbai' },
-  { name: 'Orenda', contact: 'Omar Haddad', email: 'omar@orenda.example', source: 'own', billing: 'customer', stage: 'live', linked: '2025-01-15', region: 'Bahrain' },
-  { name: 'Silverpine', contact: 'Neha Kulkarni', email: 'neha@silverpine.example', source: 'own', billing: 'partner', stage: 'live', linked: '2024-09-30', region: 'Mumbai' },
-  { name: 'Bluecrest', contact: 'Dev Patel', email: 'dev@bluecrest.example', source: 'own', billing: 'customer', stage: 'live', linked: '2025-05-12', region: 'Mumbai' },
+  { name: 'Meridian', origin: 'team', contact: 'Vikram Shah', email: 'vikram@meridian.example', source: 'own', billing: 'partner', stage: 'live', linked: '2024-06-07', region: 'Mumbai' },
+  { name: 'Orenda', origin: null, contact: 'Omar Haddad', email: 'omar@orenda.example', source: 'own', billing: 'customer', stage: 'live', linked: '2025-01-15', region: 'Bahrain' },
+  { name: 'Silverpine', origin: 'referral', contact: 'Neha Kulkarni', email: 'neha@silverpine.example', source: 'own', billing: 'partner', stage: 'live', linked: '2024-09-30', region: 'Mumbai' },
+  { name: 'Bluecrest', origin: 'team', contact: 'Dev Patel', email: 'dev@bluecrest.example', source: 'own', billing: 'customer', stage: 'live', linked: '2025-05-12', region: 'Mumbai' },
   { name: 'Rivermark Textiles', contact: 'Kavya Iyer', email: 'kavya@rivermark.example', source: 'connect', billing: 'customer', stage: 'onboarding', region: 'Mumbai', project: 'Manufacturing on ERPNext' },
-  { name: 'Granite Works', contact: 'Rohan Das', email: 'rohan@granite.example', source: 'own', billing: 'customer', stage: 'churned', linked: '2023-09-01', region: 'Mumbai' },
+  { name: 'Granite Works', origin: 'team', contact: 'Rohan Das', email: 'rohan@granite.example', source: 'own', billing: 'customer', stage: 'churned', linked: '2023-09-01', region: 'Mumbai' },
 ]
 
 const BEGINNER_CUSTOMERS = [
-  { name: 'Aurelia', contact: 'Maya Haddad', email: 'maya@aurelia.example', source: 'own', billing: 'customer', stage: 'live', linked: '2026-08-28', region: 'Bahrain' },
-  { name: 'Brightwell Foods', contact: 'Tom Okafor', email: 'tom@brightwell.example', source: 'own', billing: 'customer', stage: 'live', linked: '2026-10-04', region: 'Bahrain' },
+  { name: 'Aurelia', origin: 'team', contact: 'Maya Haddad', email: 'maya@aurelia.example', source: 'own', billing: 'customer', stage: 'live', linked: '2026-08-28', region: 'Bahrain' },
+  { name: 'Brightwell Foods', origin: null, contact: 'Tom Okafor', email: 'tom@brightwell.example', source: 'own', billing: 'customer', stage: 'live', linked: '2026-10-04', region: 'Bahrain' },
 ]
 
 const slug = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
@@ -63,8 +66,18 @@ export const customerInvoices = (tier, state, name) =>
 
 // ── Link requests ───────────────────────────────────────────────────────────
 // A customer entered the partner code in Frappe Cloud. Approving one makes it
-// a customer; nobody adds customers by hand.
+// a customer, matched to the firm's lead for that business when there is one;
+// nobody adds customers by hand.
 const SILVER_REQUESTS = [
+  // Northwind's lead is still open: approving links it to that lead.
+  {
+    id: 'req-northwind',
+    company: 'Northwind',
+    contact: 'Meera Iyer',
+    email: 'meera@northwind.example',
+    at: '2026-10-31',
+    sites: [{ name: 'northwind.frappe.cloud', plan: 'Business', region: 'Mumbai' }],
+  },
   {
     id: 'req-coastal',
     company: 'Coastal Traders',
