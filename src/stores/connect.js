@@ -358,7 +358,7 @@ export const useConnectStore = defineStore('connect', {
     // then `{ ok, note }`.
     recoFeedback: null,
     // Reviews written in this demo, `{ id, partnerId, projectId, author: { name,
-    // company, email }, apps, stars, recommend, text, at }`. About the PARTNER
+    // company, email }, stars, recommend, text, at }`. About the PARTNER
     // (published on their profile), so not kept on a project: most reviewers
     // have none, a customer sent the profile link by their partner. One per
     // person per partner; writing again replaces it.
@@ -1916,7 +1916,7 @@ export const useConnectStore = defineStore('connect', {
 
     // Publishing a review: the viewer's, replacing any earlier one of theirs
     // for this partner.
-    publishReview({ partnerId, projectId = null, apps, stars, recommend, text }) {
+    publishReview({ partnerId, projectId = null, stars, recommend, text }) {
       const author = { name: this.viewer.name, company: this.viewer.company, email: this.viewer.email }
       const earlier = this.myReviewOf(partnerId)
       const review = {
@@ -1924,7 +1924,6 @@ export const useConnectStore = defineStore('connect', {
         partnerId,
         projectId: projectId ?? earlier?.projectId ?? null,
         author,
-        apps: [...apps],
         stars,
         recommend: recommend ?? null,
         text: text.trim(),

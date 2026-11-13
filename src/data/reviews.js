@@ -285,5 +285,4 @@ export const writtenAsItem = (r) => ({
   stars: r.stars,
   recommend: r.recommend === 'yes',
   text: r.text,
-  apps: r.apps,
 })

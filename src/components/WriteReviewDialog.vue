@@ -1,23 +1,22 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { Avatar, Button, Dialog, Rating, TabButtons, Textarea, toast } from 'frappe-ui'
-import AppsSelect from './AppsSelect.vue'
 import { useConnectStore } from '../stores/connect'
 import { firmDomain } from '../data/partners'
 
 // Writing a review of a partner, the same form for everyone: a business that
-// hired them here (from its completed project, apps filled in from it) or a
+// hired them here (prompted when its project completes) or a
 // long-time customer their partner sent the profile link to, who has no
 // project here at all.
 //
-// It's public, so it says who it's posted as before anything else. Apps,
+// It's public, so it says who it's posted as before anything else. The
 // rating and the text are required, each with its own message; "Would you
 // recommend them?" can be left alone, or answered "Not sure". Someone from the
 // partner's own firm can't review it. Writing again edits the earlier review.
 const props = defineProps({
   open: { type: Boolean, default: false },
   partner: { type: Object, default: null },
-  // The project it came from, when there is one: its apps start the field.
+  // The project it came from, when there is one.
   project: { type: Object, default: null },
 })
 const emit = defineEmits(['update:open', 'published'])
@@ -32,14 +31,13 @@ const RECOMMEND = [
   { label: 'No', value: 'no' },
   { label: 'Not sure', value: 'unsure' },
 ]
-const form = reactive({ apps: [], stars: 0, recommend: null, text: '' })
+const form = reactive({ stars: 0, recommend: null, text: '' })
 const tried = ref(false)
 watch(
   () => props.open,
   (isOpen) => {
     if (!isOpen) return
     const e = earlier.value
-    form.apps = [...(e?.apps ?? props.project?.apps ?? [])]
     form.stars = e?.stars ?? 0
     form.recommend = e?.recommend ?? null
     form.text = e?.text ?? ''
@@ -49,7 +47,6 @@ watch(
 const errors = computed(() =>
   tried.value
     ? {
-        apps: form.apps.length ? '' : 'Pick at least one app',
         stars: form.stars ? '' : 'Pick a rating',
         text: form.text.trim() ? '' : 'Write a few words',
       }
@@ -58,12 +55,11 @@ const errors = computed(() =>
 
 function publish() {
   tried.value = true
-  if (!form.apps.length || !form.stars || !form.text.trim()) return
+  if (!form.stars || !form.text.trim()) return
   const wasEditing = Boolean(earlier.value)
   const review = store.publishReview({
     partnerId: props.partner.id,
     projectId: props.project?.id ?? null,
-    apps: form.apps,
     stars: form.stars,
     recommend: form.recommend,
     text: form.text,
@@ -96,7 +92,6 @@ function publish() {
           <Avatar size="sm" :label="viewer.name" />
           Posting as {{ viewer.name }}, {{ viewer.company }}
         </p>
-        <AppsSelect v-model="form.apps" label="Apps they worked on" placeholder="Select" required :error="errors.apps" />
         <!-- Labels written out to match the fields around them: frappe-ui's
              label, with the same red * the required fields carry. -->
         <div class="space-y-1.5">

@@ -4,7 +4,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Badge, Button } from 'frappe-ui'
 import WriteReviewDialog from './WriteReviewDialog.vue'
 import { SHOWN, reviewsFor, writtenAsItem } from '../data/reviews'
-import { PROJECT_APPS } from '../data/partners'
 import { useConnectStore } from '../stores/connect'
 import { useAuthGate } from '../utils/auth'
 
@@ -67,18 +66,6 @@ const rating = computed(() => {
   return count.value ? (sum / count.value).toFixed(1) : '0.0'
 })
 
-// What the work covered, on the company line. Up to two app names, then
-// "+N more", which expands the rest in place (tap, not hover, so it works on
-// a phone). The line wraps to two lines at most.
-const APPS_SHOWN = 2
-const appNames = (apps) => (apps ?? []).map((v) => PROJECT_APPS.find((a) => a.value === v)?.label ?? v)
-const expanded = ref(new Set())
-const shownApps = (r) => {
-  const names = appNames(r.apps)
-  return expanded.value.has(r.id) ? names : names.slice(0, APPS_SHOWN)
-}
-const moreApps = (r) => (expanded.value.has(r.id) ? 0 : Math.max(0, appNames(r.apps).length - APPS_SHOWN))
-const expandApps = (r) => (expanded.value = new Set([...expanded.value, r.id]))
 const ago = (r) => (r.today ? 'Today' : r.monthsAgo < 12 ? `${r.monthsAgo} months ago` : `${Math.floor(r.monthsAgo / 12)}y ago`)
 
 // ── Writing one ─────────────────────────────────────────────────────────────
@@ -171,17 +158,7 @@ async function published() {
                    paragraph leading. -->
               <p class="shrink-0 text-sm text-ink-gray-5">{{ ago(r) }}</p>
             </div>
-            <p class="mt-1 text-base text-ink-gray-6">
-              {{ r.company }}<template v-if="r.apps?.length"> · {{ shownApps(r).join(', ') }}</template>
-              <button
-                v-if="moreApps(r)"
-                type="button"
-                class="ml-1 rounded-4 text-ink-gray-6 underline decoration-outline-gray-3 underline-offset-2 hover:text-ink-gray-8 focus-visible:focus-ring"
-                @click="expandApps(r)"
-              >
-                +{{ moreApps(r) }} more
-              </button>
-            </p>
+            <p class="mt-1 text-base text-ink-gray-6">{{ r.company }}</p>
           </div>
         </div>
 
