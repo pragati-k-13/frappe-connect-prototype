@@ -13,7 +13,9 @@ areas on the rail, plus Settings. Each area answers one question a partner comes
 | Listing     | What does a business see when it finds us?                 |
 | Resources   | What has Frappe given us to sell and deliver with?         |
 
-The rail starts with Search (⌘K) and Notifications, set apart by space. Then one list with no
+The rail starts with Search (⌘K) and Notifications, set apart by space. Search, empty, offers the
+rail's places; typing adds People, Leads and Customers. A person opens Firm settings on Users
+with their row picked out. Then one list with no
 labels, ordered by how often each is opened: Leads, Customers, Partnership, Audits, Public
 profile, Invoices, Resources. A Beginner's list starts with Partnership. Each role sees only its
 own rows. Group labels were dropped (2026-11-12): with seven rows the order does their job, and

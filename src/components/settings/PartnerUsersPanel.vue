@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import {
   Avatar,
   Badge,
@@ -43,6 +43,12 @@ const people = computed(() => {
   const q = query.value.trim().toLowerCase()
   return account.team.filter((p) => !q || p.name.toLowerCase().includes(q) || p.email?.toLowerCase().includes(q))
 })
+
+// Opened from search on one person: their row is picked out and in view.
+const focused = ref(store.firmSettingsFocus)
+onMounted(() =>
+  nextTick(() => focused.value && document.querySelector(`[data-person="${focused.value}"]`)?.scrollIntoView({ block: 'nearest' })),
+)
 
 function roleOptions(p) {
   return ROLES.map((r) => ({
@@ -110,9 +116,9 @@ function sendInvite() {
       <template #prefix><span class="lucide-search size-4 text-ink-gray-5" aria-hidden="true" /></template>
     </TextInput>
 
-    <List :columns="['minmax(0,1fr)', 'auto', 'auto']" :row-height="56">
+    <List v-model:active="focused" :columns="['minmax(0,1fr)', 'auto', 'auto']" :row-height="56">
       <ListRows :items="people" v-slot="{ item }">
-        <ListRow>
+        <ListRow :value="item.id" :data-person="item.id">
           <ListCell>
             <div class="flex min-w-0 items-center gap-3">
               <Avatar :label="item.name" size="xl" class="shrink-0" />
