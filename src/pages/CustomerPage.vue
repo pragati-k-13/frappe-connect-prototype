@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, h, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   Avatar,
@@ -90,7 +90,7 @@ const stageMenu = computed(() =>
 const ownerMenu = computed(() =>
   account.team
     .filter((p) => p.roles.includes('sales') || p.roles.includes('owner'))
-    .map((p) => ({ label: p.name, onClick: () => change('owner', 'Owner', c.value.owner, p.id, nameOf) })),
+    .map((p) => ({ label: p.name, slots: { prefix: () => h(Avatar, { label: p.name, size: 'xs' }) }, onClick: () => change('owner', 'Owner', c.value.owner, p.id, nameOf) })),
 )
 
 // ── Tabs ────────────────────────────────────────────────────────────────────

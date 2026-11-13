@@ -94,11 +94,13 @@ const sort = ref('reply')
 const sortMenu = computed(() =>
   SORTS.map((o) => ({ label: o.label, icon: sort.value === o.value ? 'lucide-check' : 'lucide-blank', onClick: () => (sort.value = o.value) })),
 )
+// Stage second, as on Customers. Every column takes a share of the spare
+// width above its minimum, so the right-hand ones aren't packed together.
 const COLUMNS = [
-  { key: 'company', label: 'Company', width: 'minmax(0,1fr)' },
-  { key: 'stage', label: 'Stage', width: '11rem' },
-  { key: 'owner', label: 'Assigned to', width: '11rem' },
-  { key: 'probability', label: 'Probability', width: '7rem' },
+  { key: 'stage', label: 'Stage', width: 'minmax(10rem,1fr)' },
+  { key: 'company', label: 'Company', width: 'minmax(0,1.5fr)' },
+  { key: 'owner', label: 'Assigned to', width: 'minmax(10rem,1fr)' },
+  { key: 'probability', label: 'Probability', width: 'minmax(7rem,1fr)' },
 ]
 const shownCols = ref(COLUMNS.map((c) => c.key))
 const show = (k) => shownCols.value.includes(k)
@@ -111,7 +113,7 @@ const columnsMenu = computed(() =>
 )
 const gridColumns = computed(() => ({
   base: ['minmax(0,1fr)', 'auto'],
-  md: ['minmax(0,2fr)', ...COLUMNS.filter((c) => show(c.key)).map((c) => c.width), '6rem'],
+  md: ['minmax(14rem,2.5fr)', ...COLUMNS.filter((c) => show(c.key)).map((c) => c.width), '6rem'],
 }))
 const PAGE_SIZES = [20, 50, 100].map((n) => ({ label: String(n), value: n }))
 const pageSize = ref(20)
@@ -217,8 +219,8 @@ const time = (at) => {
         >
           <ListHeader class="mb-2 rounded-4 bg-surface-gray-2 px-2">
             <ListHeaderCell>Lead</ListHeaderCell>
-            <ListHeaderCell v-if="show('company')" class="hidden md:flex">Company</ListHeaderCell>
             <ListHeaderCell v-if="show('stage')" class="hidden md:flex">Stage</ListHeaderCell>
+            <ListHeaderCell v-if="show('company')" class="hidden md:flex">Company</ListHeaderCell>
             <ListHeaderCell v-if="show('owner')" class="hidden md:flex">Assigned to</ListHeaderCell>
             <ListHeaderCell v-if="show('probability')" class="hidden md:flex">Probability</ListHeaderCell>
             <ListHeaderCell class="justify-end">Updated</ListHeaderCell>
@@ -237,12 +239,12 @@ const time = (at) => {
                 <!-- Until they confirm or requote. See docs/edit-requirements.md. -->
                 <Badge v-if="item.requirementsUpdated" class="shrink-0" theme="gray" label="Requirements updated" />
               </ListCell>
-              <ListCell v-if="show('company')" class="hidden min-w-0 md:flex">
-                <span class="truncate text-base text-ink-gray-7">{{ companyName(item) }}</span>
-              </ListCell>
               <ListCell v-if="show('stage')" class="hidden min-w-0 gap-2 md:flex">
                 <span :class="dot(item.stage)" class="size-2 shrink-0 rounded-full" aria-hidden="true" />
                 <span class="truncate text-base text-ink-gray-7">{{ item.stage }}<template v-if="item.hireRequest"> · Hire sent</template></span>
+              </ListCell>
+              <ListCell v-if="show('company')" class="hidden min-w-0 md:flex">
+                <span class="truncate text-base text-ink-gray-7">{{ companyName(item) }}</span>
               </ListCell>
               <ListCell v-if="show('owner')" class="hidden min-w-0 gap-2 md:flex">
                 <template v-if="item.owner">

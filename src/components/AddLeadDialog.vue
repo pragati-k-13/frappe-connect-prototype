@@ -1,11 +1,12 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Dialog, FormControl, MultiSelect, Select, Textarea, toast } from 'frappe-ui'
+import { Avatar, Dialog, FormControl, MultiSelect, ScrollArea, Select, Textarea, toast } from 'frappe-ui'
 import { addLead, meFor } from '../composables/useLeads'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { APPS } from '../data/partners'
+import { appLogo } from '../data/apps'
 
 // Add lead: a business the firm found itself, for a firm with no CRM
 // connected (one with a CRM adds it there). Only what's needed to know the
@@ -19,6 +20,7 @@ const store = useConnectStore()
 const account = usePartnerAccountStore()
 
 const APP_OPTIONS = APPS.filter((a) => a.value !== 'framework')
+const nameOf = (id) => account.team.find((p) => p.id === id)?.name
 const ownerOptions = computed(() => [
   { label: 'Unassigned', value: 'none' },
   ...account.team.filter((p) => p.roles.includes('sales') || p.roles.includes('owner')).map((p) => ({ label: p.name, value: p.id })),
@@ -76,15 +78,28 @@ const actions = [
 
 <template>
   <Dialog v-model:open="open" size="md" title="Add lead" :actions="actions">
+    <!-- frappe-ui's scrollbar, as in EditRequirementsDialog, for short windows. -->
+    <ScrollArea class="fc-scroll-dialog -mr-4 sm:-mr-6" viewport-class="pr-4 sm:pr-6">
     <div class="space-y-4">
       <FormControl v-model="form.company" label="Company" required :error="errors.company" />
       <div class="grid gap-4 sm:grid-cols-2">
         <FormControl v-model="form.contact" label="Contact name" required :error="errors.contact" />
         <FormControl v-model="form.email" type="email" label="Email" required :error="errors.email" />
       </div>
-      <MultiSelect v-model="form.apps" label="Apps" placeholder="Select" required :options="APP_OPTIONS" :error="errors.apps" />
+      <MultiSelect v-model="form.apps" label="Apps" placeholder="Select" required :options="APP_OPTIONS" :error="errors.apps">
+        <!-- Each app's own mark; one without artwork gets Avatar's initial. -->
+        <template #item-prefix="{ item }">
+          <Avatar size="xs" shape="square" :image="appLogo(item.value) ?? undefined" :label="item.label" />
+        </template>
+      </MultiSelect>
       <Textarea v-model="form.requirements" label="Requirements" :rows="3" />
-      <Select v-model="form.owner" label="Owner" :options="ownerOptions" />
+      <Select v-model="form.owner" label="Owner" :options="ownerOptions">
+        <template #item-prefix="{ item }">
+          <Avatar v-if="item.value !== 'none'" size="xs" :label="nameOf(item.value)" />
+          <span v-else class="lucide-user size-4 text-ink-gray-5" aria-hidden="true" />
+        </template>
+      </Select>
     </div>
+    </ScrollArea>
   </Dialog>
 </template>

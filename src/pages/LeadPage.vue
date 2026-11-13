@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, h, nextTick, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Avatar, Badge, Button, Dialog, Dropdown, ScrollArea, Select, TabList, Tabs, TabTrigger, TextInput, Textarea, toast } from 'frappe-ui'
 import IconBuilding from '~icons/lucide/building-2'
@@ -175,7 +175,14 @@ function setProbability(p) {
   lead.value.probability = p
 }
 const stageMenu = computed(() => stageOptions.map((o) => ({ label: o.label, onClick: () => setStage(o.value) })))
-const ownerMenu = computed(() => ownerOptions.value.map((o) => ({ label: o.label, onClick: () => setOwner(o.value) })))
+// Each person with their avatar, as the button shows the chosen one.
+const ownerMenu = computed(() =>
+  ownerOptions.value.map((o) => ({
+    label: o.label,
+    slots: { prefix: () => (o.value === 'none' ? h('span', { class: 'lucide-user size-4 text-ink-gray-5', 'aria-hidden': 'true' }) : h(Avatar, { label: o.label, size: 'xs' })) },
+    onClick: () => setOwner(o.value),
+  })),
+)
 const probabilityOptions = PROBABILITY.map((p) => ({ label: p, value: p }))
 
 // ── Tabs ────────────────────────────────────────────────────────────────────

@@ -91,11 +91,11 @@ const isUnpaid = (c) => c.billing === 'customer' && unpaid.value.has(c.name)
 // Contact and Who pays aren't columns: both are looked up on the customer's
 // page, not scanned down a list. Search still matches the contact.
 const COLUMNS = [
-  { key: 'stage', label: 'Stage', width: '8rem' },
-  { key: 'source', label: 'Source', width: '9rem' },
-  { key: 'owner', label: 'Owner', width: '10rem' },
-  { key: 'sites', label: 'Sites', width: '5rem' },
-  { key: 'mrr', label: 'MRR', width: '7rem' },
+  { key: 'stage', label: 'Stage', width: 'minmax(8rem,1fr)' },
+  { key: 'source', label: 'Source', width: 'minmax(9rem,1fr)' },
+  { key: 'owner', label: 'Owner', width: 'minmax(10rem,1fr)' },
+  { key: 'sites', label: 'Sites', width: 'minmax(5rem,0.6fr)' },
+  { key: 'mrr', label: 'MRR', width: 'minmax(7rem,0.8fr)' },
 ]
 const shownCols = ref(COLUMNS.map((c) => c.key))
 const show = (k) => shownCols.value.includes(k)
@@ -108,7 +108,7 @@ const columnsMenu = computed(() =>
 )
 const gridColumns = computed(() => ({
   base: ['minmax(0,1fr)', 'auto', '2rem'],
-  md: ['minmax(0,1fr)', ...COLUMNS.filter((c) => show(c.key)).map((c) => c.width), '2rem'],
+  md: ['minmax(12rem,2fr)', ...COLUMNS.filter((c) => show(c.key)).map((c) => c.width), '2rem'],
 }))
 const PAGE_SIZES = [20, 50, 100].map((n) => ({ label: String(n), value: n }))
 const pageSize = ref(20)

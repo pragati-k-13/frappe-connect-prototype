@@ -647,7 +647,9 @@ defineProps({
            20px centred on a 12px strip it sits under the cursor whenever it's
            visible. `focus-visible:opacity-100` is what keeps it reachable by
            keyboard, since an `opacity-0` control is still focusable. -->
-      <div class="group absolute inset-y-0 -left-1.5 z-20 w-3" @mousemove="onRailMove">
+      <!-- Gone while Notifications is open: the panel covers the seam, and a
+           collapse chevron on the panel's edge reads as the panel's own. -->
+      <div v-if="!notifOpen" class="group absolute inset-y-0 -left-1.5 z-20 w-3" @mousemove="onRailMove">
         <span
           class="absolute left-1/2 top-0 h-full -translate-x-1/2 border-l border-outline-gray-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
           aria-hidden="true"

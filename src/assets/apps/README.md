@@ -9,6 +9,9 @@ icons, taken from the product cards on <https://frappe.io/products>:
 | `crm.png` | `frappe.io/files/crmaff993.png` |
 | `frappe-hr.png` | `frappe.io/files/hrbde4d8.png` |
 | `helpdesk.png` | `frappe.io/files/helpdesk8109cf.png` |
+| `drive.svg` | frappe-patterns logos, from github.com/frappe/drive |
+| `insights.svg` | frappe-patterns logos, from github.com/frappe/insights |
+| `learning.png` | frappe-patterns `lms.png`, from github.com/frappe/lms |
 
 Each is ~160x157 RGBA PNG, 2-3 KB, and carries its own rounded-square shape on
 transparency — so they render whole with `object-contain` in a square box, at
