@@ -1,7 +1,7 @@
 <script setup>
-import { computed, nextTick, ref } from 'vue'
-import { Badge, Button, Dropdown, MultiSelect, Select, Tooltip } from 'frappe-ui'
-import InlineInput from './InlineInput.vue'
+import { computed, ref } from 'vue'
+import { Badge, Button, MultiSelect, Tooltip, dialog } from 'frappe-ui'
+import AddressDialog from './AddressDialog.vue'
 import RateEditor from './RateEditor.vue'
 import Tag from './Tag.vue'
 import { APPS, OFFICE_CITIES, PARTNERS, addressesOf, countryShort } from '../data/partners'
@@ -96,22 +96,36 @@ const shownOffices = computed(() => offices.value.map((a) => a.text || a.city))
 const cityOptions = computed(() =>
   [...new Set([...OFFICE_CITIES, ...offices.value.map((a) => a.city)])].sort().map((c) => ({ label: c, value: c })),
 )
-const officesEl = ref(null)
 function setOffices(list) {
   emit('change', { addresses: list, city: list[0].city, address: list[0].text || null })
 }
-const setOffice = (i, patch) => setOffices(offices.value.map((a, j) => (j === i ? { ...a, ...patch } : a)))
-async function addOffice() {
-  setOffices([...offices.value, { city: offices.value[0].city, text: '' }])
-  await nextTick()
-  const fields = officesEl.value?.querySelectorAll('textarea, [contenteditable], input[type="text"]')
-  fields?.[fields.length - 1]?.focus()
+// One address at a time, in a dialog: `editingIndex` is its place in the
+// list, or -1 when adding one.
+const dialogOpen = ref(false)
+const editingIndex = ref(-1)
+const openAddress = (i) => {
+  editingIndex.value = i
+  dialogOpen.value = true
 }
-const officeMenu = (i) =>
-  [
-    i > 0 && { label: 'Make main', icon: 'lucide-star', onClick: () => setOffices([offices.value[i], ...offices.value.filter((_, j) => j !== i)]) },
-    { label: 'Remove', icon: 'lucide-trash-2', theme: 'red', onClick: () => setOffices(offices.value.filter((_, j) => j !== i)) },
-  ].filter(Boolean)
+function saveAddress({ city, text, main }) {
+  const i = editingIndex.value
+  const list = i < 0 ? [...offices.value, { city, text }] : offices.value.map((a, j) => (j === i ? { ...a, city, text } : a))
+  const at = i < 0 ? list.length - 1 : i
+  setOffices(main ? [list[at], ...list.filter((_, j) => j !== at)] : list)
+}
+// Removing asks first, neutrally: it's only gone from the draft, but
+// getting it back means typing it in again.
+function removeAddress() {
+  const i = editingIndex.value
+  dialog.confirm({
+    title: `Remove the ${cityShort(offices.value[i].city)} address?`,
+    message: 'It comes off your profile when you publish.',
+    confirmLabel: 'Remove',
+    size: 'sm',
+    onConfirm: () => setOffices(offices.value.filter((_, j) => j !== i)),
+  })
+}
+const cityShort = (c) => c.split(',')[0].trim()
 
 // The firm's other offices, each its own listing and its own partner
 // agreement, so Frappe sets the link and the partner can't edit it. A Tag,
@@ -151,11 +165,11 @@ const LISTS = {
   <!-- `overflow-hidden` so the column rule and the header rules stop at the
        card's rounded corners instead of running into them. -->
   <section class="overflow-hidden rounded-5 border border-outline-gray-2 bg-surface-base">
-    <div class="grid sm:grid-cols-2">
+    <div class="grid grid-cols-[minmax(0,1fr)] sm:grid-cols-2">
       <!-- ── About ───────────────────────────────────────────────────────── -->
       <!-- The split is a border on the left column, so it collapses to a
            horizontal rule when the two stack below `sm`. -->
-      <div class="border-outline-gray-2 sm:border-r">
+      <div class="min-w-0 border-outline-gray-2 sm:border-r">
         <h2
           class="flex items-center gap-2 border-b border-outline-gray-2 px-4 py-3 text-base font-medium text-ink-gray-8"
         >
@@ -241,31 +255,35 @@ const LISTS = {
             <dt class="text-p-sm text-ink-gray-7">{{ offices.length > 1 ? 'Addresses' : 'Address' }}</dt>
             <!-- One field pair per office: the city (what the city filter
                  matches) and the street address. -->
-            <dd v-if="editable" ref="officesEl" class="mt-1 space-y-4">
-              <div v-for="(a, i) in offices" :key="i" class="space-y-1.5">
-                <div class="flex items-center gap-2">
-                  <Select
-                    class="min-w-0 flex-1"
-                    :model-value="a.city"
-                    :options="cityOptions"
-                    :aria-label="`City of address ${i + 1}`"
-                    @update:model-value="setOffice(i, { city: $event })"
-                  />
-                  <Dropdown v-if="offices.length > 1" :options="officeMenu(i)">
-                    <Button class="data-[state=open]:bg-surface-gray-3" icon="lucide-ellipsis" :aria-label="`Actions for address ${i + 1}`" />
-                  </Dropdown>
-                </div>
-                <InlineInput
-                  multiline
-                  boxed
-                  :rows="3"
-                  :model-value="a.text"
-                  :label="`Address ${i + 1}`"
-                  placeholder="Street address"
-                  @commit="setOffice(i, { text: $event })"
-                />
-              </div>
-              <Button v-if="offices.length < MAX_OFFICES" label="Add address" icon-left="lucide-plus" @click="addOffice" />
+            <dd v-if="editable" class="mt-1">
+              <!-- Each address as it reads, with Edit opening the dialog. Rows
+                   rather than fields: at five offices the fields made the card
+                   mostly an address form. -->
+              <ul class="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-2 divide-y divide-outline-gray-1">
+                <!-- Rows share the list's columns (subgrid), so every street
+                     address starts at the same edge: just past the longest
+                     city. -->
+                <li v-for="(a, i) in offices" :key="i" class="col-span-3 grid grid-cols-subgrid items-center py-1.5">
+                  <span class="flex items-center gap-1.5">
+                    <span class="text-base text-ink-gray-8">{{ cityShort(a.city) }}</span>
+                    <Badge v-if="i === 0 && offices.length > 1" theme="gray" variant="subtle" label="Main" />
+                  </span>
+                  <span class="min-w-0 flex-1 truncate text-base text-ink-gray-5">{{ a.text }}</span>
+                  <!-- The text as the default slot: frappe-ui's `label` would
+                       replace the aria-label, and every row would read "Edit". -->
+                  <Button variant="ghost" :aria-label="`Edit ${cityShort(a.city)} address`" @click="openAddress(i)">Edit</Button>
+                </li>
+              </ul>
+              <Button v-if="offices.length < MAX_OFFICES" class="mt-2" label="Add address" icon-left="lucide-plus" @click="openAddress(-1)" />
+              <AddressDialog
+                v-model:open="dialogOpen"
+                :address="editingIndex < 0 ? null : offices[editingIndex]"
+                :main="editingIndex === 0"
+                :count="offices.length"
+                :cities="cityOptions.map((o) => o.value)"
+                @save="saveAddress"
+                @remove="removeAddress"
+              />
             </dd>
             <!-- The main office first, the others a step lighter below it. The
                  one long-form value in the card, so it's the only one that
@@ -282,7 +300,7 @@ const LISTS = {
       </div>
 
       <!-- ── Services and Expertise ──────────────────────────────────────── -->
-      <div class="border-t border-outline-gray-2 sm:border-t-0">
+      <div class="min-w-0 border-t border-outline-gray-2 sm:border-t-0">
         <h2
           class="flex items-center gap-2 border-b border-outline-gray-2 px-4 py-3 text-base font-medium text-ink-gray-8"
         >

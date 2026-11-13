@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
-import { Alert, Badge, Button, Tooltip, dialog, toast } from 'frappe-ui'
+import { Badge, Button, Tooltip, dialog, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import PartnerProfileBody from '../components/PartnerProfileBody.vue'
 import { useConnectStore } from '../stores/connect'
@@ -128,6 +128,11 @@ const onNarrow = (e) => (narrow.value = e.matches)
 mq.addEventListener('change', onNarrow)
 onBeforeUnmount(() => mq.removeEventListener('change', onNarrow))
 
+// "Publish changes" once there's something to publish, as Frappe Builder
+// does, and solid then too. The buttons beside it shift once, on the first
+// edit. A phone keeps "Publish": there's no room for the longer label.
+const publishLabel = computed(() => (dirty.value && !narrow.value ? 'Publish changes' : 'Publish'))
+
 // ── Required fields ─────────────────────────────────────────────────────────
 // Checked when Publish is pressed, then live, so each "Required" clears as
 // the partner fills it in.
@@ -220,36 +225,31 @@ const shareLink = async () => {
 <template>
   <ConnectShell root-label="Public profile">
     <!-- Beside the title: "Unlisted" for a Beginner (not in the directory yet;
-         the page still works by link), and "Not published" while the draft
-         has changes. A phone has no room for them beside the editor's three
-         buttons, so they're left out there while editing; Cancel still asks
-         before dropping a draft. -->
-    <template v-if="(beginner || (dirty && editing)) && !(narrow && inEditor)" #title-suffix>
-      <Tooltip v-if="beginner" text="Not in the directory until Bronze. Anyone with the link can see it.">
-        <Badge theme="gray" variant="subtle" size="md" label="Unlisted" />
-      </Tooltip>
-      <!-- While editing; previewing, the banner says it. -->
-      <Badge v-if="dirty && editing" theme="amber" variant="subtle" size="md" label="Not published" />
+         the page still works by link), "Not published" while the draft has
+         changes, and "Preview" while previewing: the mode lives in the header,
+         as in Frappe's other apps, not in a banner. A phone has no room for
+         the editor's badges beside its three buttons, so they're left out
+         there while editing; Cancel still asks before dropping a draft. -->
+    <template v-if="mode === 'preview' || ((beginner || (dirty && editing)) && !(narrow && editing))" #title-suffix>
+      <Badge v-if="mode === 'preview'" theme="blue" variant="subtle" size="md" label="Preview" />
+      <template v-else>
+        <Tooltip v-if="beginner" text="Not in the directory until Bronze. Anyone with the link can see it.">
+          <Badge theme="gray" variant="subtle" size="md" label="Unlisted" />
+        </Tooltip>
+        <Badge v-if="dirty && editing" theme="amber" variant="subtle" size="md" label="Not published" />
+      </template>
     </template>
     <!-- Viewing: Copy link and Edit profile. Editing: Preview, Cancel, Publish,
-         always all three, so nothing shifts when the draft changes. Publish
-         is subtle until there's a change, then the page's one solid button:
-         the state shows where you're about to click. Previewing: no actions
-         here at all; the banner above the profile holds them, so the header
-         doesn't read as a different mode. -->
+         always all three. Previewing:
+         Continue editing and Publish, in the same header, so Publish never
+         moves. Publish is subtle until there's a change, then the page's one
+         solid button: the state shows where you're about to click. -->
     <template #action>
       <div v-if="!inEditor" class="flex items-center gap-2">
         <Tooltip text="Copy link">
           <Button icon="lucide-link" aria-label="Copy link" @click="shareLink" />
         </Tooltip>
-        <Button
-          v-if="canEdit"
-          :icon="narrow ? 'lucide-pencil' : undefined"
-          :icon-left="narrow ? undefined : 'lucide-pencil'"
-          :label="narrow ? undefined : 'Edit profile'"
-          aria-label="Edit profile"
-          @click="setMode('edit')"
-        />
+        <Button v-if="canEdit" :label="narrow ? 'Edit' : 'Edit profile'" aria-label="Edit profile" @click="setMode('edit')" />
       </div>
       <div v-else-if="editing" class="flex items-center gap-2">
         <Button
@@ -260,28 +260,18 @@ const shareLink = async () => {
           @click="setMode('preview')"
         />
         <Button :icon="narrow ? 'lucide-x' : undefined" :label="narrow ? undefined : 'Cancel'" aria-label="Cancel" @click="cancel" />
-        <Button :variant="dirty ? 'solid' : 'subtle'" label="Publish" @click="publish" />
+        <Button :variant="dirty ? 'solid' : 'subtle'" :label="publishLabel" @click="publish" />
       </div>
-      <span v-else />
+      <div v-else class="flex items-center gap-2">
+        <Button
+          :icon="narrow ? 'lucide-pencil' : undefined"
+          :label="narrow ? undefined : 'Continue editing'"
+          aria-label="Continue editing"
+          @click="setMode('edit')"
+        />
+        <Button :variant="dirty ? 'solid' : 'subtle'" :label="publishLabel" @click="publish" />
+      </div>
     </template>
-
-    <!-- Previewing: what businesses will see, with the state and both ways
-         out in one banner above it (Meetup and Basecamp do the same). The
-         profile below keeps its real width; no frame. -->
-    <div v-if="mode === 'preview'" class="fc-page-read pt-5">
-      <!-- On a phone the title needs the whole row, so the buttons sit under
-           the banner instead of in it. -->
-      <Alert theme="blue" :title="dirty ? 'Previewing your unpublished changes' : 'Previewing your profile'">
-        <template v-if="!narrow" #actions>
-          <Button label="Continue editing" @click="setMode('edit')" />
-          <Button :variant="dirty ? 'solid' : 'subtle'" label="Publish" @click="publish" />
-        </template>
-      </Alert>
-      <div v-if="narrow" class="mt-2 flex justify-end gap-2">
-        <Button label="Continue editing" @click="setMode('edit')" />
-        <Button :variant="dirty ? 'solid' : 'subtle'" label="Publish" @click="publish" />
-      </div>
-    </div>
 
     <PartnerProfileBody
       ref="body"
