@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Avatar, Badge, Button, Dialog, FormControl, ScrollArea, Tooltip, toast } from 'frappe-ui'
+import { Avatar, Badge, Button, Dialog, FormControl, Tooltip, toast } from 'frappe-ui'
 import { NumberCard } from 'frappe-ui/charts'
 import ConnectShell from '../components/ConnectShell.vue'
 import TierIcon from '../components/TierIcon.vue'
@@ -16,6 +16,8 @@ import {
   shortDate,
   standingFor,
 } from '../data/partnership'
+import { auditShortDate, openNcs } from '../data/audits'
+import { useAuditReadiness } from '../composables/useAuditReadiness'
 
 // SCREEN — Partnership: where the firm stands with Frappe and what gets it up
 // a tier. See PARTNER-VIEW-PLAN.md §1.
@@ -146,26 +148,22 @@ const counts = computed(() => {
       // Losing a certificate can cost the tier the firm already has.
       risk: risk?.criterion === 'Certified consultants' ? risk : null,
     },
-    // PMM only moves through an audit, so the card opens the audit.
+    // PMM only moves through an audit, so the card goes to Audits.
     {
       key: 'pmm',
       label: 'PMM level',
       value: s.value.pmm,
       target: n.pmm,
       badge: auditBadge.value,
-      opens: true,
+      caption: auditCaption.value,
+      to: '/connect/audits',
     },
   ]
 })
 
-// Ready for an audit: every criterion but PMM is met.
-const readyForAudit = computed(
-  () =>
-    !beginner.value &&
-    Boolean(next.value) &&
-    s.value.mrr.current >= next.value.mrr &&
-    s.value.consultants >= next.value.consultants,
-)
+// Ready for an audit: every criterion but PMM is met. Shared with the
+// Request audit dialog.
+const { ready: readyForAudit } = useAuditReadiness()
 
 // ── Beginner: the milestones ────────────────────────────────────────────────
 const milestones = computed(() => {
@@ -190,33 +188,24 @@ const milestones = computed(() => {
 })
 
 // ── The audit ───────────────────────────────────────────────────────────────
-// In the panel the PMM card opens, with the past audits. The card's badge says when there
-// is something to act on or wait for, so nobody has to open it to find out.
-// Its tier is the next one; at Gold it would be the re-audit to keep Gold.
-const auditTier = computed(() => next.value ?? tier.value)
-const audit = computed(() => s.value.audit ?? { status: 'none' })
-const auditOpen = ref(false)
-
+// Audits are their own page; the PMM card goes there. Its badge says when
+// there is something to wait for or act on, and its caption the last audit.
+const pendingAudit = computed(
+  () => account.audits.find((a) => a.status === 'Scheduled') ?? account.audits.find((a) => a.status === 'Requested'),
+)
 const auditBadge = computed(() => {
-  const a = audit.value
-  if (a.status === 'requested') return 'Audit requested'
-  if (a.status === 'scheduled') return `Audit ${shortDate(a.date)}`
+  const a = pendingAudit.value
+  if (a?.status === 'Scheduled') return `Audit ${auditShortDate(a.date)}`
+  if (a) return 'Audit requested'
   if (readyForAudit.value) return 'Ready for audit'
   return null
 })
-
-const auditLine = computed(() => {
-  const a = audit.value
-  if (a.status === 'requested') return `Requested ${shortDate(a.requested)}. Frappe will schedule it.`
-  if (a.status === 'scheduled') return `On ${longDate(a.date)} with ${a.auditor}.`
-  if (readyForAudit.value) return `Request it ${auditTier.value.leadDays} days ahead.`
-  return `Request it ${auditTier.value.leadDays} days ahead, once the other ${auditTier.value.label} criteria are met.`
+const auditCaption = computed(() => {
+  const last = account.audits.find((a) => a.status === 'Completed')
+  if (!last) return null
+  const open = openNcs(last).length
+  return `Last audit ${auditShortDate(last.date)}${open ? ` · ${open} open` : ''}`
 })
-
-function requestAudit() {
-  store.setPartnershipState('requested')
-  toast.success('Audit requested')
-}
 
 </script>
 
@@ -289,21 +278,16 @@ function requestAudit() {
                   :sparkline="{ data: mrrCard.history }"
                 />
                 <div class="grid gap-3">
-                  <!-- The card that opens gets a button laid over it: the
-                       card renders block elements, which a <button> can't
-                       hold. -->
+                  <!-- The card that links gets a link laid over it: the card
+                       renders block elements, which an <a> shouldn't hold. -->
                   <div v-for="c in counts" :key="c.key" class="group relative">
                     <NumberCard
                       class="h-full"
-                      :class="
-                        c.opens && [
-                          'transition-colors group-has-[button:focus-visible]:focus-ring',
-                          auditOpen ? '!bg-surface-gray-2' : 'group-hover:!bg-surface-gray-1',
-                        ]
-                      "
+                      :class="c.to && 'transition-colors group-hover:!bg-surface-gray-1 group-has-[a:focus-visible]:focus-ring'"
                       :title="c.label"
                       :value="c.value"
                       :target="c.target"
+                      :delta-caption="c.caption ?? undefined"
                     >
                       <template #actions>
                         <span class="flex items-center gap-1.5 text-ink-gray-5">
@@ -311,17 +295,15 @@ function requestAudit() {
                             <Badge theme="red" variant="subtle" size="sm" :label="`${c.risk.tier} at risk`" />
                           </Tooltip>
                           <Badge v-if="c.badge" size="sm" :label="c.badge" />
-                          <span v-if="c.opens" class="lucide-chevron-right size-4" aria-hidden="true" />
+                          <span v-if="c.to" class="lucide-chevron-right size-4" aria-hidden="true" />
                         </span>
                       </template>
                     </NumberCard>
-                    <button
-                      v-if="c.opens"
-                      type="button"
+                    <RouterLink
+                      v-if="c.to"
+                      :to="c.to"
                       class="absolute inset-0 rounded-4 outline-none"
-                      :aria-label="`${c.label}: ${c.value} of ${c.target}. PMM audit`"
-                      :aria-expanded="auditOpen"
-                      @click="auditOpen = !auditOpen"
+                      :aria-label="`${c.label}: ${c.value} of ${c.target}. Audits`"
                     />
                   </div>
                 </div>
@@ -375,41 +357,6 @@ function requestAudit() {
 
       </div>
     </div>
-    <!-- ── PMM audit, docked ────────────────────────────────────────────────
-         The shell's panel, as Invoices and Customers open theirs: it pushes
-         the page aside rather than covering it. Where the audit stands, the
-         request when it's open, and the past audits. Requesting keeps the
-         panel open on its new state. -->
-    <template v-if="auditOpen && next" #panel>
-      <div class="flex items-center justify-between gap-3 border-b border-outline-gray-1 p-4">
-        <span class="truncate text-base-semibold text-ink-gray-9">PMM audit</span>
-        <Button variant="ghost" icon="lucide-x" aria-label="Close" @click="auditOpen = false" />
-      </div>
-      <ScrollArea class="min-h-0 flex-1" viewport-class="p-4 pb-10">
-        <div class="space-y-6">
-          <div class="space-y-3">
-            <p class="text-p-base text-ink-gray-7">{{ auditLine }}</p>
-            <template v-if="readyForAudit && audit.status === 'none'">
-              <Button v-if="canRequestAudit" variant="solid" label="Request audit" @click="requestAudit" />
-              <p v-else class="text-sm text-ink-gray-5">Your firm’s owner can request it</p>
-            </template>
-          </div>
-          <div v-if="s.audits.length">
-            <h3 class="text-sm text-ink-gray-5">Past audits</h3>
-            <ul class="mt-1 divide-y divide-outline-gray-1">
-              <li v-for="a in s.audits" :key="a.date" class="flex items-baseline justify-between gap-3 py-2.5">
-                <span class="min-w-0">
-                  <span class="text-base text-ink-gray-8">PMM {{ a.pmm }}, {{ a.tier }}</span>
-                  <span class="mt-1 block text-sm text-ink-gray-5">{{ a.auditor }}</span>
-                </span>
-                <span class="shrink-0 text-sm text-ink-gray-5">{{ longDate(a.date) }}</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </ScrollArea>
-    </template>
-
     <!-- ── Link a certificate ───────────────────────────────────────────── -->
     <Dialog
       v-model:open="linking"

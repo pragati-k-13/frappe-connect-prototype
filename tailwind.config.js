@@ -7,6 +7,8 @@ export default {
     './index.html',
     './src/**/*.{vue,js,ts}',
     './node_modules/frappe-ui/src/**/*.{vue,js,ts}',
+    // The experimental family (CommandPalette) lives outside `src`.
+    './node_modules/frappe-ui/experimental/**/*.{vue,js,ts}',
   ],
   theme: {
     extend: {

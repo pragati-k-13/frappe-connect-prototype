@@ -30,7 +30,6 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   Alert,
   Avatar,
-  Badge,
   Dropdown,
   Button,
   PageHeader,
@@ -53,6 +52,10 @@ import LeadsIcon from './icons/LeadsIcon.vue'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import PartnerSettingsDialog from './settings/PartnerSettingsDialog.vue'
 import PartnerAccountDialog from './settings/PartnerAccountDialog.vue'
+import NotificationsPanel from './NotificationsPanel.vue'
+import NotificationsRailItem from './NotificationsRailItem.vue'
+import SearchPalette from './SearchPalette.vue'
+import { notifications } from '../data/notifications'
 
 const store = useConnectStore()
 const router = useRouter()
@@ -109,34 +112,27 @@ const partnerRail = computed(() => {
   const member = role === 'member'
   const beginner = store.partnerTier === 'beginner'
   const at = (...names) => names.includes(route.name)
-  // Two groups: the work you do daily, then your firm. Resources isn't a place you work (it's links
-  // out), so it lives in the header menu.
-  // Leads first: the daily queue. No counts on the rail: a row waiting on a
-  // reply is bold in its list instead (PARTNER-VIEW-PLAN.md). Partnership
-  // is checked now and then, so it follows the work — except for a Beginner,
-  // whose main job is the milestones to Bronze, so it leads for them.
+  // ONE LIST, NO LABELS. Order does what group labels did: the daily work
+  // first (Leads, Customers), then the firm's standing (Partnership, and the
+  // Audits that set its PMM level), then the firm's own listing and bills, then
+  // Frappe's material last. No counts on the rail: a row waiting on a reply is
+  // bold in its list, and the rest comes through Notifications. A Beginner's
+  // main job is the milestones to Bronze, so Partnership leads for them.
   const partnership = { label: 'Partnership', to: '/connect/partnership', icon: 'lucide-handshake', active: at('partnership') }
-  const work = [
-    beginner && partnership,
-    !member && role !== 'finance' && { label: 'Leads', to: '/connect/leads', iconComp: LeadsIcon, active: at('leads', 'lead') },
-    !member && { label: 'Customers', to: '/connect/customers', icon: 'lucide-building-2', active: at('customers', 'customer') },
-    !beginner && partnership,
-  ].filter(Boolean)
-  // Invoices is the firm's money with Frappe, so it sits with the firm, after
-  // the firm's own listing.
-  const firm = [
-    { label: 'Public profile', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile') },
-    !member && role !== 'sales' && { label: 'Invoices', to: '/connect/invoices', icon: 'lucide-receipt', active: at('invoices') },
-  ].filter(Boolean)
-  // The firm group gets a label; the work group, at the top, needs none.
-  // Four rows or fewer is one plain list: a list that short scans without
-  // groups, and a label over it would only say the obvious (a Member's
-  // Partnership and Public profile). Five or more keeps the two groups.
-  if (work.length + firm.length <= 4) return [{ items: [...work, ...firm] }]
   return [
-    { items: work },
-    { label: 'Your firm', items: firm },
-  ].filter((g) => g.items.length)
+    {
+      items: [
+        beginner && partnership,
+        !member && role !== 'finance' && { label: 'Leads', to: '/connect/leads', iconComp: LeadsIcon, active: at('leads', 'lead') },
+        !member && { label: 'Customers', to: '/connect/customers', icon: 'lucide-building-2', active: at('customers', 'customer') },
+        !beginner && partnership,
+        { label: 'Audits', to: '/connect/audits', icon: 'lucide-clipboard-check', active: at('audits', 'audit') },
+        { label: 'Public profile', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile') },
+        !member && role !== 'sales' && { label: 'Invoices', to: '/connect/invoices', icon: 'lucide-receipt', active: at('invoices') },
+        { label: 'Resources', to: '/connect/resources', icon: 'lucide-folder', active: at('resources') },
+      ].filter(Boolean),
+    },
+  ]
 })
 
 // The partner side's firm and person follow the demo tier: Beginner is a
@@ -234,7 +230,6 @@ const logoMenu = computed(() => [
           })),
         }]
           : []),
-        { label: 'Help and resources', icon: 'lucide-book-open', onClick: () => router.push('/connect/resources') },
       ]
     : store.signedIn
       ? [{ label: 'Settings', icon: 'lucide-settings', onClick: () => (settings.value = true) }]
@@ -283,7 +278,18 @@ const logOut = () => {
 //
 // Wire to real unread state when that screen lands. Note `RailItem` caps its own
 // badge at "99+" — anything here that could exceed two digits wants the same.
-const unread = computed(() => (store.hasProject ? 3 : 0))
+const notifItems = computed(() =>
+  store.role === 'partner' ? notifications.partner : store.hasProject ? notifications.business : [],
+)
+const unread = computed(() => notifItems.value.filter((n) => !n.read).length)
+const notifOpen = ref(false)
+const searchOpen = ref(false)
+const readNotification = (n) => (n.read = true)
+const readAllNotifications = () => notifItems.value.forEach((n) => (n.read = true))
+// Search's empty state: the places in the rail.
+const searchPlaces = computed(() =>
+  partnerRail.value.flatMap((g) => g.items).map((i) => ({ to: i.to, label: i.label, icon: i.icon, iconComp: i.iconComp })),
+)
 
 // The seam handle. `railY` follows the pointer down the sidebar's right edge so
 // the chevron appears where the hand already is, rather than at a fixed spot
@@ -340,6 +346,10 @@ defineProps({
   <!-- `text-base`: app screens default to frappe-ui's 14px, so text without
        its own size never falls back to the browser's 16px. -->
   <div class="flex h-screen bg-surface-base text-base">
+    <!-- The rail and its notifications panel, which slides out of the rail's
+         right edge over the page. Outside the Sidebar so its scroll area can't
+         clip it. -->
+    <div class="relative z-20 flex shrink-0">
     <Sidebar v-model:collapsed="collapsed" class="fc-sidebar border-r">
       <!-- The second line is the signed-in viewer's name, and nothing at all
            when signed out — an app tagline under the app's own name told a
@@ -426,6 +436,19 @@ defineProps({
              beside a row is what's waiting on this person there. -->
         <template v-if="store.role === 'partner'">
           <!-- Groups split by a gap, no labels, like the business rail. -->
+          <!-- Search and Notifications first, set apart by space, as on the
+               business rail. -->
+          <nav class="mb-4 space-y-0.5">
+            <Tooltip text="Search" side="right" :offset="8" :disabled="!collapsed">
+              <div @click="searchOpen = true">
+                <SidebarItem label="Search">
+                  <template #prefix><span class="lucide-search size-4 text-ink-gray-6" aria-hidden="true" /></template>
+                  <template #suffix><span class="mr-2 text-xs text-ink-gray-5">⌘K</span></template>
+                </SidebarItem>
+              </div>
+            </Tooltip>
+            <NotificationsRailItem :collapsed="collapsed" :unread="unread" @toggle="notifOpen = !notifOpen" />
+          </nav>
           <nav v-for="(group, gi) in partnerRail" :key="gi" class="space-y-0.5" :class="gi > 0 && 'mt-4'">
             <SidebarLabel v-if="group.label" divider>{{ group.label }}</SidebarLabel>
             <Tooltip
@@ -474,55 +497,7 @@ defineProps({
             </SidebarItem>
           </Tooltip>
 
-          <Tooltip text="Notifications" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Notifications">
-              <template #prefix>
-                <span class="relative grid place-items-center">
-                  <LucideBell class="size-4 text-ink-gray-6" />
-                  <!-- ⚠️ The count lives in `#suffix`, and frappe-ui hides that
-                       zone entirely when the sidebar is collapsed (`w-0
-                       opacity-0`). This app OPENS collapsed, so the suffix alone
-                       would mean the unread signal is invisible by default — the
-                       one state the badge exists for. The dot takes over there.
-                       Its treatment is lifted from `RailItemBadge`: an 8px disc
-                       in `surface-red-6` with a `--surface-base` ring so it reads
-                       against the icon underneath. -->
-                  <span
-                    v-if="collapsed && unread"
-                    class="absolute -right-1 -top-1 block size-2 rounded-full border border-[var(--surface-base)] bg-surface-red-6"
-                    aria-hidden="true"
-                  />
-                </span>
-              </template>
-              <!-- The count folds into the accessible name rather than being left
-                   as a bare number beside a word, which is what `RailItem` does
-                   with its `badge` too. -->
-              <span class="truncate text-sm">
-                Notifications
-                <!-- Only when there are some: "Notifications — 0 unread" is a
-                     sentence no screen reader user needs read to them on every
-                     pass through the rail. -->
-                <span v-if="unread" class="sr-only">— {{ unread }} unread</span>
-              </span>
-              <!-- `subtle`, not `solid`. A solid red pill was the single most
-                   saturated thing on the screen — louder than the page's own
-                   primary button, in a grey-on-grey rail, for a count of three.
-                   Subtle keeps the red (so it still reads as unread rather than
-                   as a total) at roughly the weight of the "Gold" tier badge in
-                   the listing, which is the right register for this app.
-
-                   ⚠️ The collapsed dot stays SOLID, deliberately. At 8px there is
-                   no room for a fill and a label to share the work — the
-                   saturation is the whole signal — and it isn't competing with
-                   anything, because in a 48px rail it's the only mark. Loudness
-                   is a function of size here, not of colour. -->
-              <template v-if="unread" #suffix>
-                <Badge variant="subtle" theme="red" size="sm" class="mr-2" aria-hidden="true">
-                  {{ unread }}
-                </Badge>
-              </template>
-            </SidebarItem>
-          </Tooltip>
+          <NotificationsRailItem :collapsed="collapsed" :unread="unread" @toggle="notifOpen = !notifOpen" />
         </nav>
 
         <!-- ── Everywhere you can go ──────────────────────────────────────
@@ -639,6 +614,15 @@ defineProps({
         </Dropdown>
       </div>
     </Sidebar>
+    <NotificationsPanel
+      v-model:open="notifOpen"
+      :items="notifItems"
+      ignore="#notifications-btn"
+      @select="readNotification"
+      @read-all="readAllNotifications"
+    />
+    </div>
+    <SearchPalette v-if="store.role === 'partner'" v-model:open="searchOpen" :places="searchPlaces" />
 
     <FeedbackDialog v-model:open="feedback" />
     <AppSettingsDialog v-model:open="settings" />

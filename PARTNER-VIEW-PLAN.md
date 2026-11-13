@@ -9,14 +9,19 @@ areas on the rail, plus Settings. Each area answers one question a partner comes
 | Customers   | Who are we working with, and what does each one bring in?  |
 | Invoices    | What did we pay Frappe for our customers this month? |
 | Partnership | Where do we stand with Frappe, and what gets us up a tier? |
+| Audits      | What did the auditor find, and what's still open?          |
 | Listing     | What does a business see when it finds us?                 |
+| Resources   | What has Frappe given us to sell and deliver with?         |
 
-The rail is two groups: daily work (Leads, Customers, Invoices) with no label, then the firm
-(Partnership, Listing) under "Your firm". Each role sees only its own rows. Resources is links out, not a
-place you work, so it sits in the header menu as "Help and resources", with Firm settings and
-Partner managers. The sidebar's footer is the signed-in person: their settings, theme and log
-out. No rail item shows a count: rows waiting on a reply are bold in their list, and a
-notification or email says when a business writes.
+The rail starts with Search (⌘K) and Notifications, set apart by space. Then one list with no
+labels, ordered by how often each is opened: Leads, Customers, Partnership, Audits, Public
+profile, Invoices, Resources. A Beginner's list starts with Partnership. Each role sees only its
+own rows. Group labels were dropped (2026-11-12): with seven rows the order does their job, and
+"Your firm" made people decide whether Partnership was theirs too. Resources is a rail page,
+not a header-menu link: its collateral library is something Sales comes back to during deals.
+The header menu keeps Firm settings and Partner managers. The sidebar's footer is the signed-in
+person: their settings, theme and log out. No rail item shows a count except Notifications:
+rows waiting on a reply are bold in their list, and everything else comes through Notifications.
 
 Firm settings open as a dialog, not a rail item: Users for everyone, CRM sync and leaving for owners.
 
@@ -38,8 +43,10 @@ From Bronze up, each role lands where its work is:
 The landing changes once, at Bronze, with a one-time notice so it doesn't feel like the app
 moved. Standing still reaches people where they are:
 
-- **A count on Leads** for replies waiting. Nothing else on the rail carries one: link
-  requests, expiring certificates and an unpaid invoice show where they live, and by email.
+- **Notifications** (rail, with an unread count): a new lead or reply, requirements updated, a
+  hire answered, an audit scheduled or done, a certificate expiring, an invoice due. Each opens
+  where it happened. Changed 2026-11-12 from "show where they live, and by email", which left
+  partners checking every area to learn what changed.
 - **A banner across the app** only for At risk. It is rare and serious, so it can't depend on
   a visit to Partnership.
 
@@ -161,6 +168,14 @@ partner's to chase. Each customer's own invoices are on their page, in the Invoi
   list shows each invoice's own amount and currency, so the conversion is visible.
 - The partner's own Frappe Cloud account appears here, since it bills too. It's labelled as
   theirs, so it doesn't read as a client.
+
+**Audits have their own page** (2026-11-12). An audit is a workflow, not one line under PMM:
+each has a type (Online, Hybrid, In-Person), auditor and dates, and a completed one carries
+non-conformances (ID, function, finding, measures, status WIP or Closed) that people close over
+the weeks after. The Audits page lists them; each audit opens to its non-conformances, open ones
+first. Partnership's PMM row links there ("Last audit Apr 11 · 2 open"). Requesting an audit is
+the owner's; an ineligible request says which criterion is missing. The mechanics below still
+apply.
 
 **How audits work, always visible.** Every tier and every state shows the audit mechanics in
 one block, so no partner learns about the wait at the last step:
@@ -615,8 +630,10 @@ live and the owner gets a notice.
 
 ## 7. Resources
 
-What Frappe gives partners to sell and deliver with, in one place instead of scattered links.
-Each item links out to where it lives. From the partner guide:
+A rail page. First the collateral library Frappe shares in Frappe Drive (pitch decks, product
+collateral, sales enablement, process documents, design resources); each folder opens in Drive.
+Then what Frappe gives partners to sell and deliver with, each linking out to where it lives.
+From the partner guide:
 
 - **Help with a project:** Frappe Support (support.frappe.io), the community forum
   (discuss.frappe.io), the partner forum (partners.frappe.io), the partner WhatsApp and Telegram

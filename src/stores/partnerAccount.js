@@ -7,6 +7,8 @@ import {
   teamFor,
 } from '../data/partnerAccount'
 import { activitySeed, customerFacts, followUpsSeed } from '../data/records'
+import { auditsSeed, todayIso } from '../data/audits'
+import { firmFor } from '../data/partnership'
 
 // What the partner changes in the demo: customers approved, link
 // requests handled, billing switches, notes, the team, the CRM connection.
@@ -47,10 +49,12 @@ const blank = () => ({
   won: [],
   projects: {},
   threads: {},
+  // PMM audits, newest first. Seeded for Bronze and up; a Beginner has none.
+  audits: [],
 })
 
 export const usePartnerAccountStore = defineStore('partnerAccount', {
-  state: () => ({ byTier: { beginner: blank(), 'bronze-up': blank() } }),
+  state: () => ({ byTier: { beginner: blank(), 'bronze-up': { ...blank(), audits: auditsSeed() } } }),
 
   getters: {
     tier: () => useConnectStore().partnerTier,
@@ -99,6 +103,10 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
     // Oldest first, as a timeline reads.
     activityOf() {
       return (id) => [...activitySeed(id), ...(this.edits.activity[id] ?? [])].sort((a, b) => a.at - b.at)
+    },
+
+    audits() {
+      return this.edits.audits
     },
 
     requests() {
@@ -219,6 +227,19 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
     },
     replyToReview(id, text) {
       this.edits.reviewReplies[id] = text
+    },
+    // A new request goes to the top. Frappe assigns the auditor and the date.
+    requestAudit({ type, dates }) {
+      const id = `AUD-${Date.now()}`
+      this.edits.audits.unshift({ id, type, status: 'Requested', auditor: null, requested: todayIso(), date: null, dates, ncs: [] })
+      return id
+    },
+    closeNonConformance(auditId, ncId, measuresTaken) {
+      const nc = this.edits.audits.find((a) => a.id === auditId)?.ncs.find((n) => n.id === ncId)
+      if (!nc) return
+      // The signed-in person, as the account menu names them.
+      const me = this.edits.me ?? firmFor(this.tier).person
+      Object.assign(nc, { status: 'Closed', measuresTaken, closedBy: me, closedOn: todayIso() })
     },
     reportReview(id, reason) {
       if (reason) this.edits.reviewReports[id] = { reason }
