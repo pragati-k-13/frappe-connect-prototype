@@ -18,13 +18,14 @@ import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { PARTNERS } from '../data/partners'
 import { logoFor } from '../data/logos'
-import { budgetLabel } from '../data/custom'
+import { budgetLabel, timelineLabel } from '../data/custom'
 import { scopeSentence } from '../data/modules'
 import { PARTNER_SELF, PRM_LOST_REASONS } from '../data/partnerView'
 import { CRMS, PRM_STAGES } from '../data/partnerAccount'
 import { PROBABILITY } from '../data/records'
 import { firmFor } from '../data/partnership'
-import { companyName, crmLabel, isClosed, isCrm, matchFor, meFor, sendHireRequest, stageTheme, useLeads, withdrawHireRequest } from '../composables/useLeads'
+import { companyName, confirmQuote, crmLabel, isClosed, isCrm, matchFor, meFor, sendHireRequest, sendQuote, stageTheme, useLeads, withdrawHireRequest } from '../composables/useLeads'
+import SendQuoteDialog from '../components/SendQuoteDialog.vue'
 
 // SCREEN — one lead, the same shape as a customer: tabs (Messages,
 // Follow-ups, Activity, Notes) and a docked panel of facts on the right.
@@ -223,19 +224,50 @@ function addFollowUp(f) {
 // ── The panel ───────────────────────────────────────────────────────────────
 // Docked from `lg`; below that it opens over the timeline from the top bar.
 const sideOpen = ref(false)
-// Four facts, under a Brief field that opens the full brief: the panel
-// doesn't repeat the card at the top of the thread.
+// Every short fact of the requirements, once. The Requirements dialog opened
+// from here leaves them out and holds only the written parts.
 const projectRows = computed(() => {
   const b = lead.value?.brief ?? {}
   return [
     { label: 'Modules', value: scopeSentence(b.modules) },
     { label: 'Budget', value: budgetLabel(b.budget) },
+    { label: 'Timeline', value: b.timeline ? timelineLabel(b.timeline) : '' },
     { label: 'Industry', value: b.segments?.[0] ?? '' },
     { label: 'Size', value: b.employees ? `${b.employees} people` : '' },
   ].filter((r) => r.value)
 })
 const briefOpen = ref(false)
-const briefDoc = computed(() => (lead.value?.brief ? { ...lead.value.brief, project: lead.value.project } : null))
+// What the dialog leaves out: always the facts, which the panel lists; and the
+// description too when opened from under the message that carries it.
+const briefOmit = ref(['facts'])
+// A specific version, when opened from one message's Requirements button; the
+// lead's current requirements otherwise.
+const briefVersion = ref(null)
+const briefPrevious = ref(null)
+const briefDoc = computed(() => {
+  const b = briefVersion.value ?? lead.value?.brief
+  return b ? { ...b, project: lead.value.project } : null
+})
+// From a message: the description is that message's own text. From an update,
+// the facts stay in, because they show what changed and the panel can't.
+function readBrief({ brief = null, previous = null } = {}) {
+  briefVersion.value = brief
+  briefPrevious.value = previous
+  briefOmit.value = previous ? ['description'] : ['facts', 'description']
+  briefOpen.value = true
+}
+
+// ── Answering a requirements update ─────────────────────────────────────────
+const quoting = ref(false)
+const lastBid = computed(() => lead.value?.messages.findLast((m) => m.kind === 'bid' && m.from === 'you')?.bid ?? null)
+function keepQuote() {
+  confirmQuote(lead.value)
+  toast.success('Quote confirmed')
+}
+function requote(bid) {
+  sendQuote(lead.value, bid)
+  toast.success('Quote sent')
+}
 const companyRows = computed(() => {
   const c = lead.value?.company
   if (!c) return []
@@ -246,6 +278,15 @@ const companyRows = computed(() => {
     { label: 'Phone', value: c.phone },
   ].filter((r) => r.value)
 })
+
+// A message arriving while the thread is open (a requirements update, say)
+// lands in view, with whatever it asks of you.
+watch(
+  () => lead.value?.messages.length,
+  (n, was) => {
+    if (was != null && n > was) toBottom()
+  },
+)
 
 watch(
   () => route.params.id,
@@ -321,14 +362,15 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
               v-if="tab === 'messages'"
               :messages="lead.messages"
               :company="lead.company"
-              :project="lead.project"
               :brief="lead.brief"
               :self="self"
               :self-logo="selfLogo"
               :author-of="authorOf"
               :can-reply="canAct && !closed"
               @quote="(text) => reply?.quote(text)"
-              @read-brief="briefOpen = true"
+              @read-brief="readBrief"
+              @confirm-quote="keepQuote"
+              @new-quote="quoting = true"
             />
 
             <!-- ── Follow-ups: calls, demos, emails and meetings held
@@ -486,11 +528,11 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
               <p class="whitespace-pre-line px-3 text-p-base leading-relaxed text-ink-gray-7">{{ lead.need }}</p>
             </PanelSection>
             <PanelSection v-else title="Project">
-              <PanelField label="Brief">
-                <PanelLink :label="lead.brief.scope" icon="lucide-file-text" @click="briefOpen = true" />
-              </PanelField>
               <PanelField v-for="row in projectRows" :key="row.label" :label="row.label">
                 <span class="px-2">{{ row.value }}</span>
+              </PanelField>
+              <PanelField label="Requirements">
+                <PanelLink label="View requirements" icon="lucide-file-text" @click="briefVersion = null; briefPrevious = null; briefOmit = ['facts']; briefOpen = true" />
               </PanelField>
             </PanelSection>
 
@@ -510,7 +552,8 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
     </div>
 
 
-    <BriefDetailsDialog v-model:open="briefOpen" :brief="briefDoc" />
+    <BriefDetailsDialog v-model:open="briefOpen" :brief="briefDoc" :omit="briefOmit" :previous="briefPrevious" />
+    <SendQuoteDialog v-model:open="quoting" :from="lastBid" @send="requote" />
     <Dialog
       v-if="lead?.company"
       v-model:open="askingHire"

@@ -42,7 +42,8 @@ import { stagesFor } from '../data/project'
 import { PARTNERSHIP_STATES } from '../data/partnership'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
-import { crmLabel, declineHireRequest, hiredElsewhere, isClosed, isCrm, reopenLead, threadFor, useLeads, winLead } from '../composables/useLeads'
+import { businessUpdatesRequirements, crmLabel, declineHireRequest, hiredElsewhere, isClosed, isCrm, reopenLead, threadFor, useLeads, winLead } from '../composables/useLeads'
+import { awaitingRequote } from '../data/messages'
 
 const store = useConnectStore()
 const account = usePartnerAccountStore()
@@ -142,6 +143,11 @@ const stages = computed(() => (project.value ? stagesFor(project.value.service) 
 const awaitingReplies = computed(
   () => Boolean(project.value?.broadcast) && !project.value?.bids?.length,
 )
+// After the business edits sent requirements: the partners who quoted answer,
+// one confirming and the next sending a new quote. See docs/edit-requirements.md.
+const awaitingUpdateReplies = computed(
+  () => Boolean(project.value) && store.requirementsRecipients(project.value.id).some((t) => awaitingRequote(t.messages)),
+)
 // ⚠️ LEAD TO CUSTOMER, as menu items. Both happen outside the partner's
 // screens: the business hires in Connect, and a CRM lead moves in the CRM. So
 // the product has no button for them, and the demo plays the other side. Only
@@ -160,6 +166,7 @@ const leadEvents = computed(() => {
   return [
     l.company && { label: 'Business hires you', icon: 'lucide-handshake', onClick: () => winLead(l, account) },
     { label: 'Business hires another partner', icon: 'lucide-user-x', onClick: () => hiredElsewhere(l, account) },
+    l.brief && { label: 'Business updates the requirements', icon: 'lucide-file-pen', onClick: () => businessUpdatesRequirements(l) },
     l.hireRequest && { label: 'Business declines the request', icon: 'lucide-x', onClick: () => declineHireRequest(l, account) },
   ].filter(Boolean)
 })
@@ -327,17 +334,22 @@ const options = computed(() => [
   ...(customer.value && threadFor(customer.value, leads.value, account)
     ? [{ group: 'This customer', options: [{ label: 'Customer sends a message', icon: 'lucide-message-square', onClick: customerWrites }] }]
     : []),
-  ...(awaitingReplies.value
+  ...(awaitingReplies.value || awaitingUpdateReplies.value
     ? [
         {
           group: 'Time',
           options: [
-            {
+            awaitingReplies.value && {
               label: 'Partners reply',
               icon: 'lucide-clock',
               onClick: () => store.simulateReplies(project.value.id),
             },
-          ],
+            awaitingUpdateReplies.value && {
+              label: 'Partners answer the update',
+              icon: 'lucide-clock',
+              onClick: () => store.simulateUpdateReplies(project.value.id),
+            },
+          ].filter(Boolean),
         },
       ]
     : []),

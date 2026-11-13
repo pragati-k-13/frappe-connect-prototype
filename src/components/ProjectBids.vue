@@ -7,6 +7,7 @@ import { List, ListCell, ListHeader, ListHeaderCell, ListRow } from 'frappe-ui/l
 import IconMessage from '~icons/lucide/message-square'
 import IconMore from '~icons/lucide/ellipsis'
 import { PARTNERS, cityOf } from '../data/partners'
+import { quoteStanding } from '../data/messages'
 import { useConnectStore } from '../stores/connect'
 
 // The replies to a broadcast — and, now, the stage itself.
@@ -53,9 +54,18 @@ const partnerOf = (id) => PARTNERS.find((p) => p.id === id) ?? null
 const TIER_RANK = { gold: 0, silver: 1, bronze: 2 }
 const tierRank = (p) => TIER_RANK[p.tier] ?? 3
 
+// Whether a quote came before the requirements changed and its partner hasn't
+// confirmed or replaced it yet — read off the partner's thread, where the
+// update and the answers live. See docs/edit-requirements.md.
+const isStale = (partnerId) => {
+  const msgs = store.threads.find((t) => t.partnerId === partnerId)?.messages ?? []
+  const i = msgs.findLastIndex((m) => m.kind === 'bid')
+  return i >= 0 && quoteStanding(msgs, i) === 'stale'
+}
+
 const rows = computed(() =>
   (props.project.bids ?? [])
-    .map((bid) => ({ ...bid, partner: partnerOf(bid.partnerId) }))
+    .map((bid) => ({ ...bid, partner: partnerOf(bid.partnerId), stale: isStale(bid.partnerId) }))
     .filter((r) => r.partner)
     // By tier — gold, silver, bronze, then untiered — as the partner listing
     // does, and cheapest first within a tier.
@@ -194,8 +204,11 @@ const moreFor = (row) => [
                     <TierIcon :tier="row.partner.tier" />
                     <Badge v-if="project.hireRequest === row.partnerId" theme="blue" label="Requested" />
                   </span>
-                  <span class="mt-1 block truncate text-base text-ink-gray-6">
-                    {{ cityOf(row.partner) }}
+                  <!-- The flag sits beside the city, where there is room; on the
+                       name line it squeezed the partner's name. -->
+                  <span class="mt-1 flex min-w-0 items-center gap-2 text-base text-ink-gray-6">
+                    <span class="truncate">{{ cityOf(row.partner) }}</span>
+                    <Badge v-if="row.stale" class="shrink-0" theme="gray" label="Quoted before the update" />
                   </span>
                 </div>
               </ListCell>
@@ -263,8 +276,11 @@ const moreFor = (row) => [
                     </RouterLink>
                     <TierIcon :tier="row.partner.tier" />
                   </span>
-                  <span class="mt-1 block truncate text-base text-ink-gray-6">
-                    {{ cityOf(row.partner) }}
+                  <!-- The flag sits beside the city, where there is room; on the
+                       name line it squeezed the partner's name. -->
+                  <span class="mt-1 flex min-w-0 items-center gap-2 text-base text-ink-gray-6">
+                    <span class="truncate">{{ cityOf(row.partner) }}</span>
+                    <Badge v-if="row.stale" class="shrink-0" theme="gray" label="Quoted before the update" />
                   </span>
                 </div>
               </ListCell>

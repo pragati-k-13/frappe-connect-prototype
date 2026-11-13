@@ -1,4 +1,5 @@
 import { FRAPPE_TEAM, PARTNERS } from './partners'
+import { isRewrite } from '../lib/wordDiff'
 
 // The messages screen's data: what a thread is, when one counts as active, and
 // the ways threads come into existence.
@@ -412,3 +413,66 @@ export const bidMessage = (bid) => ({
   kind: 'bid',
   bid,
 })
+
+// ── Requirements updates ────────────────────────────────────────────────────
+// An edit to sent requirements posts a new `brief` message carrying `prev`, the
+// version it replaces. Everything about an update is read off that pair, so
+// there is no second copy of "what changed" to drift. See
+// docs/edit-requirements.md.
+const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+const sorted = (v) => [...(v ?? [])].sort()
+
+// The parts of the requirements an edit can change, in the order the event
+// line names them. Short nouns, so "Changed: …" stays one line.
+const PARTS = [
+  ['description', (b) => (b?.scope ?? '').trim()],
+  ['modules', (b) => b?.modules ?? {}],
+  ['budget', (b) => b?.budget ?? ''],
+  ['timeline', (b) => b?.timeline ?? ''],
+  [
+    'looking for',
+    (b) => [sorted(b?.cities), sorted(b?.tiers), b?.workStyle ?? '', sorted(b?.regions), sorted(b?.countries)],
+  ],
+]
+
+export const changedParts = (prev, next) =>
+  PARTS.filter(([, read]) => !same(read(prev), read(next))).map(([name]) => name)
+
+export const updateMessage = (from, prev, next, extra = {}) => {
+  const changed = changedParts(prev, next)
+  const rewritten = changed.includes('description') && isRewrite(prev?.scope, next?.scope)
+  return { id: `upd-${Date.now()}-${++seq}`, from, at: Date.now(), kind: 'brief', brief: next, prev, changed, rewritten, ...extra }
+}
+
+export const isUpdate = (m) => m?.kind === 'brief' && Boolean(m.prev)
+
+// "Changed: description, budget" — or "Description rewritten · Changed: budget".
+export const changeLine = (m) => {
+  const rest = m.rewritten ? m.changed.filter((c) => c !== 'description') : m.changed
+  return [m.rewritten && 'Description rewritten', rest.length && `Changed: ${rest.join(', ')}`]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+// A quote's standing, read off the thread around it: replaced by a later
+// quote from the same side, or quoted before an update its partner hasn't yet
+// answered (with a new quote or "Quote still stands").
+export const quoteStanding = (messages, index) => {
+  const after = messages.slice(index + 1)
+  const bidFrom = messages[index].from
+  if (after.some((m) => m.kind === 'bid' && m.from === bidFrom)) return 'replaced'
+  const lastUpdate = after.findLastIndex(isUpdate)
+  if (lastUpdate < 0) return null
+  const answered = after.slice(lastUpdate + 1).some((m) => m.kind === 'confirmed')
+  return answered ? null : 'stale'
+}
+
+// Whether the newest update in a thread still waits on the partner: there is a
+// quote from before it, and no quote or confirmation after it.
+export const awaitingRequote = (messages) => {
+  const lastUpdate = messages.findLastIndex(isUpdate)
+  if (lastUpdate < 0) return false
+  const before = messages.slice(0, lastUpdate).some((m) => m.kind === 'bid')
+  const after = messages.slice(lastUpdate + 1).some((m) => m.kind === 'bid' || m.kind === 'confirmed')
+  return before && !after
+}

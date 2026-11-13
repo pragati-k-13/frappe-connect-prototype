@@ -3,6 +3,7 @@ import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { beginnerThreads, crmLeads, partnerThreads } from '../data/partnerView'
 import { CRMS } from '../data/partnerAccount'
+import { updateMessage } from '../data/messages'
 
 // The partner's leads, shared by the list and the lead page, so a reply sent
 // on the page shows on the list when you go back. One copy per demo tier,
@@ -164,3 +165,42 @@ export function threadFor(c, leads, account) {
 }
 export const customerNeedsReply = (c, leads, account) => threadFor(c, leads, account)?.messages.at(-1)?.from === 'them' &&
   threadFor(c, leads, account).messages.at(-1).kind === 'text'
+
+// ── Requirements updates (docs/edit-requirements.md) ────────────────────────
+// The business edits in Connect, so the partner product has no button for it;
+// the demo plays that side. The new version arrives as an update message with
+// the old one beside it, and the lead is marked until the partner answers.
+//
+// ⚠️ THE EARLIER MESSAGES KEEP THEIR VERSION. A seeded requirements message
+// reads `lead.brief`, which now changes, so it is pinned to the old copy first.
+const NEXT_BAND = { 'inr-1': 'inr-2', 'inr-2': 'inr-3', 'inr-3': 'inr-4', 'usd-1': 'usd-2', 'usd-2': 'usd-3', 'usd-3': 'usd-4' }
+const LATER = { now: 'quarter', quarter: 'half', half: 'none', none: 'half' }
+export function businessUpdatesRequirements(lead) {
+  const prev = JSON.parse(JSON.stringify(lead.brief))
+  for (const m of lead.messages) if (m.kind === 'brief' && !m.brief) m.brief = prev
+  const extra = ' We have also added two depots in Goa, which need the same tracking from day one.'
+  const next = {
+    ...prev,
+    // A second run changes the wording rather than adding the same sentence.
+    scope: prev.scope.includes(extra.trim())
+      ? prev.scope.replace('two depots in Goa', 'three depots in Goa and Belgaum')
+      : `${prev.scope.trim()}${extra}`,
+    budget: NEXT_BAND[prev.budget] ?? prev.budget,
+    timeline: LATER[prev.timeline] ?? 'half',
+  }
+  lead.brief = next
+  lead.messages.push(updateMessage('them', prev, next))
+  lead.requirementsUpdated = true
+}
+
+// "Quote still stands": confirms the figure against the newest version.
+export function confirmQuote(lead) {
+  lead.messages.push({ id: `confirmed-${Date.now()}`, from: 'you', kind: 'confirmed', at: Date.now() })
+  lead.requirementsUpdated = false
+}
+
+// A new quote. The old card reads "Replaced" from here on.
+export function sendQuote(lead, bid) {
+  lead.messages.push({ id: `bid-${Date.now()}`, from: 'you', kind: 'bid', at: Date.now(), bid })
+  lead.requirementsUpdated = false
+}

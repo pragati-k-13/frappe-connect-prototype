@@ -14,6 +14,9 @@ import {
   declineMessage,
   discoveryThreads,
   repFor,
+  updateMessage,
+  changedParts,
+  awaitingRequote,
 } from '../data/messages'
 import { demoProjects, nextStage, projectName, stagesFor } from '../data/project'
 import { modulesFor } from '../data/modules'
@@ -580,7 +583,8 @@ export const useConnectStore = defineStore('connect', {
       if (!project) return emptyBrief()
       const sent = state.threads
         .flatMap((t) => t.messages ?? [])
-        .find((m) => m.kind === 'brief' && m.brief?.projectId === projectId)?.brief
+        // The newest version: an edit posts a later `brief` message.
+        .findLast((m) => m.kind === 'brief' && m.brief?.projectId === projectId)?.brief
       const own = project.brief?.scope
         ? project.brief
         : project.service === 'custom' && state.brief.scope
@@ -1472,6 +1476,88 @@ export const useConnectStore = defineStore('connect', {
 
       this.threads = [...this.threads, contactThread(partner, snapshot, message.trim())]
       return partner.id
+    },
+
+    // ── Editing sent requirements ────────────────────────────────────────
+    // docs/edit-requirements.md. An edit changes the project's requirements
+    // and posts the new version to every thread that has them, except partners
+    // the business marked Not interested. The old message stays; quotes made
+    // before it read as such until their partner answers.
+    //
+    // The threads that would receive an edit, for the editor's "Goes to all N
+    // partners" line and its button.
+    requirementsRecipients(projectId) {
+      const project = this.projects.find((p) => p.id === projectId)
+      if (!project) return []
+      const passed = new Set((project.bids ?? []).filter((b) => b.state === 'not-interested').map((b) => b.partnerId))
+      return this.threads.filter(
+        (t) => !passed.has(t.partnerId) && t.messages.some((m) => m.kind === 'brief' && m.brief?.projectId === projectId),
+      )
+    },
+
+    // ⚠️ A PENDING HIRE REQUEST IS DECLINED by the same save. The request is the
+    // partner's offer on the requirements as they stood; it can't be confirmed
+    // against different ones. The partner can ask again.
+    //
+    // Returns null when nothing changed, so the editor can close without
+    // posting anything.
+    updateRequirements(projectId, patch) {
+      const project = this.projects.find((p) => p.id === projectId)
+      if (!project || project.partnerId) return null
+      const before = this.briefOf(projectId)
+      const after = pickBrief({ ...before, ...patch })
+      if (!changedParts(before, after).length) return null
+
+      const startedAt = Date.now()
+      const recipients = this.requirementsRecipients(projectId)
+      project.brief = after
+      const company = project.answers ?? this.company
+      const next = snapshotBrief(project, after, company)
+      let mine = null
+      for (const thread of recipients) {
+        if (project.hireRequest === thread.partnerId) {
+          thread.messages.push({ id: `hd-${Date.now()}`, from: 'you', at: Date.now(), kind: 'hire-declined' })
+        }
+        const prev = thread.messages.findLast((m) => m.kind === 'brief' && m.brief?.projectId === projectId)?.brief
+        const msg = updateMessage('you', prev, next)
+        thread.messages.push(msg)
+        mine ??= msg.id
+      }
+      if (project.hireRequest) this.declineHire(projectId)
+      project.requirementsUpdatedAt = startedAt
+      // The one feedback question, shown once under the business's own event
+      // line in whichever thread it lands in.
+      project.editReasonAsk = { at: startedAt, answered: false }
+      return { sent: recipients.length, messageId: mine }
+    },
+
+    recordEditReason(projectId, reason) {
+      const project = this.projects.find((p) => p.id === projectId)
+      if (project?.editReasonAsk) project.editReasonAsk = { ...project.editReasonAsk, answered: true, reason }
+    },
+
+    // ⚠️ DEMO ONLY, like `simulateReplies`: partners answering an update.
+    // Alternately one confirms its quote and the next sends a new one, so both
+    // answers can be seen.
+    simulateUpdateReplies(projectId) {
+      const project = this.projects.find((p) => p.id === projectId)
+      if (!project) return 0
+      let n = 0
+      for (const thread of this.requirementsRecipients(projectId)) {
+        if (!awaitingRequote(thread.messages)) continue
+        const partner = PARTNERS.find((p) => p.id === thread.partnerId)
+        const bid = project.bids?.find((b) => b.partnerId === thread.partnerId)
+        if (!partner || !bid) continue
+        if (n % 2 === 0) {
+          thread.messages.push({ id: `cf-${Date.now()}-${n}`, from: 'them', at: Date.now(), kind: 'confirmed' })
+        } else {
+          const fresh = { ...bidFor(partner, { country: this.company.country }), state: bid.state }
+          Object.assign(bid, fresh)
+          thread.messages.push({ ...bidMessage(fresh), at: Date.now() })
+        }
+        n++
+      }
+      return n
     },
 
     // ── The basket ───────────────────────────────────────────────────────

@@ -160,6 +160,9 @@ const routes = [
   { path: '/connect/leads/:id', name: 'lead', component: () => import('./pages/LeadPage.vue'), beforeEnter: asPartner },
   { path: '/connect/customers', name: 'customers', component: () => import('./pages/CustomersPage.vue'), beforeEnter: asPartner },
   { path: '/connect/customers/:id', name: 'customer', component: () => import('./pages/CustomerPage.vue'), beforeEnter: asPartner },
+  // PMM audits: a list, each opening its own page with the non-conformances.
+  { path: '/connect/audits', name: 'audits', component: () => import('./pages/AuditsPage.vue'), beforeEnter: asPartner },
+  { path: '/connect/audits/:id', name: 'audit', component: () => import('./pages/AuditPage.vue'), beforeEnter: asPartner },
   { path: '/connect/invoices', name: 'invoices', component: () => import('./pages/InvoicesPage.vue'), beforeEnter: asPartner },
   { path: '/connect/profile', name: 'own-profile', component: () => import('./pages/OwnProfilePage.vue'), beforeEnter: asPartner },
   { path: '/connect/resources', name: 'resources', component: () => import('./pages/ResourcesPage.vue'), beforeEnter: asPartner },

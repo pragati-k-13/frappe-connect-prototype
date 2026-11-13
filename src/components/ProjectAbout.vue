@@ -15,6 +15,7 @@ import { isFrappe } from '../data/partners'
 import { SESSIONS_PER_PACK, checkoutFor } from '../data/packs'
 import { serviceOf } from '../data/project'
 import { scopeSentence } from '../data/modules'
+import dayjs from 'dayjs'
 
 // The project's reference facts, beside the work: who is doing it, what it is,
 // and where to get help. Nothing here is something to do — that is the page.
@@ -251,6 +252,10 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
               label="View requirements"
               @click="emit('requirements')"
             />
+            <!-- When they were last edited after going out. -->
+            <p v-if="project.requirementsUpdatedAt" class="text-p-sm text-ink-gray-5">
+              Updated {{ dayjs(project.requirementsUpdatedAt).format('MMM D') }}
+            </p>
           </dd>
         </template>
 

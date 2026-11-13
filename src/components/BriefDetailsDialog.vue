@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { Dialog } from 'frappe-ui'
+import { Dialog, ScrollArea } from 'frappe-ui'
 import IconBuilding from '~icons/lucide/building-2'
 import IconPackage from '~icons/lucide/package'
 import IconFactory from '~icons/lucide/factory'
@@ -41,12 +41,25 @@ const props = defineProps({
   // The business reading its own requirements, rather than a partner reading
   // them. Only the wording changes: "you", not "they".
   own: { type: Boolean, default: false },
+  // What the caller already shows, so the dialog doesn't repeat it:
+  //   'description'  opened from under a message, whose text it is
+  //   'facts'        the partner Lead page, whose side panel lists the short
+  //                  facts and the modules
+  omit: { type: Array, default: () => [] },
+  // The version this one replaced, when opened from an update. Changed values
+  // show the old one struck through before the new one.
+  previous: { type: Object, default: null },
+  // The business's own view: an Edit button, or, once editing is locked, the
+  // line that says why (`lockNote`).
+  editable: { type: Boolean, default: false },
+  lockNote: { type: String, default: '' },
   // The company's name, when it went out with these requirements rather than
   // separately (a pack booking, a direct contact). Leads the facts.
   companyName: { type: String, default: '' },
 })
 
-defineEmits(['update:open'])
+const emit = defineEmits(['update:open', 'edit'])
+const editActions = [{ label: 'Edit', variant: 'subtle', iconLeft: 'lucide-pencil', onClick: () => emit('edit') }]
 
 // A pack booking's requirements rather than a brief: the packs stand in for the
 // scope, there is no budget, and nobody was asked for — Frappe implements
@@ -60,20 +73,26 @@ const listOf = (items) =>
 // decides on. ABOUT THE BUSINESS ONLY — the packs were here once and read as
 // something the company already had; they are what it bought, so they have
 // their own section below.
-const facts = computed(() => {
-  const b = props.brief ?? {}
-  return [
+const factsOf = (b) => [
     { icon: IconBuilding, label: 'Company', text: props.companyName },
     { icon: IconFactory, label: 'Industry', text: b.segments?.[0] ?? '' },
     { icon: IconUsers, label: 'Size', text: b.employees ? `${b.employees} people` : '' },
     { icon: IconWallet, label: 'Budget', text: budgetLabel(b.budget) },
     { icon: IconCalendar, label: 'Timeline', text: b.timeline ? timelineLabel(b.timeline) : '' },
-  ].filter((f) => f.text)
+  ]
+// `was`: the old value, when an update changed it.
+const facts = computed(() => {
+  const before = props.previous ? factsOf(props.previous) : null
+  return factsOf(props.brief ?? {})
+    .map((f, i) => ({ ...f, was: before && before[i].text !== f.text ? before[i].text : '' }))
+    .filter((f) => f.text)
 })
 
-const modulesLine = computed(() => {
-  const m = scopeSentence(props.brief?.modules)
-  return m ? `Covers the ${m} ${m.includes(' and ') ? 'modules' : 'module'}.` : ''
+const modulesLine = computed(() => scopeSentence(props.brief?.modules) || '')
+const modulesWas = computed(() => {
+  if (!props.previous) return ''
+  const was = scopeSentence(props.previous.modules) || ''
+  return was !== modulesLine.value ? was : ''
 })
 
 // How they run today, as a few sentences rather than three rows.
@@ -111,14 +130,14 @@ const problems = computed(() => {
   )
 })
 
-const lookingFor = computed(() =>
-  packs.value
-    ? ''
-    : criteriaSentence(
-        { country: props.brief?.country, segments: props.brief?.segments },
-        props.brief ?? {},
-      ),
-)
+const lookingForOf = (b) =>
+  packs.value ? '' : criteriaSentence({ country: b?.country, segments: b?.segments }, b ?? {})
+const lookingFor = computed(() => lookingForOf(props.brief))
+const lookingForWas = computed(() => {
+  if (!props.previous) return ''
+  const was = lookingForOf(props.previous)
+  return was !== lookingFor.value ? was : ''
+})
 </script>
 
 <template>
@@ -126,7 +145,8 @@ const lookingFor = computed(() =>
        about 75 characters. -->
   <Dialog
     :model-value="open"
-    :title="brief?.project || (own ? 'Your requirements' : 'Requirements')"
+    :title="own ? 'Your requirements' : 'Requirements'"
+    :actions="editable && !lockNote ? editActions : []"
     size="md"
     @update:model-value="$emit('update:open', $event)"
   >
@@ -135,13 +155,16 @@ const lookingFor = computed(() =>
     <template #default>
       <!-- No negative margin: the pinned header has a solid background, and
            content pulled up under it loses its first line. -->
-      <div v-if="brief" class="flex flex-col gap-7">
+      <!-- A ScrollArea, as in `PackTermsDialog`: frappe-ui's scrollbar, shown
+           on scroll, in place of the browser's. -->
+      <ScrollArea v-if="brief" class="fc-scroll-dialog -mr-4 sm:-mr-6" viewport-class="pr-4 sm:pr-6">
+      <div class="flex flex-col gap-7">
         <!-- The deciding facts, straight under the title. The one loud thing
              here; everything below is quiet prose. `aria-label` names each
              icon, since the icon is the label. -->
         <!-- One per line, the card's own layout. A two-column grid wrapped
              them into uneven pairs whose columns meant nothing. -->
-        <ul class="flex flex-col gap-2 text-p-base text-ink-gray-6">
+        <ul v-if="!omit.includes('facts')" class="flex flex-col gap-2 text-p-base text-ink-gray-6">
           <li
             v-for="f in facts"
             :key="f.label"
@@ -153,7 +176,11 @@ const lookingFor = computed(() =>
               role="img"
               :aria-label="f.label"
             />
-            {{ f.text }}
+            <span>
+              <!-- The old value is struck for the eye and hidden from screen
+                   readers, which hear "₹15 to 25 lakh, was ₹5 to 15 lakh". -->
+              <template v-if="f.was"><s class="text-ink-gray-5" aria-hidden="true">{{ f.was }}</s>&nbsp; </template>{{ f.text }}<span v-if="f.was" class="sr-only">, was {{ f.was }}</span>
+            </span>
           </li>
         </ul>
 
@@ -175,14 +202,21 @@ const lookingFor = computed(() =>
           </ul>
         </section>
 
-        <section v-else class="flex flex-col gap-2">
-          <h4 class="text-base font-medium text-ink-gray-8">
-            {{ own ? 'What you need built' : 'What they need built' }}
-          </h4>
+        <!-- "Description", the word an update names when this text changes
+             (docs/edit-requirements.md). Left out when the dialog opens from
+             under the message, since there it is that message's own text. -->
+        <section v-if="!packs && !omit.includes('description')" class="flex flex-col gap-2">
+          <h4 class="text-base font-medium text-ink-gray-8">Description</h4>
           <p class="whitespace-pre-line text-p-base leading-relaxed text-ink-gray-6">
             {{ brief.scope }}
           </p>
-          <p v-if="modulesLine" class="text-p-base text-ink-gray-6">{{ modulesLine }}</p>
+        </section>
+
+        <section v-if="!packs && modulesLine && !omit.includes('facts')" class="flex flex-col gap-2">
+          <h4 class="text-base font-medium text-ink-gray-8">Modules</h4>
+          <p class="text-p-base text-ink-gray-6">
+            <template v-if="modulesWas"><s class="text-ink-gray-5" aria-hidden="true">{{ modulesWas }}</s>&nbsp; </template>{{ modulesLine }}<span v-if="modulesWas" class="sr-only">, was {{ modulesWas }}</span>
+          </p>
         </section>
 
         <section v-if="today.length" class="flex flex-col gap-2">
@@ -210,9 +244,16 @@ const lookingFor = computed(() =>
 
         <section v-if="lookingFor" class="flex flex-col gap-2">
           <h4 class="text-base font-medium text-ink-gray-8">Looking for</h4>
-          <p class="text-p-base leading-relaxed text-ink-gray-6">{{ lookingFor }}</p>
+          <p v-if="lookingForWas" class="text-p-base leading-relaxed text-ink-gray-5 line-through" aria-hidden="true">{{ lookingForWas }}</p>
+          <p class="text-p-base leading-relaxed text-ink-gray-6">{{ lookingFor }}<span v-if="lookingForWas" class="sr-only">, was {{ lookingForWas }}</span></p>
         </section>
       </div>
+      </ScrollArea>
+    </template>
+    <!-- Edit goes through `actions`, so frappe-ui lays it out: a single action
+         in a `md` dialog is full width. The slot is only for the lock note. -->
+    <template v-if="lockNote" #actions>
+      <p class="text-p-sm text-ink-gray-6">{{ lockNote }}</p>
     </template>
   </Dialog>
 </template>
