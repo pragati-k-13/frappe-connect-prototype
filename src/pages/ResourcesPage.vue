@@ -1,4 +1,5 @@
 <script setup>
+import { Alert } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import { RESOURCES } from '../data/partnerAccount'
 import { COLLATERAL, DRIVE_URL } from '../data/collateral'
@@ -14,6 +15,8 @@ const groups = RESOURCES
   <ConnectShell root-label="Resources">
     <div class="fc-page-read space-y-10 py-8">
       <!-- No page title in the body: the header already says Resources. -->
+      <!-- Temporary: the page merges before its design is settled. -->
+      <Alert theme="blue" title="Design in progress. This page will change." />
       <!-- The collateral library first: what Sales comes back for during a deal.
            Each folder opens in Frappe Drive. The help links follow. -->
       <section>
