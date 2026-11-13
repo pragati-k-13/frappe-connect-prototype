@@ -37,15 +37,17 @@ function move(from, to) {
   ids.splice(to, 0, id)
   emit('change', { storyOrder: ids })
 }
-// `i` is the row's place among all stories (the lead is 0), so "Move up" on
-// the first row would make it the lead: that's "Feature this story" instead.
+// The same menu on every story, the lead included. `i` is its place among
+// all stories (the lead is 0), so "Move up" on the first row would make it
+// the lead: that's "Feature this story" instead.
 const rowMenu = (item) => {
   const i = stories.value.indexOf(item)
   return [
-    { label: 'Feature this story', icon: 'lucide-star', onClick: () => move(i, 0) },
+    i > 0 && { label: 'Feature this story', icon: 'lucide-star', onClick: () => move(i, 0) },
     i > 1 && { label: 'Move up', icon: 'lucide-chevron-up', onClick: () => move(i, i - 1) },
     i < stories.value.length - 1 && { label: 'Move down', icon: 'lucide-chevron-down', onClick: () => move(i, i + 1) },
-    { label: 'Read story', icon: 'lucide-external-link', onClick: () => open(item.href) },
+    // The lead has "Read the story" as a button already.
+    i > 0 && { label: 'Read story', icon: 'lucide-external-link', onClick: () => open(item.href) },
   ].filter(Boolean)
 }
 const initials = (name) => name.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
@@ -68,14 +70,20 @@ const open = (href) => window.open(href, '_blank', 'noopener')
          and space set it apart from the rows. One subtle button, since the
          story lives on frappe.io. -->
     <article v-if="featured" class="mt-6">
-      <!-- Scaled down only, never up, so a small logo never blurs. -->
-      <img
-        v-if="featured.client.src"
-        :src="featured.client.src"
-        :alt="featured.client.name"
-        class="h-7 max-w-36 object-contain object-left"
-      />
-      <p v-else class="text-base font-medium text-ink-gray-7">{{ featured.client.name }}</p>
+      <!-- Editing: the lead gets the same menu as the rows, at its top right. -->
+      <div class="flex items-start justify-between gap-3">
+        <!-- Scaled down only, never up, so a small logo never blurs. -->
+        <img
+          v-if="featured.client.src"
+          :src="featured.client.src"
+          :alt="featured.client.name"
+          class="h-7 max-w-36 object-contain object-left"
+        />
+        <p v-else class="text-base font-medium text-ink-gray-7">{{ featured.client.name }}</p>
+        <Dropdown v-if="editable && stories.length > 1" :options="rowMenu(featured)">
+          <Button variant="ghost" class="data-[state=open]:bg-surface-gray-3" icon="lucide-ellipsis" :aria-label="`Actions for ${featured.client.name} story`" />
+        </Dropdown>
+      </div>
       <h3 class="mt-3 max-w-prose text-xl font-semibold text-ink-gray-9">{{ featured.title }}</h3>
       <p v-if="featured.description" class="mt-1 max-w-prose text-p-base text-ink-gray-6">{{ featured.description }}</p>
       <Button class="mt-3" label="Read the story" @click="open(featured.href)" />
@@ -92,7 +100,10 @@ const open = (href) => window.open(href, '_blank', 'noopener')
            gets its initials in the same box. -->
       <List :columns="editable ? ['3.5rem', 'minmax(0,1fr)', 'auto'] : ['3.5rem', 'minmax(0,1fr)']" :row-height="72" class="list-gap-3 list-row-px-5">
         <ListRows :items="rest" v-slot="{ item }">
-          <ListRow :on-click="() => open(item.href)">
+          <!-- Not clickable while editing: a click in an editor shouldn't leave
+               the page, and the ⋯ sits in the row. "Read story" is in its
+               menu instead. -->
+          <ListRow :on-click="editable ? undefined : () => open(item.href)">
             <ListCell>
               <span class="grid h-10 w-14 place-items-center overflow-hidden rounded-4">
                 <img v-if="item.client.src" :src="item.client.src" :alt="item.client.name" class="max-h-full max-w-full object-contain" />
@@ -105,10 +116,10 @@ const open = (href) => window.open(href, '_blank', 'noopener')
                 <p v-if="item.segment" class="text-p-base text-ink-gray-6">{{ item.segment }}</p>
               </div>
             </ListCell>
-            <!-- Editing: feature this story instead, like "Make cover" on
-                 media. The click stays here rather than opening the story. -->
+            <!-- Editing: feature or move this story, like "Make cover" on
+                 media. -->
             <ListCell v-if="editable">
-              <div @click.stop>
+              <div>
                 <Dropdown :options="rowMenu(item)">
                   <Button variant="ghost" class="data-[state=open]:bg-surface-gray-3" icon="lucide-ellipsis" :aria-label="`Actions for ${item.client.name} story`" />
                 </Dropdown>
