@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Badge, Button, ScrollArea, Select } from 'frappe-ui'
+import { Alert, Badge, Button, ScrollArea, Select } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -43,6 +43,10 @@ const columns = {
 <template>
   <ConnectShell root-label="Audits" flush>
     <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+      <!-- Temporary: the page merges before its design is settled. -->
+      <div class="shrink-0 px-3 pt-5 sm:px-5">
+        <Alert theme="blue" title="Design in progress. This page will change." />
+      </div>
       <template v-if="account.audits.length">
         <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 px-3 py-4 sm:px-5">
           <Select v-model="status" :options="STATUSES" class="min-w-36" aria-label="Status" />

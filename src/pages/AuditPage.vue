@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Badge, Button, Dialog, FormControl, ScrollArea, toast } from 'frappe-ui'
+import { Alert, Badge, Button, Dialog, FormControl, ScrollArea, toast } from 'frappe-ui'
 import { List, ListCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
@@ -94,6 +94,8 @@ const closeActions = [
     <ScrollArea v-else class="min-h-0 flex-1" viewport-class="px-3 pt-5 pb-10 sm:px-5">
       <!-- No title here: the breadcrumb already names the audit. The status
            and the one line of facts lead instead. -->
+      <!-- Temporary: the page merges before its design is settled. -->
+      <Alert class="mb-6" theme="blue" title="Design in progress. This page will change." />
       <header class="flex flex-wrap items-center gap-2">
         <Badge variant="subtle" :theme="AUDIT_STATUS[audit.status]" :label="audit.status" />
         <p class="text-base text-ink-gray-5">
