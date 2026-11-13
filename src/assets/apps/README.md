@@ -12,7 +12,6 @@ icons, taken from the product cards on <https://frappe.io/products>:
 | `drive.svg` | frappe-patterns logos, from github.com/frappe/drive |
 | `insights.svg` | frappe-patterns logos, from github.com/frappe/insights |
 | `learning.png` | frappe-patterns `lms.png`, from github.com/frappe/lms |
-| `school.png` | supplied by Pragati, 80px |
 | `lending.png` | supplied by Pragati, 80px |
 
 Each is ~160x157 RGBA PNG, 2-3 KB, and carries its own rounded-square shape on

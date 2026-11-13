@@ -19,7 +19,7 @@ const router = useRouter()
 const store = useConnectStore()
 const account = usePartnerAccountStore()
 
-const APP_OPTIONS = APPS.filter((a) => !['framework', 'education'].includes(a.value))
+const APP_OPTIONS = APPS.filter((a) => !['framework', 'education', 'school'].includes(a.value))
 const nameOf = (id) => account.team.find((p) => p.id === id)?.name
 const ownerOptions = computed(() => [
   { label: 'Unassigned', value: 'none' },
