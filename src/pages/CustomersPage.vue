@@ -5,6 +5,7 @@ import { Alert, Avatar, Badge, Button, Dialog, Dropdown, FormControl, Select, Ta
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
+import StageDot from '../components/StageDot.vue'
 import PartnerCode from '../components/PartnerCode.vue'
 import { ORIGINS, customerNeedsReply, isClosed, originLabel, originOf, useLeads } from '../composables/useLeads'
 import { useConnectStore } from '../stores/connect'
@@ -345,7 +346,7 @@ function saveEdit() {
               <ListHeaderCell v-if="show('stage')" class="hidden md:flex">Stage</ListHeaderCell>
               <ListHeaderCell v-if="show('source')" class="hidden md:flex">Source</ListHeaderCell>
               <ListHeaderCell v-if="show('owner')" class="hidden md:flex">Owner</ListHeaderCell>
-              <ListHeaderCell v-if="show('sites')" class="hidden md:flex">Sites</ListHeaderCell>
+              <ListHeaderCell v-if="show('sites')" class="hidden justify-end md:flex">Sites</ListHeaderCell>
               <ListHeaderCell v-if="show('mrr')" class="hidden justify-end md:flex">MRR</ListHeaderCell>
               <ListHeaderCell class="md:hidden"><span class="sr-only">Stage</span></ListHeaderCell>
               <ListHeaderCell><span class="sr-only">Actions</span></ListHeaderCell>
@@ -353,14 +354,13 @@ function saveEdit() {
             <ListRows :items="page" v-slot="{ item }">
               <ListRow :to="`/connect/customers/${item.id}`">
                 <ListCell class="min-w-0 gap-2 overflow-hidden">
-                  <Avatar :label="item.name" size="sm" shape="square" />
                   <span class="truncate text-base text-ink-gray-9" :class="waiting(item) && 'font-medium'">{{ item.name }}</span>
                   <Tooltip v-if="isUnpaid(item)" :text="`${lastClosed.label} invoice unpaid`">
                     <Badge class="shrink-0" theme="amber" variant="subtle" size="sm" label="Unpaid" />
                   </Tooltip>
                 </ListCell>
                 <ListCell v-if="show('stage')" class="hidden min-w-0 gap-2 md:flex">
-                  <span :class="STAGE[item.stage].dot" class="size-2 shrink-0 rounded-full" aria-hidden="true" />
+                  <StageDot :color="STAGE[item.stage].dot" />
                   <span class="truncate text-base text-ink-gray-7">{{ STAGE[item.stage].label }}</span>
                 </ListCell>
                 <!-- Connect stands out: it's the source the product brings. -->
@@ -374,7 +374,7 @@ function saveEdit() {
                   </template>
                   <span v-else class="text-base text-ink-gray-5">—</span>
                 </ListCell>
-                <ListCell v-if="show('sites')" class="hidden text-base tabular-nums text-ink-gray-7 md:flex">
+                <ListCell v-if="show('sites')" class="hidden justify-end text-base tabular-nums text-ink-gray-7 md:flex">
                   {{ (item.sites.length || item.linkedSites?.length) ?? 0 }}
                 </ListCell>
                 <ListCell v-if="show('mrr')" class="hidden justify-end text-base tabular-nums text-ink-gray-7 md:flex">

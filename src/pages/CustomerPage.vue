@@ -19,6 +19,7 @@ import {
   toast,
 } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
+import StageDot from '../components/StageDot.vue'
 import EmptyState from '../components/EmptyState.vue'
 import FollowUps from '../components/FollowUps.vue'
 import ActivityFeed from '../components/ActivityFeed.vue'
@@ -71,10 +72,11 @@ const meName = computed(() => nameOf(me.value))
 const teamPeople = computed(() => account.team.map((p) => ({ id: p.id, name: p.name })))
 
 // ── Top bar: owner and stage ────────────────────────────────────────────────
+// `dot` matches the Customers list, so a stage looks the same in both.
 const STAGE = {
-  onboarding: { label: 'Onboarding', theme: 'blue' },
-  live: { label: 'Live', theme: 'green' },
-  churned: { label: 'Churned', theme: 'gray' },
+  onboarding: { label: 'Onboarding', theme: 'blue', dot: 'bg-surface-blue-7' },
+  live: { label: 'Live', theme: 'green', dot: 'bg-surface-green-7' },
+  churned: { label: 'Churned', theme: 'gray', dot: 'bg-surface-gray-5' },
 }
 function change(field, label, from, to, display = (v) => v) {
   if (from === to) return
@@ -84,6 +86,7 @@ function change(field, label, from, to, display = (v) => v) {
 const stageMenu = computed(() =>
   Object.entries(STAGE).map(([value, s]) => ({
     label: s.label,
+    slots: { prefix: () => h(StageDot, { color: s.dot }) },
     onClick: () => change('stage', 'Stage', c.value.stage, value, (v) => STAGE[v]?.label),
   })),
 )
@@ -274,7 +277,9 @@ function requestSwitch() {
           </Dropdown>
         </div>
         <Dropdown v-if="canEdit" :options="stageMenu" align="end">
-          <Button variant="subtle" icon-right="lucide-chevron-down" :label="STAGE[c.stage].label" />
+          <Button variant="subtle" icon-right="lucide-chevron-down" :label="STAGE[c.stage].label">
+            <template #prefix><StageDot :color="STAGE[c.stage].dot" /></template>
+          </Button>
         </Dropdown>
         <Badge v-else variant="subtle" :theme="STAGE[c.stage].theme" :label="STAGE[c.stage].label" />
       </div>

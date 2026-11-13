@@ -5,6 +5,7 @@ import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'f
 import AddLeadDialog from '../components/AddLeadDialog.vue'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
+import StageDot from '../components/StageDot.vue'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { useConnectStore } from '../stores/connect'
 import { PRM_STAGES } from '../data/partnerAccount'
@@ -240,7 +241,7 @@ const time = (at) => {
                 <Badge v-if="item.requirementsUpdated" class="shrink-0" theme="gray" label="Requirements updated" />
               </ListCell>
               <ListCell v-if="show('stage')" class="hidden min-w-0 gap-2 md:flex">
-                <span :class="dot(item.stage)" class="size-2 shrink-0 rounded-full" aria-hidden="true" />
+                <StageDot :color="dot(item.stage)" />
                 <span class="truncate text-base text-ink-gray-7">{{ item.stage }}<template v-if="item.hireRequest"> · Hire sent</template></span>
               </ListCell>
               <ListCell v-if="show('company')" class="hidden min-w-0 md:flex">
