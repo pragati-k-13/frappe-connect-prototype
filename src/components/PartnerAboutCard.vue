@@ -1,10 +1,10 @@
 <script setup>
-import { computed } from 'vue'
-import { Badge, MultiSelect, Select, Tooltip } from 'frappe-ui'
-import InlineInput from './InlineInput.vue'
+import { computed, ref } from 'vue'
+import { Badge, Button, MultiSelect, Tooltip, dialog } from 'frappe-ui'
+import AddressDialog from './AddressDialog.vue'
 import RateEditor from './RateEditor.vue'
 import Tag from './Tag.vue'
-import { APPS, PARTNERS, countryShort } from '../data/partners'
+import { APPS, OFFICE_CITIES, PARTNERS, addressesOf, countryShort } from '../data/partners'
 import { INDUSTRIES, industryShort } from '../data/quiz'
 import { useConnectStore } from '../stores/connect'
 
@@ -42,7 +42,9 @@ const PMM_HELP = 'Partner Maturity Model level, 1 to 5.'
 // is what the listing row's "+2 more" already does.
 const CHIP_LIMIT = 5
 
-const appLabel = (value) => APPS.find((a) => a.value === value)?.label ?? value
+// Framework is a certification but not an app anyone picks, so it isn't in
+// APPS; its certificate still needs a name.
+const appLabel = (value) => APPS.find((a) => a.value === value)?.label ?? { framework: 'Framework' }[value] ?? value
 
 // A chip is checked when it answers something the visitor actually asked.
 // Nothing is checked if they skipped the quiz, which is correct: there is no
@@ -81,7 +83,49 @@ const industryOverflow = computed(() => shownIndustries.value.slice(CHIP_LIMIT))
 // partner's real city, in that country's own postal conventions. See the
 // warning on `address` in `data/partners.js`. City is the fallback for a
 // partner added without one.
-const address = computed(() => props.partner.address ?? props.partner.city)
+//
+// A partner can list up to `MAX_OFFICES` offices, main first. Each has a city
+// (from the directory's cities, so the city filter can match it) and the
+// street address. Editing keeps `city` and `address` equal to the main office,
+// so everything that reads one city still does.
+const MAX_OFFICES = 5
+const offices = computed(() => addressesOf(props.partner))
+const shownOffices = computed(() => offices.value.map((a) => a.text || a.city))
+// The directory's cities, plus any this partner already has (a Beginner's
+// city may be in no other listing).
+const cityOptions = computed(() =>
+  [...new Set([...OFFICE_CITIES, ...offices.value.map((a) => a.city)])].sort().map((c) => ({ label: c, value: c })),
+)
+function setOffices(list) {
+  emit('change', { addresses: list, city: list[0].city, address: list[0].text || null })
+}
+// One address at a time, in a dialog: `editingIndex` is its place in the
+// list, or -1 when adding one.
+const dialogOpen = ref(false)
+const editingIndex = ref(-1)
+const openAddress = (i) => {
+  editingIndex.value = i
+  dialogOpen.value = true
+}
+function saveAddress({ city, text, main }) {
+  const i = editingIndex.value
+  const list = i < 0 ? [...offices.value, { city, text }] : offices.value.map((a, j) => (j === i ? { ...a, city, text } : a))
+  const at = i < 0 ? list.length - 1 : i
+  setOffices(main ? [list[at], ...list.filter((_, j) => j !== at)] : list)
+}
+// Removing asks first, neutrally: it's only gone from the draft, but
+// getting it back means typing it in again.
+function removeAddress() {
+  const i = editingIndex.value
+  dialog.confirm({
+    title: `Remove the ${cityShort(offices.value[i].city)} address?`,
+    message: 'It comes off your profile when you publish.',
+    confirmLabel: 'Remove',
+    size: 'sm',
+    onConfirm: () => setOffices(offices.value.filter((_, j) => j !== i)),
+  })
+}
+const cityShort = (c) => c.split(',')[0].trim()
 
 // The firm's other offices, each its own listing and its own partner
 // agreement, so Frappe sets the link and the partner can't edit it. A Tag,
@@ -93,13 +137,10 @@ const alsoIn = computed(() =>
     .map((p) => ({ id: p.id, label: countryShort(p.countries[0]) })),
 )
 
-// How the firm works decides which briefs reach it, so a business sees it too.
 // Countries served and the smallest project are hidden for now; the directory's
 // filters still read both.
-const WORKS = { onsite: 'On site', remote: 'Remote', both: 'On site or remote' }
 
 // ── Editing ──────────────────────────────────────────────────────────────────
-const workOptions = Object.entries(WORKS).map(([value, label]) => ({ label, value }))
 const industryOptions = INDUSTRIES.map((i) => ({
   group: i.label,
   options: i.segments.map((s) => ({ label: s, value: s })),
@@ -124,11 +165,11 @@ const LISTS = {
   <!-- `overflow-hidden` so the column rule and the header rules stop at the
        card's rounded corners instead of running into them. -->
   <section class="overflow-hidden rounded-5 border border-outline-gray-2 bg-surface-base">
-    <div class="grid sm:grid-cols-2">
+    <div class="grid grid-cols-[minmax(0,1fr)] sm:grid-cols-2">
       <!-- ── About ───────────────────────────────────────────────────────── -->
       <!-- The split is a border on the left column, so it collapses to a
            horizontal rule when the two stack below `sm`. -->
-      <div class="border-outline-gray-2 sm:border-r">
+      <div class="min-w-0 border-outline-gray-2 sm:border-r">
         <h2
           class="flex items-center gap-2 border-b border-outline-gray-2 px-4 py-3 text-base font-medium text-ink-gray-8"
         >
@@ -211,21 +252,45 @@ const LISTS = {
           </div>
 
           <div class="py-3.5">
-            <dt class="text-p-sm text-ink-gray-7">Address</dt>
-            <!-- The one long-form value in the card, so it's the only one that
-                 gets a reading line-height. -->
+            <dt class="text-p-sm text-ink-gray-7">{{ offices.length > 1 ? 'Addresses' : 'Address' }}</dt>
+            <!-- One field pair per office: the city (what the city filter
+                 matches) and the street address. -->
             <dd v-if="editable" class="mt-1">
-              <InlineInput
-                multiline
-                boxed
-                :rows="3"
-                :model-value="partner.address ?? ''"
-                label="Address"
-                placeholder="Add your address"
-                @commit="emit('change', { address: $event || null })"
+              <!-- Each address as it reads, with Edit opening the dialog. Rows
+                   rather than fields: at five offices the fields made the card
+                   mostly an address form. -->
+              <ul class="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-2 divide-y divide-outline-gray-1">
+                <!-- Rows share the list's columns (subgrid), so every street
+                     address starts at the same edge: just past the longest
+                     city. -->
+                <li v-for="(a, i) in offices" :key="i" class="col-span-3 grid grid-cols-subgrid items-center py-1.5">
+                  <span class="flex items-center gap-1.5">
+                    <span class="text-base text-ink-gray-8">{{ cityShort(a.city) }}</span>
+                    <Badge v-if="i === 0 && offices.length > 1" theme="gray" variant="subtle" label="Main" />
+                  </span>
+                  <span class="min-w-0 flex-1 truncate text-base text-ink-gray-5">{{ a.text }}</span>
+                  <!-- The text as the default slot: frappe-ui's `label` would
+                       replace the aria-label, and every row would read "Edit". -->
+                  <Button variant="ghost" :aria-label="`Edit ${cityShort(a.city)} address`" @click="openAddress(i)">Edit</Button>
+                </li>
+              </ul>
+              <Button v-if="offices.length < MAX_OFFICES" class="mt-2" label="Add address" icon-left="lucide-plus" @click="openAddress(-1)" />
+              <AddressDialog
+                v-model:open="dialogOpen"
+                :address="editingIndex < 0 ? null : offices[editingIndex]"
+                :main="editingIndex === 0"
+                :count="offices.length"
+                :cities="cityOptions.map((o) => o.value)"
+                @save="saveAddress"
+                @remove="removeAddress"
               />
             </dd>
-            <dd v-else class="mt-1.5 text-p-base leading-6 text-ink-gray-6">{{ address }}</dd>
+            <!-- The main office first, the others a step lighter below it. The
+                 one long-form value in the card, so it's the only one that
+                 gets a reading line-height. -->
+            <dd v-else class="mt-1.5 space-y-2 text-p-base leading-6">
+              <p v-for="(text, i) in shownOffices" :key="i" :class="i ? 'text-ink-gray-5' : 'text-ink-gray-6'">{{ text }}</p>
+            </dd>
             <dd v-if="alsoIn.length" class="mt-2 flex flex-wrap items-center gap-1.5 text-p-sm text-ink-gray-6">
               Also in
               <Tag v-for="o in alsoIn" :key="o.id" :label="o.label" :to="`/connect/partners/${o.id}`" />
@@ -235,7 +300,7 @@ const LISTS = {
       </div>
 
       <!-- ── Services and Expertise ──────────────────────────────────────── -->
-      <div class="border-t border-outline-gray-2 sm:border-t-0">
+      <div class="min-w-0 border-t border-outline-gray-2 sm:border-t-0">
         <h2
           class="flex items-center gap-2 border-b border-outline-gray-2 px-4 py-3 text-base font-medium text-ink-gray-8"
         >
@@ -314,18 +379,6 @@ const LISTS = {
                 </MultiSelect>
               </dd>
             </div>
-            <div class="py-3.5">
-              <dt class="text-p-sm text-ink-gray-7">Works</dt>
-              <dd class="mt-1">
-                <Select
-                  class="w-full"
-                  :model-value="partner.workStyle"
-                  :options="workOptions"
-                  aria-label="How you work"
-                  @update:model-value="emit('change', { workStyle: $event })"
-                />
-              </dd>
-            </div>
           </template>
           <template v-else>
             <div class="py-3.5">
@@ -379,10 +432,6 @@ const LISTS = {
               <dd class="mt-1.5 flex flex-wrap gap-1.5">
                 <Badge v-for="m in partner.migrations" :key="m" v-bind="CHIP" :label="m" />
               </dd>
-            </div>
-            <div v-if="partner.workStyle" class="py-3.5">
-              <dt class="text-p-sm text-ink-gray-7">Works</dt>
-              <dd class="mt-1.5 text-p-base text-ink-gray-8">{{ WORKS[partner.workStyle] }}</dd>
             </div>
           </template>
         </dl>

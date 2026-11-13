@@ -12,8 +12,8 @@
 // higher side") are template text, not anyone's opinion of anyone.
 //
 // It exists so the section's SHAPE is reviewable: how a two-line body sits
-// against a one-line one, where the timestamp lands, how many tags fit on a
-// row, what four rows plus a "View all" looks like. Replace the whole module
+// against a one-line one, where the timestamp lands, what five rows plus a
+// "View all" looks like. Replace the whole module
 // with real reviews, or gate the section off, before this leaves the team.
 //
 // Generated rather than hand-written, and DETERMINISTIC: a partner's reviews
@@ -61,6 +61,11 @@ const seedFor = (id, field) => hash(`${id}:${field}`)
 // Reviewers are the partner's own customers, so the names follow the partner's
 // market rather than coming from one global pool — a Nairobi partner reviewed
 // entirely by Gujarati names would read as an obvious copy-paste.
+// Photos for some reviewers, by name (`assets/reviewers/<name-slug>.jpg`,
+// credits in that folder's README). Anyone without one shows their initial.
+const PHOTOS = import.meta.glob('../assets/reviewers/*.jpg', { eager: true, query: '?url', import: 'default' })
+const photoFor = (name) => PHOTOS[`../assets/reviewers/${name.toLowerCase().replace(/[^a-z]+/g, '-')}.jpg`] ?? null
+
 const NAMES = {
   india: [
     'Rahul Mishra',
@@ -202,27 +207,15 @@ const BODIES = [
   },
 ]
 
-// The summary chips above the list. `caution` renders an info icon instead of a
-// check — see `PartnerReviewsSection.vue`. Counts are how many reviews mention
-// the theme, so they overlap and don't sum to the review total.
-const THEMES = [
-  { label: 'Professional', sentiment: 'positive' },
-  { label: 'Quick responses', sentiment: 'positive' },
-  { label: 'Deep expertise', sentiment: 'positive' },
-  { label: 'Clear communication', sentiment: 'positive' },
-  { label: 'On time', sentiment: 'positive' },
-  { label: 'Higher rates', sentiment: 'caution' },
-  { label: 'Slow follow-ups', sentiment: 'caution' },
-]
-
 // Every value coprime with `BODIES.length` (10) below its half, which is what
 // makes each one visit ten distinct entries before repeating. If BODIES changes
 // length, recompute this list — a stride sharing a factor with the length walks
 // a short cycle and the same review shows up twice in one profile.
 const BODY_STRIDES = [1, 3, 7, 9]
 
-// How many of the partner's reviews the profile shows before "View all".
-export const SHOWN = 4
+// How many of the partner's reviews the profile shows. More than this, and
+// "View all" opens the Reviews page with every one.
+export const SHOWN = 5
 
 export const reviewsFor = (partner) => {
   // `market`, not `region`: India is a country inside Asia for the filter, and
@@ -234,7 +227,6 @@ export const reviewsFor = (partner) => {
   const bodySeed = seedFor(partner.id, 'body')
   const tradeSeed = seedFor(partner.id, 'trade')
   const ageSeed = seedFor(partner.id, 'age')
-  const themeSeed = seedFor(partner.id, 'theme')
   // The STRIDE varies per partner too, not just the starting point. With a
   // fixed stride the body sequence has only as many possible values as the
   // pool has entries — ten, against thirteen partners — so three profiles
@@ -243,11 +235,10 @@ export const reviewsFor = (partner) => {
   // repeats; the four of them multiply the distinct sequences by four.
   const bodyStride = pick(BODY_STRIDES, seedFor(partner.id, 'bodyStride'))
 
-  // Every review, not just the visible four. The success-story section quotes a
-  // "would recommend" rate, and that has to be over the whole set — a
-  // percentage of the four on screen would be a different number from the one
-  // the label claims. Bodies repeat past the tenth, which is fine: only the
-  // first four are rendered, and the stride keeps those distinct.
+  // Every review: the profile shows the first `SHOWN`, the Reviews page all of
+  // them. ⚠️ Bodies repeat past the tenth (always under a different reviewer,
+  // since the name and body strides differ), so a partner with more than ten
+  // shows a repeated text on the Reviews page. It's invented data either way.
   const all = Array.from({ length: partner.reviews }, (_, i) => {
     // ⚠️ A stride only visits distinct entries if it's coprime with the pool
     // length. The name stride is 1 for exactly that reason: the regional pools
@@ -264,6 +255,7 @@ export const reviewsFor = (partner) => {
     return {
       id: `${partner.id}-${i}`,
       name,
+      avatar: photoFor(name),
       company: `${surname} ${pick(TRADES, tradeSeed + i * 7)} ${suffix}`,
       // Stored as an age, not a date: a fixed ISO date would make the label
       // drift ("3 months ago" becoming "2 years ago") every time the mock is
@@ -273,24 +265,24 @@ export const reviewsFor = (partner) => {
     }
   })
 
-  // Two positive themes and one caution, matching the design. Counts scale off
-  // the review total so a partner with 12 reviews doesn't claim 40 mentions.
-  const positives = THEMES.filter((t) => t.sentiment === 'positive')
-  const cautions = THEMES.filter((t) => t.sentiment === 'caution')
-  const tags = [
-    { ...pick(positives, themeSeed), count: Math.max(2, Math.round(partner.reviews * 0.42)) },
-    // +3 against a pool of 5 is coprime, so the two positives never collide.
-    { ...pick(positives, themeSeed + 3), count: Math.max(2, Math.round(partner.reviews * 0.33)) },
-    { ...pick(cautions, themeSeed), count: Math.max(1, Math.round(partner.reviews * 0.25)) },
-  ]
-
   const recommending = all.filter((r) => r.recommend).length
   return {
-    // The rows on screen. The rest of `all` exists only to be counted.
-    items: all.slice(0, SHOWN),
-    tags,
+    items: all,
     // Rounded here rather than at the call site, so every surface quoting it
     // quotes the same integer.
     recommendRate: partner.reviews ? Math.round((recommending / partner.reviews) * 100) : null,
   }
 }
+
+// A review written in the app, in the shape the list renders. No photo, so the
+// reviewer's initial shows; "Would recommend" only for a yes.
+export const writtenAsItem = (r) => ({
+  id: r.id,
+  name: r.author.name,
+  company: r.author.company,
+  avatar: null,
+  today: true,
+  stars: r.stars,
+  recommend: r.recommend === 'yes',
+  text: r.text,
+})

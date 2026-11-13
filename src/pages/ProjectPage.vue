@@ -17,7 +17,7 @@ import ProjectStages from '../components/ProjectStages.vue'
 import PackSetupTasks from '../components/PackSetupTasks.vue'
 import PackWelcomeDialog from '../components/PackWelcomeDialog.vue'
 import BookSlotDialog from '../components/BookSlotDialog.vue'
-import RatePartnerDialog from '../components/RatePartnerDialog.vue'
+import WriteReviewDialog from '../components/WriteReviewDialog.vue'
 import IconMore from '~icons/lucide/ellipsis'
 import { PARTNERS, implementerFor, isFrappe } from '../data/partners'
 import { DEFAULT_REGION, STARTER_PACKS, checkoutFor, marketFor } from '../data/packs'
@@ -118,7 +118,7 @@ const when = computed(() => {
   return hired ? { text: `${hired.weeks} weeks`, tone: 'text-ink-gray-7' } : null
 })
 
-const reviewed = computed(() => store.feedback.some((f) => f.projectId === project.value?.id))
+const reviewed = computed(() => Boolean(partner.value && store.myReviewOf(partner.value.id)))
 
 // The requirements as they went out — the copy carried in the partners'
 // threads, so the business reads exactly what the partners read.
@@ -599,7 +599,7 @@ const complete = () => {
       @save="saveCompanyAnswers"
       @invoice="downloadInvoice"
     />
-    <RatePartnerDialog v-model:open="rating" :project="project" :partner="partner" />
+    <WriteReviewDialog v-model:open="rating" :project="project" :partner="partner" />
     <FeedbackDialog v-model:open="feedback" />
     <NewProjectDialog
       :open="editing"

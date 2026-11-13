@@ -31,13 +31,12 @@ const brief = computed(() => props.brief ?? store.brief)
 // A draft's brief reports up; the account's is written here.
 const save = (patch) => (props.brief ? emit('patch', patch) : store.saveBrief(patch))
 
-const clear = () => save({ cities: [], tiers: [], workStyle: '', timeline: '' })
+const clear = () => save({ cities: [], tiers: [], timeline: '' })
 
 const count = computed(
   () =>
     brief.value.cities.length +
     brief.value.tiers.length +
-    (brief.value.workStyle ? 1 : 0) +
     (brief.value.timeline ? 1 : 0),
 )
 </script>

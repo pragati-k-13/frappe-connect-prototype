@@ -52,7 +52,7 @@ import {
 const props = defineProps({
   // The landing's answers — country, size, industry, operations, problems.
   answers: { type: Object, required: true },
-  // `{ scope, budget, cities, tiers, workStyle, timeline }`.
+  // `{ scope, budget, cities, tiers, timeline }`.
   brief: { type: Object, required: true },
   // Pack values ticked.
   packs: { type: Array, required: true },

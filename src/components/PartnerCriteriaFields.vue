@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import FilterChip from './FilterChip.vue'
-import { TIERS, TIMELINES, WORK_STYLES, asksCity, matchingPartners } from '../data/custom'
+import { TIERS, TIMELINES, asksCity, matchingPartners } from '../data/custom'
 import { INDIA_CITIES } from '../data/partners'
 import { useConnectStore } from '../stores/connect'
 
@@ -38,9 +38,6 @@ const matches = computed(() => matchingPartners(company.value, brief.value))
 // are looking at reports a figure that includes cities you chose earlier.
 const countFor = (key, value) =>
   matchingPartners(company.value, { ...brief.value, [key]: [value] }).length
-
-const countForStyle = (value) =>
-  matchingPartners(company.value, { ...brief.value, workStyle: value }).length
 
 const toggleIn = (key, value) => {
   const list = brief.value[key]
@@ -100,22 +97,6 @@ const toggleIn = (key, value) => {
           </div>
         </div>
 
-        <div>
-          <p class="text-sm text-ink-gray-7">How do you want to work?</p>
-          <div class="mt-1.5 flex flex-wrap gap-2">
-            <!-- Single-select, and re-pressing clears it: "no preference" is the
-                 absence of an answer rather than a third chip, because a third
-                 chip would make the empty state look unanswered. -->
-            <FilterChip
-              v-for="w in WORK_STYLES"
-              :key="w.value"
-              :label="w.label"
-              :count="countForStyle(w.value)"
-              :selected="brief.workStyle === w.value"
-              @toggle="save({ workStyle: brief.workStyle === w.value ? '' : w.value })"
-            />
-          </div>
-        </div>
       </div>
 
       <!-- ⚠️ THE COUNT LIVES IN HERE TOO, and it has to: narrowing to nothing is

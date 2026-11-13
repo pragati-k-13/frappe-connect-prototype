@@ -3,7 +3,7 @@
 Read this before touching any logo or thumbnail in Connect. Update it whenever a
 logo decision changes.
 
-Last updated: 2026-11-05 (logos joined the draft, review removed).
+Last updated: 2026-11-13 (client logos come only from success stories).
 
 ## Rules from Pragati
 
@@ -41,9 +41,27 @@ A firm with two country listings shares one logo. `wahni-it-solutions-fze` maps 
   ~4% padding, in place, saving JPEGs at quality 95 with no chroma subsampling.
   It also writes a contact sheet to check the result. Run it on a copy, with
   Pillow (`python3 -m venv` then `pip install pillow`).
+- **Boxed logos knocked out:** white artwork printed on a filled box showed as
+  floating gray boxes. `scripts/knockout-client-logos.py <in> <out.png> [--crop
+  x0,y0,x1,y1]` turns the box transparent and the artwork into one dark ink,
+  trimmed to ~4% padding. Done for Chewy, Supreme Tile, Avon, Bren, DFM Foods,
+  Opptra (cropped 6px to drop a JPEG edge), Plumage, Pupa and Sansel. Avon,
+  DFM and Opptra became `.png`; `logoFor` matches by name, so the data didn't
+  change. Colored parts of the artwork (Bren's swoosh) become the same ink.
+  Find more with an edge-color check: a solid, non-white border.
+- **Optical size:** the strip fits every logo into the same 128×32 box, so a
+  compact, solid mark fills the full height and looks bigger than thin, wide
+  wordmarks. Finmart (`tridots-tech--finmart.jpg`) has 17% white margin added
+  so its F renders about 24px tall. Do the same for any other mark that looks
+  heavy.
+- **Off-white backgrounds:** the strip's gray curve keeps pure white white but
+  darkens near-white into a visible box. Adeco
+  (`craft-interactive--adeco-technologies.jpg`) had #F7F7F7; its white point
+  was moved to 240 so the background is pure white, artwork unchanged. Making
+  it transparent instead amplified JPEG noise. It was the only such logo.
 - **FerTech** (`wahni--fertech.png`) is the untrimmed original, on purpose. Its
   trim looked worse.
-- **Cache-bust:** `stories.js` adds `?v=2` to every client logo URL, because the
+- **Cache-bust:** `stories.js` adds `?v=5` to every client logo URL, because the
   files were edited in place and Vite kept serving the old ones. Bump it if you
   edit files in place again.
 - **Unmatched invented ones:** the 10 placeholder SVGs (northwind, kestrel …)
@@ -65,18 +83,34 @@ A firm with two country listings shares one logo. `wahni-it-solutions-fze` maps 
   don't turn gray. Plain `grayscale` left pale logos (Santi, Exotherm) faint, and
   `contrast-200` pushed them to white.
 
+## Featured thumbnails
+
+- Each story's cover is its frappe.io og:image, saved at 320px wide. Craft
+  Interactive's og:image link is a 404, so `story-craft-interactive.png` is the
+  cover inside the article (`CI cover imagef64405.png`), added 2026-11-05.
+
 ## Partner editing (edit page)
 
-- Client logos are part of the page draft (`draftLogos` in
-  `OwnProfilePage.vue`): adding, removing or reordering waits for Publish, and
-  Discard undoes it. There is no Frappe review and no "Pending" badge
-  (removed 2026-11-05).
-- The edit grid (`ClientLogoGrid.vue`) caps logos at 20.
+- Partners don't upload client logos (decided 2026-11-13). Every logo comes
+  from a published success story (`clientsFor` in `data/media.js`). Adding a
+  client means submitting a story on frappe.io, which is the edit grid's one
+  header action. The add-by-website, upload, 200px minimum and 20-logo cap
+  are gone.
+- The edit grid (`ClientLogoGrid.vue`) is titled "Clients from your success
+  stories". Each logo's ⋯ menu: View story, Move earlier, Move later,
+  Hide/Show. Hiding keeps the story and drops the logo from the strip; hidden
+  logos stay in the grid, dimmed, with a "Hidden" badge.
+- Reorder and hide are part of the page draft (`draftLogos` in
+  `OwnProfilePage.vue`): they wait for Publish, and Discard undoes them.
+- Published logos reach the directory: `PartnerProfilePage` reads them through
+  `published()` in `stores/partnerAccount.js`. Both pages render
+  `PartnerProfileBody.vue`.
 
 ## Known gaps
 
-- **RaajaRam** (Wahni) is drawn on a filled box, so it reads darker in the strip.
-  Only an edited file fixes it.
+- **RaajaRam** (Wahni) is a navy box over dark text on white, so the knockout
+  script can't take it whole. It still reads darker in the strip; it needs a
+  hand-edited file.
 - **Dark mode is unchecked.** JPGs with white backgrounds will likely show as
   light boxes on a dark page.
 - **Production:** for an exactly even strip, prepared one-color logos with

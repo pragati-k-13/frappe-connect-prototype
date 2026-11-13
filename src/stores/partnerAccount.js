@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { setTakingWork } from '../data/takingWork'
+import { PARTNERS } from '../data/partners'
 import { useConnectStore } from './connect'
 import {
   customersFor,
@@ -39,6 +40,9 @@ const blank = () => ({
   profile: {},
   media: null,
   logos: null,
+  // When the profile was last published. A Beginner who never has opens
+  // straight in Edit.
+  publishedAt: null,
   // Per review id: the partner's public reply, and a report waiting on Frappe
   // (`{ reason }`). A reported review stays up until Frappe decides.
   reviewReplies: {},
@@ -62,6 +66,54 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
 
   getters: {
     tier: () => useConnectStore().partnerTier,
+    // The demo's own firm as its directory record. A Beginner's firm isn't in
+    // the directory, so its record is built here with nothing borrowed from a
+    // real partner's words.
+    ownFirm() {
+      const sw = PARTNERS.find((p) => p.id === 'software-work')
+      if (this.tier !== 'beginner') return sw
+      const firm = firmFor('beginner')
+      return {
+        ...sw,
+        id: 'lumen-digital',
+        name: firm.name,
+        tagline: '',
+        city: 'Manama, Bahrain',
+        address: null,
+        tier: null,
+        pmm: '—',
+        countries: ['Bahrain'],
+        zone: null,
+        rate: 40,
+        initials: 'LD',
+        color: '#0ea5e9',
+        certifications: [{ app: 'erpnext', members: 1 }],
+        industries: ['Goods Trading'],
+        apps: ['erpnext'],
+        migrations: [],
+        accolades: [],
+        stories: 0,
+        reviews: 0,
+        rating: 0,
+        vision: null,
+        founding: null,
+        minBand: 1,
+      }
+    },
+    // The own firm's profile as published: the record plus what the partner
+    // has published. The profile page adds its draft on top; the Reviews page
+    // reads it as is.
+    ownProfile() {
+      return { ...this.ownFirm, ...this.edits.profile }
+    },
+    // A partner's profile as the directory shows it: what the demo's own firm
+    // has published overrides its seed, so a business sees the partner's
+    // edits. The demo's firm in the directory is The Software Work (Bronze and
+    // up); a Beginner's firm isn't listed. `null` where nothing is published.
+    published: (state) => (id) => {
+      const e = id === 'software-work' ? state.byTier['bronze-up'] : null
+      return { profile: e?.profile ?? {}, media: e?.media ?? null, logos: e?.logos ?? null, replies: e?.reviewReplies ?? {} }
+    },
     edits(state) {
       // A tier the demo doesn't know falls back to Bronze and up, rather than
       // leaving every page reading `edits` from undefined.
@@ -239,6 +291,9 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
     },
     setLogos(list) {
       this.edits.logos = list
+    },
+    markPublished() {
+      this.edits.publishedAt = Date.now()
     },
     replyToReview(id, text) {
       this.edits.reviewReplies[id] = text

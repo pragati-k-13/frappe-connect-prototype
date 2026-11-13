@@ -15,8 +15,8 @@
 const STORY = 'https://frappe.io/blog/partner-success-stories/'
 
 // Real thumbnails: each episode's YouTube thumbnail, each story's cover from
-// frappe.io (its og:image), saved at 320px. Craft Interactive's story has no
-// cover, so its row keeps the icon.
+// frappe.io (its og:image), saved at 320px. Craft Interactive's og:image
+// link is broken (404), so its cover is the one inside the article.
 const thumbs = import.meta.glob('../assets/featured/*', { eager: true, query: '?url', import: 'default' })
 const thumb = (name) => Object.entries(thumbs).find(([path]) => path.split('/').pop().startsWith(name + '.'))?.[1] ?? null
 
@@ -44,7 +44,7 @@ const FEATURED = {
     { kind: 'story', title: 'GreyCube in partnership with Frappe for ERPNext and Frappe Cloud', meta: '6 min read', href: `${STORY}greycube-in-partnership-with-frappe-for-erpnext-and-frappe-cloud`, thumb: thumb('story-greycube') },
   ],
   'craft-interactive': [
-    { kind: 'story', title: 'Seamless deployment of Frappe Cloud and ERPNext implementation by Craft Interactive', meta: '6 min read', href: `${STORY}seamless-deployment-of-frappe-cloud-and-erpnext-implementation-by-craft-interactive` },
+    { kind: 'story', title: 'Seamless deployment of Frappe Cloud and ERPNext implementation by Craft Interactive', meta: '6 min read', href: `${STORY}seamless-deployment-of-frappe-cloud-and-erpnext-implementation-by-craft-interactive`, thumb: thumb('story-craft-interactive') },
   ],
 }
 

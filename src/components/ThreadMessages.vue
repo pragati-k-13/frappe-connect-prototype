@@ -80,6 +80,11 @@ const messageMenu = (m) => [
       <p v-if="m.kind === 'confirmed'" class="mt-6 text-center text-p-sm text-ink-gray-5">
         You confirmed your quote · {{ time(m.at) }}
       </p>
+      <!-- The partner corrected the apps after the hire. -->
+      <p v-else-if="m.kind === 'apps-changed'" class="mt-6 text-center text-p-sm text-ink-gray-5">
+        <span class="text-ink-gray-7">{{ m.from === 'you' ? 'You' : (self?.name ?? 'The partner') }}</span>
+        changed the apps from {{ m.was }} to {{ m.now }} · {{ time(m.at) }}
+      </p>
       <p v-else-if="m.kind === 'shared'" class="mt-6 text-center text-p-sm text-ink-gray-5">
         <span class="text-ink-gray-7">{{ company?.name }}</span>
         is interested in your quote and shared their contact details · {{ time(m.at) }}

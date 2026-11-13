@@ -1,6 +1,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { Button, Dialog, FormControl, ScrollArea, Textarea } from 'frappe-ui'
+import AppsSelect from './AppsSelect.vue'
 import PartnerCriteriaFields from './PartnerCriteriaFields.vue'
 import { briefErrors, budgetBandsFor } from '../data/custom'
 import { PARTNERS } from '../data/partners'
@@ -38,13 +39,18 @@ watch(
     Object.assign(form, JSON.parse(JSON.stringify(store.briefOf(props.projectId))))
     // Older requirements can miss a criteria list; the fields expect arrays.
     for (const k of ['cities', 'tiers', 'regions', 'countries']) form[k] = form[k] ?? []
+    form.projectApps = [...(store.projects.find((p) => p.id === props.projectId)?.apps ?? [])]
     tried.value = false
   },
 )
 
 const answers = computed(() => project.value?.answers ?? store.company)
 const bands = computed(() => budgetBandsFor(answers.value.country))
-const errors = computed(() => (tried.value ? briefErrors({ scope: form.scope ?? '', budget: form.budget ?? '' }) : {}))
+const check = () => ({
+  ...briefErrors({ scope: form.scope ?? '', budget: form.budget ?? '' }),
+  ...(form.projectApps?.length ? {} : { apps: 'Pick at least one app' }),
+})
+const errors = computed(() => (tried.value ? check() : {}))
 
 const requester = computed(() =>
   project.value?.hireRequest ? PARTNERS.find((p) => p.id === project.value.hireRequest) : null,
@@ -64,7 +70,7 @@ const label = computed(() =>
 
 function save() {
   tried.value = true
-  if (Object.keys(briefErrors({ scope: form.scope ?? '', budget: form.budget ?? '' })).length) return
+  if (Object.keys(check()).length) return
   const result = store.updateRequirements(id.value, { ...form })
   emit('update:open', false)
   // Nothing changed: the editor just closes, and nothing is posted.
@@ -93,6 +99,7 @@ function save() {
             :options="bands"
             :error="errors.budget"
           />
+          <AppsSelect v-model="form.projectApps" label="Apps" placeholder="Select" required :error="errors.apps" />
           <Textarea v-model="form.scope" label="Description" :rows="rows" required :error="errors.scope" />
           <PartnerCriteriaFields
             v-if="form.cities && form.tiers"

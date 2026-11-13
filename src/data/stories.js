@@ -11,11 +11,12 @@
 // stories; NestorBird's AVON story is tagged Healthcare.
 
 const logos = import.meta.glob('../assets/clients/*', { eager: true, query: '?url', import: 'default' })
-// `?v=2`: the files were edited in place once, and a browser that cached the
+// `?v=5`: the files have been edited in place (trimmed, boxed logos
+// knocked out, Finmart padded, Adeco whitened), and a browser that cached the
 // old ones would keep showing them under the same URL.
 const logoFor = (name) => {
   const url = name ? Object.entries(logos).find(([path]) => path.split('/').pop().replace(/\.[^.]+$/, '') === name)?.[1] : null
-  return url ? `${url}?v=2` : null
+  return url ? `${url}?v=5` : null
 }
 
 const STORIES = {

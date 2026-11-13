@@ -94,7 +94,7 @@ const inProjects = computed(() => PROJECT_ROUTES.has(route.name))
 // the two are separate places and each has its row.
 // `contact-partners` too: it sits under /connect/partners and its breadcrumb
 // reads Partners, so the rail says the same.
-const DIRECTORY_ROUTES = new Set(['results', 'partner', 'saved-partners', 'contact-partners'])
+const DIRECTORY_ROUTES = new Set(['results', 'partner', 'partner-reviews', 'saved-partners', 'contact-partners'])
 const inDirectory = computed(() => DIRECTORY_ROUTES.has(route.name))
 
 // The front door: the questions, and the answer they produce.
@@ -127,7 +127,7 @@ const partnerRail = computed(() => {
         !member && { label: 'Customers', to: '/connect/customers', icon: 'lucide-building-2', active: at('customers', 'customer') },
         !beginner && partnership,
         { label: 'Audits', to: '/connect/audits', icon: 'lucide-clipboard-check', active: at('audits', 'audit') },
-        { label: 'Public profile', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile') },
+        { label: 'Public profile', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile', 'own-reviews') },
         !member && role !== 'sales' && { label: 'Invoices', to: '/connect/invoices', icon: 'lucide-receipt', active: at('invoices') },
         { label: 'Resources', to: '/connect/resources', icon: 'lucide-folder', active: at('resources') },
       ].filter(Boolean),
@@ -319,6 +319,9 @@ defineProps({
   // hard-coding "Partners" filed it as one.
   rootLabel: { type: String, default: 'Partners' },
   rootTo: { type: String, default: '/connect/partners' },
+  // Crumbs between the root and the current page, `{ label, to }`: a partner's
+  // Reviews page reads "Partners / Software@Work / Reviews".
+  trail: { type: Array, default: () => [] },
   // Hand the content region to the page at full height, with no scrolling of
   // its own. For a screen whose panes scroll separately — messages, where the
   // thread list and the conversation each keep their own position and the
@@ -696,7 +699,7 @@ defineProps({
              page in `ink-gray-9` — but its markup is a bare `<div>` of
              `<button>`s: no `<nav>` landmark, no `aria-current`, and the page
              you are already on rendered as a focusable control that does
-             nothing. This is two crumbs deep at most and will never need its
+             nothing. This is three crumbs deep at most and will never need its
              overflow dropdown, so the semantics are worth more than the
              component. Revisit if the directory ever nests further. -->
         <!-- `pr-3` because PageHeader's own row has no gap — its reference
@@ -713,9 +716,21 @@ defineProps({
             {{ rootLabel }}
           </RouterLink>
           <span class="mx-0.5 text-base text-ink-gray-4" aria-hidden="true">/</span>
+          <template v-for="t in trail" :key="t.to">
+            <RouterLink
+              :to="t.to"
+              class="min-w-0 truncate rounded-4 px-0.5 py-1 text-lg-medium text-ink-gray-5 transition-colors hover:text-ink-gray-7"
+            >
+              {{ t.label }}
+            </RouterLink>
+            <span class="mx-0.5 text-base text-ink-gray-4" aria-hidden="true">/</span>
+          </template>
+          <!-- With a trail, the trail crumb truncates and the current page
+               keeps its name ("Partners / Softwa… / Reviews"). -->
           <slot name="crumb">
             <span
-              class="min-w-0 truncate px-0.5 py-1 text-lg-medium text-ink-gray-9"
+              :class="trail.length ? 'shrink-0' : 'min-w-0'"
+              class="truncate px-0.5 py-1 text-lg-medium text-ink-gray-9"
               aria-current="page"
             >
               {{ crumb }}

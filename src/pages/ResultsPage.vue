@@ -15,10 +15,10 @@ import FilterChip from '../components/FilterChip.vue'
 import { useConnectStore } from '../stores/connect'
 import { APPS } from '../data/partners'
 
-// The mid-list app question's chips. Not every app: Framework, Education and
-// Drive are left off. `APPS` itself is unchanged, so the filter label and every
-// other reader still know them.
-const APP_CHIPS = APPS.filter((a) => !['framework', 'education', 'drive'].includes(a.value))
+// The mid-list app question's chips. Not every app: Drive is left off.
+// `APPS` itself is unchanged, so the filter label and every other reader
+// still know it.
+const APP_CHIPS = APPS.filter((a) => a.value !== 'drive')
 import { INDUSTRIES, REGIONS } from '../data/quiz'
 
 const store = useConnectStore()

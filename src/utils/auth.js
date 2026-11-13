@@ -2,6 +2,7 @@ import { onMounted } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { toast } from 'frappe-ui'
 import { useConnectStore } from '../stores/connect'
+import { PARTNERS } from '../data/partners'
 
 // Everything the auth screens and the controls they gate have in common.
 //
@@ -88,8 +89,15 @@ const AUTH_ROUTES = new Set(['login', 'signup', 'login-verify', 'signup-verify',
 // neither says anything will be.
 export const RESUME_LINE = 'Your answers are saved. You’ll pick up where you left off once you’re in.'
 export const CHECKOUT_RESUME_LINE = 'Your packs are saved.'
+// Back to a partner's profile to write a review (`?review=1`).
+const REVIEW_NEXT = /^\/connect\/partners\/([^/?#]+).*[?&]review=1/
 export const resumeLineFor = (route) => {
   const next = nextFrom(route)
+  const reviewing = next.match(REVIEW_NEXT)
+  if (reviewing) {
+    const name = PARTNERS.find((p) => p.id === reviewing[1])?.name
+    return `Then you’ll go back to write your review${name ? ` of ${name}` : ''}.`
+  }
   if (next.startsWith('/connect/partners/contact')) return RESUME_LINE
   if (next.includes(`${BASKET_RETURN}=1`) || next.startsWith('/connect/checkout'))
     return CHECKOUT_RESUME_LINE

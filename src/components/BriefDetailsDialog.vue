@@ -7,8 +7,10 @@ import IconFactory from '~icons/lucide/factory'
 import IconUsers from '~icons/lucide/users'
 import IconWallet from '~icons/lucide/wallet'
 import IconCalendar from '~icons/lucide/calendar'
+import IconApps from '~icons/lucide/layout-grid'
 import { budgetLabel, criteriaSentence, timelineLabel } from '../data/custom'
 import { scopeSentence } from '../data/modules'
+import { PROJECT_APPS } from '../data/partners'
 import { operationsLabel, problemLabels } from '../data/company'
 
 // Everything on a brief that is not the first thing you need from it.
@@ -44,7 +46,7 @@ const props = defineProps({
   // What the caller already shows, so the dialog doesn't repeat it:
   //   'description'  opened from under a message, whose text it is
   //   'facts'        the partner Lead page, whose side panel lists the short
-  //                  facts and the modules
+  //                  facts (the modules stay here)
   omit: { type: Array, default: () => [] },
   // The version this one replaced, when opened from an update. Changed values
   // show the old one struck through before the new one.
@@ -79,6 +81,7 @@ const factsOf = (b) => [
     { icon: IconUsers, label: 'Size', text: b.employees ? `${b.employees} people` : '' },
     { icon: IconWallet, label: 'Budget', text: budgetLabel(b.budget) },
     { icon: IconCalendar, label: 'Timeline', text: b.timeline ? timelineLabel(b.timeline) : '' },
+    { icon: IconApps, label: 'Apps', text: (b.projectApps ?? []).map((v) => PROJECT_APPS.find((a) => a.value === v)?.label ?? v).join(', ') },
   ]
 // `was`: the old value, when an update changed it.
 const facts = computed(() => {
@@ -212,7 +215,7 @@ const lookingForWas = computed(() => {
           </p>
         </section>
 
-        <section v-if="!packs && modulesLine && !omit.includes('facts')" class="flex flex-col gap-2">
+        <section v-if="!packs && modulesLine" class="flex flex-col gap-2">
           <h4 class="text-base font-medium text-ink-gray-8">Modules</h4>
           <p class="text-p-base text-ink-gray-6">
             <template v-if="modulesWas"><s class="text-ink-gray-5" aria-hidden="true">{{ modulesWas }}</s>&nbsp; </template>{{ modulesLine }}<span v-if="modulesWas" class="sr-only">, was {{ modulesWas }}</span>

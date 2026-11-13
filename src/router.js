@@ -165,6 +165,7 @@ const routes = [
   { path: '/connect/audits/:id', name: 'audit', component: () => import('./pages/AuditPage.vue'), beforeEnter: asPartner },
   { path: '/connect/invoices', name: 'invoices', component: () => import('./pages/InvoicesPage.vue'), beforeEnter: asPartner },
   { path: '/connect/profile', name: 'own-profile', component: () => import('./pages/OwnProfilePage.vue'), beforeEnter: asPartner },
+  { path: '/connect/profile/reviews', name: 'own-reviews', component: () => import('./pages/OwnReviewsPage.vue'), beforeEnter: asPartner },
   { path: '/connect/resources', name: 'resources', component: () => import('./pages/ResourcesPage.vue'), beforeEnter: asPartner },
   // The collaboration half of the product: everything the account is tracking.
   //
@@ -239,6 +240,11 @@ const routes = [
     path: '/connect/partners/:id',
     name: 'partner',
     component: () => import('./pages/PartnerProfilePage.vue'),
+  },
+  {
+    path: '/connect/partners/:id/reviews',
+    name: 'partner-reviews',
+    component: () => import('./pages/PartnerReviewsPage.vue'),
   },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
