@@ -301,7 +301,9 @@ One name everywhere: "Partner code", on the business side too (it was "Referral 
 sales see a bar above the list, "2 companies want to link to your partner code", with Review,
 and one notification per request that opens it (`?review=<id>`). Review steps through them in a
 dialog with what they need to judge each: the contact, every site and server it covers
-with plan and region, a Lead select, and Decline and Approve. The Lead select comes prefilled
+with plan and region, a Lead select, and Decline and Approve. From the banner, Review steps
+through every request waiting at that moment, "1 of 3" then "2 of 3", the total fixed when it
+opens. From a notification, it shows that one request with no count and closes after it. The Lead select comes prefilled
 with the firm's lead for that business (same email, then same company name), or "No lead".
 Approving with a lead gives the sites to that lead's customer, or makes it with the lead's
 source and owner, so a won lead never comes back as a second customer. With no lead, the

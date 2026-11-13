@@ -154,17 +154,30 @@ const nameOf = (id) => account.team.find((p) => p.id === id)?.name
 // Review steps through them in a dialog.
 const route = useRoute()
 const router = useRouter()
+// A review session: the requests it covers, fixed when it opens. The banner
+// steps through every request waiting then, with "2 of 3" so the total never
+// shrinks under the reader; one arriving meanwhile waits for the next session.
+// A notification opens its one request, and the dialog closes after it.
 const reviewing = ref(false)
-const reviewId = ref(null)
-const open = computed(() => account.requests.find((r) => r.id === reviewId.value) ?? account.requests[0] ?? null)
+const session = ref({ ids: [], single: false })
+const open = computed(() => (reviewing.value || session.value.ids.length ? account.requests.find((r) => session.value.ids.includes(r.id)) ?? null : null))
 watch(open, (r) => !r && (reviewing.value = false))
+// The last request stays on screen while the dialog fades out after it.
+const shown = ref(null)
+watch(open, (r) => r && (shown.value = r), { immediate: true })
+const step = computed(() => Math.min(session.value.ids.filter((id) => !account.requests.some((r) => r.id === id)).length + 1, session.value.ids.length))
+const showStep = computed(() => !session.value.single && session.value.ids.length > 1)
+function reviewAll() {
+  session.value = { ids: account.requests.map((r) => r.id), single: false }
+  reviewing.value = true
+}
 
 // A notification opens one request: Customers with ?review=<id>.
 watch(
   () => route.query.review,
   (id) => {
     if (!id || !canReview.value) return
-    reviewId.value = id
+    session.value = { ids: [id], single: true }
     reviewing.value = Boolean(account.requests.find((r) => r.id === id))
     router.replace({ query: { ...route.query, review: undefined } })
   },
@@ -196,7 +209,6 @@ function handle(outcome) {
   const into = lead?.customerId ?? null
   account.handleRequest(req.id, outcome, lead ? { leadId: lead.id, origin: originOf(lead), owner: lead.owner ?? null, into } : null)
   if (lead && !into) lead.customerId = req.id.replace('req-', '')
-  reviewId.value = null
   const done = outcome === 'approved' ? `${req.company} linked` : `${req.company} declined`
   toast.success(done, {
     action: {
@@ -319,7 +331,7 @@ function saveEdit() {
       <div v-if="canReview && account.requests.length" class="shrink-0 px-3 pb-3 sm:px-5">
         <Alert
           :title="account.requests.length === 1 ? '1 company wants to link to your partner code' : `${account.requests.length} companies want to link to your partner code`"
-          :primary-action="{ label: 'Review', onClick: () => (reviewing = true) }"
+          :primary-action="{ label: 'Review', onClick: reviewAll }"
         />
       </div>
 
@@ -397,19 +409,19 @@ function saveEdit() {
     </div>
 
     <!-- ── Link requests, one at a time ──────────────────────────────── -->
-    <Dialog v-model:open="reviewing" :title="open ? open.company : 'Link requests'">
+    <Dialog v-model:open="reviewing" :title="shown?.company ?? 'Link requests'">
       <!-- Fixed height, so Decline and Approve stay put while stepping through. -->
-      <div v-if="open" class="h-80 space-y-6 overflow-hidden">
-        <p class="text-p-base text-ink-gray-5">Entered your code {{ shortDate(open.at) }}</p>
+      <div v-if="shown" class="h-80 space-y-6 overflow-hidden">
+        <p class="text-p-base text-ink-gray-5">Entered your code {{ shortDate(shown.at) }}</p>
         <div>
           <p class="text-sm text-ink-gray-5">Contact</p>
-          <p class="mt-1 text-base text-ink-gray-8">{{ open.contact }}</p>
-          <p class="mt-0.5 text-sm text-ink-gray-5">{{ open.email }}</p>
+          <p class="mt-1 text-base text-ink-gray-8">{{ shown.contact }}</p>
+          <p class="mt-0.5 text-sm text-ink-gray-5">{{ shown.email }}</p>
         </div>
         <div>
           <p class="text-sm text-ink-gray-5">Sites it links</p>
           <ul class="mt-1 divide-y divide-outline-gray-1">
-            <li v-for="site in open.sites" :key="site.name" class="py-2">
+            <li v-for="site in shown.sites" :key="site.name" class="py-2">
               <p class="truncate text-base text-ink-gray-8">{{ site.name }}</p>
               <p class="mt-0.5 text-sm text-ink-gray-5">{{ site.plan }} · {{ site.region }}</p>
             </li>
@@ -423,7 +435,7 @@ function saveEdit() {
       </div>
       <template #actions>
         <div class="flex items-center justify-between gap-2">
-          <span class="text-p-sm tabular-nums text-ink-gray-5">{{ account.requests.length }} waiting</span>
+          <span class="text-p-sm tabular-nums text-ink-gray-5"><template v-if="showStep">{{ step }} of {{ session.ids.length }}</template></span>
           <div class="flex gap-2">
             <Button label="Decline" @click="handle('declined')" />
             <Button variant="solid" label="Approve" @click="handle('approved')" />
