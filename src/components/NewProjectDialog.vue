@@ -1,6 +1,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { Button, Dialog, FormControl, Progress, Textarea, TextInput } from 'frappe-ui'
+import AppsSelect from './AppsSelect.vue'
 import CompanyQuestions from './CompanyQuestions.vue'
 import { companyPayload, emptyCompanyForm, stepErrors } from '../data/company'
 import { TIMELINES, briefErrors, budgetBandsFor, scopeHint } from '../data/custom'
@@ -59,6 +60,10 @@ const answers = reactive(emptyCompanyForm())
 const name = ref('')
 const timeline = ref('')
 const brief = reactive({ budget: '', scope: '' })
+// Which apps the work is in. Required: it goes to partners with the
+// requirements, and later under the business's review. Corrected afterwards
+// in Edit requirements, or by the partner once hired.
+const apps = ref([])
 const step = ref(0)
 // Errors show only once the step has been tried — a step that opens red is
 // telling somebody off for not having started.
@@ -98,6 +103,11 @@ watch(
     if (!d) answers.problems = []
     name.value = d?.name ?? ''
     timeline.value = d?.brief?.timeline ?? ''
+    // A draft keeps its apps; Contact from the estimate starts with the apps of
+    // the modules ticked there.
+    apps.value = d?.apps?.length
+      ? [...d.apps]
+      : [...new Set((store.inquiryPrefill?.modules ?? []).map((m) => m.split(':')[0]))]
     Object.assign(brief, { budget: '', scope: '' })
     step.value = 0
     tried.value = false
@@ -118,13 +128,12 @@ const companyFacts = () => ({
   segments: [...(store.company.segments ?? [])],
 })
 
+const appsError = () => (apps.value.length ? {} : { apps: 'Pick at least one app' })
 const errorsFor = (s) =>
   s === 'project'
-    ? name.value.trim()
-      ? {}
-      : { name: 'Name the project' }
+    ? { ...(name.value.trim() ? {} : { name: 'Name the project' }), ...appsError() }
     : s === 'brief'
-      ? briefErrors(brief)
+      ? { ...briefErrors(brief), ...appsError() }
       : stepErrors(answers, s)
 const shown = computed(() => (tried.value ? errorsFor(current.value) : {}))
 
@@ -161,7 +170,7 @@ const create = () => {
   }
   emit('create', {
     name: props.partner ? projectName([], store.company.name || store.viewer.company) : name.value,
-    apps: ['erpnext'],
+    apps: [...apps.value],
     modules: {},
     brief: props.partner
       ? { timeline: timeline.value, budget: brief.budget, scope: brief.scope.trim() }
@@ -210,6 +219,7 @@ const create = () => {
             placeholder="Select"
             :options="TIMELINES"
           />
+          <AppsSelect v-model="apps" label="Apps" placeholder="Select" required :error="shown.apps" />
         </div>
         <!-- The brief, when this is Contact. The same fields, labels and hint
              as the recommendation's custom half, so a brief written here and
@@ -224,6 +234,7 @@ const create = () => {
             :options="bands"
             :error="shown.budget"
           />
+          <AppsSelect v-model="apps" label="Apps" placeholder="Select" required :error="shown.apps" />
           <div>
             <Textarea
               v-model="brief.scope"

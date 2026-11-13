@@ -1,30 +1,19 @@
 <script setup>
-// SCREEN 6 — the partner profile.
+// SCREEN 6 — the partner profile, as a business reads it in the directory.
 //
-// Every section is built: header, media gallery, client strip, the About /
-// Services and Expertise card, In their words, Featured by Frappe, Reviews,
-// Success stories, the quote, and Marketplace contributions last. Some can be
-// absent for a given partner (featured items, the quote, the marketplace
-// row), and those own their top margins rather than taking one from a
-// wrapper here, because an empty `<div class="mt-24">` collapses its margins
-// through itself and leaves the gap behind.
+// The body is `PartnerProfileBody`, shared with the partner's own page, so
+// what the partner publishes and previews is what shows here. This page adds
+// only the header's Save and Contact, the chrome's stand-in Contact, and the
+// 404.
 
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Avatar, Button, Tooltip } from 'frappe-ui'
+import { Button, Tooltip } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
-import TierIcon from '../components/TierIcon.vue'
-import MediaGallery from '../components/MediaGallery.vue'
-import ClientStrip from '../components/ClientStrip.vue'
-import PartnerAboutCard from '../components/PartnerAboutCard.vue'
-import PartnerWordsSection from '../components/PartnerWordsSection.vue'
-import PartnerFeaturedSection from '../components/PartnerFeaturedSection.vue'
-import PartnerQuoteSection from '../components/PartnerQuoteSection.vue'
-import PartnerReviewsSection from '../components/PartnerReviewsSection.vue'
-import PartnerStoriesSection from '../components/PartnerStoriesSection.vue'
+import PartnerProfileBody from '../components/PartnerProfileBody.vue'
 import { useConnectStore } from '../stores/connect'
+import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { useAuthGate } from '../utils/auth'
-import PartnerMarketplaceSection from '../components/PartnerMarketplaceSection.vue'
 import { PARTNERS } from '../data/partners'
 import { takingWork } from '../data/takingWork'
 import { logoFor } from '../data/logos'
@@ -35,24 +24,19 @@ import { useContactPartner } from '../utils/contact'
 const route = useRoute()
 const router = useRouter()
 
-const partner = computed(() => PARTNERS.find((p) => p.id === route.params.id) ?? null)
+const account = usePartnerAccountStore()
+// The seed, with whatever the partner has published on top.
+const published = computed(() => account.published(route.params.id))
+const partner = computed(() => {
+  const p = PARTNERS.find((x) => x.id === route.params.id)
+  return p ? { ...p, ...published.value.profile } : null
+})
 // A firm that isn't taking new work is only reached by a link or from Saved:
 // the page stays, without Contact. Save stays, for when it's back.
 const open = computed(() => takingWork(partner.value))
 const logo = computed(() => (partner.value ? logoFor(partner.value.id) : null))
-const media = computed(() => (partner.value ? mediaFor(partner.value.id) : []))
-const clients = computed(() => (partner.value ? clientsFor(partner.value.id) : []))
-
-// The partner's own strapline. This used to fall back to a generated
-// "city · N success stories" line, which restated two things the page already
-// shows — the address is in the About card and the count is the Success
-// stories title. Every partner now carries a tagline (⚠️ twelve of them
-// invented, see `data/partners.js`); `city` is the last resort only so a
-// partner added without one doesn't render a blank line.
-const subtitle = computed(() => {
-  if (!partner.value) return ''
-  return partner.value.tagline ?? partner.value.city
-})
+const media = computed(() => (partner.value ? (published.value.media ?? mediaFor(partner.value.id)) : []))
+const logos = computed(() => (partner.value ? (published.value.logos ?? clientsFor(partner.value.id)) : []))
 
 const store = useConnectStore()
 const { requireAccount } = useAuthGate()
@@ -179,149 +163,38 @@ onBeforeUnmount(() => observer?.disconnect())
       </div>
     </div>
 
-    <!-- `pb-16`: the page ends on a short list (Marketplace contributions),
-         not long prose, so it needs room to clear the Demo button and no more.
-         192px read as a missing section. -->
-    <div v-else class="fc-page-read pb-16 pt-8">
-      <!-- ── Header ──────────────────────────────────────────────────────
-           Identity left, actions right. The actions are ordered by weight, not
-           by frequency: Contact is the page's one solid button because it is
-           the outcome the whole directory exists to produce, and Save is
-           subtle and icon-only so it doesn't compete with it.
-           ⚠️ NO `flex-wrap`. With it, a long tagline made the identity block as
-           wide as the row and pushed the actions onto a line of their own; the
-           tagline wraps instead and the actions stay beside the name. -->
-      <div class="flex items-start justify-between gap-6">
-        <div class="flex min-w-0 flex-1 items-start gap-3">
-          <!-- `Avatar` at `2xl`, same as the listing row: 40px, `rounded-[8px]`.
-               `.fc-logo-avatar` flips its `object-cover` to `contain` — see
-               `index.css`. -->
-          <Avatar
-            v-if="logo"
-            :image="logo"
-            :label="`${partner.name} logo`"
-            size="2xl"
-            shape="square"
-            class="fc-logo-avatar"
-          />
-          <div
-            v-else
-            class="flex size-10 shrink-0 items-center justify-center rounded-4 text-p-base font-semibold text-white"
-            :style="{ backgroundColor: partner.color }"
-            aria-hidden="true"
-          >
-            {{ partner.initials }}
-          </div>
-
-          <div class="min-w-0">
-            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <h1 class="text-xl font-semibold text-ink-gray-9">
-                {{ partner.name }}
-              </h1>
-              <TierIcon :tier="partner.tier" />
-            </div>
-            <p class="mt-1 text-p-base text-ink-gray-6">{{ subtitle }}</p>
-          </div>
-        </div>
-
-        <div class="flex shrink-0 items-center gap-2">
-          <!-- Same control, same word, same stateful aria-label as the row's
-               bookmark — see `PartnerRow.vue`. -->
-          <Tooltip text="Save">
-            <Button
-              variant="subtle"
-              :aria-pressed="saved"
-              :aria-label="saved ? `Remove ${partner.name} from saved` : `Save ${partner.name}`"
-              @click="toggleSave"
-            >
-              <template #icon>
-                <LucideBookmark class="size-4" :class="saved ? 'fill-current' : ''" />
-              </template>
-            </Button>
-          </Tooltip>
-          <!-- Signed out, this opens the login prompt; signed in, the messages
-               screen it wants still ⚠️ doesn't exist and is deliberately not
-               stubbed, so the gap stays visible instead of looking finished.
-               What changed is that it no longer does NOTHING once you're in —
-               the page's one solid button was a no-op for signed-in visitors.
-               Passing the toast as the gated action also means it fires after a
-               sign-in that was triggered from this button. -->
+    <PartnerProfileBody
+      v-else
+      :partner="partner"
+      :logo="logo"
+      :media="media"
+      :logos="logos"
+      :replies="published.replies"
+      :reviews-to="`/connect/partners/${partner.id}/reviews`"
+    >
+      <!-- Ordered by weight: Contact is the page's one solid button, the
+           outcome the directory exists for; Save is subtle and icon-only. -->
+      <template #actions>
+        <!-- Same control, same word, same stateful aria-label as the row's
+             bookmark — see `PartnerRow.vue`. -->
+        <Tooltip text="Save">
           <Button
-            v-if="open"
-            ref="pageContact"
-            variant="solid"
-            label="Contact"
-            @click="contactPartner(partner)"
+            variant="subtle"
+            :aria-pressed="saved"
+            :aria-label="saved ? `Remove ${partner.name} from saved` : `Save ${partner.name}`"
+            @click="toggleSave"
           >
-            <!-- The same message bubble the listing row's Contact carries, not
-                 the paper plane this used to have. One action, one mark: a
-                 visitor meets Contact on the row and again in this header, and
-                 two different glyphs for the same button in the same flow read
-                 as two different things. The bubble is also the truer one —
-                 contact runs through in-app messages, and a paper plane reads
-                 as "send", which promises a compose-and-fire rather than a
-                 thread. Same reason the row rejected an envelope. -->
-            <template #prefix><LucideMessageSquare class="size-4" /></template>
+            <template #icon>
+              <LucideBookmark class="size-4" :class="saved ? 'fill-current' : ''" />
+            </template>
           </Button>
-        </div>
-      </div>
-
-      <!-- ── Media ───────────────────────────────────────────────────────
-           Directly under the header with no section label: it's the partner
-           showing you their work, not a titled block. -->
-      <div class="mt-6">
-        <MediaGallery :items="media" />
-      </div>
-
-      <!-- ── Clients ─────────────────────────────────────────────────────
-           No heading either. A row of client marks reads as "these are their
-           clients" without being told, and a label would give the strip more
-           weight in the page than it has earned. -->
-      <div v-if="clients.length" class="mx-auto mt-12 max-w-[600px]">
-        <ClientStrip :clients="clients" :visible="5" />
-      </div>
-
-      <!-- ── About / Services and Expertise ──────────────────────────────
-           The first framed block on the page. Everything above it is the
-           partner presenting themselves; this is the specification, and the
-           frame is what marks the change of register. -->
-      <!-- Same 48px under the logo strip as above it; 64px straight after
-           the gallery when there's no strip. -->
-      <div :class="clients.length ? 'mt-12' : 'mt-16'">
-        <PartnerAboutCard :partner="partner" />
-      </div>
-
-      <!-- ── In their words ──────────────────────────────────────────────
-           Back to unframed, after the card: the partner's own account. Owns
-           its margin, like every section that can be absent below. -->
-      <PartnerWordsSection class="mt-24" :partner="partner" />
-
-      <!-- ── Featured by Frappe ──────────────────────────────────────────
-           Frappe's account of the firm, after the firm's own. Seven of the
-           seventeen partners have any. -->
-      <PartnerFeaturedSection class="mt-24 py-8" :partner="partner" />
-
-      <!-- ── Reviews ─────────────────────────────────────────────────────
-           Clients' account, after Frappe's. -->
-      <div class="mt-24">
-        <PartnerReviewsSection :partner="partner" />
-      </div>
-
-      <!-- ── Success stories ───────────────────────────────────────────── -->
-      <div class="mt-24">
-        <PartnerStoriesSection :partner="partner" />
-      </div>
-
-      <!-- ── The quote ───────────────────────────────────────────────────
-           Optional. Closes the partner's own account, before the marketplace. -->
-      <PartnerQuoteSection class="mt-24" :partner="partner" />
-
-      <!-- What a partner has published to the marketplace isn't about the
-           engagement you're weighing up, so it comes after everything that is, the quote included.
-           ⚠️ No wrapper div: this section can be absent, and an empty
-           `<div class="mt-24">` still contributes its margin. -->
-      <PartnerMarketplaceSection :partner="partner" />
-    </div>
-
+        </Tooltip>
+        <!-- The same message bubble the listing row's Contact carries: one
+             action, one mark. -->
+        <Button v-if="open" ref="pageContact" variant="solid" label="Contact" @click="contactPartner(partner)">
+          <template #prefix><LucideMessageSquare class="size-4" /></template>
+        </Button>
+      </template>
+    </PartnerProfileBody>
   </ConnectShell>
 </template>

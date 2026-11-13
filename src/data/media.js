@@ -60,12 +60,26 @@ const PLACEHOLDER_GALLERY = [
 export const mediaFor = () => PLACEHOLDER_GALLERY.filter((m) => m.src)
 
 // The partner's clients, from their success stories: one per customer, in the
-// order the partner lists them, and only those with a logo. A partner with
-// fewer than five shows a still row; one with none shows no strip.
+// order the partner lists them, and only those with a logo. Partners don't
+// upload logos; a client arrives with a published story. A partner can reorder
+// them and hide one (`hidden`), which keeps the story but drops the logo from
+// the strip. A partner with fewer than five shows a still row; one with none
+// shows no strip.
 export const clientsFor = (id) => {
   const seen = new Set()
   return storiesFor({ id })
-    .map((st) => st.client)
-    .filter((c) => c.src && !seen.has(c.name) && seen.add(c.name))
-    .map((c) => ({ slug: c.name, name: c.name, src: c.src }))
+    .filter((st) => st.client.src && !seen.has(st.client.name) && seen.add(st.client.name))
+    .map((st) => ({ slug: st.client.name, name: st.client.name, src: st.client.src, href: st.href }))
+}
+
+// Fewer than this and there's no strip at all: two or three logos read as a
+// thin client list, not a strong one.
+export const MIN_LOGOS = 4
+
+// What the strip shows: the partner's order, without hidden logos, or nothing
+// below `MIN_LOGOS`.
+export const shownLogos = (logos) => logos.filter((l) => l.src && !l.hidden)
+export const visibleClients = (logos) => {
+  const shown = shownLogos(logos)
+  return shown.length >= MIN_LOGOS ? shown : []
 }

@@ -14,7 +14,7 @@
 // quotes honestly against a made-up ₹2,00,000 loses to the one who doesn't.
 // Bands also let someone answer truthfully when the truth is "we don't know
 // yet, somewhere in this order of magnitude".
-import { PARTNERS, cityOf } from './partners'
+import { PARTNERS, citiesOf } from './partners'
 import { takingWork } from './takingWork'
 import { marketFor } from './packs'
 import { GEO_CHOICES, GROUP_OF_SEGMENT, INDUSTRIES, REGION_OF, REGIONS } from './quiz'
@@ -63,16 +63,6 @@ export const budgetLabel = (value) =>
 // whole distinction: scope and budget are what a partner needs to reply, and
 // these are what the business wants in a partner. Left alone they constrain
 // nothing, and the count simply stays as wide as it started.
-export const WORK_STYLES = [
-  { value: 'onsite', label: 'Will come to us', hint: 'On site for workshops and training' },
-  { value: 'remote', label: 'Remote is fine' },
-]
-
-// ⚠️ Matched against a partner's own `workStyle`, where 'both' satisfies either
-// request — a firm that does both is not excluded by someone who asked for one.
-export const matchesWorkStyle = (partner, want) =>
-  !want || partner.workStyle === 'both' || partner.workStyle === want
-
 // ⚠️ THE TIMELINE NARROWS NOTHING, AND THE SCREEN SAYS SO. It is collected
 // because a partner deciding whether to quote needs it more than they need the
 // tier, and because the criteria list reads as a set with a hole in it when the
@@ -118,7 +108,6 @@ export const emptyBrief = () => ({
   budget: '',
   cities: [],
   tiers: [],
-  workStyle: '',
   timeline: '',
   // Where the partners may be — the contact quiz's region chips, one geo
   // dimension at two granularities (see `GEO_CHOICES`): India as a country,
@@ -160,7 +149,6 @@ export const criteriaLines = (company, brief) => {
     : []
   const tiers = brief?.tiers ?? []
   const tierLabels = TIERS.filter((t) => tiers.includes(t.value)).map((t) => t.label)
-  const style = WORK_STYLES.find((w) => w.value === brief?.workStyle)
   return [
     {
       icon: 'map-pin',
@@ -178,13 +166,11 @@ export const criteriaLines = (company, brief) => {
     },
     { icon: 'calendar', text: timelineLabel(brief?.timeline) },
     { icon: 'award', text: tierLabels.length ? `${listOf(tierLabels)} tier` : 'All tiers' },
-    { icon: 'users', text: style?.label ?? 'Remote or on premises' },
   ]
 }
 
 // The same criteria as one request, for the brief's details dialog: "A partner
-// based anywhere in Asia who offers services for Manufacturing. Any tier,
-// remote or on site." Read off the same inputs as `criteriaLines`, beside it,
+// based anywhere in Asia who offers services for Manufacturing. Any tier." Read off the same inputs as `criteriaLines`, beside it,
 // so the two cannot disagree. The timeline is left out — the dialog prints it
 // with the budget, where a partner deciding whether to quote looks for it.
 //
@@ -210,9 +196,7 @@ export const criteriaSentence = (company, brief) => {
         : `based anywhere in ${region?.label ?? 'your region'}`
   const what = group ? `offers services for ${group.label}` : 'works in any industry'
   const tier = tiers.length ? `${listOf(tiers)} tier` : 'Any tier'
-  const style =
-    { onsite: 'on site', remote: 'remote' }[brief?.workStyle] ?? 'remote or on site'
-  return `A partner ${where} who ${what}. ${tier}, ${style}.`
+  return `A partner ${where} who ${what}. ${tier}.`
 }
 
 // "Pune", "Pune and Mumbai", "Pune, Mumbai and Kochi".
@@ -417,9 +401,9 @@ export const matchingPartners = (intake, brief) => {
     if (geo ? !inGeo(p, geo) : !anywhere(brief) && region && p.region !== region) return false
     // No industry answered is no industry constraint, same as everywhere else.
     if (wanted.size && !p.industries.some((s) => wanted.has(GROUP_OF_SEGMENT[s]))) return false
-    if (brief?.cities?.length && !brief.cities.includes(cityOf(p))) return false
+    // Any office counts: a Mumbai firm with a Pune office is a Pune partner.
+    if (brief?.cities?.length && !citiesOf(p).some((c) => brief.cities.includes(c))) return false
     if (brief?.tiers?.length && !brief.tiers.includes(p.tier)) return false
-    if (!matchesWorkStyle(p, brief?.workStyle)) return false
     const rung = bandRung(brief?.budget)
     if (rung !== null && rung < p.minBand) return false
     return true

@@ -9,7 +9,8 @@ import StageDot from '../components/StageDot.vue'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { useConnectStore } from '../stores/connect'
 import { PRM_STAGES } from '../data/partnerAccount'
-import { ORIGINS, companyName, isClosed, lastAt, needsReply, originOf, useLeads } from '../composables/useLeads'
+import { ORIGINS, appsOfLead, companyName, isClosed, lastAt, needsReply, originOf, useLeads } from '../composables/useLeads'
+import { PROJECT_APPS } from '../data/partners'
 
 // SCREEN — Leads, styled as Frappe CRM's list: a plain breadcrumb, quick
 // filters with Refresh, Filter, Sort and Columns beside
@@ -102,8 +103,12 @@ const COLUMNS = [
   { key: 'company', label: 'Company', width: 'minmax(0,1.5fr)' },
   { key: 'owner', label: 'Assigned to', width: 'minmax(10rem,1fr)' },
   { key: 'probability', label: 'Probability', width: 'minmax(7rem,1fr)' },
+  { key: 'apps', label: 'Apps', width: 'minmax(10rem,1.2fr)' },
 ]
-const shownCols = ref(COLUMNS.map((c) => c.key))
+// Apps is there for partners who sort through leads by product; off until
+// picked from Columns.
+const shownCols = ref(COLUMNS.map((c) => c.key).filter((k) => k !== 'apps'))
+const appLabels = (l) => appsOfLead(l).map((v) => PROJECT_APPS.find((a) => a.value === v)?.label ?? v).join(', ')
 const show = (k) => shownCols.value.includes(k)
 const columnsMenu = computed(() =>
   COLUMNS.map((c) => ({
@@ -224,6 +229,7 @@ const time = (at) => {
             <ListHeaderCell v-if="show('company')" class="hidden md:flex">Company</ListHeaderCell>
             <ListHeaderCell v-if="show('owner')" class="hidden md:flex">Assigned to</ListHeaderCell>
             <ListHeaderCell v-if="show('probability')" class="hidden md:flex">Probability</ListHeaderCell>
+            <ListHeaderCell v-if="show('apps')" class="hidden md:flex">Apps</ListHeaderCell>
             <ListHeaderCell class="justify-end">Updated</ListHeaderCell>
           </ListHeader>
           <ListRows :items="page" v-slot="{ item }">
@@ -255,6 +261,9 @@ const time = (at) => {
                 <span v-else class="text-base text-ink-gray-5">Unassigned</span>
               </ListCell>
               <ListCell v-if="show('probability')" class="hidden text-base text-ink-gray-7 md:flex">{{ item.probability ?? '—' }}</ListCell>
+              <ListCell v-if="show('apps')" class="hidden min-w-0 md:flex">
+                <span class="truncate text-base text-ink-gray-7">{{ appLabels(item) || '—' }}</span>
+              </ListCell>
               <ListCell class="justify-end whitespace-nowrap text-base text-ink-gray-5">{{ time(lastAt(item)) }}</ListCell>
             </ListRow>
           </ListRows>

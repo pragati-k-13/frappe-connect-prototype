@@ -4,6 +4,7 @@ import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { beginnerThreads, crmLeads, partnerThreads } from '../data/partnerView'
 import { CRMS } from '../data/partnerAccount'
 import { updateMessage } from '../data/messages'
+import { PROJECT_APPS } from '../data/partners'
 
 // The partner's leads, shared by the list and the lead page, so a reply sent
 // on the page shows on the list when you go back. One copy per demo tier,
@@ -247,3 +248,18 @@ export function sendQuote(lead, bid) {
   lead.messages.push({ id: `bid-${Date.now()}`, from: 'you', kind: 'bid', at: Date.now(), bid })
   lead.requirementsUpdated = false
 }
+
+// Which apps a lead's work is in: a lead the partner added carries its own;
+// a Connect lead has the business's answer (older requirements only carry
+// modules, so their apps are read from those).
+// Always PROJECT_APPS values. A lead the partner added stores app labels
+// ("ERPNext", as its title is built from them); module keys name Frappe HR
+// `hrms`, its repo name.
+const MODULE_APP = { hrms: 'frappe-hr' }
+const valueOfLabel = (label) => PROJECT_APPS.find((a) => a.label === label)?.value ?? label
+export const appsOfLead = (l) =>
+  !l
+    ? []
+    : l.source === 'added'
+      ? (l.apps ?? []).map(valueOfLabel)
+      : (l.brief?.projectApps ?? Object.keys(l.brief?.modules ?? {}).map((k) => MODULE_APP[k] ?? k))

@@ -426,12 +426,13 @@ const sorted = (v) => [...(v ?? [])].sort()
 // line names them. Short nouns, so "Changed: …" stays one line.
 const PARTS = [
   ['description', (b) => (b?.scope ?? '').trim()],
+  ['apps', (b) => sorted(b?.projectApps)],
   ['modules', (b) => b?.modules ?? {}],
   ['budget', (b) => b?.budget ?? ''],
   ['timeline', (b) => b?.timeline ?? ''],
   [
     'looking for',
-    (b) => [sorted(b?.cities), sorted(b?.tiers), b?.workStyle ?? '', sorted(b?.regions), sorted(b?.countries)],
+    (b) => [sorted(b?.cities), sorted(b?.tiers), sorted(b?.regions), sorted(b?.countries)],
   ],
 ]
 

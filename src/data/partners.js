@@ -30,11 +30,15 @@ export const APPS = [
   { value: 'insights', label: 'Insights' },
   { value: 'drive', label: 'Drive' },
   { value: 'learning', label: 'Learning' },
-  { value: 'education', label: 'Education' },
   { value: 'school', label: 'School' },
   { value: 'lending', label: 'Lending' },
-  { value: 'framework', label: 'Framework' },
 ]
+
+// The apps a project or lead can be about: what a business picks when it
+// creates a project or contacts a partner, and what a partner picks adding a
+// lead. Framework and Education aren't apps anyone picks (every Frappe app
+// runs on the Framework), and School is left off with them.
+export const PROJECT_APPS = APPS.filter((a) => a.value !== 'school')
 
 // The Starter Pack catalogue moved to `data/packs.js` when the real scope
 // document landed — it now carries the module-by-module scope, the terms, and
@@ -61,13 +65,6 @@ export const APPS = [
 // left to be "all in one" of. HR and Payroll were one pack for a while and are
 // two again; every firm tagged `hrms` sells `payroll` too.
 
-// ⚠️ `workStyle` is INVENTED, like the rates and the ratings. It is one of
-// 'remote' | 'onsite' | 'both', and it exists because the custom flow lets a
-// business say it wants someone who will sit in its office — a constraint the
-// directory does not publish and the seed data had no field for. Derived
-// nowhere: a firm's willingness to travel is not a function of its tier or its
-// city, so it is stored per partner and invented per partner.
-
 // `tier` is 'gold' | 'silver' | 'bronze' — the three levels of the partner
 // programme, drawn from Frappe's own partner badge set. Gold renders as a
 // labelled badge, the other two as the seal alone. See `components/TierIcon.vue`.
@@ -92,31 +89,19 @@ const slug = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 // when a partner doesn't set one.
 const PMM_BY_TIER = { gold: 5, silver: 4, bronze: 3 }
 
-// The "Partner vision" section: a leadership quote, then the same three
-// questions every partner in the directory answers, with their answers and
-// working-style tags.
+// The partner's answers to the questions every partner in the directory
+// answers ("In their words"), with working-style tags.
 //
 // ⚠️⚠️ EVERY WORD BELOW IS INVENTED, and it is by far the most fabricated data
 // in this mock — a mission statement put in the mouth of a real, named company.
 // Nobody at these firms said any of it. It exists so the section's shape can be
-// reviewed: quote length, how the two-line headings wrap, how many tags fit on
+// reviewed: how the two-line headings wrap, how many tags fit on
 // a row. Replace wholesale with the partners' own words before this is shown to
 // anyone outside the team.
-//
-// ⚠️ The `author` names are invented too, and they are the one field here that
-// could be mistaken for fact: they read as a statement about who runs a real
-// company. Only Tridots Tech's is real, and only because it came out of the
-// design file. Each of the others is a plausible-for-the-region placeholder
-// and none of them is a person — if any happens to collide with a real name at
-// that firm, that is coincidence, not research. `visionFor()` still falls back
-// to attributing the quote to the company if an entry has no author at all.
 //
 // A tag is a string, or `{ label, hint }` when it needs the info icon.
 const VISION = {
   'tridots-tech': {
-    author: { name: 'Rajarajan Anbalagan', role: 'CEO & Founder' },
-    quote:
-      'I believe technology should serve business goals, not complicate them. My leadership philosophy combines clear strategy with disciplined execution, ensuring every initiative delivers measurable value.',
     why: 'Mid-sized manufacturers and distributors moving off spreadsheets and legacy systems. Inventory, operations and multi-location work are our strength, with custom apps and integrations when needed.',
     together: {
       text: 'A dedicated team for your project, accountable for quality from start to finish. We tell you what we see, including what you may not want to hear.',
@@ -136,9 +121,6 @@ const VISION = {
   },
 
   'software-work': {
-    author: { name: 'Anuja Deshmukh', role: 'Managing Director' },
-    quote:
-      'An ERP is a set of decisions about how a business runs, not a piece of software you install. We would rather spend a week arguing about a workflow than a year unpicking the wrong one.',
     why: 'Manufacturers and traders around Mumbai whose spreadsheets and Tally have stopped scaling. Payroll is where we go deepest, with Frappe HR and ERPNext as one system.',
     together: {
       text: 'One project lead, named on day one, who stays with you to go-live. Weekly demos on your own data rather than a slide deck, so what you sign off on is what you will actually use.',
@@ -151,9 +133,6 @@ const VISION = {
   },
 
   'new-indictrans': {
-    author: { name: 'Shreyas Kulkarni', role: 'Director' },
-    quote:
-      'Public institutions and schools do not need the fastest software. They need software that still works in five years, with staff who can run it themselves.',
     why: 'Process manufacturing, education and government, mostly in Maharashtra. Regulated work and public procurement are slow and specific, and we know how to work inside them.',
     together: {
       text: 'We plan around your academic or audit calendar, not ours. Documentation is written as we go, in the language your staff actually use.',
@@ -166,9 +145,6 @@ const VISION = {
   },
 
   '8848-digital': {
-    author: { name: 'Nikhil Ranade', role: 'Co-founder' },
-    quote:
-      'Manufacturing runs on the shop floor, not in a boardroom. If the operator will not use it, it does not matter how good the report looks.',
     why: 'Automotive and pharmaceutical manufacturers, where traceability is not optional. We spend the first two weeks on the floor, watching how work moves before we configure anything.',
     together: {
       text: 'Short cycles with something working at the end of each one. Insights dashboards go up early, so you can see your own numbers while decisions are still open.',
@@ -181,9 +157,6 @@ const VISION = {
   },
 
   'greycube-technologies': {
-    author: { name: 'Sanya Fernandes', role: 'Founder' },
-    quote:
-      'Small teams do not need the whole of ERPNext. They need the eight screens they will use every day, set up properly.',
     why: 'Trading, retail and e-commerce businesses, usually under fifty people. We are a small studio and we take on work at that size deliberately — it is where a careful setup makes the most difference.',
     together: {
       text: 'Direct access to the people doing the work, no account manager in between. Most questions are answered the same day.',
@@ -196,9 +169,6 @@ const VISION = {
   },
 
   wahni: {
-    author: { name: 'Vivek Menon', role: 'Chief Executive' },
-    quote:
-      'We would rather turn down a project than staff it badly. Everything we have built has come from work we were able to see through properly.',
     why: 'Food and beverage, retail, healthcare and education across Kerala and the Gulf. Our focus is multi-outlet businesses: kitchens, clinics and campuses that need one system across sites.',
     together: {
       text: 'A named team per project, and a helpdesk your staff can reach directly rather than through us. Site visits during the first month.',
@@ -216,9 +186,6 @@ const VISION = {
   },
 
   hybrowlabs: {
-    author: { name: 'Aditya Kale', role: 'Founder & CTO' },
-    quote:
-      'Most of what a growing company needs already exists in the Frappe framework. Our job is usually to build less, not more.',
     why: 'Software companies, e-commerce and professional services. We are framework-first: custom apps, integrations and portals on top of Frappe, for teams whose processes do not fit a standard ERP.',
     together: {
       text: 'Everything in a shared backlog you can read at any time. Async by default, because our clients are rarely in one timezone.',
@@ -231,9 +198,6 @@ const VISION = {
   },
 
   'finbyz-tech': {
-    author: { name: 'Chirag Mehta', role: 'Managing Partner' },
-    quote:
-      'Finance teams are the ones who live with an ERP after everyone else has moved on. We design for them first.',
     why: 'Chemical manufacturing, trading, logistics and finance, out of Ahmedabad. Costing, import-export documentation and multi-currency are the parts other implementations tend to leave half-finished.',
     together: {
       text: 'Fortnightly reviews with your finance lead in the room. Insights reports are built alongside the rollout, not after it.',
@@ -246,9 +210,6 @@ const VISION = {
   },
 
   alyf: {
-    author: { name: 'Jonas Weber', role: 'Managing Director' },
-    quote:
-      'German mid-sized companies are asked to choose between software that does not fit and software they cannot afford. Open source is the third option.',
     why: 'Manufacturing, real estate and rental businesses in the DACH region. We know German accounting, DATEV exports and works-council processes, and build for GDPR from day one.',
     together: {
       text: 'Documentation and training in German; project management in English if your team prefers. Fixed-scope phases with a price per phase.',
@@ -261,9 +222,6 @@ const VISION = {
   },
 
   'craft-interactive': {
-    author: { name: 'Rania Haddad', role: 'Managing Director' },
-    quote:
-      'A business in the Gulf is rarely in one country. We plan for the second and third entity before you have opened them.',
     why: 'Trading, retail, construction and hospitality across the UAE and Saudi Arabia. VAT, e-invoicing and multi-entity consolidation are routine for us, and we work in Arabic and English throughout.',
     together: {
       text: 'A local team you can meet, and an on-site presence during go-live week. Weekly written updates so decisions are on the record.',
@@ -281,9 +239,6 @@ const VISION = {
   },
 
   'kingstech-services': {
-    author: { name: 'Tan Wei Lin', role: 'Director' },
-    quote:
-      'A rollout across four countries is not four rollouts. Do it once, properly, and let each market configure what it genuinely needs.',
     why: 'Trading, e-commerce, logistics and professional services across Singapore and South-East Asia. Regional groups running one ERP over several jurisdictions are the work we take on most.',
     together: {
       text: 'One project lead in Singapore, delivery across timezones. Written decisions rather than meetings wherever a meeting is not required.',
@@ -296,9 +251,6 @@ const VISION = {
   },
 
   navari: {
-    author: { name: 'Achieng Otieno', role: 'Managing Director' },
-    quote:
-      'Software built elsewhere assumes reliable power and reliable connectivity. We build for the conditions our clients actually work in.',
     why: 'Agriculture, trading, logistics and nonprofits across East Africa. Mobile money, offline-tolerant workflows and donor reporting are the parts that have to work before anything else does.',
     together: {
       text: 'Field visits, not just calls — a lot of what we implement is used by people away from a desk. Training in Swahili and English.',
@@ -315,9 +267,6 @@ const VISION = {
   },
 
   korecent: {
-    author: { name: 'Marcus Reed', role: 'President' },
-    quote:
-      'In regulated manufacturing, an ERP is part of your quality system. We treat it that way from the first workshop.',
     why: 'Medical device manufacturing, healthcare and professional services in North America. Validation, traceability and audit trails are the reason clients come to us rather than the cheapest option.',
     together: {
       text: 'Structured phases with documented sign-off at each one, because that documentation is what an auditor will ask for.',
@@ -330,15 +279,9 @@ const VISION = {
   },
 }
 
-// No invented people: a partner with no real named author has the quote
-// attributed to the company itself. See the warning above.
-const visionFor = (name) => {
-  const v = VISION[slug(name)]
-  if (!v) return null
-  return { ...v, author: v.author ?? { name, role: 'Leadership team' } }
-}
+const visionFor = (name) => VISION[slug(name)] ?? null
 
-// The closing section of the profile: how the firm started.
+// "How we got here", the last row of "In their words": how the firm started.
 //
 // ⚠️⚠️ EVERY WORD BELOW IS INVENTED, on the same footing as `VISION` above and
 // with the same instruction attached: nobody at these firms said any of it, no
@@ -348,7 +291,7 @@ const visionFor = (name) => {
 // Two things keep it as harmless as invented copy about a real company can be.
 // The stories name NO PEOPLE: each is told by the firm as "we", in first
 // person because the section is "In their words", so nothing here attributes
-// a biography to a real person, which is the line `VISION.author` had to stop at too. And the
+// a biography to a real person. And the
 // `year` is the one figure a reader could take as fact, so it is kept
 // deliberately vague in the prose ("the mid-2000s", "a decade in") and stated
 // once, plainly, as a date the page labels rather than a claim the copy makes.
@@ -607,8 +550,6 @@ const P = (
     // back to the city for a partner added without one.
     address = null,
     accolades = [],
-    // See the note above `tier` — invented, one of 'remote' | 'onsite' | 'both'.
-    workStyle = 'both',
     pmm = PMM_BY_TIER[tier] ?? 1,
     // The firm's listings in other countries, by id. Each is its own partner
     // with its own agreement, so Frappe sets this, not the partner.
@@ -637,8 +578,7 @@ const P = (
   founding: foundingFor(name),
   alsoIn,
   tier,
-  workStyle,
-  // ⚠️ INVENTED, like `workStyle` and the rates: the smallest project a firm
+  // ⚠️ INVENTED, like the rates: the smallest project a firm
   // takes, as a rung on the budget ladder (1 = the lowest band, 4 = the
   // highest; see `budgetBandsFor`). A floor and no ceiling, so a bigger budget
   // only ever reaches more firms. Derived rather than set per firm, so it at
@@ -670,7 +610,6 @@ export const PARTNERS = [
       'No. 100, Lake View Estate, Kundrathur Main Road, Porur, Chennai 600116, Tamil Nadu, India',
     accolades: [{ title: 'Partner of the Year', year: 2026 }],
     tier: 'gold',
-    workStyle: 'both',
     city: 'Chennai, India',
     region: 'asia',
     initials: 'TT',
@@ -701,7 +640,6 @@ export const PARTNERS = [
     // Silver, not Gold: the partner demo shows this firm working toward Gold
     // (see `data/partnership.js`), and the directory has to agree with it.
     tier: 'silver',
-    workStyle: 'onsite',
     city: 'Mumbai, India',
     region: 'asia',
     initials: 'SW',
@@ -720,7 +658,6 @@ export const PARTNERS = [
     address:
       '3rd Floor, Deccan Chambers, Senapati Bapat Road, Shivajinagar, Pune 411016, Maharashtra, India',
     tier: 'silver',
-    workStyle: 'remote',
     city: 'Pune, India',
     region: 'asia',
     initials: 'NI',
@@ -738,7 +675,6 @@ export const PARTNERS = [
     tagline: 'Traceability from the shop floor up',
     address: 'Office 21, Kharadi Knowledge Park, Kharadi, Pune 411014, Maharashtra, India',
     tier: 'gold',
-    workStyle: 'both',
     city: 'Pune, India',
     region: 'asia',
     initials: '88',
@@ -761,7 +697,6 @@ export const PARTNERS = [
     tagline: 'A small studio setting up ERPNext properly for small teams',
     address: 'B-14, Hiranandani Gardens Annexe, Powai, Mumbai 400076, Maharashtra, India',
     tier: 'bronze',
-    workStyle: 'remote',
     city: 'Mumbai, India',
     region: 'asia',
     initials: 'GC',
@@ -779,7 +714,6 @@ export const PARTNERS = [
     tagline: 'One system across every outlet, from Kerala to the Gulf',
     address: '2nd Floor, Backwater Square, Kakkanad, Kochi 682030, Kerala, India',
     tier: 'gold',
-    workStyle: 'both',
     city: 'Kochi, India',
     region: 'asia',
     initials: 'WA',
@@ -801,7 +735,6 @@ export const PARTNERS = [
     tagline: 'Your 100% success-driven ERPNext partner in the UAE',
     address: '2nd Floor, 2-08 Al Nisf Building, Airport Road, Dubai, United Arab Emirates',
     tier: 'gold',
-    workStyle: 'both',
     city: 'Dubai, United Arab Emirates',
     region: 'middle-east',
     initials: 'WA',
@@ -820,7 +753,6 @@ export const PARTNERS = [
     tagline: 'Building less on Frappe, so you maintain less',
     address: 'Office 5, Baner Business Bay, Baner Road, Baner, Pune 411045, Maharashtra, India',
     tier: 'silver',
-    workStyle: 'onsite',
     city: 'Pune, India',
     region: 'asia',
     initials: 'HL',
@@ -831,7 +763,7 @@ export const PARTNERS = [
     responds: '7h',
     stories: 2,
     industries: ['Software Development', 'E-commerce', 'Professional services'],
-    apps: ['erpnext', 'crm', 'drive', 'framework'],
+    apps: ['erpnext', 'crm', 'drive'],
     packs: ['accounts-sales-purchase-stock', 'hrms'],
   }),
   P('Finbyz Tech', {
@@ -839,7 +771,6 @@ export const PARTNERS = [
     address:
       '902, Satellite Trade Centre, Iscon Cross Road, Satellite, Ahmedabad 380015, Gujarat, India',
     tier: 'silver',
-    workStyle: 'both',
     city: 'Ahmedabad, India',
     region: 'asia',
     initials: 'FB',
@@ -857,7 +788,6 @@ export const PARTNERS = [
     tagline: 'Open source ERP for the German Mittelstand',
     address: 'Isarhöfe, Rosenheimer Straße 84, 81669 München, Germany',
     tier: 'silver',
-    workStyle: 'remote',
     city: 'Munich, Germany',
     region: 'europe',
     initials: 'AL',
@@ -876,7 +806,6 @@ export const PARTNERS = [
     address:
       'Office 1203, Marasi Bay Tower, Business Bay, PO Box 62579, Dubai, United Arab Emirates',
     tier: 'gold',
-    workStyle: 'both',
     city: 'Dubai, United Arab Emirates',
     region: 'middle-east',
     initials: 'CI',
@@ -899,7 +828,6 @@ export const PARTNERS = [
     tagline: 'One rollout, several jurisdictions, out of Singapore',
     address: '#14-11 Robinson Square, 108 Robinson Road, Singapore 068900',
     tier: 'bronze',
-    workStyle: 'onsite',
     city: 'Singapore',
     region: 'asia',
     initials: 'KS',
@@ -918,7 +846,6 @@ export const PARTNERS = [
     address:
       '4th Floor, Riverside Court, Kaburu Drive, Kilimani, PO Box 41283-00100, Nairobi, Kenya',
     tier: 'bronze',
-    workStyle: 'remote',
     city: 'Nairobi, Kenya',
     region: 'africa',
     initials: 'NV',
@@ -936,7 +863,6 @@ export const PARTNERS = [
     tagline: 'ERP as part of your quality system, not beside it',
     address: 'Suite 1750, 1420 West Fulton Market, Chicago, IL 60607, United States',
     tier: 'silver',
-    workStyle: 'both',
     city: 'Chicago, United States',
     region: 'americas',
     initials: 'KO',
@@ -961,8 +887,8 @@ export const PARTNERS = [
   // their "Areas of expertise" and "App expertise". Promantia's tagline is the
   // line on its own logo.
   //
-  // ⚠️ INVENTED, as for everyone above: rate, rating, reviews, response time,
-  // packs and work style. Sanskar Technolab and Momscode publish no expertise,
+  // ⚠️ INVENTED, as for everyone above: rate, rating, reviews, response time
+  // and packs. Sanskar Technolab and Momscode publish no expertise,
   // so their industries are invented too, and their apps are the two
   // credentials both list (ERPNext, Framework). No tagline where the partner
   // publishes none — the profile shows the city instead.
@@ -970,7 +896,6 @@ export const PARTNERS = [
     address:
       'A-706, Privilon, Iskcon Cross Road, SG Highway, Ahmedabad 380015, Gujarat, India',
     tier: 'silver',
-    workStyle: 'both',
     city: 'Ahmedabad, India',
     region: 'asia',
     initials: 'ST',
@@ -981,7 +906,7 @@ export const PARTNERS = [
     responds: '4h',
     stories: 0,
     industries: ['Process Manufacturing', 'Chemical Manufacturing', 'Goods Trading'],
-    apps: ['erpnext', 'framework'],
+    apps: ['erpnext'],
     packs: ['accounts-sales-purchase-stock', 'manufacturing'],
   }),
   P('Promantia', {
@@ -989,7 +914,6 @@ export const PARTNERS = [
     address:
       '103 Maria Regency Manor, 8 MSO Colony, Banaswadi Road, Golden Enclave, Old Airport Road, Bangalore 560033, Karnataka, India',
     tier: 'silver',
-    workStyle: 'both',
     city: 'Bangalore, India',
     region: 'asia',
     initials: 'PR',
@@ -1006,7 +930,6 @@ export const PARTNERS = [
   P('NestorBird', {
     address: 'F 468, IFB Phase 8, Phase 8B, SAS Nagar, Mohali 160071, Punjab, India',
     tier: 'silver',
-    workStyle: 'remote',
     city: 'Mohali, India',
     region: 'asia',
     initials: 'NB',
@@ -1030,7 +953,6 @@ export const PARTNERS = [
   P('Momscode', {
     address: '14/443-H, Second Floor, Royal Tower, Malaparamba PO, Kozhikode 673009, Kerala, India',
     tier: 'bronze',
-    workStyle: 'remote',
     city: 'Kozhikode, India',
     region: 'asia',
     initials: 'MC',
@@ -1041,7 +963,7 @@ export const PARTNERS = [
     responds: '9h',
     stories: 0,
     industries: ['Retail', 'E-commerce', 'Professional services'],
-    apps: ['erpnext', 'framework'],
+    apps: ['erpnext'],
     packs: ['accounts-sales-purchase-stock'],
   }),
 ]
@@ -1086,15 +1008,29 @@ export const SUCCESS_STORIES = [
 // in it, so a city filter elsewhere would be a control whose every option
 // returns one result or none. The custom filters say so where the control would
 // otherwise be missing without explanation.
+// A partner's offices, main first: `{ city, text }`, with `city` written as
+// "Pune, India". A partner without the list has one office, made from `city`
+// and `address`; editing writes the list and keeps those two equal to the
+// main office, so everything that reads one city still reads the main one.
+export const addressesOf = (partner) => partner.addresses ?? [{ city: partner.city, text: partner.address ?? '' }]
+const cityName = (city) => city.split(',')[0].trim()
+
+// Every city the partner has an office in, without its country. The city
+// filter matches any of them.
+export const citiesOf = (partner) => [...new Set(addressesOf(partner).map((a) => cityName(a.city)))]
+
 export const INDIA_CITIES = [
   ...new Set(
-    PARTNERS.filter((p) => p.countries.includes('India')).map((p) => p.city.split(',')[0].trim()),
+    PARTNERS.flatMap((p) => addressesOf(p).filter((a) => a.city.endsWith('India')).map((a) => cityName(a.city))),
   ),
 ].sort()
 
-// The city a partner is in, without its country — the same derivation the list
-// above is built from, so a filter cannot disagree with its own options.
-export const cityOf = (partner) => partner.city.split(',')[0].trim()
+// Every city in the directory, with its country: what an office's city can be.
+export const OFFICE_CITIES = [...new Set(PARTNERS.flatMap((p) => addressesOf(p).map((a) => a.city)))].sort()
+
+// The partner's main city, without its country — the same derivation the lists
+// above are built from, so a filter cannot disagree with its own options.
+export const cityOf = (partner) => cityName(partner.city)
 
 // Short country names where a common one exists, without periods (American
 // style): UAE, US, UK. Everything else stays in full.
@@ -1129,3 +1065,8 @@ export const isFrappe = (who) => (typeof who === 'string' ? who : who?.id) === F
 // an id that names neither.
 export const implementerFor = (id) =>
   isFrappe(id) ? FRAPPE_TEAM : (PARTNERS.find((p) => p.id === id) ?? null)
+
+// The firm's email domain, to keep its own people from reviewing it.
+// ⚠️ Demo: built from the id the way the demo team's addresses are
+// (software-work → softwarework.example). A real directory stores it.
+export const firmDomain = (partner) => `${partner.id.replace(/-/g, '')}.example`

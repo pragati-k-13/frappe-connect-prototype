@@ -1,10 +1,10 @@
 <script setup>
-import { computed } from 'vue'
-import { Badge, MultiSelect, Select, Tooltip } from 'frappe-ui'
+import { computed, nextTick, ref } from 'vue'
+import { Badge, Button, Dropdown, MultiSelect, Select, Tooltip } from 'frappe-ui'
 import InlineInput from './InlineInput.vue'
 import RateEditor from './RateEditor.vue'
 import Tag from './Tag.vue'
-import { APPS, PARTNERS, countryShort } from '../data/partners'
+import { APPS, OFFICE_CITIES, PARTNERS, addressesOf, countryShort } from '../data/partners'
 import { INDUSTRIES, industryShort } from '../data/quiz'
 import { useConnectStore } from '../stores/connect'
 
@@ -42,7 +42,9 @@ const PMM_HELP = 'Partner Maturity Model level, 1 to 5.'
 // is what the listing row's "+2 more" already does.
 const CHIP_LIMIT = 5
 
-const appLabel = (value) => APPS.find((a) => a.value === value)?.label ?? value
+// Framework is a certification but not an app anyone picks, so it isn't in
+// APPS; its certificate still needs a name.
+const appLabel = (value) => APPS.find((a) => a.value === value)?.label ?? { framework: 'Framework' }[value] ?? value
 
 // A chip is checked when it answers something the visitor actually asked.
 // Nothing is checked if they skipped the quiz, which is correct: there is no
@@ -81,7 +83,35 @@ const industryOverflow = computed(() => shownIndustries.value.slice(CHIP_LIMIT))
 // partner's real city, in that country's own postal conventions. See the
 // warning on `address` in `data/partners.js`. City is the fallback for a
 // partner added without one.
-const address = computed(() => props.partner.address ?? props.partner.city)
+//
+// A partner can list up to `MAX_OFFICES` offices, main first. Each has a city
+// (from the directory's cities, so the city filter can match it) and the
+// street address. Editing keeps `city` and `address` equal to the main office,
+// so everything that reads one city still does.
+const MAX_OFFICES = 5
+const offices = computed(() => addressesOf(props.partner))
+const shownOffices = computed(() => offices.value.map((a) => a.text || a.city))
+// The directory's cities, plus any this partner already has (a Beginner's
+// city may be in no other listing).
+const cityOptions = computed(() =>
+  [...new Set([...OFFICE_CITIES, ...offices.value.map((a) => a.city)])].sort().map((c) => ({ label: c, value: c })),
+)
+const officesEl = ref(null)
+function setOffices(list) {
+  emit('change', { addresses: list, city: list[0].city, address: list[0].text || null })
+}
+const setOffice = (i, patch) => setOffices(offices.value.map((a, j) => (j === i ? { ...a, ...patch } : a)))
+async function addOffice() {
+  setOffices([...offices.value, { city: offices.value[0].city, text: '' }])
+  await nextTick()
+  const fields = officesEl.value?.querySelectorAll('textarea, [contenteditable], input[type="text"]')
+  fields?.[fields.length - 1]?.focus()
+}
+const officeMenu = (i) =>
+  [
+    i > 0 && { label: 'Make main', icon: 'lucide-star', onClick: () => setOffices([offices.value[i], ...offices.value.filter((_, j) => j !== i)]) },
+    { label: 'Remove', icon: 'lucide-trash-2', theme: 'red', onClick: () => setOffices(offices.value.filter((_, j) => j !== i)) },
+  ].filter(Boolean)
 
 // The firm's other offices, each its own listing and its own partner
 // agreement, so Frappe sets the link and the partner can't edit it. A Tag,
@@ -93,13 +123,10 @@ const alsoIn = computed(() =>
     .map((p) => ({ id: p.id, label: countryShort(p.countries[0]) })),
 )
 
-// How the firm works decides which briefs reach it, so a business sees it too.
 // Countries served and the smallest project are hidden for now; the directory's
 // filters still read both.
-const WORKS = { onsite: 'On site', remote: 'Remote', both: 'On site or remote' }
 
 // ── Editing ──────────────────────────────────────────────────────────────────
-const workOptions = Object.entries(WORKS).map(([value, label]) => ({ label, value }))
 const industryOptions = INDUSTRIES.map((i) => ({
   group: i.label,
   options: i.segments.map((s) => ({ label: s, value: s })),
@@ -211,21 +238,41 @@ const LISTS = {
           </div>
 
           <div class="py-3.5">
-            <dt class="text-p-sm text-ink-gray-7">Address</dt>
-            <!-- The one long-form value in the card, so it's the only one that
-                 gets a reading line-height. -->
-            <dd v-if="editable" class="mt-1">
-              <InlineInput
-                multiline
-                boxed
-                :rows="3"
-                :model-value="partner.address ?? ''"
-                label="Address"
-                placeholder="Add your address"
-                @commit="emit('change', { address: $event || null })"
-              />
+            <dt class="text-p-sm text-ink-gray-7">{{ offices.length > 1 ? 'Addresses' : 'Address' }}</dt>
+            <!-- One field pair per office: the city (what the city filter
+                 matches) and the street address. -->
+            <dd v-if="editable" ref="officesEl" class="mt-1 space-y-4">
+              <div v-for="(a, i) in offices" :key="i" class="space-y-1.5">
+                <div class="flex items-center gap-2">
+                  <Select
+                    class="min-w-0 flex-1"
+                    :model-value="a.city"
+                    :options="cityOptions"
+                    :aria-label="`City of address ${i + 1}`"
+                    @update:model-value="setOffice(i, { city: $event })"
+                  />
+                  <Dropdown v-if="offices.length > 1" :options="officeMenu(i)">
+                    <Button class="data-[state=open]:bg-surface-gray-3" icon="lucide-ellipsis" :aria-label="`Actions for address ${i + 1}`" />
+                  </Dropdown>
+                </div>
+                <InlineInput
+                  multiline
+                  boxed
+                  :rows="3"
+                  :model-value="a.text"
+                  :label="`Address ${i + 1}`"
+                  placeholder="Street address"
+                  @commit="setOffice(i, { text: $event })"
+                />
+              </div>
+              <Button v-if="offices.length < MAX_OFFICES" label="Add address" icon-left="lucide-plus" @click="addOffice" />
             </dd>
-            <dd v-else class="mt-1.5 text-p-base leading-6 text-ink-gray-6">{{ address }}</dd>
+            <!-- The main office first, the others a step lighter below it. The
+                 one long-form value in the card, so it's the only one that
+                 gets a reading line-height. -->
+            <dd v-else class="mt-1.5 space-y-2 text-p-base leading-6">
+              <p v-for="(text, i) in shownOffices" :key="i" :class="i ? 'text-ink-gray-5' : 'text-ink-gray-6'">{{ text }}</p>
+            </dd>
             <dd v-if="alsoIn.length" class="mt-2 flex flex-wrap items-center gap-1.5 text-p-sm text-ink-gray-6">
               Also in
               <Tag v-for="o in alsoIn" :key="o.id" :label="o.label" :to="`/connect/partners/${o.id}`" />
@@ -314,18 +361,6 @@ const LISTS = {
                 </MultiSelect>
               </dd>
             </div>
-            <div class="py-3.5">
-              <dt class="text-p-sm text-ink-gray-7">Works</dt>
-              <dd class="mt-1">
-                <Select
-                  class="w-full"
-                  :model-value="partner.workStyle"
-                  :options="workOptions"
-                  aria-label="How you work"
-                  @update:model-value="emit('change', { workStyle: $event })"
-                />
-              </dd>
-            </div>
           </template>
           <template v-else>
             <div class="py-3.5">
@@ -379,10 +414,6 @@ const LISTS = {
               <dd class="mt-1.5 flex flex-wrap gap-1.5">
                 <Badge v-for="m in partner.migrations" :key="m" v-bind="CHIP" :label="m" />
               </dd>
-            </div>
-            <div v-if="partner.workStyle" class="py-3.5">
-              <dt class="text-p-sm text-ink-gray-7">Works</dt>
-              <dd class="mt-1.5 text-p-base text-ink-gray-8">{{ WORKS[partner.workStyle] }}</dd>
             </div>
           </template>
         </dl>

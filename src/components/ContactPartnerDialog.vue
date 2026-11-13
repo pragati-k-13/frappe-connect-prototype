@@ -9,7 +9,7 @@ import { Button, Dialog, FormControl, Select, Textarea } from 'frappe-ui'
 // not a new one. Same reasoning as `EstimateQuoteDialog`.
 import { DialogDescription } from 'reka-ui'
 import NewProjectDialog from './NewProjectDialog.vue'
-import { PARTNERS } from '../data/partners'
+import { PARTNERS, PROJECT_APPS } from '../data/partners'
 import {
   briefComplete,
   briefErrors,
@@ -251,6 +251,10 @@ const send = () => {
               <dd class="line-clamp-3 min-w-0 whitespace-pre-line text-ink-gray-8">
                 {{ saved.scope }}
               </dd>
+            </div>
+            <div v-if="project?.apps?.length" class="flex gap-6 text-p-base">
+              <dt class="w-32 shrink-0 text-ink-gray-5">Apps</dt>
+              <dd class="font-medium text-ink-gray-8">{{ project.apps.map((v) => PROJECT_APPS.find((a) => a.value === v)?.label ?? v).join(', ') }}</dd>
             </div>
             <div class="flex gap-6 text-p-base">
               <dt class="w-32 shrink-0 text-ink-gray-5">Budget</dt>

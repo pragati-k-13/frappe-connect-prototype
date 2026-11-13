@@ -1,9 +1,12 @@
 <script setup>
-import { computed } from 'vue'
-import { Avatar, Button, toast } from 'frappe-ui'
-import IconPositive from '~icons/lucide/check'
-import IconCaution from '~icons/lucide/info'
-import { reviewsFor } from '../data/reviews'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { Avatar, Badge, Button } from 'frappe-ui'
+import WriteReviewDialog from './WriteReviewDialog.vue'
+import { SHOWN, reviewsFor, writtenAsItem } from '../data/reviews'
+import { PROJECT_APPS } from '../data/partners'
+import { useConnectStore } from '../stores/connect'
+import { useAuthGate } from '../utils/auth'
 
 // SCREEN 6, fifth section — "Reviews".
 //
@@ -11,59 +14,117 @@ import { reviewsFor } from '../data/reviews'
 // placeholder data in the mock: made-up testimonials attributed to made-up
 // customers, about real, named companies. Read the warning at the top of
 // `data/reviews.js` before screenshotting this.
+// On the profile it shows the first `SHOWN` reviews, and "View all" (more
+// than that) opens the Reviews page. On the Reviews page (`full`) it's every
+// review, with no heading: the page title says Reviews.
 const props = defineProps({
   partner: { type: Object, required: true },
-  // The partner's own page: no "Write a review" (a firm doesn't review
-  // itself), and each review takes the page's own actions through `#actions`.
+  // The partner's own firm: no "Write a review" (a firm doesn't review
+  // itself), and "View all" whenever there's a review, because the Reviews
+  // page is where the partner replies and reports.
   own: { type: Boolean, default: false },
+  full: { type: Boolean, default: false },
+  // Where "View all" goes.
+  viewAllTo: { type: String, default: null },
 })
 
+// The profile's URL gets `#reviews` first, so Back from the Reviews page lands
+// on this section rather than the top of a long profile (the router scrolls to
+// a hash).
+const route = useRoute()
+const router = useRouter()
+async function openAll() {
+  await router.replace({ ...route, hash: '#reviews' })
+  router.push(props.viewAllTo)
+}
+// The router's own hash scroll is undone: the shell's scroll area resets
+// itself just after a page mounts. So on the way back the section brings
+// itself into view, after that reset (150ms; at two frames it was still
+// undone).
+const el = ref(null)
+onMounted(() => {
+  if (props.full || route.hash !== '#reviews') return
+  setTimeout(() => el.value?.scrollIntoView({ block: 'start' }), 150)
+})
+
+// Reviews written here come first, newest first, then the seeded ones.
+const store = useConnectStore()
+const written = computed(() => store.reviewsWrittenFor(props.partner.id).map(writtenAsItem))
 const review = computed(() => reviewsFor(props.partner))
+const all = computed(() => [...written.value, ...review.value.items])
+const items = computed(() => (props.full ? all.value : all.value.slice(0, SHOWN)))
+const viewAll = computed(
+  () => !props.full && !!props.viewAllTo && (props.own ? items.value.length > 0 : all.value.length > SHOWN),
+)
 
 // The aggregate comes from the partner record — the same `rating` and `reviews`
-// the listing row shows, so the two screens can't disagree. It deliberately
-// isn't the average of the rows below: those are the first four of twelve, and
-// a sample of a set doesn't have to average to the set.
-const rating = computed(() => props.partner.rating.toFixed(1))
+// the listing row shows, so the two screens can't disagree — plus any written
+// here. It deliberately isn't the average of the rows below: those are the
+// first five of twelve, and a sample of a set doesn't have to average to it.
+const count = computed(() => (props.partner.reviews ?? 0) + written.value.length)
+const rating = computed(() => {
+  const sum = (props.partner.rating ?? 0) * (props.partner.reviews ?? 0) + written.value.reduce((n, r) => n + r.stars, 0)
+  return count.value ? (sum / count.value).toFixed(1) : '0.0'
+})
 
-const iconFor = (sentiment) => (sentiment === 'caution' ? IconCaution : IconPositive)
+// What the work covered, on the company line. Up to two app names, then
+// "+N more", which expands the rest in place (tap, not hover, so it works on
+// a phone). The line wraps to two lines at most.
+const APPS_SHOWN = 2
+const appNames = (apps) => (apps ?? []).map((v) => PROJECT_APPS.find((a) => a.value === v)?.label ?? v)
+const expanded = ref(new Set())
+const shownApps = (r) => {
+  const names = appNames(r.apps)
+  return expanded.value.has(r.id) ? names : names.slice(0, APPS_SHOWN)
+}
+const moreApps = (r) => (expanded.value.has(r.id) ? 0 : Math.max(0, appNames(r.apps).length - APPS_SHOWN))
+const expandApps = (r) => (expanded.value = new Set([...expanded.value, r.id]))
+const ago = (r) => (r.today ? 'Today' : r.monthsAgo < 12 ? `${r.monthsAgo} months ago` : `${Math.floor(r.monthsAgo / 12)}y ago`)
 
-// ⚠️ These chips are NOT selectable. They used to be `FilterChip` toggles with
-// a local `activeTags` array, and that was the wrong affordance: a chip that
-// takes a pressed state promises it filters the list underneath, and a visitor
-// who pressed one and saw four unchanged reviews would read the page as broken
-// rather than unbuilt. They're a way IN to a set of reviews — a modal, once it
-// exists — not a filter on the ones already shown.
-//
-// So they're plain buttons now. Same look (`outline` at `sm`, icon, count) and
-// still pressable, but no `aria-pressed`, no selected fill, no state to get out
-// of sync with the list.
-//
-// Single-use copy, so it lives here rather than in `feedback.js`. Names the
-// destination rather than letting the click vanish, the same way Contact does.
-const tagToast = (tag) =>
-  toast.info('Reviews by tag are not built yet', {
-    id: 'review-tag',
-    description: `This would open the ${tag.count} ${
-      tag.count === 1 ? 'review' : 'reviews'
-    } that mention "${tag.label}".`,
-  })
-
-// Single-use copy, so it lives here rather than in `feedback.js`.
-const reviewToast = () =>
-  toast.info('Writing a review is not built yet', {
-    description: 'Reviews come from customers with a completed implementation.',
-  })
-
-const ago = (months) => (months < 12 ? `${months} months ago` : `${Math.floor(months / 12)}y ago`)
+// ── Writing one ─────────────────────────────────────────────────────────────
+// For any business, not the partner's own view. Signed out, the gate takes
+// them through sign-up and back here with `?review=1`, which opens the form:
+// the query survives a reload, which a held action wouldn't.
+const { requireAccount } = useAuthGate()
+const writing = ref(false)
+const mine = computed(() => (props.own ? null : store.myReviewOf(props.partner.id)))
+async function write() {
+  if (store.signedIn) return (writing.value = true)
+  await router.replace({ query: { ...route.query, review: '1' } })
+  requireAccount(() => {})
+}
+watch(
+  () => [route.query.review, store.signedIn],
+  ([flag, signedIn]) => {
+    if (flag !== '1' || props.own || !signedIn) return
+    const { review: _, ...query } = route.query
+    router.replace({ query })
+    writing.value = true
+  },
+  { immediate: true },
+)
+// After publishing, the new review is first in the list: bring it into view.
+async function published() {
+  await nextTick()
+  el.value?.querySelector('[data-mine]')?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+}
 </script>
 
 <template>
-  <section>
-    <h2 class="text-base font-semibold text-ink-gray-8">Reviews</h2>
+  <section ref="el">
+    <!-- "Write a review" beside the heading, so nobody scrolls past every
+         review to find it. Subtle: Contact stays the page's one solid button. -->
+    <div v-if="!full || !own" class="flex min-h-7 items-center justify-between gap-3">
+      <h2 v-if="!full" class="text-base font-semibold text-ink-gray-8">Reviews</h2>
+      <span v-else />
+      <Button v-if="!own" variant="subtle" :label="mine ? 'Edit your review' : 'Write a review'" @click="write">
+        <template v-if="!mine" #prefix><LucidePlus class="size-4" /></template>
+      </Button>
+    </div>
 
     <!-- ── The aggregate ───────────────────────────────────────────────── -->
-    <p class="mt-4 flex items-center gap-1.5">
+    <!-- None yet: no "0.0 ★", just the way to write the first. -->
+    <p v-if="count" :class="full && own ? '' : 'mt-4'" class="flex items-center gap-1.5">
       <span class="text-6xl font-medium tabular-nums text-ink-gray-8">{{ rating }}</span>
       <!-- Amber, the same `ink-amber-5` the marketplace listings fill with
            and the shade frappe-ui's own `Rating` uses for a filled star.
@@ -72,52 +133,26 @@ const ago = (months) => (months < 12 ? `${months} months ago` : `${Math.floor(mo
       <LucideStar class="size-4 fill-current text-ink-amber-5" aria-hidden="true" />
       <span class="sr-only">out of 5,</span>
       <span class="ml-2 text-base text-ink-gray-6">
-        {{ partner.reviews }} {{ partner.reviews === 1 ? 'review' : 'reviews' }}
+        {{ count }} {{ count === 1 ? 'review' : 'reviews' }}
       </span>
     </p>
 
-    <!-- ── What reviewers keep saying ──────────────────────────────────── -->
-    <!-- ⚠️ NOT `FilterChip`, though it looks identical to one in its unselected
-         state. `FilterChip` is a toggle — it exists to carry a pressed state —
-         and these aren't selectable: they open a set of reviews rather than
-         filtering the four below. Reusing it here would have meant a chip that
-         latches on click and changes nothing, which reads as a broken filter
-         rather than an unbuilt screen. See the note on `tagToast`.
-
-         Same `Button` underneath at the same `outline` / `sm`, so the row still
-         matches the quiz's region chips visually. The icon carries the
-         sentiment: a check for what reviewers praised, an info mark for what
-         they cautioned about. The count is `currentColor` at 60%, matching
-         `FilterChip`'s own treatment. -->
-    <div class="mt-4 flex flex-wrap gap-2">
-      <Button
-        v-for="t in review.tags"
-        :key="t.label"
-        variant="outline"
-        size="sm"
-        @click="tagToast(t)"
-      >
-        <template #prefix>
-          <component :is="iconFor(t.sentiment)" class="size-3.5" />
-        </template>
-        {{ t.label }}
-        <template #suffix>
-          <span class="tabular-nums opacity-60">{{ t.count }}</span>
-        </template>
-      </Button>
-    </div>
-
     <!-- ── The reviews ─────────────────────────────────────────────────── -->
-    <div class="mt-8 divide-y divide-outline-gray-1">
-      <article v-for="r in review.items" :key="r.id" class="py-5">
+    <!-- 24px from the aggregate to the first review: the first row drops its
+         own top padding, so the gap is the list's margin alone. -->
+    <div v-if="items.length" class="mt-6 divide-y divide-outline-gray-1">
+      <article v-for="r in items" :key="r.id" class="py-5 first:pt-0" :data-mine="r.id === mine?.id || undefined">
         <div class="flex items-start gap-3">
-          <!-- ⚠️ Placeholder: no image and no label, so it renders as a plain
-               circle rather than an initial. A letter would read as this
-               person's monogram, and the person is invented. -->
-          <Avatar class="size-9 shrink-0" />
+          <!-- The reviewer's photo, or their initial on gray when there's
+               none: frappe-ui's own fallback, as everywhere else in the app. -->
+          <Avatar class="size-9 shrink-0" :image="r.avatar" :label="r.name" />
           <div class="min-w-0 flex-1">
             <div class="flex items-start justify-between gap-3">
-              <p class="text-base font-medium text-ink-gray-8">{{ r.name }}</p>
+              <p class="flex items-center gap-1.5 text-base font-medium text-ink-gray-8">
+                {{ r.name }}
+                <!-- The viewer's own review: beside the name, so it adds no row. -->
+                <Badge v-if="r.id === mine?.id" label="You" />
+              </p>
               <!-- Stored as an age rather than a date, so the label can't drift
                    as the mock gets older — see `data/reviews.js`.
 
@@ -134,9 +169,19 @@ const ago = (months) => (months < 12 ? `${months} months ago` : `${Math.floor(mo
                    before the company line's own margin started. Single lines
                    take the tight scale here; only the review body below wants
                    paragraph leading. -->
-              <p class="shrink-0 text-sm text-ink-gray-5">{{ ago(r.monthsAgo) }}</p>
+              <p class="shrink-0 text-sm text-ink-gray-5">{{ ago(r) }}</p>
             </div>
-            <p class="mt-1 text-base text-ink-gray-6">{{ r.company }}</p>
+            <p class="mt-1 text-base text-ink-gray-6">
+              {{ r.company }}<template v-if="r.apps?.length"> · {{ shownApps(r).join(', ') }}</template>
+              <button
+                v-if="moreApps(r)"
+                type="button"
+                class="ml-1 rounded-4 text-ink-gray-6 underline decoration-outline-gray-3 underline-offset-2 hover:text-ink-gray-8 focus-visible:focus-ring"
+                @click="expandApps(r)"
+              >
+                +{{ moreApps(r) }} more
+              </button>
+            </p>
           </div>
         </div>
 
@@ -182,21 +227,15 @@ const ago = (months) => (months < 12 ? `${months} months ago` : `${Math.floor(mo
       </article>
     </div>
 
-    <!-- The list's own actions, after the reviews: "Write a review" belongs
-         with them, at the moment someone has just read what others said,
-         rather than floating opposite the heading.
-         ⚠️ "View all" is inert — there's no all-reviews screen yet.
-         ⚠️ Still no review form: writing one needs an account AND a completed
-         project, both `store.account` questions this section doesn't ask yet.
-         The toast names that precondition rather than the click doing
-         nothing. -->
-    <div v-if="partner.reviews > review.items.length || !own" class="mt-4 flex gap-2">
-      <Button v-if="!own" variant="subtle" label="Write a review" @click="reviewToast">
-        <template #prefix><LucidePlus class="size-4" /></template>
-      </Button>
-      <Button v-if="partner.reviews > review.items.length" variant="subtle" label="View all">
+    <!-- A drill-down to the Reviews page, so it carries the chevron. The
+         count is already in the aggregate above, so the label doesn't repeat
+         it. -->
+    <div v-if="viewAll" class="mt-4">
+      <Button variant="subtle" label="View all" @click="openAll">
         <template #suffix><LucideChevronRight class="size-4" /></template>
       </Button>
     </div>
+
+    <WriteReviewDialog v-if="!own" v-model:open="writing" :partner="partner" @published="published" />
   </section>
 </template>

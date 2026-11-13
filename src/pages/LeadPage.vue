@@ -14,17 +14,17 @@ import PanelLink from '../components/PanelLink.vue'
 import ThreadMessages from '../components/ThreadMessages.vue'
 import ReplyBox from '../components/ReplyBox.vue'
 import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
+import AppsSelect from '../components/AppsSelect.vue'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
-import { PARTNERS } from '../data/partners'
+import { PARTNERS, PROJECT_APPS } from '../data/partners'
 import { logoFor } from '../data/logos'
 import { budgetLabel, timelineLabel } from '../data/custom'
-import { scopeSentence } from '../data/modules'
 import { PARTNER_SELF, PRM_LOST_REASONS } from '../data/partnerView'
 import { CRMS, PRM_STAGES } from '../data/partnerAccount'
 import { PROBABILITY } from '../data/records'
 import { firmFor } from '../data/partnership'
-import { companyName, confirmQuote, crmLabel, hasThread, winLead, isClosed, isCrm, originLabel, matchFor, meFor, sendHireRequest, sendQuote, stageTheme, useLeads, withdrawHireRequest } from '../composables/useLeads'
+import { appsOfLead, companyName, confirmQuote, crmLabel, hasThread, winLead, isClosed, isCrm, originLabel, matchFor, meFor, sendHireRequest, sendQuote, stageTheme, useLeads, withdrawHireRequest } from '../composables/useLeads'
 import SendQuoteDialog from '../components/SendQuoteDialog.vue'
 
 // SCREEN — one lead, the same shape as a customer: tabs (Messages,
@@ -250,13 +250,34 @@ const sideOpen = ref(false)
 const projectRows = computed(() => {
   const b = lead.value?.brief ?? {}
   return [
-    { label: 'Modules', value: scopeSentence(b.modules) },
     { label: 'Budget', value: budgetLabel(b.budget) },
     { label: 'Timeline', value: b.timeline ? timelineLabel(b.timeline) : '' },
     { label: 'Industry', value: b.segments?.[0] ?? '' },
     { label: 'Size', value: b.employees ? `${b.employees} people` : '' },
   ].filter((r) => r.value)
 })
+
+// ── Apps ────────────────────────────────────────────────────────────────────
+// Which apps the work is in. The business's answer on a Connect lead (older
+// requirements carry only modules, so their apps are read from those). The
+// partner corrects it once hired, when the customer may leave everything to
+// them, or any time on a lead they added. Not before the hire: the same
+// requirements may be with other partners. Each change is logged, and on a
+// Connect lead it shows in the thread too.
+const appLabels = (values) => values.map((v) => PROJECT_APPS.find((a) => a.value === v)?.label ?? v).join(', ')
+const leadApps = computed(() => appsOfLead(lead.value))
+const appsEditable = computed(() => canAct.value && (lead.value?.source === 'added' || lead.value?.stage === 'Won'))
+function setApps(next) {
+  if (!next.length) return
+  const was = appLabels(leadApps.value)
+  const now = appLabels(next)
+  if (was === now) return
+  // A lead the partner added keeps labels, as its title is built from them.
+  if (lead.value.source === 'added') lead.value.apps = next.map((v) => PROJECT_APPS.find((a) => a.value === v)?.label ?? v)
+  else lead.value.brief = { ...lead.value.brief, projectApps: [...next] }
+  logChange('Apps', was, now)
+  if (threaded.value) lead.value.messages.push({ id: `apps-${Date.now()}`, from: 'you', kind: 'apps-changed', at: Date.now(), was, now })
+}
 const briefOpen = ref(false)
 // What the dialog leaves out: always the facts, which the panel lists; and the
 // description too when opened from under the message that carries it.
@@ -560,12 +581,17 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
                 />
                 <span v-else class="truncate px-2">{{ lead.project }}</span>
               </PanelField>
-              <PanelField v-if="lead.apps?.length" label="Apps">
-                <span class="px-2">{{ lead.apps.join(', ') }}</span>
+              <PanelField v-if="leadApps.length" label="Apps">
+                <AppsSelect v-if="appsEditable" :model-value="leadApps" variant="ghost" aria-label="Apps" @update:model-value="setApps" />
+                <span v-else class="px-2">{{ appLabels(leadApps) }}</span>
               </PanelField>
               <p v-if="lead.need" class="whitespace-pre-line px-3 text-p-base leading-relaxed text-ink-gray-7">{{ lead.need }}</p>
             </PanelSection>
             <PanelSection v-else title="Project">
+              <PanelField v-if="leadApps.length" label="Apps">
+                <AppsSelect v-if="appsEditable" :model-value="leadApps" variant="ghost" aria-label="Apps" @update:model-value="setApps" />
+                <span v-else class="px-2">{{ appLabels(leadApps) }}</span>
+              </PanelField>
               <PanelField v-for="row in projectRows" :key="row.label" :label="row.label">
                 <span class="px-2">{{ row.value }}</span>
               </PanelField>

@@ -121,8 +121,7 @@ const pickBrief = (source) => {
 // ⚠️ THE CRITERIA TRAVEL WITH IT. `BriefDetailsDialog` builds the partner's
 // copy of "who they asked for" from this object with `criteriaLines`, so a
 // snapshot missing them does not fail, it FALLS BACK: a business that
-// narrowed to Pune and asked for somebody on site would read as "based
-// anywhere in Asia, remote or on premises". A default is the most expensive
+// narrowed to Pune would read as "based anywhere in Asia". A default is the most expensive
 // kind of missing field, because nothing about it looks missing.
 //
 // Everything the intake asked except who they are — see `sharedAnswers`.
@@ -144,11 +143,13 @@ const snapshotBrief = (project, own, company) => ({
   projectId: project.id,
   project: project.name,
   scope: own.scope.trim(),
+  // The apps the work is in (values from PROJECT_APPS). Not `apps`: in a brief
+  // that's the systems they use today (`sharedAnswers`).
+  projectApps: [...(project.apps ?? [])],
   modules: project.modules ?? {},
   budget: own.budget,
   cities: [...(own.cities ?? [])],
   tiers: [...(own.tiers ?? [])],
-  workStyle: own.workStyle ?? '',
   timeline: own.timeline ?? '',
   // The region chips, so the partner reads the same "Based in" line.
   regions: [...(own.regions ?? [])],
@@ -356,13 +357,14 @@ export const useConnectStore = defineStore('connect', {
     // engine is wrong rather than that a partner was. `null` until answered,
     // then `{ ok, note }`.
     recoFeedback: null,
-    // Ratings the account has left, `{ projectId, partnerId, rating, text, at }`.
-    // Kept here and not on the project because a rating is about the PARTNER —
-    // it is published on their profile — and the project is only where it was
-    // collected.
-    feedback: [],
+    // Reviews written in this demo, `{ id, partnerId, projectId, author: { name,
+    // company, email }, apps, stars, recommend, text, at }`. About the PARTNER
+    // (published on their profile), so not kept on a project: most reviewers
+    // have none, a customer sent the profile link by their partner. One per
+    // person per partner; writing again replaces it.
+    writtenReviews: [],
     // ⚠️ UNPROMPTED, AND THE ONLY ONE OF THE THREE THAT IS. `recoFeedback` and
-    // `feedback` are both answers to a question Frappe chose to ask at a moment
+    // a review are both answers to a question Frappe chose to ask at a moment
     // Frappe chose — which is what makes them answerable, and what makes them
     // blind to anything nobody predicted. This is whatever somebody types into
     // the rail's Give feedback dialog, from any screen, at any time:
@@ -580,6 +582,11 @@ export const useConnectStore = defineStore('connect', {
     // edited since. Before anything is sent: the project's own, then the
     // account's draft for a custom project started from the recommendation
     // screen, which is where `broadcastBrief` reads it from too.
+    // Reviews written here for a partner, newest first; and the viewer's own.
+    reviewsWrittenFor: (state) => (partnerId) => state.writtenReviews.filter((r) => r.partnerId === partnerId),
+    myReviewOf: (state) => (partnerId) =>
+      state.writtenReviews.find((r) => r.partnerId === partnerId && r.author.email === state.viewer.email) ?? null,
+
     briefOf: (state) => (projectId) => {
       const project = state.projects.find((p) => p.id === projectId)
       if (!project) return emptyBrief()
@@ -592,7 +599,9 @@ export const useConnectStore = defineStore('connect', {
         : project.service === 'custom' && state.brief.scope
           ? state.brief
           : project.brief
-      return pickBrief(sent ?? own)
+      // The project's apps ride along, so every reader of the brief (the
+      // business's own Requirements included) shows the current ones.
+      return { ...pickBrief(sent ?? own), projectApps: [...(project.apps ?? [])] }
     },
 
     // The newest project's, because that is the one you were last thinking
@@ -862,7 +871,6 @@ export const useConnectStore = defineStore('connect', {
           budget: this.brief.budget || 'inr-2',
           cities: [...(this.brief.cities ?? [])],
           tiers: [...(this.brief.tiers ?? [])],
-          workStyle: this.brief.workStyle ?? '',
           timeline: this.brief.timeline || 'quarter',
           country: this.company.country,
           employees: this.company.employees,
@@ -1507,13 +1515,15 @@ export const useConnectStore = defineStore('connect', {
     updateRequirements(projectId, patch) {
       const project = this.projects.find((p) => p.id === projectId)
       if (!project || project.partnerId) return null
-      const before = this.briefOf(projectId)
-      const after = pickBrief({ ...before, ...patch })
+      // Apps live on the project, not in the brief, but change with it.
+      const before = { ...this.briefOf(projectId), projectApps: [...(project.apps ?? [])] }
+      const after = { ...pickBrief({ ...before, ...patch }), projectApps: [...(patch.projectApps ?? before.projectApps)] }
       if (!changedParts(before, after).length) return null
 
       const startedAt = Date.now()
       const recipients = this.requirementsRecipients(projectId)
-      project.brief = after
+      project.brief = pickBrief(after)
+      project.apps = after.projectApps
       const company = project.answers ?? this.company
       const next = snapshotBrief(project, after, company)
       let mine = null
@@ -1904,11 +1914,24 @@ export const useConnectStore = defineStore('connect', {
       this.productFeedback = [...this.productFeedback, { text: body, route, at: Date.now() }]
     },
 
-    recordFeedback({ projectId, partnerId, rating, text }) {
-      this.feedback = [
-        ...this.feedback.filter((f) => f.projectId !== projectId),
-        { projectId, partnerId, rating, text: text.trim(), at: Date.now() },
-      ]
+    // Publishing a review: the viewer's, replacing any earlier one of theirs
+    // for this partner.
+    publishReview({ partnerId, projectId = null, apps, stars, recommend, text }) {
+      const author = { name: this.viewer.name, company: this.viewer.company, email: this.viewer.email }
+      const earlier = this.myReviewOf(partnerId)
+      const review = {
+        id: earlier?.id ?? `rv-${Date.now()}`,
+        partnerId,
+        projectId: projectId ?? earlier?.projectId ?? null,
+        author,
+        apps: [...apps],
+        stars,
+        recommend: recommend ?? null,
+        text: text.trim(),
+        at: Date.now(),
+      }
+      this.writtenReviews = [review, ...this.writtenReviews.filter((r) => r.id !== review.id)]
+      return review
     },
 
     // What the two auth FORMS record. Neither signs anyone in: the code comes

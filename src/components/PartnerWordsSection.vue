@@ -12,14 +12,12 @@ import IconTogether from '~icons/lucide/wrench'
 // own account, which is what the title says, and what sets it apart from
 // "Featured by Frappe" below it, which Frappe writes.
 //
-// The firm's story is the first row, in the same grid as the two prompts, so the section has one shape and one right edge (no quote marks, no photo, no year:
-// the story can say when it started), then the two prompts every partner
-// answers. The prompts are the directory's, not the partner's, so they live
-// here rather than in the data. All three are required: a partner can't
-// publish with any of them empty, so the client view never has a gap.
-//
-// The leadership quote is no longer here; it closes the page
-// (`PartnerQuoteSection`).
+// The two prompts every partner answers come first, then the firm's story, in
+// the same grid so the section has one shape and one right edge (no year: the
+// story can say when it started). The prompts are the directory's, not the
+// partner's, so they live here rather than in the data. All three are
+// required: a partner can't publish with any of them empty, so the client view
+// never has a gap.
 //
 // ⚠️ Every story and answer is invented. See `FOUNDING` and `VISION` in
 // `data/partners.js`.
@@ -37,9 +35,9 @@ const story = computed(() => props.partner.founding?.story ?? [])
 const vision = computed(() => props.partner.vision ?? { why: '', together: { text: '' } })
 
 const rows = computed(() => [
-  { key: 'story', icon: IconStory, question: 'How we got here' },
   { key: 'why', icon: IconWhy, question: 'Why work with us and who should work with us', answer: vision.value.why },
   { key: 'together', icon: IconTogether, question: 'How we’ll work together', answer: vision.value.together?.text ?? '' },
+  { key: 'story', icon: IconStory, question: 'How we got here' },
 ])
 
 // ── Editing ──────────────────────────────────────────────────────────────────
