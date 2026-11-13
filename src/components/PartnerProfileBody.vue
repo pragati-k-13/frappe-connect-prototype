@@ -158,38 +158,31 @@ const featuredLine = computed(() => {
       </template>
     </PartnerReviewsSection>
 
-    <CompactSection v-if="editable && featured.length" data-anchor="featured" title="Featured by Frappe" :count="featured.length" :description="featuredLine">
-      <template #full><PartnerFeaturedSection :partner="p" headless /></template>
-    </CompactSection>
-    <PartnerFeaturedSection v-else-if="!editable" data-anchor="featured" :partner="p" />
-
-    <!-- ── Success stories: submitted on frappe.io ────────────────────── -->
-    <CompactSection
-      v-if="editable"
-      data-anchor="stories"
-      title="Success stories"
-      :count="stories.length"
-      :description="stories.length ? 'Published on frappe.io' : 'None published yet'"
-    >
-      <!-- Just the verb on a phone, so the title keeps its line. -->
-      <Button icon-right="lucide-external-link" href="https://frappe.io/partners">Submit<span class="max-sm:sr-only"> on frappe.io</span></Button>
-      <template v-if="stories.length" #full><PartnerStoriesSection :partner="p" headless /></template>
-    </CompactSection>
-    <PartnerStoriesSection v-else data-anchor="stories" :partner="p" />
-
-    <!-- ── Marketplace: Frappe Cloud's, last ─────────────────────────────
-         What a partner has published isn't about the engagement being
-         weighed up, so it comes after everything that is. -->
-    <CompactSection
-      v-if="editable"
-      data-anchor="marketplace"
-      title="Marketplace contributions"
-      :count="apps.length"
-      :description="apps.length ? 'Listed on the Frappe Cloud Marketplace' : 'Hidden from clients until you publish an app'"
-    >
-      <Button icon-right="lucide-external-link" href="https://frappecloud.com/marketplace">Manage<span class="max-sm:sr-only"> on Frappe Cloud</span></Button>
-      <template v-if="apps.length" #full><PartnerMarketplaceSection :partner="p" headless /></template>
-    </CompactSection>
-    <PartnerMarketplaceSection v-else data-anchor="marketplace" :partner="p" />
+    <!-- Editing: Success stories in full, since the partner picks which
+         one leads; then the two sections edited elsewhere, together as
+         compact rows. Stories move above Featured here (on the profile
+         Featured comes first) so those two rows stay one group. -->
+    <template v-if="editable">
+      <PartnerStoriesSection data-anchor="stories" :partner="p" editable @change="emit('change', $event)" />
+      <div class="divide-y divide-outline-gray-1">
+        <CompactSection v-if="featured.length" data-anchor="featured" class="pb-4" title="Featured by Frappe" :description="featuredLine" />
+        <!-- Frappe Cloud's, last: what a partner has published isn't about
+             the engagement being weighed up. -->
+        <CompactSection
+          data-anchor="marketplace"
+          class="pt-4 first:pt-0"
+          title="Marketplace contributions"
+          :description="apps.length ? `${apps.length} ${apps.length === 1 ? 'app' : 'apps'} listed` : 'Hidden until you publish an app'"
+        >
+          <!-- Just the verb on a phone, so the title keeps its line. -->
+          <Button icon-right="lucide-external-link" href="https://frappecloud.com/marketplace">Manage<span class="max-sm:sr-only"> on Frappe Cloud</span></Button>
+        </CompactSection>
+      </div>
+    </template>
+    <template v-else>
+      <PartnerFeaturedSection data-anchor="featured" :partner="p" />
+      <PartnerStoriesSection data-anchor="stories" :partner="p" />
+      <PartnerMarketplaceSection data-anchor="marketplace" :partner="p" />
+    </template>
   </div>
 </template>

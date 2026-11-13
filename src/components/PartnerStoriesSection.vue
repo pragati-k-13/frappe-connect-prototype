@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { Badge, Button } from 'frappe-ui'
+import { Badge, Button, Dropdown } from 'frappe-ui'
 import { List, ListCell, ListRow, ListRows } from 'frappe-ui/list'
 import { storiesFor } from '../data/stories'
 
@@ -14,23 +14,49 @@ import { storiesFor } from '../data/stories'
 // `data/stories.js`.
 const props = defineProps({
   partner: { type: Object, required: true },
-  // Inside a compact row on the partner's own page, which already shows the
-  // title: the section renders without its own heading.
-  headless: { type: Boolean, default: false },
+  // The partner's own page in edit mode: each row's menu features or moves
+  // that story.
+  editable: { type: Boolean, default: false },
 })
+const emit = defineEmits(['change'])
 
-const stories = computed(() => storiesFor(props.partner))
-// The first story the partner lists leads, its headline large; the rest
-// follow as rows.
+// In the partner's order once they've set one (`storyOrder`, story ids),
+// otherwise frappe.io's. The first leads, its headline large; the rest
+// follow as rows. Featuring a story is moving it to the top.
+const stories = computed(() => {
+  const all = storiesFor(props.partner)
+  const order = props.partner.storyOrder ?? []
+  const rank = (s) => (order.includes(s.id) ? order.indexOf(s.id) : order.length + all.indexOf(s))
+  return [...all].sort((a, b) => rank(a) - rank(b))
+})
 const featured = computed(() => stories.value[0] ?? null)
 const rest = computed(() => stories.value.slice(1))
+function move(from, to) {
+  const ids = stories.value.map((s) => s.id)
+  const [id] = ids.splice(from, 1)
+  ids.splice(to, 0, id)
+  emit('change', { storyOrder: ids })
+}
+// `i` is the row's place among all stories (the lead is 0), so "Move up" on
+// the first row would make it the lead: that's "Feature this story" instead.
+const rowMenu = (item) => {
+  const i = stories.value.indexOf(item)
+  return [
+    { label: 'Feature this story', icon: 'lucide-star', onClick: () => move(i, 0) },
+    i > 1 && { label: 'Move up', icon: 'lucide-chevron-up', onClick: () => move(i, i - 1) },
+    i < stories.value.length - 1 && { label: 'Move down', icon: 'lucide-chevron-down', onClick: () => move(i, i + 1) },
+    { label: 'Read story', icon: 'lucide-external-link', onClick: () => open(item.href) },
+  ].filter(Boolean)
+}
 const initials = (name) => name.split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
 const open = (href) => window.open(href, '_blank', 'noopener')
 </script>
 
 <template>
   <section>
-    <h2 v-if="!headless" class="flex items-center gap-2 text-base font-semibold text-ink-gray-8">
+    <!-- No "Submit a story" here when editing: the client logos section
+         near the top carries it, and one is enough. -->
+    <h2 class="flex items-center gap-2 text-base font-semibold text-ink-gray-8">
       Success stories
       <Badge v-if="stories.length" :label="String(stories.length)" />
     </h2>
@@ -41,7 +67,7 @@ const open = (href) => window.open(href, '_blank', 'noopener')
          from the story's opening says who they are. No panel, no fill: size
          and space set it apart from the rows. One subtle button, since the
          story lives on frappe.io. -->
-    <article v-if="featured" :class="!headless && 'mt-6'">
+    <article v-if="featured" class="mt-6">
       <!-- Scaled down only, never up, so a small logo never blurs. -->
       <img
         v-if="featured.client.src"
@@ -50,7 +76,7 @@ const open = (href) => window.open(href, '_blank', 'noopener')
         class="h-7 max-w-36 object-contain object-left"
       />
       <p v-else class="text-base font-medium text-ink-gray-7">{{ featured.client.name }}</p>
-      <h3 class="mt-3 max-w-prose text-2xl font-semibold text-ink-gray-9">{{ featured.title }}</h3>
+      <h3 class="mt-3 max-w-prose text-xl font-semibold text-ink-gray-9">{{ featured.title }}</h3>
       <p v-if="featured.description" class="mt-1 max-w-prose text-p-base text-ink-gray-6">{{ featured.description }}</p>
       <Button class="mt-3" label="Read the story" @click="open(featured.href)" />
     </article>
@@ -64,7 +90,7 @@ const open = (href) => window.open(href, '_blank', 'noopener')
            blurs. The files are the originals from frappe.io, uncropped. A firm
            with no usable logo
            gets its initials in the same box. -->
-      <List :columns="['3.5rem', 'minmax(0,1fr)']" :row-height="72" class="list-gap-3 list-row-px-5">
+      <List :columns="editable ? ['3.5rem', 'minmax(0,1fr)', 'auto'] : ['3.5rem', 'minmax(0,1fr)']" :row-height="72" class="list-gap-3 list-row-px-5">
         <ListRows :items="rest" v-slot="{ item }">
           <ListRow :on-click="() => open(item.href)">
             <ListCell>
@@ -77,6 +103,15 @@ const open = (href) => window.open(href, '_blank', 'noopener')
               <div class="flex min-w-0 flex-col gap-1">
                 <p class="truncate text-base font-medium text-ink-gray-8">{{ item.title }}</p>
                 <p v-if="item.segment" class="text-p-base text-ink-gray-6">{{ item.segment }}</p>
+              </div>
+            </ListCell>
+            <!-- Editing: feature this story instead, like "Make cover" on
+                 media. The click stays here rather than opening the story. -->
+            <ListCell v-if="editable">
+              <div @click.stop>
+                <Dropdown :options="rowMenu(item)">
+                  <Button variant="ghost" class="data-[state=open]:bg-surface-gray-3" icon="lucide-ellipsis" :aria-label="`Actions for ${item.client.name} story`" />
+                </Dropdown>
               </div>
             </ListCell>
           </ListRow>

@@ -15,9 +15,6 @@ import { contributionsFor } from '../data/marketplace'
 // placeholder data in the mock after the reviews.
 const props = defineProps({
   partner: { type: Object, required: true },
-  // Inside a compact row on the partner's own page, which already shows the
-  // title: the section renders without its own heading.
-  headless: { type: Boolean, default: false },
 })
 
 const apps = computed(() => contributionsFor(props.partner))
@@ -41,11 +38,11 @@ const apps = computed(() => contributionsFor(props.partner))
        narrower than the ones above it reads as a different KIND of thing, and
        this one isn't. The gap in the row is the row's problem to solve, not the
        section's. -->
-  <section v-if="apps.length" :class="!headless && 'mt-24'">
+  <section v-if="apps.length" class="mt-24">
     <!-- Title and count exactly as in "Success stories" — same size, weight and
          Badge — because they're the same kind of thing: a named collection with
          a length. -->
-    <h2 v-if="!headless" class="flex items-center gap-2 text-base font-semibold text-ink-gray-8">
+    <h2 class="flex items-center gap-2 text-base font-semibold text-ink-gray-8">
       Marketplace contributions
       <Badge theme="gray" variant="subtle" size="md" :label="`${apps.length}`" />
     </h2>

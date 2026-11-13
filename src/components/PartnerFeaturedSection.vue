@@ -10,9 +10,6 @@ import { featuredFor } from '../data/featured'
 // Read-only everywhere, the partner's own page included: Frappe writes it.
 const props = defineProps({
   partner: { type: Object, required: true },
-  // Inside a compact row on the partner's own page, which already shows the
-  // title: the section renders without its own heading.
-  headless: { type: Boolean, default: false },
 })
 
 const items = computed(() => featuredFor(props.partner.id))
@@ -23,8 +20,8 @@ const open = (href) => window.open(href, '_blank', 'noopener')
 
 <template>
   <section v-if="items.length">
-    <h2 v-if="!headless" class="text-base font-semibold text-ink-gray-8">Featured by Frappe</h2>
-    <div class="-mx-3" :class="!headless && 'mt-3'">
+    <h2 class="text-base font-semibold text-ink-gray-8">Featured by Frappe</h2>
+    <div class="-mx-3 mt-3">
       <List :columns="['10rem', 'minmax(0,1fr)']" :row-height="108" class="list-gap-3">
         <ListRows :items="items" v-slot="{ item }">
           <ListRow :on-click="() => open(item.href)">
