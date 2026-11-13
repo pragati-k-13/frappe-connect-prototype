@@ -12,12 +12,12 @@
   Item: { id, from: { name, image? }, action, target, text?, time, read, route }
   `text` replaces the "<from> <action> <target>" line.
 
-  Changed from CRM: width 352px (DESIGN.md), shadow-xl token clipped to the right edge (CRM's
+  Changed from CRM: shadow-xl token clipped to the right edge (CRM's
   shadow is right-only; unclipped it falls back over the rail), ScrollArea, size-1.5 dot,
   plain text instead of server HTML, empty state without a description.
 -->
 <template>
-  <div v-if="open" ref="panel" class="absolute left-full top-0 z-20 h-screen w-[22rem] bg-surface-base shadow-xl [clip-path:inset(0_-3rem_0_0)]">
+  <div v-if="open" ref="panel" class="absolute left-full top-0 z-20 h-screen w-[25rem] bg-surface-base shadow-xl [clip-path:inset(0_-3rem_0_0)]">
     <div class="flex h-screen flex-col text-ink-gray-9">
       <div class="flex items-center justify-between">
         <div class="px-4 pb-3 pt-4 text-lg-medium text-ink-gray-8">Notifications</div>
