@@ -684,3 +684,27 @@ textarea[data-slot='control'] {
 .fc-tabs-scroll::-webkit-scrollbar {
   display: none;
 }
+
+/* ⚠️ A QUOTE ROW AFTER "SHARE DETAILS" — see `ProjectBids`, which slides the
+   rows to their new places. Here, the moved row's background settles from
+   gray to nothing, so the eye lands on where it went. Opacity on a layer
+   behind the content: the text never changes colour. Kept under reduced
+   motion — a fade aids comprehension; only the slide is dropped. */
+.fc-row-settle {
+  isolation: isolate;
+}
+.fc-row-settle::after {
+  content: '';
+  position: absolute;
+  /* Bled 8px past the row, so the gray doesn't sit flush against the logo
+     and the More button; the column's padding holds it. */
+  inset: 0 -8px;
+  z-index: -1;
+  pointer-events: none;
+  @apply rounded-4 bg-surface-gray-2;
+  animation: fc-row-settle 1200ms ease-out forwards;
+}
+@keyframes fc-row-settle {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}

@@ -1,6 +1,6 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
-import { Button, Checkbox, Dialog, ErrorMessage, TextInput } from 'frappe-ui'
+import { computed, ref, watch } from 'vue'
+import { Button, Checkbox, Dialog, ErrorMessage, Textarea } from 'frappe-ui'
 
 // Hiring a partner: the terms, then the commitment, then one question.
 //
@@ -46,12 +46,12 @@ const props = defineProps({
 
 const emit = defineEmits(['update:open', 'hire', 'why', 'decline'])
 
-// ⚠️ ONE-TAP, FOUR OPTIONS, THEN OTHER. It is the second of the two feedback
+// ⚠️ FOUR OPTIONS AND A NOTE. It is the second of the two feedback
 // moments in a project's life — the other is the rating at go-live — and what
 // it buys is the only signal saying which of price, speed, profile and
 // responsiveness actually decides these. That is what the comparison table
-// should be sorted by and currently is not. The four stay countable; Other
-// opens one line of free text for the reasons they don't cover.
+// should be sorted by and currently is not. The four stay countable; the note
+// takes the reasons they don't cover.
 const WHY = ['Price', 'Timeline', 'Their profile', 'How they replied']
 
 const name = computed(() => props.partner?.name ?? 'this partner')
@@ -67,30 +67,39 @@ const terms = computed(() => [
     title: 'Scope, price and timeline are as quoted',
     text: `Changes are agreed between you and ${name.value}.`,
   },
+  // ⚠️ HOSTING IS OPTIONAL, so the term says the choice, not one outcome:
+  // through the partner, on your own Frappe Cloud account, or elsewhere.
   {
-    title: 'Hosting is billed through your partner',
-    text: `Frappe Cloud bills ${name.value}, who bills you.`,
+    title: 'Hosting is your choice',
+    text: `Through ${name.value}, your own Frappe Cloud account, or elsewhere.`,
   },
   {
     title: 'Your site stays private',
     text: 'Frappe can see that this project exists, not what is in your site.',
   },
-])
+  // ⚠️ Hire is on every quote, so it can be the first time this firm learns
+  // who you are. Said here, only then.
+  props.bid && props.bid.state !== 'shortlisted' && {
+    title: `${name.value} gets your company details`,
+    text: 'Your company name and contact details are shared with the hire.',
+  },
+].filter(Boolean))
 
 const agreed = ref(false)
 const step = ref('terms')
 // Hire stays enabled: a disabled button can't say why. Pressing it without
 // agreeing says so under the checkbox instead.
 const needsAgreement = ref(false)
-const other = ref(false)
-const otherText = ref('')
+// ⚠️ PICK, THEN AN OPTIONAL NOTE, THEN ONE BUTTON — the review dialog's
+// shape. The chips used to send on tap with a ghost Skip as the only button,
+// and Other swapped in a field; now the chips toggle (a choice usually has
+// more than one reason), the note is always there, and Send is the one CTA.
+// The × is the way out.
+const reasons = ref([])
+const note = ref('')
 watch(agreed, (v) => v && (needsAgreement.value = false))
-const otherForm = ref(null)
-const pickOther = async () => {
-  other.value = true
-  await nextTick()
-  otherForm.value?.querySelector('input')?.focus()
-}
+const toggle = (w) =>
+  (reasons.value = reasons.value.includes(w) ? reasons.value.filter((r) => r !== w) : [...reasons.value, w])
 
 // Reset on open, not on close: a dialog that empties while it is fading out is
 // the flash this codebase has now fixed three times.
@@ -101,8 +110,8 @@ watch(
       agreed.value = false
       step.value = 'terms'
       needsAgreement.value = false
-      other.value = false
-      otherText.value = ''
+      reasons.value = []
+      note.value = ''
     }
   },
 )
@@ -116,8 +125,9 @@ const hire = () => {
   step.value = 'why'
 }
 
-const answer = (why) => {
-  if (why) emit('why', why)
+// Enabled always, like every primary here: an empty answer just closes.
+const send = () => {
+  if (reasons.value.length || note.value.trim()) emit('why', { reasons: reasons.value, note: note.value.trim() })
   emit('update:open', false)
 }
 </script>
@@ -125,7 +135,7 @@ const answer = (why) => {
 <template>
   <Dialog
     :model-value="open"
-    :title="step === 'terms' ? `Hire ${name}` : 'What made you choose them?'"
+    :title="step === 'terms' ? `Hire ${name}` : `What made you choose ${name}?`"
     @update:model-value="emit('update:open', $event)"
   >
     <!-- ⚠️ The DEFAULT slot, not `#body-content`: this version of frappe-ui's
@@ -161,20 +171,26 @@ const answer = (why) => {
       </template>
 
       <template v-else>
-        <div class="flex flex-wrap gap-2">
-          <Button v-for="w in WHY" :key="w" :label="w" @click="answer(w)" />
-          <Button label="Other" @click="pickOther" />
-        </div>
-        <!-- Always laid out, hidden until Other, so the dialog keeps its size. -->
-        <form ref="otherForm" class="mt-4" :class="other ? '' : 'invisible'" @submit.prevent="otherText.trim() && answer(otherText.trim())">
-          <TextInput
-            v-model="otherText"
-            size="md"
-            placeholder="They already know our industry"
-            aria-label="What made you choose them"
-            :tabindex="other ? 0 : -1"
+        <div class="flex flex-wrap gap-2" role="group" aria-label="Reasons">
+          <!-- Selected is a check and a darker gray, never solid: Send is the
+               one solid button in this dialog. -->
+          <Button
+            v-for="w in WHY"
+            :key="w"
+            :label="w"
+            :icon-left="reasons.includes(w) ? 'lucide-check' : undefined"
+            :class="reasons.includes(w) ? '!bg-surface-gray-4' : ''"
+            :aria-pressed="reasons.includes(w)"
+            @click="toggle(w)"
           />
-        </form>
+        </div>
+        <Textarea
+          v-model="note"
+          class="mt-4"
+          :rows="3"
+          placeholder="Anything else that helped you decide"
+          aria-label="Anything else"
+        />
       </template>
     </template>
 
@@ -193,13 +209,10 @@ const answer = (why) => {
             label="Decline request"
             @click="emit('decline'); emit('update:open', false)"
           />
-          <Button v-else variant="ghost" label="Cancel" @click="emit('update:open', false)" />
+          <Button v-else label="Cancel" @click="emit('update:open', false)" />
           <Button variant="solid" label="Hire" @click="hire" />
         </template>
-        <template v-else>
-          <Button variant="ghost" label="Skip" @click="answer(null)" />
-          <Button v-if="other" variant="solid" label="Send" :disabled="!otherText.trim()" @click="answer(otherText.trim())" />
-        </template>
+        <Button v-else variant="solid" label="Send" @click="send" />
       </div>
     </template>
   </Dialog>

@@ -97,7 +97,6 @@ function setAccount(account) {
 // option, minus on the rest.
 const check = (role) => (store.role === role ? 'lucide-check' : 'lucide-minus')
 const checkAccount = (account) => (store.account === account ? 'lucide-check' : 'lucide-minus')
-const checkImplementer = (mode) => (store.packImplementer === mode ? 'lucide-check' : 'lucide-minus')
 const checkTier = (tier) => (store.partnerTier === tier ? 'lucide-check' : 'lucide-minus')
 const checkPartnerRole = (r) => (store.partnerRole === r ? 'lucide-check' : 'lucide-minus')
 const checkPartnership = (s) => (store.partnershipState === s ? 'lucide-check' : 'lucide-minus')
@@ -176,6 +175,17 @@ const leadEvents = computed(() => {
 const hireAskable = computed(
   () => store.role === 'business' && project.value?.service === 'custom' && !project.value.partnerId && !project.value.hireRequest,
 )
+// The partner's side of finishing: they move the customer to Live in their
+// own Customers page, which reaches the business as a confirm notice. The two
+// sides are separate demos, so the menu plays the partner here.
+const liveMarkable = computed(
+  () =>
+    store.role === 'business' &&
+    project.value?.service === 'custom' &&
+    Boolean(project.value.partnerId) &&
+    !project.value.completedAt &&
+    !project.value.liveAt,
+)
 const customer = computed(() => (route.name === 'customer' ? account.customers.find((c) => c.id === route.params.id) : null))
 function customerWrites() {
   const t = threadFor(customer.value, leads.value, account)
@@ -216,30 +226,6 @@ const options = computed(() => [
               label: 'Frappe Connect',
               icon: 'lucide-log-in',
               onClick: () => startFrom('/connect'),
-            },
-          ],
-        },
-      ]
-    : []),
-  // ⚠️ WHO IMPLEMENTS STARTER PACKS, and it is a model rather than a viewer:
-  // this branch has Frappe's own team on every pack; partners implementing
-  // them is main's model, and where the product may go back to. Same screens
-  // either way — who is assigned at payment, and the words that name them.
-  // Re-seeds the signed-in personas; see `setPackImplementer`.
-  ...(store.role === 'business'
-    ? [
-        {
-          group: 'Starter Packs implemented by',
-          options: [
-            {
-              label: 'Frappe',
-              icon: checkImplementer('frappe'),
-              onClick: () => store.setPackImplementer('frappe'),
-            },
-            {
-              label: 'Partner',
-              icon: checkImplementer('partner'),
-              onClick: () => store.setPackImplementer('partner'),
             },
           ],
         },
@@ -328,6 +314,20 @@ const options = computed(() => [
               label: 'Software@Work asks to be hired',
               icon: 'lucide-handshake',
               onClick: () => store.demoHireRequest(project.value.id, 'software-work'),
+            },
+          ],
+        },
+      ]
+    : []),
+  ...(liveMarkable.value
+    ? [
+        {
+          group: 'This project',
+          options: [
+            {
+              label: 'Partner marks it live',
+              icon: 'lucide-circle-check',
+              onClick: () => store.markProjectLive(project.value.id),
             },
           ],
         },

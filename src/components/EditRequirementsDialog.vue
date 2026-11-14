@@ -18,7 +18,9 @@ const props = defineProps({
   open: { type: Boolean, default: false },
   projectId: { type: String, default: null },
 })
-const emit = defineEmits(['update:open', 'saved'])
+// `cancel` lets the page go back to where Edit was opened from — the
+// requirements view — rather than dropping the person on the page.
+const emit = defineEmits(['update:open', 'saved', 'cancel'])
 
 const store = useConnectStore()
 // Held from the moment the dialog opens, so its text doesn't change while it
@@ -106,23 +108,23 @@ function save() {
             :brief="form"
             :answers="answers"
             :total="false"
+            :counts="false"
             @patch="Object.assign(form, $event)"
           />
         </form>
       </ScrollArea>
     </template>
     <template #actions>
-      <!-- What saving does, before it happens: who it goes to, what it asks of
-           partners who quoted, and the hire request it declines. -->
+      <!-- What saving does, before it happens. Who it goes to is on the button
+           ("Send to 12 partners"), so the line says only what the button
+           can't: what it asks of partners who quoted, and the hire request it
+           declines. -->
       <div class="space-y-1 text-p-sm text-ink-gray-6">
-        <p>
-          Goes to all {{ count }} {{ count === 1 ? 'partner' : 'partners' }} who have these
-          requirements. Partners who quoted will be asked to confirm or update their quote.
-        </p>
+        <p>Partners who quoted will confirm or update their quote.</p>
         <p v-if="requester">Saving declines {{ requester.name }}’s hire request. They can send a new one.</p>
       </div>
       <div class="mt-4 flex justify-end gap-2">
-        <Button variant="subtle" size="sm" label="Cancel" @click="emit('update:open', false)" />
+        <Button variant="subtle" size="sm" label="Cancel" @click="emit('update:open', false); emit('cancel')" />
         <Button variant="solid" size="sm" :label="label" @click="save" />
       </div>
     </template>
