@@ -1233,6 +1233,18 @@ export const useConnectStore = defineStore('connect', {
       if (!project) return
       if (!stagesFor(project.service).some((s) => s.key === stageKey)) return
       project.stage = stageKey
+      // ⚠️ ON CUSTOM WORK THE PAGE READS THE PARTNER, NOT THE STAGE: no partner
+      // shows the quotes, a partner shows the hired state. So stepping the demo
+      // has to move the partner with it, or "Choosing a partner" changes a
+      // label and leaves the page on the hired screen.
+      if (project.service !== 'custom') return
+      if (stageKey === 'choosing') {
+        Object.assign(project, { partnerId: null, termsAt: null, liveAt: null, completedAt: null })
+      } else if (!project.partnerId) {
+        const bids = project.bids ?? []
+        const pick = bids.find((b) => b.state === 'shortlisted') ?? bids.find((b) => b.state !== 'not-interested')
+        if (pick) Object.assign(project, { partnerId: pick.partnerId, termsAt: Date.now() })
+      }
     },
 
     // The other way a stage moves: forward by one, because the work of this one
@@ -1289,7 +1301,35 @@ export const useConnectStore = defineStore('connect', {
 
     completeProject(id) {
       const project = this.projects.find((p) => p.id === id)
-      if (project && !project.completedAt) project.completedAt = Date.now()
+      if (!project || project.completedAt) return
+      project.completedAt = Date.now()
+      project.liveAt = null
+    },
+
+    // ⚠️ THE PARTNER SAYS WHEN THE WORK IS DONE; the business confirms it. A
+    // partner moving the customer to Live on their side sets `liveAt`, and the
+    // business's project page asks them to confirm. In this prototype the two
+    // sides are separate demos, so the Demo menu stands in for the partner.
+    markProjectLive(id) {
+      const project = this.projects.find((p) => p.id === id)
+      if (!project?.partnerId || project.completedAt) return
+      project.liveAt = Date.now()
+    },
+
+    // "Not yet" sends the partner a note in their thread and clears the
+    // request. The partner's stage is theirs; nothing here moves it back.
+    notLiveYet(id) {
+      const project = this.projects.find((p) => p.id === id)
+      if (!project) return
+      project.liveAt = null
+      const thread = this.threads.find((t) => t.partnerId === project.partnerId)
+      thread?.messages.push({
+        id: `m-notyet-${Date.now()}`,
+        from: 'you',
+        at: Date.now(),
+        kind: 'text',
+        body: `${project.name} isn't done yet on our side. We'll confirm once it is.`,
+      })
     },
 
     advanceStage(id) {

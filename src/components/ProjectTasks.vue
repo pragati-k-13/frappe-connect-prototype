@@ -3,7 +3,7 @@ import { Button, Checkbox } from 'frappe-ui'
 import { List, ListCell, ListRow } from 'frappe-ui/list'
 import IconCheck from '~icons/lucide/check'
 import IconCircleDashed from '~icons/lucide/circle-dashed'
-import IconChevronRight from '~icons/lucide/chevron-right'
+import IconExternal from '~icons/lucide/arrow-up-right'
 import IconCopy from '~icons/lucide/copy'
 import { isTaskDone } from '../data/project'
 
@@ -20,6 +20,8 @@ const props = defineProps({
   project: { type: Object, required: true },
   // Facts the page knows and the data layer cannot reach. See `isTaskDone`.
   context: { type: Object, default: () => ({}) },
+  // When the section header already says "Optional", the rows don't repeat it.
+  hideOptional: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['act', 'terms'])
@@ -66,16 +68,17 @@ const ACTION_LABELS = {
               <span v-if="!isDone(t)" class="ms-1 text-ink-red-5" aria-hidden="true">*</span>
             </template>
             <template v-else>{{ t.label }}</template>
-            <span v-if="t.optional" class="ms-1 font-normal text-ink-gray-5">· Optional</span>
+            <span v-if="t.optional && !hideOptional" class="ms-1 font-normal text-ink-gray-5">· Optional</span>
             <span class="sr-only">{{ isDone(t) ? ', done' : ', not done yet' }}</span>
           </p>
           <p v-if="t.hint" class="mt-1 text-p-base text-ink-gray-6">{{ t.hint }}</p>
         </div>
       </ListCell>
 
-      <!-- The control that finishes it. Hidden once done — the offer is spent. -->
+      <!-- The control that finishes it. Hidden once done — the offer is spent —
+           except Copy: the code is needed again whenever it is entered. -->
       <ListCell class="justify-end">
-        <template v-if="!isDone(t)">
+        <template v-if="!isDone(t) || t.action === 'copy-code'">
           <Button
             v-if="t.action === 'copy-code'"
             size="sm"
@@ -92,7 +95,9 @@ const ACTION_LABELS = {
             :label="ACTION_LABELS[t.action]"
             @click="emit('act', t)"
           >
-            <template #suffix><IconChevronRight class="size-3.5" /></template>
+            <!-- Opens Frappe Cloud in a new tab: an outward arrow, not a
+                 drill-down chevron. -->
+            <template #suffix><IconExternal class="size-3.5" /></template>
           </Button>
         </template>
       </ListCell>

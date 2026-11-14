@@ -6,7 +6,7 @@ import IconMessage from '~icons/lucide/message-square'
 import IconReview from '~icons/lucide/star'
 import IconBook from '~icons/lucide/book-open'
 import IconContact from '~icons/lucide/message-square-text'
-import IconHelp from '~icons/lucide/circle-help'
+import IconFeedback from '~icons/lucide/message-circle'
 import IconExpand from '~icons/lucide/maximize-2'
 // Opens a dialog: a panel opening over the page — not a chevron (drilling
 // down) and not maximize (frappe-ui's image viewer uses it for full screen).
@@ -126,7 +126,7 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
     <section v-if="partner" class="border-b border-outline-gray-1 px-5 py-5">
       <!-- Who implements, what, and for how much. Who is the first row, keyed
            like the rest. -->
-      <h3 class="text-base font-medium text-ink-gray-7">Implementation</h3>
+      <h3 class="text-base font-medium text-ink-gray-8">Implementation</h3>
       <dl class="mt-4 grid grid-cols-[112px_minmax(0,1fr)] gap-y-3 text-base">
         <dt class="self-center text-ink-gray-5">{{ frappe ? 'Implementer' : 'Partner' }}</dt>
         <!-- ⚠️ THE PARTNER'S ACTIONS SIT ON THEIR ROW: message them, or open
@@ -218,7 +218,7 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
     </section>
 
     <section class="border-b border-outline-gray-1 px-5 py-5">
-      <h3 class="text-base font-medium text-ink-gray-7">Project</h3>
+      <h3 class="text-base font-medium text-ink-gray-8">Project</h3>
       <dl class="mt-4 grid grid-cols-[112px_minmax(0,1fr)] gap-y-3 text-base">
         <!-- `-mx-2 -my-1.5` takes back the ghost input's padding and height,
              so its text starts on the value column and the row keeps the
@@ -279,8 +279,11 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
     </section>
 
     <section class="px-5 py-5">
-      <h3 class="text-base font-medium text-ink-gray-8">Resources</h3>
-      <div class="-ms-2 mt-3 flex flex-col items-start gap-1">
+      <!-- ⚠️ "Resources" only once it holds resources. With the handbook and
+           Contact Frappe hidden, the section was a heading over one feedback
+           button that is not a resource. -->
+      <h3 v-if="SHOW_HANDBOOK || SHOW_CONTACT" class="mb-3 text-base font-medium text-ink-gray-8">Resources</h3>
+      <div class="-ms-2 flex flex-col items-start gap-1">
         <Button v-if="SHOW_HANDBOOK" variant="ghost" label="Implementation handbook" :link="HANDBOOK">
           <template #prefix><IconBook class="size-4 text-ink-gray-6" /></template>
         </Button>
@@ -288,7 +291,7 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
           <template #prefix><IconContact class="size-4 text-ink-gray-6" /></template>
         </Button>
         <Button variant="ghost" label="Give feedback" @click="emit('feedback')">
-          <template #prefix><IconHelp class="size-4 text-ink-gray-6" /></template>
+          <template #prefix><IconFeedback class="size-4 text-ink-gray-6" /></template>
         </Button>
       </div>
     </section>

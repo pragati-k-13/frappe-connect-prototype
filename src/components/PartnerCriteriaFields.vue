@@ -17,6 +17,10 @@ const props = defineProps({
   // The running "N partners left" under the chips. Off where the surface
   // around these fields already shows the number; the per-chip counts stay.
   total: { type: Boolean, default: true },
+  // The per-chip counts. Off where the picks no longer choose who receives
+  // anything — editing requirements already sent, which go to the same
+  // partners whatever is picked here. There a count reads as a filter it isn't.
+  counts: { type: Boolean, default: true },
 })
 const emit = defineEmits(['patch'])
 
@@ -60,7 +64,7 @@ const toggleIn = (key, value) => {
               v-for="city in INDIA_CITIES"
               :key="city"
               :label="city"
-              :count="countFor('cities', city)"
+              :count="counts ? countFor('cities', city) : null"
               :selected="brief.cities.includes(city)"
               @toggle="toggleIn('cities', city)"
             />
@@ -74,7 +78,7 @@ const toggleIn = (key, value) => {
               v-for="t in TIERS"
               :key="t.value"
               :label="t.label"
-              :count="countFor('tiers', t.value)"
+              :count="counts ? countFor('tiers', t.value) : null"
               :selected="brief.tiers.includes(t.value)"
               @toggle="toggleIn('tiers', t.value)"
             />

@@ -13,7 +13,8 @@ Requirements are a snapshot: what partners quoted against. Today they can only b
 ## Scope of an edit
 
 - An edit always changes the project's requirements, for every partner who has them. There is no "this partner only" option; anything for one partner goes as a message in that thread.
-- The editor says so before saving: "Goes to all 6 partners who have these requirements. Partners who quoted will be asked to confirm or update their quote." The save button reads "Send to 6 partners", using the real count. No confirmation dialog after.
+- The save button says who it goes to: "Send to 6 partners", using the real count. One line above it says what it asks: "Partners who quoted will confirm or update their quote." No confirmation dialog after. (Changed 2026-11-14: the line used to repeat the count the button already shows.)
+- The city and tier chips carry no counts here. An edit goes to the same partners whatever is picked, so the picks only change what the requirements say; a count made them read as a recipient filter.
 - Recipients: every partner with the requirements (no reply yet, quoted, Interested) and partners who declined. Not partners the business marked Not interested.
 - Fields: project fields only — the written text, budget, timeline, who they're looking for. Modules aren't editable yet: the app has no modules picker. Company facts (size, how they run today, what they want fixed) stay in Settings and aren't edited here.
 - The editor is its own Edit requirements dialog with the same fields a draft edits on its page (budget, description, criteria chips). Today's "Edit draft" dialog edits the name and company answers, so it isn't reused. Opened from the Requirements dialog in a thread, and from the project page's ⋯ menu or Requirements dialog.
