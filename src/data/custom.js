@@ -117,6 +117,14 @@ export const emptyBrief = () => ({
   regions: [],
   countries: [],
   geoAsked: false,
+  // ⚠️ THIS PROJECT'S STARTING POINT, not the company's: how they handle this
+  // work today (one of `OPERATIONS`) and what they want fixed (`PROBLEMS`).
+  // They were company answers in Settings, but a warehouse project and a
+  // payroll project start from different places, and a company-wide answer
+  // goes stale once a project lands. Empty means "as the company answered",
+  // so a new project starts prefilled — see `snapshotBrief`.
+  operations: '',
+  problems: [],
 })
 
 // Is a partner inside the chips the brief picked? `null` when none are picked,
@@ -197,6 +205,30 @@ export const criteriaSentence = (company, brief) => {
   const what = group ? `offers services for ${group.label}` : 'works in any industry'
   const tier = tiers.length ? `${listOf(tiers)} tier` : 'Any tier'
   return `A partner ${where} who ${what}. ${tier}.`
+}
+
+// The same criteria, short, for a label-and-value row: "Any tier, anywhere in
+// Asia Pacific", "Gold or Silver, in Pune or Mumbai". The industry is left
+// out — it is the company's own, and the row beside it says so.
+export const criteriaShort = (company, brief) => {
+  const region = REGIONS.find((r) => r.value === REGION_OF[company?.country])
+  const tiers = TIERS.filter((t) => (brief?.tiers ?? []).includes(t.value)).map((t) => t.label)
+  const cities = brief?.cities ?? []
+  const geo = geoPicked(brief)
+  const geoLabels = geo
+    ? GEO_CHOICES.filter((c) => (c.country ? geo.countries.includes(c.country) : geo.regions.includes(c.region))).map(
+        (c) => c.label,
+      )
+    : []
+  const or = (items) => (items.length > 1 ? `${items.slice(0, -1).join(', ')} or ${items.at(-1)}` : items[0])
+  const where = cities.length
+    ? `in ${or(cities)}`
+    : geoLabels.length
+      ? `in ${or(geoLabels)}`
+      : anywhere(brief)
+        ? 'anywhere'
+        : `anywhere in ${region?.label ?? 'your region'}`
+  return `${tiers.length ? or(tiers) : 'Any tier'}, ${where}`
 }
 
 // "Pune", "Pune and Mumbai", "Pune, Mumbai and Kochi".

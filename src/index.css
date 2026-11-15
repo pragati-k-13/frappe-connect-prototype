@@ -313,6 +313,20 @@
   flex-direction: column;
 }
 
+/* Editing requirements: the footer's 16px is the whole gap under the fields,
+   not the body's 24px on top of it. */
+.dialog-content > div.pb-6.pt-5:has(.fc-scroll-tight) {
+  padding-bottom: 0;
+}
+
+/* More below the fold: the last 32px of the scroll area fades out, so a field
+   cut mid-way reads as "keeps going". Off at the end, so nothing is dimmed
+   once you're there. */
+.fc-scroll-more [data-slot='scroll-area-viewport'] {
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 2rem), transparent);
+  mask-image: linear-gradient(to bottom, black calc(100% - 2rem), transparent);
+}
+
 /* ⚠️ PAGE WIDTHS ARE CONTENT WIDTHS, with the padding added outside them.
    Pages used to be `max-w-[800px] px-5 lg:px-10` — a box whose padding grew at
    `lg`, so the content was 760px on a mid-size window and 720px on a large one:

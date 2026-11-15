@@ -159,6 +159,9 @@ const snapshotBrief = (project, own, company) => ({
   employees: company.employees,
   segments: company.segments,
   ...sharedAnswers(company),
+  // The project's own answers win; the company's fill in until it has them.
+  operations: own.operations || company.operations || '',
+  problems: own.problems?.length ? [...own.problems] : [...(company.problems ?? [])],
 })
 
 // The whole filter set as one object. Built rather than read straight off state

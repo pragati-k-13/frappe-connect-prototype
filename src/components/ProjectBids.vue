@@ -1,12 +1,12 @@
 <script setup>
-import { computed, nextTick, ref } from 'vue'
-import { Avatar, Badge, Button, Dropdown, ScrollArea, toast } from 'frappe-ui'
+import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { Avatar, Badge, Button, Dropdown, ScrollArea, Tooltip, toast } from 'frappe-ui'
 import TierIcon from './TierIcon.vue'
 import EmptyState from './EmptyState.vue'
 import { List, ListCell, ListHeader, ListHeaderCell, ListHeaderCellSort, ListRow } from 'frappe-ui/list'
 import IconMessage from '~icons/lucide/message-square'
 import IconMore from '~icons/lucide/ellipsis'
-import IconCheck from '~icons/lucide/check'
 import { PARTNERS, cityOf } from '../data/partners'
 import { logoFor } from '../data/logos'
 import { quoteStanding } from '../data/messages'
@@ -27,7 +27,14 @@ import { useConnectStore } from '../stores/connect'
 // ⚠️ "SHARE DETAILS", NOT "INTERESTED". The gesture posts the company's name
 // and contact details into the partner's thread (`setBidState`). A word for a
 // preference hid that; the label now says what it does, and the row says
-// "Shared" once done. The stored state is still `'shortlisted'`.
+// "Details shared" once done. The stored state is still `'shortlisted'`.
+//
+// ⚠️ THREE COLUMNS, NOT FOUR, AND THREE CONTROLS A ROW. Quote and Timeline
+// were two columns for one offer, and Share details sat in the row beside
+// them — dark text repeated on every row, read before the price. Now the quote
+// stacks its weeks under it, Share details lives in More, and a shared firm
+// says so under its name. Hire also shares details, so the row's path is
+// still one click.
 //
 // ⚠️ NOT INTERESTED HAS A VIEW OF ITS OWN, with Restore. It used to leave the
 // list with only the toast's Undo as a way back — miss the toast and the firm
@@ -207,15 +214,36 @@ const restore = (row) => {
   toast.success(`${row.partner.name} restored`)
 }
 
-// Message is on every row, so More holds only Not interested — and nothing on
-// a row that is already not interested, where More is left out.
+// Message is on every row, so More holds Share details (until it's done) and
+// Not interested — and nothing on a row that is already not interested, where
+// More is left out.
+const router = useRouter()
 const moreFor = (row) => [
+  narrow.value && {
+    label: 'Message',
+    icon: 'lucide-message-square',
+    onClick: () => router.push({ name: 'messages', query: { thread: row.partnerId } }),
+  },
+  row.state === 'pending' && {
+    label: 'Share details',
+    icon: 'lucide-send',
+    onClick: () => shareDetails(row),
+  },
   row.state !== 'not-interested' && {
     label: 'Not interested',
     icon: 'lucide-ban',
     onClick: () => notInterested(row),
   },
 ].filter(Boolean)
+
+// ⚠️ ON A PHONE, TWO COLUMNS. Three didn't fit 287px, so the list scrolled
+// sideways and the price and Hire sat off-screen with nothing saying so. Below
+// `sm` the quote moves under the city, and Message joins More.
+const query = matchMedia('(max-width: 639px)')
+const narrow = ref(query.matches)
+const onWidth = (e) => (narrow.value = e.matches)
+query.addEventListener('change', onWidth)
+onBeforeUnmount(() => query.removeEventListener('change', onWidth))
 
 const EMPTY = {
   all: { icon: 'lucide-inbox', title: 'No quotes to compare' },
@@ -242,7 +270,7 @@ const EMPTY = {
       <!-- Wraps on a phone: the controls drop under the title rather than
            pushing the filter off the edge. -->
       <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-        <h2 class="whitespace-nowrap text-xl font-semibold text-ink-gray-8">Choose a partner</h2>
+        <h2 class="whitespace-nowrap text-xl font-semibold text-ink-gray-8">Hire a Partner</h2>
         <div class="flex shrink-0 items-center gap-2">
         <Dropdown :options="sortOptions" align="end">
           <Button :label="sortLabel" icon-left="lucide-arrow-up-down" icon-right="lucide-chevron-down" />
@@ -263,25 +291,30 @@ const EMPTY = {
              profile link and buttons of its own, so the row is not a target. -->
         <ScrollArea v-else orientation="horizontal">
           <List
-            class="min-w-max"
-            :columns="['minmax(0,1fr)', '7.5rem', '6.5rem', '14rem']"
-            :row-height="72"
+            :class="narrow ? '' : 'min-w-max'"
+            :columns="narrow ? ['minmax(0,1fr)', 'auto'] : ['minmax(0,1fr)', '9rem', '8rem']"
+            :row-height="narrow ? 84 : 72"
           >
             <ListHeader>
               <ListHeaderCellSort :direction="dirOf('partner')" @click="sortBy('partner')">Partner</ListHeaderCellSort>
-              <ListHeaderCellSort align="end" :direction="dirOf('quote')" @click="sortBy('quote')">Quote</ListHeaderCellSort>
-              <ListHeaderCellSort align="end" :direction="dirOf('timeline')" @click="sortBy('timeline')">Timeline</ListHeaderCellSort>
+              <ListHeaderCellSort v-if="!narrow" align="end" :direction="dirOf('quote')" @click="sortBy('quote')">
+                Quote
+              </ListHeaderCellSort>
               <ListHeaderCell><span class="sr-only">Actions</span></ListHeaderCell>
             </ListHeader>
             <ListRow
               v-for="row in visible"
               :key="row.partnerId"
               :data-partner="row.partnerId"
+              class="!items-start pt-4"
               :class="settled === row.partnerId ? 'fc-row-settle' : ''"
             >
+              <!-- ⚠️ TOP-ALIGNED: the name, the price and Hire share a first
+                   line, so a row reads across. Buttons are 28px on a 20px
+                   line, so they sit 4px up to centre on it. -->
               <!-- The firm's logo at the directory's size (`2xl`, 40px), so a
                    quote is recognised before its name is read. -->
-              <ListCell class="gap-3">
+              <ListCell class="!items-start gap-3">
                 <Avatar
                   :image="logoFor(row.partnerId)"
                   :label="row.partner.name"
@@ -301,37 +334,36 @@ const EMPTY = {
                     <Badge v-if="project.hireRequest === row.partnerId" theme="blue" label="Requested" />
                   </span>
                   <span class="mt-1 flex min-w-0 items-center gap-2 text-sm text-ink-gray-6">
-                    <span class="truncate">{{ cityOf(row.partner) }}</span>
+                    <span class="truncate">
+                      {{ cityOf(row.partner) }}<template v-if="row.state === 'shortlisted'">
+                        ·
+                        <!-- What "details" means, in the hire dialog's words. The
+                             visible text is enough on its own; this adds which. -->
+                        <Tooltip text="They have your company name and contact details">
+                          <span aria-label="Details shared: they have your company name and contact details">Details shared</span>
+                        </Tooltip>
+                      </template>
+                    </span>
                     <Badge v-if="row.stale" class="shrink-0" theme="gray" label="Quoted before the update" />
+                  </span>
+                  <span v-if="narrow" class="mt-1 block text-sm tabular-nums text-ink-gray-8">
+                    {{ row.price }} · {{ row.weeks }} weeks
                   </span>
                 </div>
               </ListCell>
-              <ListCell class="justify-end">
-                <span class="text-base tabular-nums text-ink-gray-6">{{ row.price }}</span>
+              <!-- The offer: price over weeks, the partner cell's two lines. -->
+              <ListCell v-if="!narrow" class="!items-start justify-end">
+                <div class="text-right">
+                  <span class="block text-base tabular-nums text-ink-gray-8">{{ row.price }}</span>
+                  <span class="mt-1 block text-sm tabular-nums text-ink-gray-6">{{ row.weeks }} weeks</span>
+                </div>
               </ListCell>
-              <ListCell class="justify-end">
-                <span class="text-base tabular-nums text-ink-gray-6">{{ row.weeks }} weeks</span>
-              </ListCell>
-              <!-- Share details, Hire, then More — More always last. Share
-                   details is ghost so Hire carries the row; once shared it is
-                   a quiet status in the same place. -->
-              <ListCell class="justify-end gap-1.5">
-                <template v-if="row.state !== 'not-interested'">
-                  <!-- "Shared", in the place "Share details" was: the button's
-                       done state, short enough to stay inside the column. -->
-                  <span
-                    v-if="row.state === 'shortlisted'"
-                    class="flex items-center gap-1 whitespace-nowrap px-2 text-base text-ink-gray-7"
-                    :aria-label="`Details shared with ${row.partner.name}`"
-                  >
-                    <IconCheck class="size-4" aria-hidden="true" />
-                    Shared
-                  </span>
-                  <Button v-else variant="ghost" label="Share details" @click="shareDetails(row)" />
-                </template>
+              <!-- Message, Hire, then More — More always last. -->
+              <ListCell class="-mt-1 !items-start justify-end gap-1.5">
                 <!-- Message, on every quote: a question while comparing
                      shouldn't sit behind More, whoever it's for. -->
                 <Button
+                  v-if="!narrow"
                   variant="ghost"
                   :aria-label="`Message ${row.partner.name}`"
                   tooltip="Message"

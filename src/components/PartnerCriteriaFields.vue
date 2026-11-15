@@ -21,6 +21,9 @@ const props = defineProps({
   // anything — editing requirements already sent, which go to the same
   // partners whatever is picked here. There a count reads as a filter it isn't.
   counts: { type: Boolean, default: true },
+  // The "When do you need it live?" chips. Off where the surface puts the
+  // timeline elsewhere (beside the budget, in the requirements editor).
+  withTimeline: { type: Boolean, default: true },
 })
 const emit = defineEmits(['patch'])
 
@@ -43,6 +46,13 @@ const matches = computed(() => matchingPartners(company.value, brief.value))
 const countFor = (key, value) =>
   matchingPartners(company.value, { ...brief.value, [key]: [value] }).length
 
+// ⚠️ "ANY" IS A REAL CHOICE, first in its row and on by default. Nothing
+// picked always meant any city or tier, but an empty row of chips reads as a
+// question not yet answered, and people fill it in — usually with Gold. Picking
+// a value turns Any off; picking Any clears the row.
+const anyCount = (key) => matchingPartners(company.value, { ...brief.value, [key]: [] }).length
+const clear = (key) => save({ [key]: [] })
+
 const toggleIn = (key, value) => {
   const list = brief.value[key]
   save({
@@ -61,6 +71,12 @@ const toggleIn = (key, value) => {
           <p class="text-sm text-ink-gray-7">City</p>
           <div class="mt-1.5 flex flex-wrap gap-2">
             <FilterChip
+              label="Any city"
+              :count="counts ? anyCount('cities') : null"
+              :selected="!brief.cities.length"
+              @toggle="clear('cities')"
+            />
+            <FilterChip
               v-for="city in INDIA_CITIES"
               :key="city"
               :label="city"
@@ -75,6 +91,12 @@ const toggleIn = (key, value) => {
           <p class="text-sm text-ink-gray-7">Partner tier</p>
           <div class="mt-1.5 flex flex-wrap gap-2">
             <FilterChip
+              label="Any tier"
+              :count="counts ? anyCount('tiers') : null"
+              :selected="!brief.tiers.length"
+              @toggle="clear('tiers')"
+            />
+            <FilterChip
               v-for="t in TIERS"
               :key="t.value"
               :label="t.label"
@@ -88,7 +110,7 @@ const toggleIn = (key, value) => {
         <!-- ⚠️ THE ONE ANSWER IN HERE THAT NARROWS NOTHING, which is why it
              carries no count: it is printed on the brief for the partner to
              read, and there is nothing on a partner to test it against. -->
-        <div>
+        <div v-if="withTimeline">
           <p class="text-sm text-ink-gray-7">When do you need it live?</p>
           <div class="mt-1.5 flex flex-wrap gap-2">
             <FilterChip

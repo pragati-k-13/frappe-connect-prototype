@@ -5,7 +5,6 @@ import { Alert, Avatar, Badge, Button, Dialog, Dropdown, ScrollArea, toast } fro
 import ConnectShell from '../components/ConnectShell.vue'
 import FeedbackDialog from '../components/FeedbackDialog.vue'
 import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
-import EditRequirementsDialog from '../components/EditRequirementsDialog.vue'
 import HirePartnerDialog from '../components/HirePartnerDialog.vue'
 import NewProjectDialog from '../components/NewProjectDialog.vue'
 import PackScopeDialog from '../components/PackScopeDialog.vue'
@@ -141,7 +140,9 @@ const brief = computed(() => {
       focus: company.focus ?? '',
     }
   }
-  if (sent) return sent
+  // The project's current apps ride along, as `briefOf` does, so reading and
+  // editing show the same apps.
+  if (sent) return { ...sent, projectApps: [...(project.value?.apps ?? sent.projectApps ?? [])] }
   const own = project.value?.brief
   if (!own?.scope) return null
   const company = project.value.answers ?? store.company
@@ -152,6 +153,9 @@ const brief = computed(() => {
     employees: company.employees,
     segments: company.segments,
     ...sharedAnswers(company),
+    // This project's starting point, when it has its own — see `emptyBrief`.
+    ...(own.operations ? { operations: own.operations } : {}),
+    ...(own.problems?.length ? { problems: [...own.problems] } : {}),
   }
 })
 const briefOpen = ref(false)
@@ -204,7 +208,7 @@ const menu = computed(() => [
         { label: 'Delete draft', icon: 'lucide-trash-2', onClick: () => (deleting.value = true) },
       ]
     : sent.value
-      ? [{ label: 'Edit requirements', icon: 'lucide-pencil', onClick: () => (editingSent.value = true) }]
+      ? [{ label: 'Edit requirements', icon: 'lucide-pencil', onClick: () => (briefOpen.value = true) }]
       : []),
 ])
 
@@ -217,7 +221,6 @@ const sent = computed(
     !project.value.partnerId &&
     store.threads.some((t) => t.messages.some((m) => m.kind === 'brief' && m.brief?.projectId === project.value.id)),
 )
-const editingSent = ref(false)
 const hiredName = computed(() => (project.value?.partnerId ? PARTNERS.find((p) => p.id === project.value.partnerId)?.name : ''))
 const onRequirementsSaved = ({ sent: n }) => toast.success(`Sent to ${n} ${n === 1 ? 'partner' : 'partners'}`)
 
@@ -666,13 +669,8 @@ const complete = () => {
       :editable="sent"
       :lock-note="project?.service === 'custom' && hiredName ? `Hired. Changes go through ${hiredName} now` : ''"
       own
-      @edit="briefOpen = false; editingSent = true"
-    />
-    <EditRequirementsDialog
-      v-model:open="editingSent"
       :project-id="project?.id ?? null"
       @saved="onRequirementsSaved"
-      @cancel="briefOpen = true"
     />
     <HirePartnerDialog
       v-model:open="hiring"

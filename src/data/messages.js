@@ -430,6 +430,8 @@ const PARTS = [
   ['modules', (b) => b?.modules ?? {}],
   ['budget', (b) => b?.budget ?? ''],
   ['timeline', (b) => b?.timeline ?? ''],
+  ['current setup', (b) => b?.operations ?? ''],
+  ['what needs fixing', (b) => sorted(b?.problems)],
   [
     'looking for',
     (b) => [sorted(b?.cities), sorted(b?.tiers), sorted(b?.regions), sorted(b?.countries)],
