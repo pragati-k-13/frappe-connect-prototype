@@ -292,12 +292,12 @@ const EMPTY = {
         <ScrollArea v-else orientation="horizontal">
           <List
             :class="narrow ? '' : 'min-w-max'"
-            :columns="narrow ? ['minmax(0,1fr)', 'auto'] : ['minmax(0,1fr)', '9rem', '8rem']"
+            :columns="narrow ? ['minmax(0,1fr)', 'auto'] : ['minmax(0,5fr)', 'minmax(9rem,2fr)', '8rem']"
             :row-height="narrow ? 84 : 72"
           >
             <ListHeader>
               <ListHeaderCellSort :direction="dirOf('partner')" @click="sortBy('partner')">Partner</ListHeaderCellSort>
-              <ListHeaderCellSort v-if="!narrow" align="end" :direction="dirOf('quote')" @click="sortBy('quote')">
+              <ListHeaderCellSort v-if="!narrow" :direction="dirOf('quote')" @click="sortBy('quote')">
                 Quote
               </ListHeaderCellSort>
               <ListHeaderCell><span class="sr-only">Actions</span></ListHeaderCell>
@@ -351,9 +351,13 @@ const EMPTY = {
                   </span>
                 </div>
               </ListCell>
-              <!-- The offer: price over weeks, the partner cell's two lines. -->
-              <ListCell v-if="!narrow" class="!items-start justify-end">
-                <div class="text-right">
+              <!-- The offer: price over weeks, the partner cell's two lines.
+                   ⚠️ LEFT-ALIGNED IN A SHARE OF THE WIDTH, not right-aligned in
+                   a fixed 9rem: pushed against the actions, the quotes left the
+                   middle of the table empty. Prices are tabular, so they still
+                   line up digit for digit at this length. -->
+              <ListCell v-if="!narrow" class="!items-start">
+                <div>
                   <span class="block text-base tabular-nums text-ink-gray-8">{{ row.price }}</span>
                   <span class="mt-1 block text-sm tabular-nums text-ink-gray-6">{{ row.weeks }} weeks</span>
                 </div>

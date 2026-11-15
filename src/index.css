@@ -319,6 +319,12 @@
   padding-bottom: 0;
 }
 
+/* Hire terms: the agreement gets 32px on both sides, so the body's 24px plus
+   the footer's 16px (40px under it) comes down to match. */
+.dialog-content > div.pb-6.pt-5:has(.fc-agree-last) {
+  padding-bottom: 16px;
+}
+
 /* More below the fold: the last 32px of the scroll area fades out, so a field
    cut mid-way reads as "keeps going". Off at the end, so nothing is dimmed
    once you're there. */
