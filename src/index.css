@@ -246,7 +246,7 @@
    Here the panel is capped at the window's height, its body scrolls, the title
    stays pinned, and the actions row stays at the foot.
 
-   Hooks, all frappe-ui's own markup (1.0.0-beta.63):
+   Hooks, all frappe-ui's own markup (1.1.0):
      > div.pb-6.pt-5       the body wrapper — header and default slot
      > div.pb-7            the actions row, a sibling of the body
      .w-full > .mb-6       the header, when there is one
