@@ -9,7 +9,7 @@ import IconUsers from '~icons/lucide/users'
 import IconWallet from '~icons/lucide/wallet'
 import IconCalendar from '~icons/lucide/calendar'
 import IconApps from '~icons/lucide/layout-grid'
-import { budgetLabel, criteriaSentence, criteriaShort, timelineLabel } from '../data/custom'
+import { budgetLabel, criteriaShort, timelineLabel } from '../data/custom'
 import { scopeSentence } from '../data/modules'
 import { PROJECT_APPS } from '../data/partners'
 import { operationsLabel, problemLabels } from '../data/company'
@@ -46,8 +46,8 @@ const props = defineProps({
   own: { type: Boolean, default: false },
   // What the caller already shows, so the dialog doesn't repeat it:
   //   'description'  opened from under a message, whose text it is
-  //   'facts'        the partner Lead page, whose side panel lists the short
-  //                  facts (the modules stay here)
+  //   'facts'        the partner Lead page, whose side panel lists Budget,
+  //                  Timeline, Apps, industry and size (the rest stay here)
   omit: { type: Array, default: () => [] },
   // The version this one replaced, when opened from an update. Changed values
   // show the old one struck through before the new one.
@@ -156,31 +156,36 @@ const listOf = (items) =>
 // decides on. ABOUT THE BUSINESS ONLY — the packs were here once and read as
 // something the company already had; they are what it bought, so they have
 // their own section below.
-// ── The business's own view: one list, then the description ─────────────────
+// ── Requirements: one list, then the description ───────────────────────────
 // ⚠️ THE SHORT ANSWERS FIRST, AS ONE LIST; THE DESCRIPTION LAST. Five of the
 // seven sections were a heading over one short line, so the dialog had as many
 // headings as answers, and the short facts were drawn two ways (icon rows up
 // top, sections below). People come back here to check one fact, so the facts
 // lead; the description is read once, and at the end a long one only lengthens
 // the end — it used to push every answer below it five scrolls down.
-const listLayout = computed(() => props.own && !packs.value)
+//
+// ⚠️ BOTH SIDES. The partner read the old sectioned layout until the business's
+// was rebuilt; the same brief now reads the same way from either end. On the
+// Lead page, `omit: ['facts']` drops the rows its side panel already lists.
+const listLayout = computed(() => !packs.value)
 const rowsOf = (b) => {
   const apps = (b.projectApps ?? []).map((v) => PROJECT_APPS.find((a) => a.value === v)?.label ?? v)
   const fixed = problemLabels((b.problems ?? []).filter((p) => !(p === 'integration' && b.operations === 'disconnected')))
   return [
-    { label: 'Budget', text: budgetLabel(b.budget) },
-    { label: 'Timeline', text: b.timeline ? timelineLabel(b.timeline) : '' },
-    { label: 'Apps', text: apps.join(', ') },
+    { label: 'Budget', text: budgetLabel(b.budget), fact: true },
+    { label: 'Timeline', text: b.timeline ? timelineLabel(b.timeline) : '', fact: true },
+    { label: 'Apps', text: apps.join(', '), fact: true },
     { label: 'Modules', text: scopeSentence(b.modules) || '' },
     {
       label: 'Today',
-      text: [operationsLabel(b.operations), b.apps?.length ? `You use ${listOf(b.apps)}` : ''].filter(Boolean).join('. '),
+      text: [operationsLabel(b.operations), b.apps?.length ? `${props.own ? 'You use' : 'Uses'} ${listOf(b.apps)}` : ''].filter(Boolean).join('. '),
     },
     { label: 'To fix', text: fixed.join('\n') },
     { label: 'Looking for', text: criteriaShort({ country: b.country, segments: b.segments }, b) },
     {
       label: 'Company',
       text: [b.segments?.[0], b.employees ? `${b.employees} people` : ''].filter(Boolean).join(' · '),
+      fact: true,
     },
   ]
 }
@@ -189,7 +194,7 @@ const rows = computed(() => {
   const before = props.previous ? rowsOf(props.previous) : null
   return rowsOf(props.brief ?? {})
     .map((r, i) => ({ ...r, was: before && before[i].text !== r.text ? before[i].text : '' }))
-    .filter((r) => r.text)
+    .filter((r) => r.text && !(r.fact && props.omit.includes('facts')))
 })
 
 const factsOf = (b) => [
@@ -208,56 +213,16 @@ const facts = computed(() => {
     .filter((f) => f.text)
 })
 
-const modulesLine = computed(() => scopeSentence(props.brief?.modules) || '')
-const modulesWas = computed(() => {
-  if (!props.previous) return ''
-  const was = scopeSentence(props.previous.modules) || ''
-  return was !== modulesLine.value ? was : ''
-})
-
-// How they run today, as a few sentences rather than three rows.
-//
-// ⚠️ THE OVERLAP IS DROPPED HERE. "Several systems that do not talk to each
-// other" is an operations answer and "Systems that do not talk to each other" a
-// problem, and anyone who picked the first almost always ticks the second —
-// saying it once is the point of writing this as prose.
-// How they run today, as lines like the section after it: the operations
-// answer, then the systems they named. Lines, not a sentence, so the two
-// sections read the same way and neither ends in a stop the other lacks.
-//
-// ⚠️ A PACK ASKS ONLY WHAT YOU USE, not the operations ladder or what to fix —
-// so on a pack this is the systems line alone, and `problems` is empty.
+// How a pack booking runs today. ⚠️ A PACK ASKS ONLY WHAT YOU USE, not the
+// operations ladder or what to fix — so this is the systems line alone.
 const today = computed(() => {
-  const b = props.brief ?? {}
-  return [
-    packs.value ? '' : operationsLabel(b.operations),
-    b.apps?.length ? `${props.own ? 'You use' : 'Uses'} ${listOf(b.apps)}` : '',
-  ].filter(Boolean)
+  const apps = props.brief?.apps ?? []
+  return apps.length ? [`${props.own ? 'You use' : 'Uses'} ${listOf(apps)}`] : []
 })
 
 // A pack's one free-text answer: what the sessions should focus on. Optional.
 const focus = computed(() => (packs.value ? (props.brief?.focus ?? '').trim() : ''))
 
-// What they want fixed: its own section, one symptom per line. It shared a
-// paragraph with `today` behind a mid-sentence colon, which put two different
-// answers — how it runs, what goes wrong — in one block you had to read to
-// tell apart.
-const problems = computed(() => {
-  const b = props.brief ?? {}
-  if (packs.value) return []
-  return problemLabels(
-    (b.problems ?? []).filter((p) => !(p === 'integration' && b.operations === 'disconnected')),
-  )
-})
-
-const lookingForOf = (b) =>
-  packs.value ? '' : criteriaSentence({ country: b?.country, segments: b?.segments }, b ?? {})
-const lookingFor = computed(() => lookingForOf(props.brief))
-const lookingForWas = computed(() => {
-  if (!props.previous) return ''
-  const was = lookingForOf(props.previous)
-  return was !== lookingFor.value ? was : ''
-})
 </script>
 
 <template>
@@ -355,23 +320,6 @@ const lookingForWas = computed(() => {
           </ul>
         </section>
 
-        <!-- "Description", the word an update names when this text changes
-             (docs/edit-requirements.md). Left out when the dialog opens from
-             under the message, since there it is that message's own text. -->
-        <section v-if="!packs && !omit.includes('description')" class="flex flex-col gap-2">
-          <h4 class="text-base font-medium text-ink-gray-8">Description</h4>
-          <p class="whitespace-pre-line text-p-base leading-relaxed text-ink-gray-6">
-            {{ brief.scope }}
-          </p>
-        </section>
-
-        <section v-if="!packs && modulesLine" class="flex flex-col gap-2">
-          <h4 class="text-base font-medium text-ink-gray-8">Modules</h4>
-          <p class="text-p-base text-ink-gray-6">
-            <template v-if="modulesWas"><s class="text-ink-gray-5" aria-hidden="true">{{ modulesWas }}</s>&nbsp; </template>{{ modulesLine }}<span v-if="modulesWas" class="sr-only">, was {{ modulesWas }}</span>
-          </p>
-        </section>
-
         <section v-if="today.length" class="flex flex-col gap-2">
           <h4 class="text-base font-medium text-ink-gray-8">
             {{ own ? 'How you run today' : 'How they run today' }}
@@ -381,24 +329,9 @@ const lookingForWas = computed(() => {
           </ul>
         </section>
 
-        <section v-if="problems.length" class="flex flex-col gap-2">
-          <h4 class="text-base font-medium text-ink-gray-8">
-            {{ own ? 'What you want fixed' : 'What they want fixed' }}
-          </h4>
-          <ul class="flex flex-col gap-2 text-p-base text-ink-gray-6">
-            <li v-for="p in problems" :key="p">{{ p }}</li>
-          </ul>
-        </section>
-
         <section v-if="focus" class="flex flex-col gap-2">
           <h4 class="text-base font-medium text-ink-gray-8">Focus for the sessions</h4>
           <p class="whitespace-pre-line text-p-base leading-relaxed text-ink-gray-6">{{ focus }}</p>
-        </section>
-
-        <section v-if="lookingFor" class="flex flex-col gap-2">
-          <h4 class="text-base font-medium text-ink-gray-8">Looking for</h4>
-          <p v-if="lookingForWas" class="text-p-base leading-relaxed text-ink-gray-5 line-through" aria-hidden="true">{{ lookingForWas }}</p>
-          <p class="text-p-base leading-relaxed text-ink-gray-6">{{ lookingFor }}<span v-if="lookingForWas" class="sr-only">, was {{ lookingForWas }}</span></p>
         </section>
 
       </div>
