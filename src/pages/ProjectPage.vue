@@ -12,7 +12,7 @@ import PackTermsDialog from '../components/PackTermsDialog.vue'
 import ProjectAbout from '../components/ProjectAbout.vue'
 import ProjectBids from '../components/ProjectBids.vue'
 import RecommendationView from '../components/RecommendationView.vue'
-import ProjectTasks from '../components/ProjectTasks.vue'
+import HiredPath from '../components/HiredPath.vue'
 import { logoFor } from '../data/logos'
 import PackSetupTasks from '../components/PackSetupTasks.vue'
 import PackWelcomeDialog from '../components/PackWelcomeDialog.vue'
@@ -377,8 +377,12 @@ const yoursDone = computed(() => isStageDone(stage.value, project.value))
 // ⚠️ NO STEPPER. Custom work is two states, not two steps: choosing among
 // quotes, then a partner doing the work. A bar that filled up the moment you
 // hired read as "done" just as the work began.
-const hostingTasks = computed(() => stage.value?.yours ?? [])
-const hiredOn = computed(() => (project.value?.termsAt ? fmtDate(project.value.termsAt) : ''))
+// One optional hosting task now (see `HiredPath`): it opens Frappe Cloud's
+// partner screen, where the code is entered.
+const setUpHosting = () => {
+  window.open(FRAPPE_CLOUD_PARTNER_URL, '_blank', 'noopener')
+  tick('custom-fc-link')
+}
 
 // ⚠️ THE PARTNER SAYS WHEN IT IS DONE; THE BUSINESS CONFIRMS. Moving the
 // customer to Live on the partner's side sets `liveAt`. There is no button for
@@ -444,7 +448,7 @@ const complete = () => {
           <div v-else class="mx-auto w-full" :class="draft ? '' : 'fc-page-read'">
             <!-- ⚠️ NO TITLE HERE on a started project, at any width: the
                  column opens on the work. The breadcrumb names the project,
-                 and the rail's Name row edits it — below `lg`, at the foot of
+                 and the rail's header renames it — below `lg`, at the foot of
                  the page. A title here, shown only when the rail stacked, sat
                  directly under the breadcrumb saying the same thing. -->
 
@@ -490,53 +494,41 @@ const complete = () => {
                 <ProjectBids v-if="!project.partnerId" :project="project" @choose="choose" />
 
                 <template v-else-if="partner">
-                  <!-- The partner said the work is done. Confirming completes
-                       the project and asks for the review; Not yet sends them a
-                       note. -->
-                  <Alert
-                    v-if="project.liveAt && !project.completedAt"
-                    class="mb-6"
-                    theme="green"
-                    :title="`${partner.name} marked this project live · ${fmtDate(project.liveAt)}`"
-                    :primary-action="{ label: 'Confirm', onClick: confirmLive }"
-                    :secondary-action="{ label: 'Not yet', onClick: notLiveYet }"
-                  />
-
-                  <div class="flex items-center gap-3">
+                  <!-- ⚠️ THE PAGE'S ANCHOR: who is doing it, on a fill, the name
+                     larger than anything below. "Working with X" says who, and
+                     stays the same at every stage; the path below says where
+                     things stand, so the two never repeat each other. -->
+                  <div class="flex items-center gap-3 rounded-6 bg-surface-gray-1 p-4">
                     <Avatar
                       :image="logoFor(partner.id)"
                       :label="partner.name"
-                      size="xl"
+                      size="2xl"
                       shape="square"
                       class="fc-logo-avatar shrink-0"
                     />
-                    <div class="min-w-0 flex-1">
-                      <p class="truncate text-lg font-medium text-ink-gray-8">
-                        {{ project.completedAt ? `${partner.name} delivered this project` : `${partner.name} is building this` }}
-                      </p>
-                      <p class="mt-1 text-base text-ink-gray-5">
-                        {{ project.completedAt ? `Completed ${fmtDate(project.completedAt)}` : hiredOn ? `Hired ${hiredOn}` : 'Hired' }}
-                      </p>
-                    </div>
-                    <Button label="Message" @click="messagePartner(partner)" />
+                    <p class="min-w-0 flex-1 text-pretty text-xl font-semibold text-ink-gray-8">
+                      Working with {{ partner.name }}
+                    </p>
+                    <!-- The partner profile's Message icon, so the action looks
+                         the same wherever it appears. -->
+                    <Button variant="ghost" label="Message" @click="messagePartner(partner)">
+                      <template #prefix><span class="lucide-message-square size-4" aria-hidden="true" /></template>
+                    </Button>
                   </div>
 
-                  <!-- Hosting: optional, because a business may host through
-                       the partner, on its own Frappe Cloud account, or
-                       elsewhere. Said once, in the header. -->
-                  <section v-if="hostingTasks.length && !project.completedAt" class="mt-8">
-                    <div class="flex items-baseline justify-between">
-                      <h2 class="text-base font-medium text-ink-gray-8">Set up hosting</h2>
-                      <span class="text-base text-ink-gray-5">Optional</span>
-                    </div>
-                    <ProjectTasks
-                      class="mt-1"
-                      :tasks="hostingTasks"
-                      :project="project"
-                      hide-optional
-                      @act="act"
-                    />
-                  </section>
+                  <!-- Hired, built, live — and the business's part in it. See
+                       `HiredPath`. It replaces the "marked live" banner and the
+                       three hosting tasks. -->
+                  <HiredPath
+                    class="mt-10"
+                    :project="project"
+                    :partner="partner"
+                    :code="partnerCodeFor(project, partner) ?? ''"
+                    @setup="setUpHosting"
+                    @copy="copyCode({ key: 'custom-fc-code' })"
+                    @confirm="confirmLive"
+                    @not-yet="notLiveYet"
+                  />
                 </template>
               </div>
             </template>

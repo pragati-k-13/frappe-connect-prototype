@@ -240,16 +240,26 @@ const send = () => {
         <p class="text-base font-medium text-ink-gray-8">What made you choose them?</p>
         <div class="mt-3 flex flex-wrap gap-2" role="group" aria-label="Reasons">
           <!-- Selected is a check and a darker gray, never solid: Done is the
-               one solid button in this dialog. -->
+               one solid button in this dialog.
+               ⚠️ EVERY CHIP HAS AN ICON, a faint plus that becomes a check. The
+               check used to appear only on select, widening the chip and
+               pushing the rest along — sometimes onto a second line. -->
           <Button
             v-for="w in [...WHY, OTHER]"
             :key="w"
             :label="w"
-            :icon-left="reasons.includes(w) ? 'lucide-check' : undefined"
             :class="reasons.includes(w) ? '!bg-surface-gray-4' : ''"
             :aria-pressed="reasons.includes(w)"
             @click="toggle(w)"
-          />
+          >
+            <template #prefix>
+              <span
+                :class="reasons.includes(w) ? 'lucide-check text-ink-gray-8' : 'lucide-plus text-ink-gray-5'"
+                class="size-4"
+                aria-hidden="true"
+              />
+            </template>
+          </Button>
         </div>
         <!-- A wrapper holds the ref: Textarea exposes no element to focus. -->
         <div v-if="otherOn" ref="noteEl" class="mt-3">

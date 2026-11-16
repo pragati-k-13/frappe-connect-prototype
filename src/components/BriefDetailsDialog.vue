@@ -120,9 +120,11 @@ const editActions = [{ label: 'Edit', variant: 'subtle', iconLeft: 'lucide-penci
 // all come through here; with nothing changed they just leave.
 const leave = (then) => {
   if (!form.value?.dirty) return then()
-  dialog.confirm({
+  // ⚠️ DANGER, NOT CONFIRM: discarded edits can't be got back, and the
+  // destructive pattern gives that a red Discard (frappe-ui `dialog.danger`).
+  dialog.danger({
     title: 'Discard changes?',
-    message: 'Your edits to the requirements will be lost.',
+    message: 'Your edits won’t be sent, and can’t be recovered.',
     confirmLabel: 'Discard',
     size: 'sm',
     onConfirm: () => then(),
