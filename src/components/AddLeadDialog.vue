@@ -77,7 +77,7 @@ const actions = [
 
 <template>
   <Dialog v-model:open="open" size="md" title="Add lead" :actions="actions">
-    <!-- frappe-ui's scrollbar, as in EditRequirementsDialog, for short windows. -->
+    <!-- frappe-ui's scrollbar, as in BriefDetailsDialog, for short windows. -->
     <ScrollArea class="fc-scroll-dialog -mr-4 sm:-mr-6" viewport-class="pr-4 sm:pr-6">
     <div class="space-y-4">
       <FormControl v-model="form.company" label="Company" required :error="errors.company" />

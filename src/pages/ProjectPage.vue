@@ -1,11 +1,10 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Alert, Badge, Button, Dialog, Dropdown, ScrollArea, toast } from 'frappe-ui'
+import { Alert, Avatar, Badge, Button, Dialog, Dropdown, ScrollArea, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import FeedbackDialog from '../components/FeedbackDialog.vue'
 import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
-import EditRequirementsDialog from '../components/EditRequirementsDialog.vue'
 import HirePartnerDialog from '../components/HirePartnerDialog.vue'
 import NewProjectDialog from '../components/NewProjectDialog.vue'
 import PackScopeDialog from '../components/PackScopeDialog.vue'
@@ -13,7 +12,8 @@ import PackTermsDialog from '../components/PackTermsDialog.vue'
 import ProjectAbout from '../components/ProjectAbout.vue'
 import ProjectBids from '../components/ProjectBids.vue'
 import RecommendationView from '../components/RecommendationView.vue'
-import ProjectStages from '../components/ProjectStages.vue'
+import HiredPath from '../components/HiredPath.vue'
+import { logoFor } from '../data/logos'
 import PackSetupTasks from '../components/PackSetupTasks.vue'
 import PackWelcomeDialog from '../components/PackWelcomeDialog.vue'
 import BookSlotDialog from '../components/BookSlotDialog.vue'
@@ -26,7 +26,6 @@ import {
   FRAPPE_CLOUD_URL,
   isDraft,
   isStageDone,
-  nextStage,
   partnerCodeFor,
   stageOf,
   windowFor,
@@ -141,7 +140,9 @@ const brief = computed(() => {
       focus: company.focus ?? '',
     }
   }
-  if (sent) return sent
+  // The project's current apps ride along, as `briefOf` does, so reading and
+  // editing show the same apps.
+  if (sent) return { ...sent, projectApps: [...(project.value?.apps ?? sent.projectApps ?? [])] }
   const own = project.value?.brief
   if (!own?.scope) return null
   const company = project.value.answers ?? store.company
@@ -152,6 +153,9 @@ const brief = computed(() => {
     employees: company.employees,
     segments: company.segments,
     ...sharedAnswers(company),
+    // This project's starting point, when it has its own — see `emptyBrief`.
+    ...(own.operations ? { operations: own.operations } : {}),
+    ...(own.problems?.length ? { problems: [...own.problems] } : {}),
   }
 })
 const briefOpen = ref(false)
@@ -204,7 +208,7 @@ const menu = computed(() => [
         { label: 'Delete draft', icon: 'lucide-trash-2', onClick: () => (deleting.value = true) },
       ]
     : sent.value
-      ? [{ label: 'Edit requirements', icon: 'lucide-pencil', onClick: () => (editingSent.value = true) }]
+      ? [{ label: 'Edit requirements', icon: 'lucide-pencil', onClick: () => (briefOpen.value = true) }]
       : []),
 ])
 
@@ -217,7 +221,6 @@ const sent = computed(
     !project.value.partnerId &&
     store.threads.some((t) => t.messages.some((m) => m.kind === 'brief' && m.brief?.projectId === project.value.id)),
 )
-const editingSent = ref(false)
 const hiredName = computed(() => (project.value?.partnerId ? PARTNERS.find((p) => p.id === project.value.partnerId)?.name : ''))
 const onRequirementsSaved = ({ sent: n }) => toast.success(`Sent to ${n} ${n === 1 ? 'partner' : 'partners'}`)
 
@@ -324,6 +327,11 @@ const choose = (partnerRecord) => {
 // agreement before the commitment, and `termsAt` records that it happened.
 const hire = () => {
   if (!chosen.value) return
+  // ⚠️ HIRING SHARES YOUR DETAILS. Hire is on every quote now, not only on
+  // the ones whose details went out, so a hire from a quote that never had
+  // them shares them first — the firm cannot start without knowing who you are.
+  const bid = (project.value.bids ?? []).find((b) => b.partnerId === chosen.value.id)
+  if (bid && bid.state !== 'shortlisted') store.setBidState(project.value.id, bid.partnerId, 'shortlisted')
   store.choosePartner(project.value.id, chosen.value.id)
   // ⚠️ HIRING ENDS THE STAGE, so it moves on by itself. The stage has no tasks
   // of its own — the hire was all of it — and leaving somebody on an empty step
@@ -361,16 +369,35 @@ const declineRequest = () => {
 }
 
 // ── Moving on ───────────────────────────────────────────────────────────────
-// Optional tasks do not hold the step up — see `isStageDone`.
+// Optional tasks do not hold the step up — see `isStageDone`. Packs only:
+// custom work has no step to finish, see the hired state below.
 const yoursDone = computed(() => isStageDone(stage.value, project.value))
-const next = computed(() => nextStage(project.value?.service, project.value?.stage))
 
-// ⚠️ ALWAYS SHOWN WHILE THERE IS A NEXT STEP, disabled until the required
-// tasks are done. A button that appears only once it works hides what the step
-// is waiting for.
-const advance = () => {
-  const moved = store.advanceStage(project.value.id)
-  if (moved) toast.success(`Moved to ${moved.label}`)
+// ── Custom work, once hired ─────────────────────────────────────────────────
+// ⚠️ NO STEPPER. Custom work is two states, not two steps: choosing among
+// quotes, then a partner doing the work. A bar that filled up the moment you
+// hired read as "done" just as the work began.
+// One optional hosting task now (see `HiredPath`): it opens Frappe Cloud's
+// partner screen, where the code is entered.
+const setUpHosting = () => {
+  window.open(FRAPPE_CLOUD_PARTNER_URL, '_blank', 'noopener')
+  tick('custom-fc-link')
+}
+
+// ⚠️ THE PARTNER SAYS WHEN IT IS DONE; THE BUSINESS CONFIRMS. Moving the
+// customer to Live on the partner's side sets `liveAt`. There is no button for
+// the business to end the project on its own: it used to sit under three
+// optional tasks, enabled the moment you hired, and one press closed a
+// seven-week engagement on day one and asked for a public review of work that
+// had not started.
+const confirmLive = () => {
+  store.completeProject(project.value.id)
+  toast.success('Project completed')
+  if (reviewable.value) rating.value = true
+}
+const notLiveYet = () => {
+  store.notLiveYet(project.value.id)
+  toast.success(`Note sent to ${partner.value?.name ?? 'your partner'}`)
 }
 
 // The project ends when the business says the work is done, and that is the
@@ -380,6 +407,7 @@ const shareSiteUrl = (url) => {
   toast.success(`Site URL shared with ${partner.value?.name ?? 'your partner'}`)
 }
 
+// A pack's own way to finish. Custom work finishes through `confirmLive`.
 const complete = () => {
   store.completeProject(project.value.id)
   toast.success('Project completed')
@@ -398,7 +426,10 @@ const complete = () => {
   >
     <div class="flex min-h-0 min-w-0 flex-1">
       <ScrollArea class="min-h-0 min-w-0 flex-1">
-        <div class="w-full px-5 py-8 lg:px-8">
+        <!-- The started project's column brings its own padding
+             (`fc-page-read`); the missing-project state and a draft keep the
+             page's. -->
+        <div class="w-full py-8" :class="!project || draft ? 'px-5 lg:px-8' : ''">
           <!-- An id that names nothing: a forwarded or stale link should land
                somewhere it can be recovered from. -->
           <div v-if="!project" class="py-20 text-center">
@@ -409,14 +440,15 @@ const complete = () => {
             <Button class="mt-4" variant="solid" label="Go to projects" route="/connect/projects" />
           </div>
 
-          <!-- ⚠️ Capped at 700px and centred, so body copy does not stretch
-               across a wide pane beside the rail. A draft has no rail — the
+          <!-- ⚠️ `fc-page-read`, 720px and centred — the app's width for a page
+               read top to bottom, which names a project — so body copy does
+               not stretch across a wide pane beside the rail. A draft has no rail — the
                recommendation carries its own, at the page's right edge, and
                centres its own column — so it is not capped here at all. -->
-          <div v-else class="mx-auto w-full" :class="draft ? '' : 'max-w-[700px]'">
+          <div v-else class="mx-auto w-full" :class="draft ? '' : 'fc-page-read'">
             <!-- ⚠️ NO TITLE HERE on a started project, at any width: the
                  column opens on the work. The breadcrumb names the project,
-                 and the rail's Name row edits it — below `lg`, at the foot of
+                 and the rail's header renames it — below `lg`, at the foot of
                  the page. A title here, shown only when the rail stacked, sat
                  directly under the breadcrumb saying the same thing. -->
 
@@ -456,40 +488,48 @@ const complete = () => {
                   :title="`${requester.name} asked you to confirm the hire${requestedAt ? ` · ${requestedAt}` : ''}`"
                   :primary-action="{ label: 'Review', onClick: () => choose(requester) }"
                 />
-                <ProjectStages :project="project" @act="act" @terms="termsOpen = true" />
-              </div>
 
-              <!-- ⚠️ THE QUOTES, WHILE CHOOSING AND NOBODY IS HIRED YET. Once
-                   somebody is, the decision is made and the partner is in the
-                   rail; a comparison table would be a control for a choice
-                   already taken. -->
-              <div
-                v-if="project.stage === 'choosing' && project.broadcast && !project.partnerId"
-                class="mt-6"
-              >
-                <ProjectBids :project="project" @choose="choose" />
-              </div>
+                <!-- The quotes, while nobody is hired. Once somebody is, the
+                     decision is made and the partner leads the page. -->
+                <ProjectBids v-if="!project.partnerId" :project="project" @choose="choose" />
 
-              <!-- ⚠️ NOT ON A STEP WITHOUT TASKS. Choosing a partner is the one,
-                   and hiring moves it on by itself — see `hire`. -->
-              <div v-if="next && stage.yours?.length" class="mt-4">
-                <Button
-                  variant="solid"
-                  label="Continue"
-                  :disabled="!yoursDone"
-                  @click="advance"
-                />
-              </div>
-              <!-- The last step ends the project: nothing after setup is
-                   something this product can track, so there is no screen for
-                   it — the business says when the work is done. -->
-              <div v-else-if="!next && !project.completedAt" class="mt-4">
-                <Button
-                  variant="solid"
-                  label="Mark as complete"
-                  :disabled="!yoursDone"
-                  @click="complete"
-                />
+                <template v-else-if="partner">
+                  <!-- ⚠️ THE PAGE'S ANCHOR: who is doing it, on a fill, the name
+                     larger than anything below. "Working with X" says who, and
+                     stays the same at every stage; the path below says where
+                     things stand, so the two never repeat each other. -->
+                  <div class="flex items-center gap-3 rounded-6 bg-surface-gray-1 p-4">
+                    <Avatar
+                      :image="logoFor(partner.id)"
+                      :label="partner.name"
+                      size="2xl"
+                      shape="square"
+                      class="fc-logo-avatar shrink-0"
+                    />
+                    <p class="min-w-0 flex-1 text-pretty text-xl font-semibold text-ink-gray-8">
+                      Working with {{ partner.name }}
+                    </p>
+                    <!-- The partner profile's Message icon, so the action looks
+                         the same wherever it appears. -->
+                    <Button variant="ghost" label="Message" @click="messagePartner(partner)">
+                      <template #prefix><span class="lucide-message-square size-4" aria-hidden="true" /></template>
+                    </Button>
+                  </div>
+
+                  <!-- Hired, built, live — and the business's part in it. See
+                       `HiredPath`. It replaces the "marked live" banner and the
+                       three hosting tasks. -->
+                  <HiredPath
+                    class="mt-10"
+                    :project="project"
+                    :partner="partner"
+                    :code="partnerCodeFor(project, partner) ?? ''"
+                    @setup="setUpHosting"
+                    @copy="copyCode({ key: 'custom-fc-code' })"
+                    @confirm="confirmLive"
+                    @not-yet="notLiveYet"
+                  />
+                </template>
               </div>
             </template>
             <!-- ⚠️ A DRAFT IS ITS RECOMMENDATION: the recommendation screen,
@@ -538,7 +578,7 @@ const complete = () => {
                 :has-brief="Boolean(brief)"
                 @requirements="briefOpen = true"
                 :can-review="Boolean(reviewable && project?.completedAt && !reviewed)"
-                :when="project?.completedAt ? when : null"
+                :when="project?.completedAt && project.service === 'pack' ? when : null"
                 @message="messagePartner(partner)"
                 @review="rating = true"
                 @feedback="feedback = true"
@@ -563,7 +603,7 @@ const complete = () => {
             :has-brief="Boolean(brief)"
             @requirements="briefOpen = true"
             :can-review="Boolean(reviewable && project?.completedAt && !reviewed)"
-            :when="project?.completedAt ? when : null"
+            :when="project?.completedAt && project.service === 'pack' ? when : null"
             @message="messagePartner(partner)"
             @review="rating = true"
             @feedback="feedback = true"
@@ -621,10 +661,6 @@ const complete = () => {
       :editable="sent"
       :lock-note="project?.service === 'custom' && hiredName ? `Hired. Changes go through ${hiredName} now` : ''"
       own
-      @edit="briefOpen = false; editingSent = true"
-    />
-    <EditRequirementsDialog
-      v-model:open="editingSent"
       :project-id="project?.id ?? null"
       @saved="onRequirementsSaved"
     />

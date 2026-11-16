@@ -577,3 +577,8 @@ export const partnerCodeFor = (project, partner) => {
 export const FRAPPE_CLOUD_URL = 'https://frappecloud.com/dashboard'
 
 export const FRAPPE_CLOUD_PARTNER_URL = 'https://frappecloud.com/dashboard/settings/partner'
+
+// Frappe Cloud's docs, for the hosting task's Docs link. ⚠️ THE SECTION ROOT,
+// NOT A PAGE ON PARTNER BILLING: the public docs don't name one we could
+// check. Point it at that page once it's confirmed.
+export const FRAPPE_CLOUD_DOCS_URL = 'https://docs.frappe.io/cloud'

@@ -25,7 +25,6 @@ import ConnectShell from '../components/ConnectShell.vue'
 import { List, ListCell, ListRow } from 'frappe-ui/list'
 import CompanyDetailsDialog from '../components/CompanyDetailsDialog.vue'
 import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
-import EditRequirementsDialog from '../components/EditRequirementsDialog.vue'
 import DescriptionText from '../components/DescriptionText.vue'
 import { PARTNERS, implementerFor, isFrappe } from '../data/partners'
 import { logoFor } from '../data/logos'
@@ -278,11 +277,6 @@ const lockNote = computed(() => {
   const hired = PARTNERS.find((x) => x.id === p.partnerId)
   return `Hired. Changes go through ${hired?.name ?? 'your partner'} now`
 })
-const editing = ref(null)
-const startEdit = () => {
-  editing.value = briefProject.value?.id ?? null
-  briefDetails.value = null
-}
 const onSaved = ({ sent }) => {
   toast.success(`Sent to ${sent} ${sent === 1 ? 'partner' : 'partners'}`)
   toBottom()
@@ -1178,12 +1172,6 @@ watch(
       :with-requirements="Boolean(open?.broadcast)"
       @close="details = false"
     />
-    <EditRequirementsDialog
-      :open="Boolean(editing)"
-      :project-id="editing"
-      @update:open="!$event && (editing = null)"
-      @saved="onSaved"
-    />
     <BriefDetailsDialog
       :open="Boolean(briefDetails)"
       :brief="briefDetails"
@@ -1193,7 +1181,9 @@ watch(
       :editable="canEdit"
       :lock-note="lockNote"
       own
-      @edit="startEdit"
+      :project-id="briefProject?.id ?? null"
+      close-on-save
+      @saved="onSaved"
       @update:open="!$event && (briefDetails = null)"
     />
   </ConnectShell>

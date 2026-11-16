@@ -40,7 +40,7 @@ defineProps({
   <main class="relative flex min-h-screen flex-col bg-surface-base px-4">
     <!-- Dead in this prototype: the partner-side app is not mocked. -->
     <div v-if="partnerPortal" class="absolute right-4 top-4">
-      <Button variant="ghost" label="Partner portal" link="#">
+      <Button variant="ghost" label="Partner portal" href="#">
         <template #suffix><IconArrowUpRight class="size-4" /></template>
       </Button>
     </div>

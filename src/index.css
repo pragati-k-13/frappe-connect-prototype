@@ -77,8 +77,13 @@
    is the icon wrapper span here. Killing pointer events on it means that trigger
    never sees a hover, so the built-in bubble never opens. The row stays fully
    interactive: pointer events over a `pointer-events: none` child are targeted
-   at its parent, and the parent is the row's `<a>` / `<button>`. */
-.fc-sidebar [data-slot='sidebar-item'] [data-grace-area-trigger] {
+   at its parent, and the parent is the row's `<a>` / `<button>`.
+
+   ⚠️ `span` only. Since frappe-ui 1.1.0 the row's `<a>` / `<button>` carries the
+   marker too, as the trigger of OUR tooltip, and an unscoped selector kills
+   clicks on the row. 1.1.0 also fixed the built-in tooltip (`side="right"`), so
+   this workaround and ours could be dropped for the built-in one. */
+.fc-sidebar [data-slot='sidebar-item'] span[data-grace-area-trigger] {
   pointer-events: none;
 }
 
@@ -241,7 +246,7 @@
    Here the panel is capped at the window's height, its body scrolls, the title
    stays pinned, and the actions row stays at the foot.
 
-   Hooks, all frappe-ui's own markup (1.0.0-beta.63):
+   Hooks, all frappe-ui's own markup (1.1.0):
      > div.pb-6.pt-5       the body wrapper — header and default slot
      > div.pb-7            the actions row, a sibling of the body
      .w-full > .mb-6       the header, when there is one
@@ -311,6 +316,26 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* Editing requirements: the footer's 16px is the whole gap under the fields,
+   not the body's 24px on top of it. */
+.dialog-content > div.pb-6.pt-5:has(.fc-scroll-tight) {
+  padding-bottom: 0;
+}
+
+/* Hire terms: the agreement gets 32px on both sides, so the body's 24px plus
+   the footer's 16px (40px under it) comes down to match. */
+.dialog-content > div.pb-6.pt-5:has(.fc-agree-last) {
+  padding-bottom: 16px;
+}
+
+/* More below the fold: the last 32px of the scroll area fades out, so a field
+   cut mid-way reads as "keeps going". Off at the end, so nothing is dimmed
+   once you're there. */
+.fc-scroll-more [data-slot='scroll-area-viewport'] {
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 2rem), transparent);
+  mask-image: linear-gradient(to bottom, black calc(100% - 2rem), transparent);
 }
 
 /* ⚠️ PAGE WIDTHS ARE CONTENT WIDTHS, with the padding added outside them.
@@ -683,4 +708,28 @@ textarea[data-slot='control'] {
 }
 .fc-tabs-scroll::-webkit-scrollbar {
   display: none;
+}
+
+/* ⚠️ A QUOTE ROW AFTER "SHARE DETAILS" — see `ProjectBids`, which slides the
+   rows to their new places. Here, the moved row's background settles from
+   gray to nothing, so the eye lands on where it went. Opacity on a layer
+   behind the content: the text never changes colour. Kept under reduced
+   motion — a fade aids comprehension; only the slide is dropped. */
+.fc-row-settle {
+  isolation: isolate;
+}
+.fc-row-settle::after {
+  content: '';
+  position: absolute;
+  /* Bled 8px past the row, so the gray doesn't sit flush against the logo
+     and the More button; the column's padding holds it. */
+  inset: 0 -8px;
+  z-index: -1;
+  pointer-events: none;
+  @apply rounded-4 bg-surface-gray-2;
+  animation: fc-row-settle 1200ms ease-out forwards;
+}
+@keyframes fc-row-settle {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }

@@ -13,10 +13,16 @@ Requirements are a snapshot: what partners quoted against. Today they can only b
 ## Scope of an edit
 
 - An edit always changes the project's requirements, for every partner who has them. There is no "this partner only" option; anything for one partner goes as a message in that thread.
-- The editor says so before saving: "Goes to all 6 partners who have these requirements. Partners who quoted will be asked to confirm or update their quote." The save button reads "Send to 6 partners", using the real count. No confirmation dialog after.
+- The save button says who it goes to: "Send to 6 partners", using the real count. A blue banner at the top of the form says what sending asks: "Partners who quoted will confirm or re-quote". No confirmation dialog after. It stays disabled until a field changes; a send with nothing changed used to do nothing, silently. (Changed 2026-11-14: the line used to repeat the count the button already shows.)
+- The city and tier chips carry no counts here. An edit goes to the same partners whatever is picked, so the picks only change what the requirements say; a count made them read as a recipient filter.
 - Recipients: every partner with the requirements (no reply yet, quoted, Interested) and partners who declined. Not partners the business marked Not interested.
-- Fields: project fields only — the written text, budget, timeline, who they're looking for. Modules aren't editable yet: the app has no modules picker. Company facts (size, how they run today, what they want fixed) stay in Settings and aren't edited here.
-- The editor is its own Edit requirements dialog with the same fields a draft edits on its page (budget, description, criteria chips). Today's "Edit draft" dialog edits the name and company answers, so it isn't reused. Opened from the Requirements dialog in a thread, and from the project page's ⋯ menu or Requirements dialog.
+- Fields: the written text, budget, timeline, apps, how you handle this today, what you want fixed, and who they're looking for. Modules aren't editable yet: the app has no modules picker. Industry and size stay in Settings.
+- Editing happens in the Requirements dialog itself (changed 2026-11-15; it was a separate Edit requirements dialog). Edit turns the body into fields; the title stays "Your requirements" and the footer becomes Cancel and Send. Cancel goes back to reading in place. Cancel, × or Esc with unsaved changes ask "Discard changes?" first.
+- Reading and editing share one order: the short answers first, the description last. Reading is one label-and-value list (budget, timeline, apps, modules, today, to fix, looking for, company), then the description; a long description only lengthens the end. Editing follows it: budget and timeline side by side, apps, how you handle this today, what you want fixed, partner city and tier side by side, then the description, which grows with its text so the dialog has one scroll.
+- "How you handle this today" and "What you want fixed" belong to the project, not the company: a warehouse project and a payroll project start from different places, and a company-wide answer goes stale once a project lands. A new project starts from the company's answers. They're editable here.
+- Company (industry and size) shows in the reading list, because partners see it. It isn't in the edit form: it's changed in Settings.
+- Long option lists are selects, not chip rows: timeline, what you want fixed, partner city and tier. City and tier read "Any city" / "Any tier" when nothing is picked. Where the chips remain (the partner filters, the first send), each row starts with an "Any" chip, on by default.
+- After Send from the project page, the dialog stays open on the new version; from a thread it closes and the thread scrolls to the new update card.
 
 ## In the thread
 

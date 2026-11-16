@@ -252,8 +252,7 @@ const share = () => {
           <Progress
             class="mb-8 [&_[role=progressbar]>div]:rounded-full"
             size="md"
-            intervals
-            :interval-count="STEPS.length"
+            :intervals="STEPS.length"
             :value="((step + 1) / STEPS.length) * 100"
           />
           <h1 class="text-xl font-semibold text-ink-gray-9">
