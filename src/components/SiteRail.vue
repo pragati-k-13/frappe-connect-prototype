@@ -129,7 +129,7 @@ onBeforeUnmount(() => clearTimeout(timer))
               </span>
             </SidebarLabel>
             <template v-for="item in group.items" :key="item.label">
-              <SidebarItem v-if="item.to" :label="item.label" :icon="item.icon" :to="item.to" />
+              <SidebarItem v-if="item.to" :label="item.label" :icon="item.icon" :route="item.to" />
               <SidebarItem
                 v-else
                 v-disabled

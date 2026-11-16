@@ -64,7 +64,7 @@ const columns = {
               <ListHeaderCell class="hidden md:flex">Audit date</ListHeaderCell>
             </ListHeader>
             <ListRows :items="rows" v-slot="{ item }">
-              <ListRow :to="`/connect/audits/${item.id}`">
+              <ListRow :route="`/connect/audits/${item.id}`">
                 <ListCell class="min-w-0">
                   <span class="truncate text-base text-ink-gray-8">{{ item.type }}</span>
                 </ListCell>

@@ -284,7 +284,7 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
            button that is not a resource. -->
       <h3 v-if="SHOW_HANDBOOK || SHOW_CONTACT" class="mb-3 text-base font-medium text-ink-gray-8">Resources</h3>
       <div class="-ms-2 flex flex-col items-start gap-1">
-        <Button v-if="SHOW_HANDBOOK" variant="ghost" label="Implementation handbook" :link="HANDBOOK">
+        <Button v-if="SHOW_HANDBOOK" variant="ghost" label="Implementation handbook" :href="HANDBOOK">
           <template #prefix><IconBook class="size-4 text-ink-gray-6" /></template>
         </Button>
         <Button v-if="SHOW_CONTACT" variant="ghost" label="Contact Frappe" route="/contact">

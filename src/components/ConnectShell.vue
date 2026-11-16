@@ -467,7 +467,7 @@ defineProps({
               :offset="8"
               :disabled="!collapsed"
             >
-              <SidebarItem :label="item.label" :to="item.to" :active="item.active">
+              <SidebarItem :label="item.label" :route="item.to" :active="item.active">
                 <!-- Collapsed, the count can't show, so a dot keeps the signal. -->
                 <template #prefix>
                   <span class="relative grid place-items-center">
@@ -500,7 +500,7 @@ defineProps({
                thread — starting a conversation from there needs a rule for
                what a brand new thread says, which is a separate decision. -->
           <Tooltip text="Messages" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Messages" to="/connect/messages" :active="inMessages">
+            <SidebarItem label="Messages" route="/connect/messages" :active="inMessages">
               <template #prefix><LucideInbox class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>
@@ -549,14 +549,14 @@ defineProps({
                that holds what this account has told us — so a visitor has a home
                from their first answer. -->
           <Tooltip text="Home" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Home" to="/connect" :active="inHome">
+            <SidebarItem label="Home" route="/connect" :active="inHome">
               <template #prefix><LucideHouse class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>
           <!-- Starter Packs before Partners: the order the two ways to go live
                are offered in everywhere else — the landing, Get started. -->
           <Tooltip text="Starter Packs" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Starter Packs" to="/connect/packs" :active="inPacks">
+            <SidebarItem label="Starter Packs" route="/connect/packs" :active="inPacks">
               <template #prefix><LucidePackage class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>
@@ -570,7 +570,7 @@ defineProps({
                rename: the building icon means the directory of partner
                companies, which is what this row always meant. -->
           <Tooltip text="Partners" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Partners" to="/connect/partners" :active="inDirectory">
+            <SidebarItem label="Partners" route="/connect/partners" :active="inDirectory">
               <template #prefix><LucideBuilding2 class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>
@@ -598,7 +598,7 @@ defineProps({
             :offset="8"
             :disabled="!collapsed"
           >
-            <SidebarItem label="Projects" to="/connect/projects" :active="inProjects">
+            <SidebarItem label="Projects" route="/connect/projects" :active="inProjects">
               <template #prefix><LucideBriefcaseBusiness class="size-4 text-ink-gray-6" /></template>
             </SidebarItem>
           </Tooltip>

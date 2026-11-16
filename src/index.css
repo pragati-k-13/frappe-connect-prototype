@@ -77,8 +77,13 @@
    is the icon wrapper span here. Killing pointer events on it means that trigger
    never sees a hover, so the built-in bubble never opens. The row stays fully
    interactive: pointer events over a `pointer-events: none` child are targeted
-   at its parent, and the parent is the row's `<a>` / `<button>`. */
-.fc-sidebar [data-slot='sidebar-item'] [data-grace-area-trigger] {
+   at its parent, and the parent is the row's `<a>` / `<button>`.
+
+   ⚠️ `span` only. Since frappe-ui 1.1.0 the row's `<a>` / `<button>` carries the
+   marker too, as the trigger of OUR tooltip, and an unscoped selector kills
+   clicks on the row. 1.1.0 also fixed the built-in tooltip (`side="right"`), so
+   this workaround and ours could be dropped for the built-in one. */
+.fc-sidebar [data-slot='sidebar-item'] span[data-grace-area-trigger] {
   pointer-events: none;
 }
 

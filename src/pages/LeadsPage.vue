@@ -233,7 +233,7 @@ const time = (at) => {
             <ListHeaderCell class="justify-end">Updated</ListHeaderCell>
           </ListHeader>
           <ListRows :items="page" v-slot="{ item }">
-            <ListRow :to="`/connect/leads/${item.id}`">
+            <ListRow :route="`/connect/leads/${item.id}`">
               <!-- Bold while a reply waits on you, as CRM bolds an unseen row. -->
               <ListCell class="min-w-0 gap-2">
                 <span :class="dot(item.stage)" class="size-2 shrink-0 rounded-full md:hidden" aria-hidden="true" />

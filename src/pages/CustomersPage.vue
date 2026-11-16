@@ -352,7 +352,7 @@ function saveEdit() {
               <ListHeaderCell><span class="sr-only">Actions</span></ListHeaderCell>
             </ListHeader>
             <ListRows :items="page" v-slot="{ item }">
-              <ListRow :to="`/connect/customers/${item.id}`">
+              <ListRow :route="`/connect/customers/${item.id}`">
                 <ListCell class="min-w-0 gap-2 overflow-hidden">
                   <span class="truncate text-base text-ink-gray-9" :class="waiting(item) && 'font-medium'">{{ item.name }}</span>
                   <Tooltip v-if="isUnpaid(item)" :text="`${lastClosed.label} invoice unpaid`">
