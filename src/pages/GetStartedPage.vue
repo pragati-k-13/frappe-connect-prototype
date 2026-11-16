@@ -422,7 +422,7 @@ const toggleFaq = (i) => (openFaq.value = openFaq.value === i ? null : i)
                 size="sm"
                 label="Resources"
                 :icon-left="IconBook"
-                link="https://docs.frappe.io"
+                href="https://docs.frappe.io"
               />
             </div>
           </section>

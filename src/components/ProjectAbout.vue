@@ -281,7 +281,7 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
     <section class="px-5 py-5">
       <h3 class="text-base font-medium text-ink-gray-8">Resources</h3>
       <div class="-ms-2 mt-3 flex flex-col items-start gap-1">
-        <Button v-if="SHOW_HANDBOOK" variant="ghost" label="Implementation handbook" :link="HANDBOOK">
+        <Button v-if="SHOW_HANDBOOK" variant="ghost" label="Implementation handbook" :href="HANDBOOK">
           <template #prefix><IconBook class="size-4 text-ink-gray-6" /></template>
         </Button>
         <Button v-if="SHOW_CONTACT" variant="ghost" label="Contact Frappe" route="/contact">

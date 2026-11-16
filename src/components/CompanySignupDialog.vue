@@ -140,8 +140,7 @@ const confirm = () => {
       <Progress
         class="mb-6 [&_[role=progressbar]>div]:rounded-full"
         size="md"
-        intervals
-        :interval-count="COMPANY_STEPS"
+        :intervals="COMPANY_STEPS"
         :value="(stepNo / COMPANY_STEPS) * 100"
       />
 

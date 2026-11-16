@@ -18,7 +18,7 @@ import { stageProgress, stagesFor } from '../data/project'
 // a flex row of ringed dots, hairline connectors and five truncated captions,
 // with a `sr-only`/`not-sr-only` dance to drop the captions on a phone: about
 // sixty lines reimplementing a component the design system ships. `intervals`
-// with `intervalCount` set to the spine's length gives the segmented bar
+// set to the spine's length gives the segmented bar
 // directly, and `label` plus the `hint` slot put the stage's name and its
 // position on the line above it.
 //
@@ -53,8 +53,8 @@ const progress = computed(() => stageProgress(props.project.service, props.proje
 const currentIndex = computed(() => progress.value?.index ?? 0)
 const current = computed(() => stages.value[currentIndex.value] ?? null)
 
-// ⚠️ THE STAGE YOU ARE AT COUNTS AS FILLED. `intervalCount` segments, and
-// `Progress` fills `round(value / 100 * intervalCount)` of them — so the value
+// ⚠️ THE STAGE YOU ARE AT COUNTS AS FILLED. `intervals` segments, and
+// `Progress` fills `round(value / 100 * intervals)` of them — so the value
 // is the current stage's ONE-BASED position, which lights the segment you are
 // standing on rather than the one behind you. An empty bar on stage one would
 // say the project had not started, and it has.
@@ -73,8 +73,7 @@ const percent = computed(() =>
     <Progress
       :value="percent"
 :label="current.label"
-      :intervals="true"
-      :interval-count="stages.length"
+      :intervals="stages.length"
       size="md"
     >
       <!-- The count, in the slot the component keeps for it. It is not a

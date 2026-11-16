@@ -195,8 +195,7 @@ const create = () => {
       <Progress
         class="mb-6 [&_[role=progressbar]>div]:rounded-full"
         size="md"
-        intervals
-        :interval-count="steps.length"
+        :intervals="steps.length"
         :value="((step + 1) / steps.length) * 100"
       />
 
