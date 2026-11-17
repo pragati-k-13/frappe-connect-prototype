@@ -21,10 +21,11 @@ import { TIERS, nextTier, standingFor } from '../data/partnership'
 // "Met" or "Not met" takes the status slot. Rows are top-aligned so every
 // first line shares a baseline beside the two-line name, at 72px.
 //
-// Above the list, what's at stake: the firm's tier now, the PMM level the
-// next tier needs (what an audit is for), and what that tier gets them. Read
-// from the same standing Partnership shows, so the two can't disagree. A firm
-// at the top tier has no next one, so only the first card shows.
+// Above the list, what's at stake: the firm's tier and PMM level now, and the
+// PMM level the next tier needs, which is what an audit is for. Tier benefits
+// belong on Partnership, not here. Read from the same standing Partnership
+// shows, so the two can't disagree. A firm at the top tier has no next one,
+// so only the first card shows.
 //
 // Request audit is always there for the owner, as press's "Request for Audit"
 // is: press lets a second request in while another is pending, and the dialog
@@ -66,7 +67,7 @@ const columns = {
       </PageIntro>
 
       <!-- ── What's at stake, as Invoices shows a bill's figures ── -->
-      <dl class="mb-10 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <dl class="mb-10 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div class="rounded-4 border border-outline-gray-1 px-4 py-3">
           <dt class="text-sm text-ink-gray-5">Your tier</dt>
           <dd class="mt-1.5 flex h-6 items-center gap-1.5">
@@ -74,16 +75,10 @@ const columns = {
             <span v-if="standing.pmm" class="text-base text-ink-gray-6">· PMM {{ standing.pmm }}</span>
           </dd>
         </div>
-        <template v-if="next">
-          <div class="rounded-4 border border-outline-gray-1 px-4 py-3">
-            <dt class="text-sm text-ink-gray-5">{{ next.label }} needs</dt>
-            <dd class="mt-1.5 flex h-6 items-center text-lg-medium text-ink-gray-7">PMM {{ next.pmm }}</dd>
-          </div>
-          <div class="rounded-4 border border-outline-gray-1 px-4 py-3">
-            <dt class="text-sm text-ink-gray-5">{{ next.label }} gets you</dt>
-            <dd class="mt-1.5 flex h-6 items-center text-lg-medium text-ink-gray-7">{{ next.discount }}% discount</dd>
-          </div>
-        </template>
+        <div v-if="next" class="rounded-4 border border-outline-gray-1 px-4 py-3">
+          <dt class="text-sm text-ink-gray-5">{{ next.label }} needs</dt>
+          <dd class="mt-1.5 flex h-6 items-center text-lg-medium text-ink-gray-7">PMM {{ next.pmm }}</dd>
+        </div>
       </dl>
 
       <List v-if="rows.length" class="-mx-3 list-gap-3 list-row-px-3 text-base" :columns="columns" :row-height="72">

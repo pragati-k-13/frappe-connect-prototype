@@ -21,15 +21,14 @@ import {
   canRespond,
   isDone,
   isOverdue,
-  openNcs,
 } from '../data/audits'
 
 // SCREEN — one audit, the same shape at every stage, in the 800px column
 // Invoices uses. Named by the PMM level it's for, which a reschedule can't
 // change, with press's ID beside it to quote in email. Three cards whose values
 // fill in as the audit moves: the date with its status, the partner manager
-// auditing, then the type, or once it's done, Frappe's result and what's
-// still open.
+// auditing, then the type, or once it's done, Frappe's result. What's still
+// open shows in the list below, so the card doesn't count it.
 //
 // A completed audit lists its non-conformances as a compact list, what the
 // partner has to fix first. A row opens it in the shell's docked panel, as an
@@ -186,7 +185,6 @@ function submit() {
             <dt class="text-sm text-ink-gray-5">Result</dt>
             <dd class="mt-1.5 flex h-6 min-w-0 items-center gap-1.5 whitespace-nowrap">
               <span class="text-base-medium text-ink-gray-7">{{ audit.result ?? 'Not recorded' }}</span>
-              <span v-if="openNcs(audit).length" class="truncate text-base text-ink-gray-5">· {{ openNcs(audit).length }} open of {{ audit.ncs.length }}</span>
             </dd>
           </template>
           <template v-else>
