@@ -8,6 +8,10 @@ defineProps({
   description: { type: String, default: '' },
   // [{ label, value }] — at most three, or the row stops being a highlight.
   stats: { type: Array, default: () => [] },
+  // Line the suffix up on the title's baseline instead of its centre, for a
+  // suffix that is plain text in a smaller size (an audit's ID). Off by
+  // default: a badge or icon suffix wants centring.
+  baseline: { type: Boolean, default: false },
 })
 </script>
 
@@ -15,7 +19,7 @@ defineProps({
   <header class="pb-8">
     <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
       <div class="min-w-0">
-        <div class="flex items-center gap-2">
+        <div class="flex gap-2" :class="baseline ? 'items-baseline' : 'items-center'">
           <slot name="prefix" />
           <h1 class="text-2xl-semibold text-ink-gray-9">{{ title }}</h1>
           <slot name="suffix" />

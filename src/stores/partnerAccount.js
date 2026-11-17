@@ -8,7 +8,7 @@ import {
   teamFor,
 } from '../data/partnerAccount'
 import { activitySeed, customerFacts, followUpsSeed } from '../data/records'
-import { auditsSeed, todayIso } from '../data/audits'
+import { auditsSeed, nextAuditId, todayIso } from '../data/audits'
 import { firmFor } from '../data/partnership'
 import { originOf } from '../composables/useLeads'
 
@@ -298,18 +298,35 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
     replyToReview(id, text) {
       this.edits.reviewReplies[id] = text
     },
-    // A new request goes to the top. Frappe assigns the auditor and the date.
-    requestAudit({ type, dates }) {
-      const id = `AUD-${Date.now()}`
-      this.edits.audits.unshift({ id, type, status: 'Requested', auditor: null, requested: todayIso(), date: null, dates, ncs: [] })
+    // A new request goes to the top. Frappe assigns the auditor and sets the
+    // date; the proposed one only helps it choose.
+    requestAudit({ type, proposed, pmm }) {
+      const id = nextAuditId(this.edits.audits)
+      this.edits.audits.unshift({
+        id,
+        type,
+        status: 'Requested',
+        pmm,
+        result: null,
+        auditor: null,
+        requested: todayIso(),
+        proposed,
+        date: null,
+        report: null,
+        ncs: [],
+      })
       return id
     },
-    closeNonConformance(auditId, ncId, measuresTaken) {
+    // The partner says what changed; Frappe's PMM team closes it or sends it
+    // back. Each answer joins the finding's log, so an earlier one sent back
+    // stays on record.
+    submitNonConformance(auditId, ncId, { changed, evidence }) {
       const nc = this.edits.audits.find((a) => a.id === auditId)?.ncs.find((n) => n.id === ncId)
       if (!nc) return
       // The signed-in person, as the account menu names them.
-      const me = this.edits.me ?? firmFor(this.tier).person
-      Object.assign(nc, { status: 'Closed', measuresTaken, closedBy: me, closedOn: todayIso() })
+      const by = this.edits.me ?? firmFor(this.tier).person
+      nc.log.push({ kind: 'submitted', by, on: todayIso(), text: changed, evidence })
+      nc.status = 'In Review'
     },
     reportReview(id, reason) {
       if (reason) this.edits.reviewReports[id] = { reason }

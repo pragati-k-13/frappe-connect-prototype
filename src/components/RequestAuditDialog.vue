@@ -4,25 +4,30 @@ import { useRouter } from 'vue-router'
 import { Dialog, FormControl, toast } from 'frappe-ui'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { useAuditReadiness } from '../composables/useAuditReadiness'
-import { AUDIT_TYPES } from '../data/audits'
+import { AUDIT_TYPES, todayIso } from '../data/audits'
 
-// Ask Frappe for a PMM audit. Frappe picks the auditor and the date; the
-// preferred dates only help it choose. A firm that isn't ready yet sees the
-// criterion it's short of instead of the form, with the way to Partnership.
+// Ask Frappe for a PMM audit. Frappe picks the auditor and sets the date; the
+// proposed date only helps it choose, as in press. A firm that isn't ready yet
+// sees the criterion it's short of instead of the form, with the way to
+// Partnership.
 
 const open = defineModel('open', { type: Boolean, default: false })
 
 const router = useRouter()
 const account = usePartnerAccountStore()
-const { missing } = useAuditReadiness()
+// The level the audit is for: the next tier's PMM.
+const { missing, next } = useAuditReadiness()
 
 const type = ref('Online')
-const dates = ref([])
+const proposed = ref('')
+const proposedError = ref('')
 watch(open, (v) => {
   if (!v) return
   type.value = 'Online'
-  dates.value = []
+  proposed.value = ''
+  proposedError.value = ''
 })
+watch(proposed, () => (proposedError.value = ''))
 
 const typeOptions = AUDIT_TYPES.map((t) => ({ label: t, value: t }))
 
@@ -43,7 +48,9 @@ const actions = computed(() =>
           label: 'Request audit',
           variant: 'solid',
           onClick: ({ close }) => {
-            account.requestAudit({ type: type.value, dates: dates.value })
+            if (!proposed.value) return (proposedError.value = 'Pick a date')
+            if (proposed.value <= todayIso()) return (proposedError.value = 'Pick a date after today')
+            account.requestAudit({ type: type.value, proposed: proposed.value, pmm: next.value?.pmm })
             close()
             toast.success('Audit requested')
           },
@@ -62,7 +69,7 @@ const actions = computed(() =>
   >
     <div v-if="!missing" class="space-y-4">
       <FormControl v-model="type" type="select" label="Type" :options="typeOptions" />
-      <FormControl v-model="dates" type="daterange" label="Preferred dates" />
+      <FormControl v-model="proposed" type="date" label="Proposed date" required :error="proposedError" />
     </div>
   </Dialog>
 </template>
