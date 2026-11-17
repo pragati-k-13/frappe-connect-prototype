@@ -1,4 +1,5 @@
-// The partner's standing with Frappe: tier, criteria, audits, contributions.
+// The partner's standing with Frappe: tier, criteria, contributions. The
+// firm's audits live in `audits.js`.
 // What Partnership and Contributions read. See PARTNER-VIEW-PLAN.md §1.
 //
 // ⚠️ TWO FIRMS, ONE PER DEMO TIER. Bronze-and-up is Software@Work, the firm
@@ -81,7 +82,7 @@ export const addDays = (iso, n) => {
 // ── Partner managers ────────────────────────────────────────────────────────
 // Invented people at Frappe. `.example` addresses can't reach a real inbox.
 // There's no rule for who handles what, so they carry no topic.
-const MANAGERS = [
+export const MANAGERS = [
   { name: 'Aditi Rao', email: 'aditi.rao@frappe.example' },
   { name: 'Karan Mehta', email: 'karan.mehta@frappe.example' },
 ]
@@ -123,7 +124,6 @@ const BEGINNER = {
       todo: 'A PMM 3 audit and the rest of Bronze',
     },
   ],
-  audits: [],
 }
 
 // Silver, working toward Gold. The demo's Partnership state picks one of these
@@ -132,11 +132,6 @@ const SILVER = {
   tier: 'silver',
   consultants: 5,
   pmm: 4,
-  audit: { status: 'none' },
-  audits: [
-    { date: '2026-03-14', auditor: 'Aditi Rao', pmm: 4, tier: 'Silver' },
-    { date: '2024-11-02', auditor: 'Karan Mehta', pmm: 3, tier: 'Bronze' },
-  ],
 }
 
 // `scale` grows every invoice, so Contributions still adds up to the MRR
@@ -144,11 +139,8 @@ const SILVER = {
 const STATES = {
   working: {},
   ready: { scale: 1.3 },
-  requested: { scale: 1.3, audit: { status: 'requested', requested: TODAY } },
-  scheduled: {
-    scale: 1.3,
-    audit: { status: 'scheduled', date: '2026-12-18', auditor: 'Aditi Rao' },
-  },
+  requested: { scale: 1.3 },
+  scheduled: { scale: 1.3 },
   'at-risk': {
     consultants: 2,
     risk: {
