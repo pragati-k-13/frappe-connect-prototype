@@ -741,3 +741,24 @@ textarea[data-slot='control'] {
   from { opacity: 1; }
   to { opacity: 0; }
 }
+
+/* A frappe-ui Select whose value wraps onto a second line instead of being
+   truncated: for sentence-long answers in a narrow column (the requirements
+   editor's Today and its tools). Works on Select and MultiSelect, whose
+   triggers are both `min-h-7` buttons; only the value span truncates, and
+   Select's sizer, which holds the widest option's width, goes. */
+.fc-select-wrap button[role='combobox'],
+.fc-select-wrap button[aria-haspopup] {
+  align-items: flex-start;
+  padding-block: 0.3125rem;
+}
+.fc-select-wrap button > .grid,
+.fc-select-wrap button > .grid > span:first-child {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  line-height: 1.125rem;
+}
+.fc-select-wrap .select-trigger-sizer {
+  display: none;
+}

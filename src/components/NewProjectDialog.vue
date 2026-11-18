@@ -1,4 +1,5 @@
 <script setup>
+import { appsName } from '../data/format'
 import { computed, reactive, ref, watch } from 'vue'
 import { Button, Dialog, FormControl, Progress, ScrollArea, Textarea } from 'frappe-ui'
 import AppsSelect from './AppsSelect.vue'
@@ -6,7 +7,6 @@ import { vAutogrow } from '../lib/autogrow'
 import CompanyQuestions from './CompanyQuestions.vue'
 import { companyPayload, emptyCompanyForm, stepErrors, syncCountries } from '../data/company'
 import { TIMELINES, demoScopeFor, isDemoScope, briefErrors, budgetBandsFor, scopeHint } from '../data/custom'
-import { PROJECT_APPS } from '../data/partners'
 import { projectName } from '../data/project'
 import { useConnectStore } from '../stores/connect'
 
@@ -192,10 +192,9 @@ const back = () => {
 // ⚠️ NO NAME QUESTION. A new project is named from what it is for — the apps
 // and the company — so the first thing asked is what they need, not what to
 // call it. A draft being edited keeps the name it already has.
+// Past two apps it says how many more: see `appsName`.
 const namedFor = (values, company) => {
-  const labels = values.map((v) => PROJECT_APPS.find((a) => a.value === v)?.label ?? v)
-  const what =
-    labels.length > 1 ? `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}` : labels[0] ?? 'New project'
+  const what = appsName(values) || 'New project'
   return company ? `${what} for ${company}` : what
 }
 

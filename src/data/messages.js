@@ -430,7 +430,7 @@ const PARTS = [
   ['modules', (b) => b?.modules ?? {}],
   ['budget', (b) => b?.budget ?? ''],
   ['timeline', (b) => b?.timeline ?? ''],
-  ['current setup', (b) => b?.operations ?? ''],
+  ['current setup', (b) => [b?.operations ?? '', sorted(b?.apps)]],
   ['what needs fixing', (b) => sorted(b?.problems)],
   [
     'looking for',

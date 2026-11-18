@@ -1,4 +1,6 @@
 <script setup>
+import ShortList from '../components/ShortList.vue'
+import { industryText } from '../data/format'
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button } from 'frappe-ui'
@@ -8,7 +10,6 @@ import PartnerList from '../components/PartnerList.vue'
 import PartnerRow from '../components/PartnerRow.vue'
 import { PARTNERS } from '../data/partners'
 import { budgetLabel } from '../data/custom'
-import { scopeSentence } from '../data/modules'
 import { answerRows, sharedAnswers } from '../data/company'
 import { useConnectStore } from '../stores/connect'
 
@@ -117,24 +118,16 @@ const partners = computed(() =>
               {{ store.brief.scope }}
             </p>
             <!-- ⚠️ EVERY FIELD THE THREAD'S CARD CARRIES, because the heading
-                 above promises the same card and not a summary of it. This had
-                 already drifted once: the modules were added to the card in
-                 `MessagesPage` and not here, so this screen was quietly showing
-                 less than what went out. The module line is here for that
-                 reason, and anything added to one card from now on belongs in
-                 the other. -->
+                 above promises the same card and not a summary of it. Anything
+                 added to one card belongs in the other. -->
             <dl class="mt-3 space-y-1 border-t border-outline-gray-2 pt-3">
-              <div v-if="scopeSentence(project.modules)" class="flex gap-6 text-p-base">
-                <dt class="w-36 shrink-0 text-ink-gray-5">Modules</dt>
-                <dd class="text-ink-gray-8">{{ scopeSentence(project.modules) }}</dd>
-              </div>
               <div class="flex gap-6 text-p-base">
                 <dt class="w-36 shrink-0 text-ink-gray-5">Budget</dt>
                 <dd class="text-ink-gray-8">{{ budgetLabel(store.brief.budget) }}</dd>
               </div>
               <div class="flex gap-6 text-p-base">
                 <dt class="w-36 shrink-0 text-ink-gray-5">Industry</dt>
-                <dd class="text-ink-gray-8">{{ store.company.segments?.[0] || 'Not given' }}</dd>
+                <dd class="text-ink-gray-8"><ShortList v-if="store.company.segments?.length" :list="industryText(store.company.segments)" /><template v-else>Not given</template></dd>
               </div>
               <div class="flex gap-6 text-p-base">
                 <dt class="w-36 shrink-0 text-ink-gray-5">Size</dt>

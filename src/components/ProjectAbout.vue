@@ -1,4 +1,6 @@
 <script setup>
+import ShortList from './ShortList.vue'
+import { appsText } from '../data/format'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Badge, Button, TextInput, Tooltip } from 'frappe-ui'
 import IconReview from '~icons/lucide/star'
@@ -9,12 +11,11 @@ import IconPack from '~icons/lucide/package'
 import PanelSection from './PanelSection.vue'
 import PanelField from './PanelField.vue'
 import PanelLink from './PanelLink.vue'
-import { PROJECT_APPS, isFrappe } from '../data/partners'
+import { isFrappe } from '../data/partners'
 import { budgetLabel, timelineLabel } from '../data/custom'
 import { logoFor } from '../data/logos'
 import { SESSIONS_PER_PACK, checkoutFor } from '../data/packs'
 import { serviceOf } from '../data/project'
-import { scopeSentence } from '../data/modules'
 import dayjs from 'dayjs'
 
 // The project's reference facts, beside the work: who is doing it, what it is,
@@ -145,13 +146,9 @@ const created = computed(() =>
   }),
 )
 
-const scopeLine = computed(() => scopeSentence(props.project.modules))
-
 // ── The rest of the rail: the panel the partner side's lead and customer
 // pages use, so a project reads like a record on both sides. ──────────────────
-const apps = computed(() =>
-  (props.project.apps ?? []).map((v) => PROJECT_APPS.find((a) => a.value === v)?.label ?? v).join(', '),
-)
+const apps = computed(() => appsText(props.project.apps))
 // What the business asked for, on custom work. A pack's is in its scope.
 const asked = computed(() => {
   if (props.packs.length) return []
@@ -222,9 +219,6 @@ const asked = computed(() => {
             @click="emit('scope')"
           />
         </PanelField>
-        <PanelField v-else-if="scopeLine" label="Scope">
-          <span class="px-2">{{ scopeLine }}</span>
-        </PanelField>
         <PanelField v-if="cost" label="Cost">
           <span class="flex items-center gap-2 px-2">
             <span class="tabular-nums">{{ cost }}</span>
@@ -252,8 +246,8 @@ const asked = computed(() => {
         <PanelField v-if="project.service" label="Service">
           <span class="px-2">{{ serviceOf(project.service)?.label }}</span>
         </PanelField>
-        <PanelField v-if="apps" label="Apps">
-          <span class="px-2">{{ apps }}</span>
+        <PanelField v-if="apps.text" label="Apps">
+          <span class="px-2"><ShortList :list="apps" /></span>
         </PanelField>
         <!-- What the business asked for, on custom work. A pack's requirements
              are already on the page. -->
