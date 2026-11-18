@@ -833,8 +833,11 @@ export const PARTNERS = [
     initials: 'KS',
     color: '#ec4899',
     rate: null,
-    rating: 4.3,
-    reviews: 11,
+    // No reviews and no media: Kingstech and Momscode are the sparse
+    // profiles, the reference for a partner with little to show. See
+    // `SPARSE` in `data/media.js`.
+    rating: null,
+    reviews: 0,
     responds: '5h',
     stories: 0,
     industries: ['Goods Trading', 'E-commerce', 'Logistics', 'Professional services'],
@@ -958,8 +961,9 @@ export const PARTNERS = [
     initials: 'MC',
     color: '#d7263d',
     rate: 55,
-    rating: 4.0,
-    reviews: 3,
+    // Sparse, like Kingstech: no reviews, no media.
+    rating: null,
+    reviews: 0,
     responds: '9h',
     stories: 0,
     industries: ['Retail', 'E-commerce', 'Professional services'],

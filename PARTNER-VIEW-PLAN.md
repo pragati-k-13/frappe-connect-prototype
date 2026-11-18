@@ -123,8 +123,11 @@ email, then a one-time code, no password.
   goes into the onboarding steps above. The general sign-up screen stays for businesses.
 - **Joining a team:** the owner's invite email links to the same email-and-code step, and the
   person lands with the roles they were given.
-- **One email on both sides:** if an address is a business user and on a partner team, Connect
-  asks which side to open after the code.
+- **One email, one side:** a work email belongs to one company, so an address is either a
+  business user or on a partner team. There's no side picker. Someone who really is on both uses
+  a second email.
+- **One login screen:** no separate partner login or "Partner portal" link. The email decides
+  the side.
 
 Signing in with the Frappe Cloud account was considered and left out: it would make Sales and
 Finance people create Frappe Cloud accounts they otherwise never need.
@@ -146,14 +149,13 @@ links to Customers, sorted by MRR. Under the MRR figure, last month's sits as on
 
 **Partner managers.** Partners reach Frappe's partner managers directly, and a firm can have
 more than one. There's no rule for who handles what, so they're listed together, not by topic.
-They're shown in three places:
+They're shown in two places:
 
 - **Partnership, as one line near the end:** each manager's name, photo and an email link. Not a
   column of their own: they're who to write to, not something to read every visit.
 - **Where a problem comes up:** a disputed figure on Invoices, a certificate claimed by
   another partner on Certificates, a declined audit. The error links to the firm's partner managers,
   with what to include.
-- **The account menu:** "Partner managers", so they're reachable from any page.
 
 Each is an email link, not a channel inside Connect.
 

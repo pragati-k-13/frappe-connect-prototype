@@ -2,15 +2,16 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Badge, Button, TextInput, Tooltip } from 'frappe-ui'
 import IconReview from '~icons/lucide/star'
-import IconBook from '~icons/lucide/book-open'
-import IconContact from '~icons/lucide/message-square-text'
-import IconFeedback from '~icons/lucide/message-circle'
-import IconExpand from '~icons/lucide/maximize-2'
 import IconProject from '~icons/lucide/briefcase-business'
 import IconPack from '~icons/lucide/package'
 // Opens a dialog: a panel opening over the page — not a chevron (drilling
 // down) and not maximize (frappe-ui's image viewer uses it for full screen).
-import { isFrappe } from '../data/partners'
+import PanelSection from './PanelSection.vue'
+import PanelField from './PanelField.vue'
+import PanelLink from './PanelLink.vue'
+import { PROJECT_APPS, isFrappe } from '../data/partners'
+import { budgetLabel, timelineLabel } from '../data/custom'
+import { logoFor } from '../data/logos'
 import { SESSIONS_PER_PACK, checkoutFor } from '../data/packs'
 import { serviceOf } from '../data/project'
 import { scopeSentence } from '../data/modules'
@@ -30,6 +31,8 @@ const props = defineProps({
   // Custom work's requirements as they went out, when they have. The scope
   // row opens them, the way a pack's opens its scope.
   hasBrief: { type: Boolean, default: false },
+  // The requirements as they stand, for the budget and timeline asked.
+  brief: { type: Object, default: null },
   // Offer the public review — only once the project is complete and unreviewed.
   canReview: { type: Boolean, default: false },
   // The page's time line — days left on a pack, or when it was completed —
@@ -37,7 +40,7 @@ const props = defineProps({
   when: { type: Object, default: null },
 })
 
-const emit = defineEmits(['scope', 'requirements', 'feedback', 'message', 'review', 'rename'])
+const emit = defineEmits(['scope', 'requirements', 'message', 'review', 'rename'])
 
 // ── The header: the project's mark and name ─────────────────────────────────
 // ⚠️ FRAPPE CRM'S RECORD HEADER, its contact layout: the tile the projects list
@@ -104,13 +107,6 @@ const revertName = (e) => {
   e.target.blur()
 }
 
-// ⚠️ HIDDEN FOR NOW: the handbook isn't ready to link to. Flip this back on
-// once it is; the row is still in the template.
-const SHOW_HANDBOOK = false
-// Hidden for now too; flip back on to show it.
-const SHOW_CONTACT = false
-const HANDBOOK = 'https://frappe.io/handbook'
-
 // ⚠️ `partner` is `FRAPPE_TEAM` on a Starter Pack: Frappe implements packs
 // itself. It is not in the directory, so it has no profile to open.
 const frappe = computed(() => isFrappe(props.partner))
@@ -150,6 +146,21 @@ const created = computed(() =>
 )
 
 const scopeLine = computed(() => scopeSentence(props.project.modules))
+
+// ── The rest of the rail: the panel the partner side's lead and customer
+// pages use, so a project reads like a record on both sides. ──────────────────
+const apps = computed(() =>
+  (props.project.apps ?? []).map((v) => PROJECT_APPS.find((a) => a.value === v)?.label ?? v).join(', '),
+)
+// What the business asked for, on custom work. A pack's is in its scope.
+const asked = computed(() => {
+  if (props.packs.length) return []
+  const b = props.brief ?? props.project.brief ?? {}
+  return [
+    { label: 'Budget', value: budgetLabel(b.budget) },
+    { label: 'Timeline', value: b.timeline ? timelineLabel(b.timeline) : '' },
+  ].filter((r) => r.value)
+})
 </script>
 
 <template>
@@ -188,147 +199,78 @@ const scopeLine = computed(() => scopeSentence(props.project.modules))
       </div>
     </section>
 
-    <section v-if="partner" class="border-b border-outline-gray-1 px-5 py-5">
-      <!-- Who implements, what, and for how much. Who is the first row, keyed
-           like the rest. -->
-      <h3 class="text-base font-semibold text-ink-gray-9">Implementation</h3>
-      <dl class="mt-4 grid grid-cols-[112px_minmax(0,1fr)] items-baseline gap-y-4 text-base">
-        <dt class="self-center text-sm text-ink-gray-5">{{ frappe ? 'Implementer' : 'Partner' }}</dt>
-        <!-- ⚠️ THE NAME IS THE WAY TO THE PROFILE, a ghost button like View
-             requirements below — not a name beside a separate profile icon.
-             On a pack it's Frappe, which has no profile, so it stays text.
-             `-mx-2 -my-1.5` takes back the button's padding and height so the
-             name sits on the value column and the row keeps the list's rhythm. -->
-        <dd class="min-w-0">
-          <Button
+    <div class="divide-y divide-outline-gray-1">
+      <PanelSection v-if="partner" title="Implementation">
+        <PanelField :label="frappe ? 'Implementer' : 'Partner'">
+          <!-- On a pack it's Frappe, which has no profile, so it stays text. -->
+          <PanelLink
             v-if="!frappe"
-            variant="ghost"
-            class="-mx-2 -my-1.5 max-w-full !text-ink-gray-7"
             :label="partner.name"
-            :route="{ name: 'partner', params: { id: partner.id } }"
+            :avatar="partner.name"
+            :image="logoFor(partner.id)"
+            :to="`/connect/partners/${partner.id}`"
           />
-          <span v-else class="block truncate text-ink-gray-7">{{ partner.name }}</span>
-        </dd>
-        <template v-if="packs.length || scopeLine">
-          <dt class="text-sm text-ink-gray-5">Scope of work</dt>
-          <!-- ⚠️ WHAT THIS IMPLEMENTER IS DELIVERING — a partner, or Frappe
-               on a pack — so it sits under them, and is where the fuller scope (modules and what is in each) will live.
-               ⚠️ ONE LINK, NOT ONE PER PACK. Pack names are long and wrap in a
-               112px column; the dialog it opens lists them. -->
-          <!-- ⚠️ THE VALUE IS TEXT, THE WAY IN IS ITS OWN BUTTON: the packs by
-               name (or count) read as a fact like the rows around them, and
-               an icon-only ghost button beside it opens the scope — tooltip
-               and label, like the implementer row's. `-my-0.5` takes back the
-               24px button's extra height so the row keeps the list's rhythm. -->
-          <dd v-if="packs.length" class="flex min-w-0 items-center gap-1 text-ink-gray-7">
-            <span class="truncate">
-              {{ packs.length === 1 ? packs[0].name : `${packs.length} Starter Packs` }}
-            </span>
-            <Tooltip text="View scope">
-              <Button
-                size="xs"
-                variant="ghost"
-                class="-my-0.5 shrink-0"
-                aria-label="View scope"
-                @click="emit('scope')"
-              >
-                <template #icon><IconExpand class="size-3.5 text-ink-gray-5" /></template>
-              </Button>
-            </Tooltip>
-          </dd>
-          <dd v-else class="text-ink-gray-7">{{ scopeLine }}</dd>
-        </template>
-
-        <template v-if="cost">
-          <dt class="text-sm text-ink-gray-5">Cost</dt>
-          <dd class="flex items-center gap-2 text-ink-gray-7">
+          <span v-else class="truncate px-2">{{ partner.name }}</span>
+        </PanelField>
+        <PanelField v-if="!frappe && partner.city" label="Location">
+          <span class="truncate px-2">{{ partner.city }}</span>
+        </PanelField>
+        <PanelField v-if="packs.length" label="Scope">
+          <PanelLink
+            :label="packs.length === 1 ? packs[0].name : `${packs.length} Starter Packs`"
+            icon="lucide-package"
+            @click="emit('scope')"
+          />
+        </PanelField>
+        <PanelField v-else-if="scopeLine" label="Scope">
+          <span class="px-2">{{ scopeLine }}</span>
+        </PanelField>
+        <PanelField v-if="cost" label="Cost">
+          <span class="flex items-center gap-2 px-2">
             <span class="tabular-nums">{{ cost }}</span>
             <!-- A pack is paid at checkout; custom work is paid to the partner,
                  outside this product, so there is nothing to mark. -->
             <Badge v-if="packs.length" label="Paid" />
-          </dd>
-        </template>
-        <!-- After Cost: both come from what was agreed (the quote, or the
-             packs bought). -->
-        <template v-if="timeline || when">
-          <dt class="text-sm text-ink-gray-5">Timeline</dt>
-          <dd class="text-ink-gray-7">
-            <span v-if="timeline">{{ timeline }}</span>
-            <span
-              v-if="when && when.text !== timeline"
-              class="block"
-              :class="[when.tone, timeline ? 'mt-1' : '']"
-            >
-              {{ when.text }}
-            </span>
-          </dd>
-        </template>
-      </dl>
-      <!-- The one partner action that asks for something, and only once the
-           work is done — so it is a labelled button, and only then. Never on
-           a pack: Frappe did the work, and there is no partner to review. -->
-      <Button
-        v-if="canReview"
-        class="mt-3"
-        variant="subtle"
-        :label="`Review ${partner.name}`"
-        @click="emit('review')"
-      >
-        <template #prefix><IconReview class="size-4" /></template>
-      </Button>
-    </section>
+          </span>
+        </PanelField>
+        <PanelField v-if="timeline || when" label="Timeline">
+          <span class="px-2">
+            <span v-if="timeline" class="block">{{ timeline }}</span>
+            <span v-if="when && when.text !== timeline" class="block" :class="when.tone">{{ when.text }}</span>
+          </span>
+        </PanelField>
+        <!-- Only once the work is done. Never on a pack: Frappe did the work. -->
+        <div v-if="canReview" class="px-3 pt-1">
+          <Button variant="subtle" :label="`Review ${partner.name}`" @click="emit('review')">
+            <template #prefix><IconReview class="size-4" /></template>
+          </Button>
+        </div>
+      </PanelSection>
 
-    <section class="border-b border-outline-gray-1 px-5 py-5">
       <!-- "Details", not "Project": the header above already names it. -->
-      <h3 class="text-base font-semibold text-ink-gray-9">Details</h3>
-      <dl class="mt-4 grid grid-cols-[112px_minmax(0,1fr)] items-baseline gap-y-4 text-base">
-        <template v-if="project.service">
-          <dt class="text-sm text-ink-gray-5">Service</dt>
-          <dd class="text-ink-gray-7">{{ serviceOf(project.service)?.label }}</dd>
-        </template>
-        <!-- What the business submitted, as it went out.
-             ⚠️ NOT ON A PACK: everything its requirements hold is already on
-             the page — the packs in Scope of work, the company answers in the
-             company task. A custom brief exists nowhere else, so it stays. -->
-        <template v-if="hasBrief && !packs.length">
-          <dt class="text-sm text-ink-gray-5">Requirements</dt>
-          <dd class="min-w-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              class="-mx-2 -my-1.5 max-w-full !text-ink-gray-7"
-              label="View requirements"
-              @click="emit('requirements')"
-            />
-            <!-- When they were last edited after going out. -->
-            <p v-if="project.requirementsUpdatedAt" class="text-p-sm text-ink-gray-5">
-              Updated {{ dayjs(project.requirementsUpdatedAt).format('MMM D') }}
-            </p>
-          </dd>
-        </template>
+      <PanelSection title="Details">
+        <PanelField v-if="project.service" label="Service">
+          <span class="px-2">{{ serviceOf(project.service)?.label }}</span>
+        </PanelField>
+        <PanelField v-if="apps" label="Apps">
+          <span class="px-2">{{ apps }}</span>
+        </PanelField>
+        <!-- What the business asked for, on custom work. A pack's requirements
+             are already on the page. -->
+        <PanelField v-for="row in asked" :key="row.label" :label="row.label">
+          <span class="px-2">{{ row.value }}</span>
+        </PanelField>
+        <PanelField v-if="hasBrief && !packs.length" label="Requirements">
+          <PanelLink label="View" icon="lucide-file-text" @click="emit('requirements')" />
+        </PanelField>
+        <PanelField v-if="project.requirementsUpdatedAt" label="Updated">
+          <span class="px-2">{{ dayjs(project.requirementsUpdatedAt).format('MMM D, YYYY') }}</span>
+        </PanelField>
+        <PanelField label="Created">
+          <span class="px-2">{{ created }}</span>
+        </PanelField>
+      </PanelSection>
 
-
-        <dt class="text-sm text-ink-gray-5">Created</dt>
-        <dd class="text-ink-gray-7">{{ created }}</dd>
-      </dl>
-    </section>
-
-    <section class="px-5 py-5">
-      <!-- ⚠️ "Resources" only once it holds resources. With the handbook and
-           Contact Frappe hidden, the section was a heading over one feedback
-           button that is not a resource. -->
-      <h3 v-if="SHOW_HANDBOOK || SHOW_CONTACT" class="mb-3 text-base font-semibold text-ink-gray-9">Resources</h3>
-      <div class="-ms-2 flex flex-col items-start gap-1">
-        <Button v-if="SHOW_HANDBOOK" variant="ghost" label="Implementation handbook" :href="HANDBOOK">
-          <template #prefix><IconBook class="size-4 text-ink-gray-6" /></template>
-        </Button>
-        <Button v-if="SHOW_CONTACT" variant="ghost" label="Contact Frappe" route="/contact">
-          <template #prefix><IconContact class="size-4 text-ink-gray-6" /></template>
-        </Button>
-        <Button variant="ghost" label="Give feedback" @click="emit('feedback')">
-          <template #prefix><IconFeedback class="size-4 text-ink-gray-6" /></template>
-        </Button>
-      </div>
-    </section>
+    </div>
   </div>
 </template>

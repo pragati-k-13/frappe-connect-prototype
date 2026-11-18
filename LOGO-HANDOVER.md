@@ -111,7 +111,11 @@ A firm with two country listings shares one logo. `wahni-it-solutions-fze` maps 
 - **RaajaRam** (Wahni) is a navy box over dark text on white, so the knockout
   script can't take it whole. It still reads darker in the strip; it needs a
   hand-edited file.
-- **Dark mode is unchecked.** JPGs with white backgrounds will likely show as
-  light boxes on a dark page.
+- **Dark mode, partner logo tiles (`.fc-logo-avatar`):** the tile is
+  `--surface-gray-2` in dark, not white (decided 2026-11-16; a white or light
+  gray tile read as a column of bright squares). Two kinds of file still need
+  dark versions: JPGs with a white background (Wahni, New Indictrans) show as
+  white boxes inside the dark tile, and dark-ink transparent marks (8848
+  Digital, Sanskar Technolab) nearly disappear on it.
 - **Production:** for an exactly even strip, prepared one-color logos with
   transparent backgrounds would replace the filter.

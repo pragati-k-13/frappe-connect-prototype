@@ -87,6 +87,11 @@ export const CURRENT_APPS = [
   'Microsoft Dynamics',
   'Odoo',
   'Salesforce',
+  'HubSpot',
+  'Zendesk',
+  'Freshdesk',
+  'Keka',
+  'greytHR',
   'An in-house system',
   'Something else',
 ].map((label) => ({ label, value: label }))
@@ -103,16 +108,23 @@ export const APPS_OTHER = 'Something else'
 // describe a SITUATION, which is what a partner is actually scoping against.
 export const OPERATIONS = [
   { value: 'manual', label: 'Spreadsheets, email and paper' },
-  { value: 'accounting', label: 'Accounting software, everything else by hand' },
-  { value: 'disconnected', label: 'Several systems that do not talk to each other' },
-  { value: 'outgrown', label: 'An ERP that no longer fits how we work' },
+  // ⚠️ APP-AGNOSTIC. These read as an ERP ladder ("accounting software", "an
+  // ERP") when the project may be CRM, Helpdesk or HR. The values stay, so
+  // saved answers still read.
+  { value: 'accounting', label: 'One tool for part of it, the rest by hand' },
+  { value: 'disconnected', label: 'Several tools that do not talk to each other' },
+  { value: 'outgrown', label: 'A system that no longer fits how we work' },
 ]
 
 // ⚠️ The first rung is the one that names no software, so it is the one rung
 // that is not asked which systems — see `CURRENT_APPS`.
 const OPERATIONS_MANUAL = 'manual'
 
-export const asksApps = (operations) => Boolean(operations) && operations !== OPERATIONS_MANUAL
+// Only once a rung is picked. A value that matches no rung (an older or bad
+// answer carried over from a previous project) picks nothing on screen, so it
+// must not open the follow-up either.
+export const asksApps = (operations) =>
+  operations !== OPERATIONS_MANUAL && OPERATIONS.some((o) => o.value === operations)
 
 // ── Step 3: what you want fixed ──────────────────────────────────────────────
 
@@ -123,21 +135,35 @@ export const asksApps = (operations) => Boolean(operations) && operations !== OP
 // describes their month that way.
 export const PROBLEMS = [
   { value: 'manual-work', label: 'Manual work that should be automated' },
-  // ⚠️ THE ONE PEOPLE PROBLEM, and it was added rather than found. The other
-  // six are all operations and finance symptoms, which meant the HR and Payroll
-  // pack could never be recommended off this question — a business could say
-  // nothing that pointed at it, and the engine would offer the ERP packs to
-  // somebody whose whole problem was salaries. See `data/recommendation.js`.
-  { value: 'people', label: 'Payroll, leave and attendance are run by hand' },
-  { value: 'integration', label: 'Systems that do not talk to each other' },
-  { value: 'close', label: 'Month-end close and reporting take too long' },
-  { value: 'visibility', label: 'No reliable view of stock and orders' },
-  { value: 'fit', label: 'Our tools cannot handle how we actually work' },
+  // ⚠️ THE ONE PEOPLE PROBLEM, and it was added rather than found. Without it
+  // the HR and Payroll pack could never be recommended off this question. See
+  // `data/recommendation.js`.
+  { value: 'people', label: 'Payroll, leave and attendance are run by hand', apps: ['frappe-hr'] },
+  { value: 'close', label: 'Reports take too long to put together', apps: ['erpnext', 'insights'] },
+  { value: 'visibility', label: 'No reliable view of stock and orders', apps: ['erpnext'] },
+  { value: 'leads', label: 'Leads and follow-ups slip through the cracks', apps: ['crm'] },
+  { value: 'support', label: 'Customer requests get lost or answered late', apps: ['helpdesk'] },
   { value: 'scale', label: 'We are outgrowing what we have' },
+  // ⚠️ NO LONGER OFFERED: each repeated an answer on the step before ("Several
+  // tools…", "A system that no longer fits"). Kept so saved answers still read.
+  { value: 'integration', label: 'Tools that do not talk to each other', offered: false },
+  { value: 'fit', label: 'Our tools cannot handle how we actually work', offered: false },
 ]
 
+// The options for a project: the ones for the apps it needs, plus the two
+// that fit any app. No apps given (a surface that doesn't ask them) shows
+// every offered option.
+export const problemsFor = (apps = []) =>
+  PROBLEMS.filter((p) => p.offered !== false && (!p.apps || !apps.length || p.apps.some((a) => apps.includes(a))))
+
+// ⚠️ `countries` IS THE ANSWER, `country` IS ITS FIRST PICK. A business can be
+// based in more than one country, so the question takes several. Thirty-odd
+// readers (currency, budget bands, the city question, partner matching) want
+// ONE home market, so `country` stays and is always `countries[0]` — set
+// together by `CompanyQuestions`.
 export const emptyCompanyForm = () => ({
   country: SELECTABLE_COUNTRY,
+  countries: [SELECTABLE_COUNTRY],
   employees: '',
   segments: [],
   apps: [],
@@ -145,6 +171,17 @@ export const emptyCompanyForm = () => ({
   operations: '',
   problems: [],
 })
+
+// Brings `country` and `countries` back into step after a form is filled from
+// older answers. A project saved before the question took several has only
+// `country`, and an empty one blanked the home market while the default list
+// still showed India — the field read "India" and failed as unanswered.
+export const syncCountries = (form) => {
+  const list = form.countries ?? []
+  if (form.country && !list.includes(form.country)) form.countries = [form.country]
+  else if (!form.country && list.length) form.country = list[0]
+  return form
+}
 
 // ⚠️ EVERY STEP IS NOW REQUIRED, which is a reversal. These questions used to
 // be optional past the first — they sharpened a partner match and a wider match
@@ -160,7 +197,7 @@ export const companyErrors = (form) => {
   if (!form.country) e.country = 'Select a country'
   if (!form.employees) e.employees = 'Select a size'
   if (!form.segments.length) e.segments = 'Select an industry'
-  if (!form.operations) e.operations = 'Pick the closest description'
+  if (!OPERATIONS.some((o) => o.value === form.operations)) e.operations = 'Pick the closest description'
   if (!form.problems.length) e.problems = 'Pick at least one'
   return e
 }
@@ -185,6 +222,7 @@ export const stepComplete = (form, step) => Object.keys(stepErrors(form, step)).
 // two surfaces collecting the same answers cannot store them differently.
 export const companyPayload = (form) => ({
   country: form.country,
+  countries: form.countries?.length ? [...form.countries] : [form.country].filter(Boolean),
   employees: form.employees,
   segments: form.segments,
   apps: form.apps,

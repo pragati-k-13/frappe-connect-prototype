@@ -1,5 +1,5 @@
 <script setup>
-import { markRaw, onUnmounted, ref, watchEffect } from 'vue'
+import { markRaw, onUnmounted, ref, watch, watchEffect } from 'vue'
 import {
   Avatar,
   SettingsContent,
@@ -19,6 +19,7 @@ import UsersPanel from './UsersPanel.vue'
 // frappe-ui's settings dialog with its default tabs, less Integrations and
 // Billing, plus Company — the details a new project used to ask every time.
 const open = defineModel('open', { type: Boolean, default: false })
+const props = defineProps({ initialTab: { type: String, default: 'profile' } })
 
 const store = useConnectStore()
 
@@ -48,7 +49,10 @@ const allTabs = [
   { label: 'Users', value: 'users', icon: 'lucide-users', component: markRaw(UsersPanel), hidden: true },
 ]
 const tabs = allTabs.filter((t) => SHOW_ALL_TABS || !t.hidden)
-const tab = ref('profile')
+// The shell opens it on Company from the header and on Profile from the
+// footer, so each menu lands on what it names.
+const tab = ref(props.initialTab)
+watch(open, (o) => o && (tab.value = props.initialTab))
 
 // Appearance applies to the whole page, so it is set here rather than in its
 // panel, which unmounts when another tab is open. frappe-ui's dark tokens key

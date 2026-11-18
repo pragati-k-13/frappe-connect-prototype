@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Button, ScrollArea } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
+import EmptyState from '../components/EmptyState.vue'
 import NewProjectDialog from '../components/NewProjectDialog.vue'
 import ProjectRow from '../components/ProjectRow.vue'
 import { useAuthGate } from '../utils/auth'
@@ -48,7 +49,7 @@ const create = (details) => {
 </script>
 
 <template>
-  <ConnectShell root-label="Projects" root-to="/connect/projects">
+  <ConnectShell root-label="Projects" root-to="/connect/projects" :flush="!ordered.length">
     <!-- ⚠️ NO TOP-BAR ACTION, and that part still holds. New project lived here
          as the bar's trailing control on the grounds that it was the one thing
          on this screen that isn't opening a row; it sits on the list's own
@@ -58,38 +59,33 @@ const create = (details) => {
     -->
     <!-- 800 and `py-8`, matching the partner list and the pack catalogue. This
          app has one measure for a listing and this is it. -->
-    <div class="fc-page-list py-8">
-      <!-- ── Empty ───────────────────────────────────────────────────────
-           ⚠️ ONE DOOR. It had two — New project beside a subtle "See the packs"
-           — and the second was answering a question this screen isn't asking.
-           An empty state has one job: get the first thing made. A second button
-           pointing at a catalogue turns that into a choice between starting and
-           shopping, and the catalogue already has its own place in the rail.
+    <!-- ── Empty ───────────────────────────────────────────────────────
+         ⚠️ ONE DOOR. It had two — New project beside a subtle "See the packs"
+         — and the second was answering a question this screen isn't asking.
+         An empty state has one job: get the first thing made. A second button
+         pointing at a catalogue turns that into a choice between starting and
+         shopping, and the catalogue already has its own place in the rail.
 
-           ⚠️ Worth knowing what the pack door was FOR, before it comes back: the
-           flow once had only that one, which meant the only way to have a
-           project was to buy something. Starting without buying is now the
-           default rather than the alternative, so the alternative stopped
-           needing to be argued for here. -->
-      <div v-if="!ordered.length" class="py-20 text-center">
-        <p class="text-p-lg font-medium text-ink-gray-8">Nothing under way</p>
-        <!-- ⚠️ ONE SENTENCE, and it took four lines to work out which one. The
-             version this replaces spent two of those lines naming the
-             services on offer, which is a menu — and a menu in an empty state
-             is a decision demanded before anything exists to decide about.
-
-             What is left is the only thing neither the heading nor the button
-             says: that you can start without having chosen. That is the whole
-             reason this screen has a New project button at all. -->
-        <p class="mx-auto mt-1.5 max-w-xs text-p-base text-ink-gray-6">
-          A project is what you want built. How it gets built is a later decision.
-        </p>
-        <div class="mt-4">
-          <Button variant="solid" label="New project" @click="startNew" />
-        </div>
-      </div>
-
-      <template v-else>
+         ⚠️ Worth knowing what the pack door was FOR, before it comes back: the
+         flow once had only that one, which meant the only way to have a
+         project was to buy something. Starting without buying is now the
+         default rather than the alternative, so the alternative stopped
+         needing to be argued for here. -->
+    <!-- Empty: the shell goes flush (no scroll area), so the empty state can
+         fill the content area and sit in its vertical centre. -->
+    <!-- The shared empty state. The title names the space and the line says
+         what a project gets you here; the button is the only way forward. -->
+    <EmptyState
+      v-if="!ordered.length"
+      class="flex-1"
+      icon="lucide-briefcase-business"
+      title="No projects yet"
+      description="Describe what you need. Partners send quotes."
+    >
+      <Button variant="solid" label="New project" icon-left="lucide-plus" @click="startNew" />
+    </EmptyState>
+    <div v-else class="fc-page-list py-8">
+      <template v-if="ordered.length">
         <!-- ⚠️ NO `<h1>`, and that is the second version of this screen. The
              first opened with "Projects" — which the top bar already
              says, in the same words, forty pixels above it. The other two

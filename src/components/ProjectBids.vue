@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Avatar, Badge, Button, Dropdown, ScrollArea, Tooltip, toast } from 'frappe-ui'
+import StageDot from './StageDot.vue'
 import TierIcon from './TierIcon.vue'
 import EmptyState from './EmptyState.vue'
 import { List, ListCell, ListHeader, ListHeaderCell, ListHeaderCellSort, ListRow } from 'frappe-ui/list'
@@ -129,14 +130,78 @@ const rows = computed(() => {
     )
 })
 
+// ⚠️ EVERYONE IT WENT TO STAYS IN THE LIST. The firms that haven't quoted
+// are rows too — "Waiting", or "Declined" once their thread says so — after
+// the quotes, which are what need a decision. Before, a broadcast with no
+// quotes yet was an empty state, and the six firms it went to vanished the
+// moment Share was pressed.
+const declined = (partnerId) => {
+  const msgs = store.threads.find((t) => t.partnerId === partnerId)?.messages ?? []
+  const i = msgs.findLastIndex((m) => m.kind === 'decline')
+  return i >= 0 && !msgs.slice(i).some((m) => m.kind === 'bid')
+}
+const others = computed(() => {
+  const quoted = new Set((props.project.bids ?? []).map((b) => b.partnerId))
+  return (props.project.broadcast?.partnerIds ?? [])
+    .filter((id) => !quoted.has(id))
+    .map((id) => ({
+      partnerId: id,
+      partner: partnerOf(id),
+      status: (props.project.passed ?? []).includes(id) ? 'passed' : declined(id) ? 'declined' : 'waiting',
+    }))
+    .filter((r) => r.partner)
+    .sort((a, b) => (a.status === 'declined') - (b.status === 'declined'))
+})
+// Which of these rows each view shows: a firm marked Not interested before it
+// quoted sits in that view with the quotes marked the same way.
+const OTHERS_IN = {
+  all: (r) => r.status !== 'passed',
+  shared: () => false,
+  declined: (r) => r.status === 'passed',
+}
+
+// The lead list's status style: a dot and a word. Waiting is still open, so it
+// takes the open-lead blue; a decline takes Lost's red.
+const STATUS = {
+  waiting: { label: 'Awaiting quote', dot: 'bg-surface-blue-7' },
+  declined: { label: 'Declined', dot: 'bg-surface-red-6' },
+  passed: { label: 'Not interested', dot: 'bg-surface-gray-5' },
+}
+
+const passOn = (row) => {
+  store.setPassed(props.project.id, row.partnerId, true)
+  toast(`${row.partner.name} moved to Not interested`, {
+    id: `not-interested-${row.partnerId}`,
+    action: { label: 'Undo', onClick: () => store.setPassed(props.project.id, row.partnerId, false) },
+  })
+}
+const restorePassed = (row) => {
+  store.setPassed(props.project.id, row.partnerId, false)
+  toast.success(`${row.partner.name} restored`)
+}
+const moreForOther = (row) =>
+  [
+    narrow.value && {
+      label: 'Message',
+      icon: 'lucide-message-square',
+      onClick: () => router.push({ name: 'messages', query: { thread: row.partnerId } }),
+    },
+    row.status !== 'passed' && {
+      label: 'Not interested',
+      icon: 'lucide-ban',
+      onClick: () => passOn(row),
+    },
+  ].filter(Boolean)
+
 const VIEWS = {
-  all: { label: 'All quotes', match: (r) => r.state !== 'not-interested' },
+  all: { label: 'All', match: (r) => r.state !== 'not-interested' },
   shared: { label: 'Details shared', match: (r) => r.state === 'shortlisted' },
   declined: { label: 'Not interested', match: (r) => r.state === 'not-interested' },
 }
 const view = ref('all')
-const count = (key) => rows.value.filter(VIEWS[key].match).length
+const count = (key) => rows.value.filter(VIEWS[key].match).length + others.value.filter(OTHERS_IN[key]).length
 const visible = computed(() => rows.value.filter(VIEWS[view.value].match))
+const visibleOthers = computed(() => others.value.filter(OTHERS_IN[view.value]))
 
 const viewOptions = computed(() =>
   Object.entries(VIEWS).map(([key, v]) => ({
@@ -246,7 +311,7 @@ query.addEventListener('change', onWidth)
 onBeforeUnmount(() => query.removeEventListener('change', onWidth))
 
 const EMPTY = {
-  all: { icon: 'lucide-inbox', title: 'No quotes to compare' },
+  all: { icon: 'lucide-inbox', title: 'No partners yet' },
   shared: { icon: 'lucide-send', title: 'No details shared yet' },
   declined: { icon: 'lucide-ban', title: 'No one marked not interested' },
 }
@@ -257,7 +322,7 @@ const EMPTY = {
     <!-- Nothing back yet. A real state: a broadcast sent an hour ago has no
          replies, and the page says so rather than draw an empty table. -->
     <EmptyState
-      v-if="!rows.length"
+      v-if="!rows.length && !others.length"
       icon="lucide-inbox"
       title="No quotes yet"
       :description="`Sent to ${sent} partners`"
@@ -272,7 +337,8 @@ const EMPTY = {
       <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <h2 class="whitespace-nowrap text-xl font-semibold text-ink-gray-8">Hire a Partner</h2>
         <div class="flex shrink-0 items-center gap-2">
-        <Dropdown :options="sortOptions" align="end">
+        <!-- Sorting needs two quotes to order. -->
+        <Dropdown v-if="rows.length > 1" :options="sortOptions" align="end">
           <Button :label="sortLabel" icon-left="lucide-arrow-up-down" icon-right="lucide-chevron-down" />
         </Dropdown>
         <Dropdown :options="viewOptions" align="end">
@@ -285,7 +351,7 @@ const EMPTY = {
       </div>
 
       <div ref="listEl" class="mt-4">
-        <EmptyState v-if="!visible.length" :icon="EMPTY[view].icon" :title="EMPTY[view].title" />
+        <EmptyState v-if="!visible.length && !visibleOthers.length" :icon="EMPTY[view].icon" :title="EMPTY[view].title" />
 
         <!-- frappe-ui's List in column mode. Static rows: each carries a
              profile link and buttons of its own, so the row is not a target. -->
@@ -379,6 +445,67 @@ const EMPTY = {
                 <!-- The way back, on the row, where Hire would be. -->
                 <Button v-else label="Restore" @click="restore(row)" />
                 <Dropdown v-if="moreFor(row).length" :options="moreFor(row)" align="end">
+                  <Button variant="ghost" :aria-label="`More for ${row.partner.name}`">
+                    <template #icon><IconMore class="size-4" /></template>
+                  </Button>
+                </Dropdown>
+              </ListCell>
+            </ListRow>
+            <!-- Not quoted yet: the same partner cell, and the status where the
+                 quote goes, in the lead list's dot-and-word style. The actions
+                 follow a quoted row's order — Message, Restore where Hire would be,
+                 More — with no empty slot where there's nothing to hire, so on
+                 these rows Message sits one button further right. -->
+            <ListRow
+              v-for="row in visibleOthers"
+              :key="row.partnerId"
+              :data-partner="row.partnerId"
+              class="!items-start pt-4"
+            >
+              <ListCell class="!items-start gap-3">
+                <Avatar
+                  :image="logoFor(row.partnerId)"
+                  :label="row.partner.name"
+                  size="2xl"
+                  shape="square"
+                  class="fc-logo-avatar shrink-0"
+                />
+                <div class="min-w-0">
+                  <span class="flex items-center gap-2">
+                    <RouterLink
+                      :to="{ name: 'partner', params: { id: row.partnerId } }"
+                      class="truncate text-base text-ink-gray-8 hover:underline"
+                    >
+                      {{ row.partner.name }}
+                    </RouterLink>
+                    <TierIcon :tier="row.partner.tier" />
+                  </span>
+                  <span class="mt-1 flex min-w-0 items-center gap-1 text-sm text-ink-gray-6">
+                    <span class="truncate">{{ cityOf(row.partner) }}</span>
+                    <template v-if="narrow">
+                      <span aria-hidden="true">·</span>
+                      <StageDot :color="STATUS[row.status].dot" />
+                      <span class="truncate">{{ STATUS[row.status].label }}</span>
+                    </template>
+                  </span>
+                </div>
+              </ListCell>
+              <ListCell v-if="!narrow" class="!items-start gap-2">
+                <StageDot class="mt-0.5" :color="STATUS[row.status].dot" />
+                <span class="text-base text-ink-gray-7">{{ STATUS[row.status].label }}</span>
+              </ListCell>
+              <ListCell class="-mt-1 !items-start justify-end gap-1.5">
+                <Button
+                  v-if="!narrow"
+                  variant="ghost"
+                  :aria-label="`Message ${row.partner.name}`"
+                  tooltip="Message"
+                  :route="{ name: 'messages', query: { thread: row.partnerId } }"
+                >
+                  <template #icon><IconMessage class="size-4" /></template>
+                </Button>
+                <Button v-if="row.status === 'passed'" label="Restore" @click="restorePassed(row)" />
+                <Dropdown v-if="moreForOther(row).length" :options="moreForOther(row)" align="end">
                   <Button variant="ghost" :aria-label="`More for ${row.partner.name}`">
                     <template #icon><IconMore class="size-4" /></template>
                   </Button>

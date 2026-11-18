@@ -55,12 +55,15 @@ const open = (href) => window.open(href, '_blank', 'noopener')
 </script>
 
 <template>
-  <section>
+  <!-- Reading, a partner with none has no section, like Featured and
+       Marketplace: an empty heading only tells a business what's missing. -->
+  <section v-if="editable || stories.length">
     <!-- No "Submit a story" here when editing: the client logos section
          near the top carries it, and one is enough. -->
     <h2 class="flex items-center gap-2 text-base font-semibold text-ink-gray-8">
       Success stories
-      <Badge v-if="stories.length" :label="String(stories.length)" />
+      <!-- From two: beside a single story, "1" says nothing. -->
+      <Badge v-if="stories.length > 1" :label="String(stories.length)" />
     </h2>
 
     <!-- ── The featured story ───────────────────────────────────────── -->

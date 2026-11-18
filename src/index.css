@@ -105,6 +105,11 @@
 .fc-logo-avatar img {
   object-fit: contain;
 }
+/* Dark: a dark surface tile, so the logos sit in the page instead of as a
+   column of light squares. */
+[data-theme='dark'] .fc-logo-avatar {
+  background-color: var(--surface-gray-2);
+}
 
 /* Partner listing rows.
    A hovered row hides the divider below it AND the one above it, so the fill
@@ -249,7 +254,10 @@
    Hooks, all frappe-ui's own markup (1.1.0):
      > div.pb-6.pt-5       the body wrapper — header and default slot
      > div.pb-7            the actions row, a sibling of the body
-     .w-full > .mb-6       the header, when there is one
+     .w-full > .mb-6:first-child   the header, when there is one. `:first-child`
+                           because body content can carry `mb-6` too (New
+                           project's progress bar did, and got pinned and
+                           padded as if it were the title).
    `bare` dialogs render neither wrapper, so none of this reaches them.
 
    96px off the height: the container's `py-4` and the panel's `my-8`, twice.
@@ -272,11 +280,11 @@
   overflow-y: auto;
 }
 
-.dialog-content:not(:has(.fc-estimate)) > div.pb-6.pt-5:has(> .flex > .w-full > .mb-6) {
+.dialog-content:not(:has(.fc-estimate)) > div.pb-6.pt-5:has(> .flex > .w-full > .mb-6:first-child) {
   padding-top: 0;
 }
 
-.dialog-content:not(:has(.fc-estimate)) > div.pb-6.pt-5 > .flex > .w-full > .mb-6 {
+.dialog-content:not(:has(.fc-estimate)) > div.pb-6.pt-5 > .flex > .w-full > .mb-6:first-child {
   position: sticky;
   top: 0;
   z-index: 1;

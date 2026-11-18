@@ -1676,12 +1676,14 @@ export const useConnectStore = defineStore('connect', {
     // way to contacting one firm, where it shrank the list behind the screen
     // for nothing anyone asked.
     saveCompany(
-      { country, employees, segments, apps, appsOther, operations, problems, focus },
+      { country, countries, employees, segments, apps, appsOther, operations, problems, focus },
       { narrow = true } = {},
     ) {
       this.company = {
         ...this.company,
         country: country ?? '',
+        // Every country the business is based in; `country` is the first.
+        countries: countries?.length ? [...countries] : [country].filter(Boolean),
         employees,
         segments,
         apps: apps ?? [],
@@ -1698,7 +1700,7 @@ export const useConnectStore = defineStore('connect', {
       // The country answers the partner list's geo filter too — one question,
       // asked once. `toggleGeo` would flip it off if it were already set, so
       // this assigns.
-      if (country) this.filters.countries = [country]
+      if (country) this.filters.countries = countries?.length ? [...countries] : [country]
     },
 
     // The two things sign-up asks that the intake deliberately doesn't: who you
@@ -1840,6 +1842,17 @@ export const useConnectStore = defineStore('connect', {
     // reaches them. A rejection notice from a business that never spoke to you
     // is worse than silence, and the partner has lost nothing but the hour they
     // chose to spend on a brief they could see the size of.
+    // Not interested in a firm that hasn't quoted yet. Kept apart from the bids
+    // (a bid is a quote), so the firm can still quote; the list files it under
+    // Not interested until it's restored.
+    setPassed(projectId, partnerId, on) {
+      const project = this.projects.find((p) => p.id === projectId)
+      if (!project) return
+      const passed = new Set(project.passed ?? [])
+      on ? passed.add(partnerId) : passed.delete(partnerId)
+      project.passed = [...passed]
+    },
+
     setBidState(projectId, partnerId, state) {
       const project = this.projects.find((p) => p.id === projectId)
       const bid = project?.bids?.find((b) => b.partnerId === partnerId)

@@ -53,7 +53,7 @@ useAuthExit()
 </script>
 
 <template>
-  <AuthShell title="Log in to your account" :subtitle="resumeLineFor(route)" partner-portal>
+  <AuthShell title="Log in to your account" :subtitle="resumeLineFor(route)">
     <form class="mt-6 space-y-4" novalidate @submit.prevent="submit">
       <FormControl
         v-model="email"

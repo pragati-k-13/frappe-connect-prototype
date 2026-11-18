@@ -22,6 +22,7 @@ import IconChevronDown from '~icons/lucide/chevron-down'
 import IconCheck from '~icons/lucide/circle-check'
 import IconBan from '~icons/lucide/ban'
 import ConnectShell from '../components/ConnectShell.vue'
+import EmptyState from '../components/EmptyState.vue'
 import { List, ListCell, ListRow } from 'frappe-ui/list'
 import CompanyDetailsDialog from '../components/CompanyDetailsDialog.vue'
 import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
@@ -1151,19 +1152,18 @@ watch(
         </div>
       </section>
 
-      <!-- Nothing selected, because there is nothing to select. -->
+      <!-- No conversations at all. Centred in the pane, as on Projects.
+           ⚠️ Contact partners (the broadcast) is on hold, so the way forward
+           is the directory. -->
+      <section v-else-if="!threads.length" class="flex min-h-0 min-w-0 flex-1 items-center justify-center px-4">
+        <EmptyState icon="lucide-inbox" title="No messages yet" description="Partners' replies land here.">
+          <Button variant="subtle" label="Browse partners" @click="router.push({ name: 'results' })" />
+        </EmptyState>
+      </section>
+      <!-- Conversations exist but the tab is empty: the inbox already says so,
+           and this pane only says nothing is open. -->
       <section v-else class="flex min-h-0 min-w-0 flex-1 items-center justify-center px-6">
-        <div class="max-w-sm text-center">
-          <p class="text-p-lg font-medium text-ink-gray-8">No conversation open</p>
-          <!-- ⚠️ Service agnostic, and no CTA. A starter pack is one way a
-               conversation starts and not the only one: a custom brief opens a
-               dozen at once, and a visitor can reach out to a partner from the
-               directory without buying anything. There is no single next step
-               to offer, and a button here would pick one of them for you. -->
-          <p class="mt-1.5 text-p-base text-ink-gray-6">
-            Conversations open here once you book a service or reach out to a partner.
-          </p>
-        </div>
+        <p class="text-base text-ink-gray-7">No conversation open</p>
       </section>
     </div>
 

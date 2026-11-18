@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { FormControl, MultiSelect, Textarea } from 'frappe-ui'
 import AppsSelect from './AppsSelect.vue'
 import { TIERS, TIMELINES, asksCity, briefErrors, budgetBandsFor } from '../data/custom'
-import { OPERATIONS, PROBLEMS } from '../data/company'
+import { OPERATIONS, problemsFor } from '../data/company'
 import { INDIA_CITIES, PARTNERS } from '../data/partners'
 import { useConnectStore } from '../stores/connect'
 
@@ -65,7 +65,7 @@ const timelines = [
   { label: 'No preference', value: '' },
   ...TIMELINES.map((t) => ({ label: t.label.replace(/^Live within/, 'Within'), value: t.value })),
 ]
-const problems = PROBLEMS.map((p) => ({ label: p.label, value: p.value }))
+const problems = problemsFor().map((p) => ({ label: p.label, value: p.value }))
 const cities = INDIA_CITIES.map((c) => ({ label: c, value: c }))
 const tiers = TIERS.map((t) => ({ label: t.label, value: t.value }))
 const showCity = computed(() => asksCity(answers.value.country))

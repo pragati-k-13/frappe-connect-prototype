@@ -350,6 +350,22 @@ const covered = (text) => {
 
 // `{ tone, text }`, where tone is one of 'neutral', 'warn' and 'good'. One
 // sentence, because it sits under a field somebody is mid-thought in.
+// Invented, filled in for the demo: a textile exporter's brief, written to cover
+// every topic `scopeHint` asks about so the hint under the box reads as done.
+export const DEMO_SCOPE =
+  'We make and export cotton fabric to buyers in Europe and the US, about 40 orders a month. Today it runs on Tally and spreadsheets, so stock by warehouse and batch is always out of date and GST invoices take a day to prepare. We need sales orders, purchase, batch-wise stock across two warehouses, GST invoicing, and a link to our Shopify store.'
+
+// The same, per app, so the demo's description matches the apps picked. Each
+// covers what they sell, how it runs today and what keeps going wrong.
+const DEMO_SCOPES = {
+  erpnext: DEMO_SCOPE,
+  crm: 'We sell industrial pumps to factories across Maharashtra, through a team of 12. Today leads sit in Excel and WhatsApp, so follow-ups are late and deals get lost when someone leaves. We need a pipeline per salesperson, reminders, quotations, and a link to our website form.',
+  helpdesk: 'We sell and service water purifiers for homes in Pune, about 300 service requests a month. Today requests come in by phone and email and are tracked on a spreadsheet, so some are lost and customers chase us. We need tickets with SLAs, a customer portal, and technician assignment.',
+  'frappe-hr': 'We are a trading company with 120 staff across three branches. Today attendance is on paper and payroll is done by hand in Excel, so salaries are late and leave balances are often wrong. We need attendance, leave, payroll with PF and ESI, and an employee app.',
+}
+export const demoScopeFor = (apps = []) => DEMO_SCOPES[apps.find((a) => DEMO_SCOPES[a])] ?? DEMO_SCOPE
+export const isDemoScope = (text) => Object.values(DEMO_SCOPES).includes(text)
+
 export const scopeHint = (raw) => {
   const text = (raw ?? '').trim()
   if (!text) {

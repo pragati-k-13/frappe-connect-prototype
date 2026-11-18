@@ -16,8 +16,7 @@ import IconTogether from '~icons/lucide/wrench'
 // the same grid so the section has one shape and one right edge (no year: the
 // story can say when it started). The prompts are the directory's, not the
 // partner's, so they live here rather than in the data. All three are
-// required: a partner can't publish with any of them empty, so the client view
-// never has a gap.
+// required: a partner can't publish with any of them empty.
 //
 // ⚠️ Every story and answer is invented. See `FOUNDING` and `VISION` in
 // `data/partners.js`.
@@ -39,6 +38,12 @@ const rows = computed(() => [
   { key: 'together', icon: IconTogether, question: 'How we’ll work together', answer: vision.value.together?.text ?? '' },
   { key: 'story', icon: IconStory, question: 'How we got here' },
 ])
+// Reading, only what the partner answered: a prompt with no answer under it
+// tells a business what the partner skipped. Publish requires all three, so
+// this only bites on a profile imported before that rule; with none answered
+// the section goes.
+const answered = (row) => (row.key === 'story' ? story.value.length > 0 : !!row.answer?.trim())
+const shown = computed(() => (props.editable ? rows.value : rows.value.filter(answered)))
 
 // ── Editing ──────────────────────────────────────────────────────────────────
 // The story edits as one text; a blank line starts a new paragraph.
@@ -55,14 +60,14 @@ const missing = (key) => props.errors.includes(key)
 </script>
 
 <template>
-  <section v-if="editable || story.length">
+  <section v-if="shown.length">
     <h2 class="text-base font-semibold text-ink-gray-8">In their words</h2>
 
     <!-- Question left, answer right. Rules between rows are list structure:
          they're what makes two long answers read as two answers. -->
     <dl class="mt-4 divide-y divide-outline-gray-1">
       <div
-        v-for="row in rows"
+        v-for="row in shown"
         :key="row.key"
         class="grid gap-x-6 gap-y-3 py-6 first:pt-0 last:pb-0 sm:grid-cols-[1fr_1.9fr]"
         :data-invalid="missing(row.key) || undefined"

@@ -1,10 +1,12 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
-import { Button, Dialog, FormControl, Progress, Textarea, TextInput } from 'frappe-ui'
+import { Button, Dialog, FormControl, Progress, ScrollArea, Textarea } from 'frappe-ui'
 import AppsSelect from './AppsSelect.vue'
+import { vAutogrow } from '../lib/autogrow'
 import CompanyQuestions from './CompanyQuestions.vue'
-import { companyPayload, emptyCompanyForm, stepErrors } from '../data/company'
-import { TIMELINES, briefErrors, budgetBandsFor, scopeHint } from '../data/custom'
+import { companyPayload, emptyCompanyForm, stepErrors, syncCountries } from '../data/company'
+import { TIMELINES, demoScopeFor, isDemoScope, briefErrors, budgetBandsFor, scopeHint } from '../data/custom'
+import { PROJECT_APPS } from '../data/partners'
 import { projectName } from '../data/project'
 import { useConnectStore } from '../stores/connect'
 
@@ -28,12 +30,8 @@ import { useConnectStore } from '../stores/connect'
 // ⚠️ A DIALOG, NOT A PAGE. This is adding a project from the list of
 // projects, and should come back to that list if abandoned.
 //
-// ⚠️ NO BUDGET OR DESCRIPTION HERE. They are only needed if the answer is
-// custom work, and the draft asks for them there — on the recommendation's
-// custom half, beside the partners they will be sent to. Asking them before
-// the recommendation would make a Starter Pack buyer write a brief nobody reads.
-// The timeline is the exception: it is one optional select, and a partner
-// needs it whichever way the project goes.
+// The budget and description come last: the budget narrows who matches, so
+// the draft's partner list is the real one before anything is sent.
 //
 // ⚠️ NO MODULES. The answers decide which packs fit — industry and problems are
 // what the recommendation reads — and the description tells a partner what to
@@ -69,20 +67,35 @@ const step = ref(0)
 // telling somebody off for not having started.
 const tried = ref(false)
 
-// Each step is `CompanyQuestions`' own step number, or 'project' for the name
-// and timeline. The company step leads only when Settings has nothing yet.
+// Each step is `CompanyQuestions`' own step number, 'project' for the apps
+// with how you run today, or the last step: 'budget' for a draft, 'brief' for
+// Contact.
+//
+// ⚠️ ONE ORDER FOR BOTH. Who you are (only if Settings is missing it), what
+// you need and what you run today, what to fix, then the budget, timeline and
+// description. Apps come first so the fix options can follow them.
+//
+// ⚠️ THE COMPANY STEP STANDS IN FOR ONBOARDING: asked in either dialog only
+// while Settings lacks an answer, then saved there. Sign-up asks the country,
+// so the size and industry are checked too, not just the country.
 const askCompany = ref(false)
-// ⚠️ CONTACT HAS NO PROJECT STEP, and always opens on the company. Someone
-// pressing Contact came to reach a firm, not to name a project, so the name is
-// assigned and the timeline is not asked. The company step is shown
-// even when Settings has answers, pre-filled: it is what the partner will read
-// as "who is asking", so it is confirmed where it is sent.
-const steps = computed(() =>
-  props.partner
-    ? [1, 2, 3, 'brief']
-    : [...(askCompany.value ? [1] : []), 'project', 2, 3],
-)
+const companyIncomplete = () =>
+  !store.company.country || !store.company.employees || !store.company.segments?.length
+const steps = computed(() => [
+  ...(askCompany.value ? [1] : []),
+  'project',
+  3,
+  props.partner ? 'brief' : 'budget',
+])
 const current = computed(() => steps.value[step.value])
+
+// The description is filled in for the demo on reaching the last step, to
+// match the apps picked. A description the person wrote is left alone.
+watch(current, (c) => {
+  if ((c === 'budget' || c === 'brief') && (!brief.scope.trim() || isDemoScope(brief.scope))) {
+    brief.scope = demoScopeFor(apps.value)
+  }
+})
 const last = computed(() => step.value === steps.value.length - 1)
 
 // Reset on open, not on close: a dialog that empties while it fades out shows
@@ -92,15 +105,25 @@ watch(
   (isOpen) => {
     if (!isOpen) return
     const d = props.draft
-    askCompany.value = !store.company.country
+    askCompany.value = companyIncomplete()
     Object.assign(
       answers,
       emptyCompanyForm(),
       JSON.parse(JSON.stringify(d?.answers ?? lastAnswers())),
-      companyFacts(),
+      // A draft keeps its own answers; only a new project starts from the
+      // account's facts.
+      d ? {} : companyFacts(),
     )
-    // What to fix is the reason for a new project, so it starts empty.
-    if (!d) answers.problems = []
+    syncCountries(answers)
+    // What to fix is the reason for a new project, so it starts empty. So
+    // does how you run today: a pre-picked answer reads as already answered,
+    // and Continue passed without anyone choosing.
+    if (!d) {
+      answers.problems = []
+      answers.operations = ''
+      answers.apps = []
+      answers.appsOther = ''
+    }
     name.value = d?.name ?? ''
     timeline.value = d?.brief?.timeline ?? ''
     // A draft keeps its apps; Contact from the estimate starts with the apps of
@@ -108,7 +131,7 @@ watch(
     apps.value = d?.apps?.length
       ? [...d.apps]
       : [...new Set((store.inquiryPrefill?.modules ?? []).map((m) => m.split(':')[0]))]
-    Object.assign(brief, { budget: '', scope: '' })
+    Object.assign(brief, { budget: d?.brief?.budget ?? '', scope: d?.brief?.scope ?? '' })
     step.value = 0
     tried.value = false
   },
@@ -122,8 +145,14 @@ const lastAnswers = () =>
 
 // Settings' answers, read fresh each time, so saving a draft picks up a change
 // made there since.
+//
+// The country comes from sign-up, which asks it. An account with none yet
+// keeps the form's default rather than being blanked by an empty answer.
 const companyFacts = () => ({
-  country: store.company.country,
+  ...(store.company.country && {
+    country: store.company.country,
+    countries: store.company.countries?.length ? [...store.company.countries] : [store.company.country],
+  }),
   employees: store.company.employees,
   segments: [...(store.company.segments ?? [])],
 })
@@ -131,7 +160,9 @@ const companyFacts = () => ({
 const appsError = () => (apps.value.length ? {} : { apps: 'Pick at least one app' })
 const errorsFor = (s) =>
   s === 'project'
-    ? { ...(name.value.trim() ? {} : { name: 'Name the project' }), ...appsError() }
+    ? { ...appsError(), ...stepErrors(answers, 2) }
+    : s === 'budget'
+      ? brief.budget ? {} : { budget: 'Pick a range' }
     : s === 'brief'
       ? { ...briefErrors(brief), ...appsError() }
       : stepErrors(answers, s)
@@ -141,6 +172,10 @@ const shown = computed(() => (tried.value ? errorsFor(current.value) : {}))
 // live hint is the recommendation screen's — the same field, read the same way.
 const bands = computed(() => budgetBandsFor(answers.country || store.company.country))
 const hint = computed(() => scopeHint(brief.scope))
+// ⚠️ A CEILING ON THE DESCRIPTION: a paragraph is what partners read, and the
+// box grows with its text. The demo briefs are about 350 characters.
+const SCOPE_MAX = 800
+const scopeLeft = computed(() => SCOPE_MAX - brief.scope.length)
 
 const next = () => {
   tried.value = true
@@ -154,6 +189,16 @@ const back = () => {
   step.value -= 1
 }
 
+// ⚠️ NO NAME QUESTION. A new project is named from what it is for — the apps
+// and the company — so the first thing asked is what they need, not what to
+// call it. A draft being edited keeps the name it already has.
+const namedFor = (values, company) => {
+  const labels = values.map((v) => PROJECT_APPS.find((a) => a.value === v)?.label ?? v)
+  const what =
+    labels.length > 1 ? `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}` : labels[0] ?? 'New project'
+  return company ? `${what} for ${company}` : what
+}
+
 const create = () => {
   tried.value = true
   if (Object.keys(errorsFor(current.value)).length) return
@@ -162,19 +207,21 @@ const create = () => {
   // without narrowing the partner listing behind the dialog — see
   // `saveCompany`.
   if (askCompany.value || props.partner) {
-    const { country, employees, segments } = payload
+    const { country, countries, employees, segments } = payload
     store.saveCompany(
-      { ...store.company, country, employees, segments },
+      { ...store.company, country, countries, employees, segments },
       { narrow: !props.partner },
     )
   }
   emit('create', {
-    name: props.partner ? projectName([], store.company.name || store.viewer.company) : name.value,
+    name: props.partner
+      ? projectName([], store.company.name || store.viewer.company)
+      : name.value || namedFor(apps.value, store.company.name || store.viewer.company),
     apps: [...apps.value],
     modules: {},
     brief: props.partner
       ? { timeline: timeline.value, budget: brief.budget, scope: brief.scope.trim() }
-      : { timeline: timeline.value },
+      : { timeline: timeline.value, budget: brief.budget, scope: brief.scope.trim() },
     answers: payload,
   })
 }
@@ -185,7 +232,7 @@ const create = () => {
        single-line fields and short options. -->
   <Dialog
     :model-value="open"
-    :title="partner ? `Contact ${partner.name}` : draft ? 'Edit draft' : 'New project'"
+    :title="partner ? `Contact ${partner.name}` : draft ? 'Edit project' : 'New project'"
     size="md"
     @update:model-value="!$event && emit('close')"
   >
@@ -201,24 +248,30 @@ const create = () => {
 
       <!-- The submit handler follows the step: Return moves a step on, and
            only saves on the last one. -->
-      <form novalidate @submit.prevent="last ? create() : next()">
-        <div v-if="current === 'project'" class="space-y-4">
-          <TextInput
-            v-model="name"
-            label="Project name"
-            size="md"
-            placeholder="ERP rollout"
-            required
-            :error="shown.name"
-          />
-          <FormControl
-            v-model="timeline"
-            type="select"
-            label="When do you need it live?"
+      <!-- ⚠️ ONE HEIGHT FOR EVERY STEP (`h-80`, the tallest step's), so the
+           title, progress bar and buttons stay put as the steps change; a
+           shorter step leaves room above the buttons. A short window shrinks
+           it (`min-height: 0`). -->
+      <!-- On a short window the fields scroll in frappe-ui's ScrollArea (the
+           `fc-scroll-dialog` pattern in index.css), with the title, progress
+           and buttons kept in view. -->
+      <form class="fc-scroll-dialog" novalidate @submit.prevent="last ? create() : next()">
+        <!-- Out to both edges, so the option rows' hover fills (pulled 12px left)
+             and focus rings are not clipped. -->
+        <!-- `pb-1` holds the 4px the tools reveal's focus-ring room (`-m-1 p-1`)
+             hangs below it, which otherwise scrolled at every height. The
+             buttons' gap gives those 4px back. -->
+        <ScrollArea class="-mx-4 h-80 min-h-0 sm:-mx-6" viewport-class="px-4 pb-1 sm:px-6">
+        <div v-if="current === 'project'" class="space-y-5">
+          <AppsSelect
+            v-model="apps"
+            label="Which apps do you need?"
             placeholder="Select"
-            :options="TIMELINES"
+            required
+            :error="shown.apps"
           />
-          <AppsSelect v-model="apps" label="Apps" placeholder="Select" required :error="shown.apps" />
+          <!-- What you need, then what you run today: the two sit together. -->
+          <CompanyQuestions :step="2" :form="answers" :errors="shown" />
         </div>
         <!-- The brief, when this is Contact. The same fields, labels and hint
              as the recommendation's custom half, so a brief written here and
@@ -233,41 +286,101 @@ const create = () => {
             :options="bands"
             :error="shown.budget"
           />
-          <AppsSelect v-model="apps" label="Apps" placeholder="Select" required :error="shown.apps" />
+          <FormControl
+            v-model="timeline"
+            type="select"
+            label="When do you need it live?"
+            placeholder="Select"
+            :options="TIMELINES"
+          />
           <div>
             <Textarea
+              v-autogrow
               v-model="brief.scope"
               label="What do you want built?"
-              placeholder="What do you make or sell, who are your customers, how does it run today, what keeps going wrong, and what must it connect to or prove?"
+              placeholder="What do you make or sell, what should it do, and what must it connect to?"
               :rows="5"
+              :maxlength="SCOPE_MAX"
               required
               :error="shown.scope"
             />
-            <p
-              class="mt-1.5 text-p-sm leading-relaxed"
-              :class="{
-                'text-ink-gray-5': hint.tone === 'neutral',
-                'text-ink-amber-7': hint.tone === 'warn',
-                'text-ink-green-7': hint.tone === 'good',
-              }"
-            >
-              {{ hint.text }}
-            </p>
+            <div class="mt-1.5 flex items-start justify-between gap-3 text-p-sm leading-relaxed">
+              <p
+                :class="{
+                  'text-ink-gray-5': hint.tone === 'neutral',
+                  'text-ink-amber-7': hint.tone === 'warn',
+                  'text-ink-green-7': hint.tone === 'good',
+                }"
+              >
+                {{ hint.text }}
+              </p>
+              <!-- Only near the limit, so most people never see it. -->
+              <p v-if="scopeLeft <= 100" class="shrink-0 tabular-nums text-ink-gray-5">
+                {{ scopeLeft }} left
+              </p>
+            </div>
           </div>
         </div>
-        <CompanyQuestions v-else :step="current" :form="answers" :errors="shown" />
+        <!-- The budget (required: it decides who matches) and the description
+             (optional here; Share asks for it if it's still empty). -->
+        <div v-else-if="current === 'budget'" class="space-y-4">
+          <FormControl
+            v-model="brief.budget"
+            type="select"
+            label="Your budget"
+            placeholder="Select a range"
+            required
+            :options="bands"
+            :error="shown.budget"
+          />
+          <FormControl
+            v-model="timeline"
+            type="select"
+            label="When do you need it live?"
+            placeholder="Select"
+            :options="TIMELINES"
+          />
+          <div>
+            <Textarea
+              v-autogrow
+              v-model="brief.scope"
+              label="What do you want built?"
+              placeholder="What do you make or sell, what should it do, and what must it connect to?"
+              :rows="5"
+              :maxlength="SCOPE_MAX"
+            />
+            <!-- Live, as on Contact and the broadcast page — see `scopeHint`. -->
+            <div class="mt-1.5 flex items-start justify-between gap-3 text-p-sm leading-relaxed">
+              <p
+                :class="{
+                  'text-ink-gray-5': hint.tone === 'neutral',
+                  'text-ink-amber-7': hint.tone === 'warn',
+                  'text-ink-green-7': hint.tone === 'good',
+                }"
+              >
+                {{ hint.text }}
+              </p>
+              <!-- Only near the limit, so most people never see it. -->
+              <p v-if="scopeLeft <= 100" class="shrink-0 tabular-nums text-ink-gray-5">
+                {{ scopeLeft }} left
+              </p>
+            </div>
+          </div>
+        </div>
+        <CompanyQuestions v-else :step="current" :form="answers" :errors="shown" :project-apps="apps" />
+        </ScrollArea>
 
-        <div v-if="step === 0" class="mt-8">
+        <div v-if="step === 0" class="mt-7 shrink-0">
           <Button class="w-full" variant="solid" size="sm" label="Continue" type="submit" />
         </div>
-        <div v-else class="mt-8 flex items-center justify-end gap-2">
+        <div v-else class="mt-7 flex shrink-0 items-center justify-end gap-2">
           <Button variant="subtle" size="sm" label="Back" @click="back">
             <template #prefix><LucideChevronLeft class="size-4" /></template>
           </Button>
           <Button
             variant="solid"
             size="sm"
-            :label="last ? (partner ? 'Send requirements' : 'Save draft') : 'Continue'"
+            :label="last ? (partner ? 'Send requirements' : draft ? 'Save' : 'Create project') : 'Continue'"
             type="submit"
           >
             <template v-if="last && partner" #prefix><LucideSend class="size-4" /></template>

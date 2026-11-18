@@ -30,7 +30,19 @@ const routes = [
   // bring it back, restore this route and the rail item in `SiteRail`:
   //   { path: '/get-started', name: 'get-started',
   //     component: () => import('./pages/GetStartedPage.vue') },
-  { path: '/connect', name: 'connect', component: () => import('./pages/ConnectLandingPage.vue') },
+  // The intake is for visitors. Signed in, there is no Home: a business opens
+  // on Projects (whose empty state starts one) and a partner on their role's
+  // page. This is also where sign-in lands when no `next` is waiting.
+  {
+    path: '/connect',
+    name: 'connect',
+    component: () => import('./pages/ConnectLandingPage.vue'),
+    beforeEnter: () => {
+      const store = useConnectStore()
+      if (!store.signedIn) return true
+      return store.role === 'partner' ? store.partnerHome : { name: 'projects' }
+    },
+  },
   // The two auth screens. Routes rather than a dialog, and outside
   // `ConnectShell`: sign-up is the first of four steps (create account, verify,
   // company info, project info), and a four-screen sequence needs a URL per

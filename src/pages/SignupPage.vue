@@ -99,7 +99,7 @@ useAuthExit()
 </script>
 
 <template>
-  <AuthShell title="Create your account" :subtitle="resumeLineFor(route)" partner-portal>
+  <AuthShell title="Create your account" :subtitle="resumeLineFor(route)">
     <!-- `novalidate` so the browser's own bubbles stay out of it: every field
          here has a message of its own, and the two validators fire at different
          moments and word things differently.

@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Badge, Button } from 'frappe-ui'
+import EmptyState from './EmptyState.vue'
 import WriteReviewDialog from './WriteReviewDialog.vue'
 import { SHOWN, reviewsFor, writtenAsItem } from '../data/reviews'
 import { useConnectStore } from '../stores/connect'
@@ -109,8 +110,11 @@ async function published() {
       </Button>
     </div>
 
+    <!-- None yet, on the profile: the shared empty state, framed, under the
+         heading and "Write a review". The Reviews page has its own, unframed. -->
+    <EmptyState v-if="!count && !full" boxed class="mt-4" icon="lucide-star" title="No reviews yet" />
+
     <!-- ── The aggregate ───────────────────────────────────────────────── -->
-    <!-- None yet: no "0.0 ★", just the way to write the first. -->
     <p v-if="count" :class="full && own ? '' : 'mt-4'" class="flex items-center gap-1.5">
       <span class="text-6xl font-medium tabular-nums text-ink-gray-8">{{ rating }}</span>
       <!-- Amber, the same `ink-amber-5` the marketplace listings fill with

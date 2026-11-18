@@ -494,6 +494,10 @@ const daysAgo = (n) => Date.now() - n * DAY
 
 // `packBy` is who implements the seeded pack: Frappe, or a partner when the
 // Demo menu has partners implementing packs.
+// ⚠️ THE PACK PROJECT IS HIDDEN: Connect dropped Starter Packs (2026-11-13).
+// The seed stays so it can come back; flip this to show it again.
+const SHOW_PACK_DEMO = false
+
 export const demoProjects = (packBy = FRAPPE_TEAM.id) => {
   return [
     {
@@ -531,8 +535,7 @@ export const demoProjects = (packBy = FRAPPE_TEAM.id) => {
       done: [],
       at: daysAgo(5),
     },
-  ]
-
+  ].filter((p) => SHOW_PACK_DEMO || p.service !== 'pack')
 }
 
 // ── The Frappe Cloud partner code ───────────────────────────────────────────

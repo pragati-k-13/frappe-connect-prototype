@@ -148,11 +148,7 @@ const createAndSend = (details) => {
   })
   const thread = store.sendBrief({ partnerId: to.id, projectId: id })
   close()
-  requirementsSentToast(
-    to,
-    () => router.push({ name: 'messages', query: { thread } }),
-    store.projects.find((p) => p.id === id),
-  )
+  requirementsSentToast(to, () => router.push({ name: 'messages', query: { thread } }))
 }
 
 // Leaving to edit the project. Closes the dialog rather than stacking a page
