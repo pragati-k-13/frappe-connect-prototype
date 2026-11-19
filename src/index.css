@@ -326,6 +326,27 @@
   flex-direction: column;
 }
 
+/* A dialog holding its height (BriefDetailsDialog sets the panel's
+   min-height while a section is open): the body takes the extra room, so the
+   footer stays at the bottom instead of floating under short fields. */
+.dialog-content:has(.fc-scroll-tight) > div.pb-6.pt-5:has(.fc-scroll-dialog),
+.dialog-content:has(.fc-scroll-tight) > div.pb-6.pt-5:has(.fc-scroll-dialog) > .flex,
+.dialog-content:has(.fc-scroll-tight) > div.pb-6.pt-5:has(.fc-scroll-dialog) > .flex > .w-full,
+.fc-scroll-tight > [data-slot='scroll-area-viewport'] {
+  flex: 1 1 auto;
+}
+
+/* A view replacing another inside a dialog: opacity only, quick and
+   decelerating. No movement, so reduced motion needs nothing removed. */
+.fc-fade-in {
+  transition: opacity 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+@starting-style {
+  .fc-fade-in {
+    opacity: 0;
+  }
+}
+
 /* Editing requirements: the footer's 16px is the whole gap under the fields,
    not the body's 24px on top of it. */
 .dialog-content > div.pb-6.pt-5:has(.fc-scroll-tight) {

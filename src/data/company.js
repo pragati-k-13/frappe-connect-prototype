@@ -121,16 +121,15 @@ export const APPS_OTHER = 'Something else'
 // line at a third of the dialog, and about the company rather than in its
 // voice ("its system", not "how we work"), since partners read it too. The
 // question keeps `label`, where the business is answering. Shown only through
-// `setupShort` in format.js. `withTools`: the same answer as a tail after the
-// tools they named ("Tally, Zoho +2, not connected"), via `setupLine`.
+// `setupShort` in format.js, and only when they named no tools.
 export const OPERATIONS = [
   { value: 'manual', label: 'Spreadsheets, email and paper', short: 'Spreadsheets and email' },
   // ⚠️ APP-AGNOSTIC. These read as an ERP ladder ("accounting software", "an
   // ERP") when the project may be CRM, Helpdesk or HR. The values stay, so
   // saved answers still read.
-  { value: 'accounting', label: 'One tool for part of it, the rest by hand', short: 'One tool, the rest by hand', withTools: 'the rest by hand' },
-  { value: 'disconnected', label: "Several tools that don't talk to each other", short: "Tools that don't connect", withTools: 'not connected' },
-  { value: 'outgrown', label: 'A system that no longer fits how we work', short: 'Outgrown its system', withTools: 'outgrown' },
+  { value: 'accounting', label: 'One tool for part of it, the rest by hand', short: 'One tool, the rest by hand' },
+  { value: 'disconnected', label: "Several tools that don't talk to each other", short: "Tools that don't connect" },
+  { value: 'outgrown', label: 'A system that no longer fits how we work', short: 'Outgrown its system' },
 ]
 
 // ⚠️ The first rung is the one that names no software, so it is the one rung

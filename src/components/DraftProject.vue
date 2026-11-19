@@ -20,7 +20,7 @@ import TierIcon from './TierIcon.vue'
 import { TIMELINES, budgetLabel, matchingPartners } from '../data/custom'
 import { cityOf } from '../data/partners'
 import { logoFor } from '../data/logos'
-import { industryText } from '../data/format'
+import { industryText, peopleLine } from '../data/format'
 import { useConnectStore } from '../stores/connect'
 
 const props = defineProps({
@@ -37,10 +37,8 @@ const matches = computed(() => matchingPartners(props.answers, brief.value))
 // form. Edit opens the draft's own dialog.
 const summary = computed(() => {
   const a = props.answers
-  const countries = a.countries?.length ? a.countries : [a.country].filter(Boolean)
   return [
-    countries.join(', '),
-    a.employees && `${a.employees} people`,
+    peopleLine(a.employees, a.countries?.length ? a.countries : [a.country]),
     industryText(a.segments).text,
     TIMELINES.find((t) => t.value === brief.value.timeline)?.label,
     // "Not decided yet" is an answer, not a fact about the project.

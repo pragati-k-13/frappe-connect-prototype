@@ -133,6 +133,9 @@ const packBrief = (project, packs, company) => ({
   project: project?.name ?? '',
   packs: packs.map((p) => p.name),
   country: company.country,
+  // Every country the business is in, for the company card ("India and UAE").
+  // Not `countries`: in a brief that's where the partner may be.
+  companyCountries: company.countries?.length ? [...company.countries] : [company.country].filter(Boolean),
   employees: company.employees,
   segments: company.segments,
   ...sharedAnswers(company),
@@ -156,6 +159,9 @@ const snapshotBrief = (project, own, company) => ({
   countries: [...(own.countries ?? [])],
   geoAsked: Boolean(own.geoAsked),
   country: company.country,
+  // Every country the business is in, for the company card ("India and UAE").
+  // Not `countries`: in a brief that's where the partner may be.
+  companyCountries: company.countries?.length ? [...company.countries] : [company.country].filter(Boolean),
   employees: company.employees,
   segments: company.segments,
   ...sharedAnswers(company),
@@ -820,6 +826,7 @@ export const useConnectStore = defineStore('connect', {
         budget: 'inr-3',
         timeline: 'quarter',
         segments: [...this.company.segments],
+        companyCountries: [...this.company.countries],
         employees: this.company.employees,
         projectApps: apps,
         operations: 'disconnected',

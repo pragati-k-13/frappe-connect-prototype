@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
+import { computed, h, nextTick, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Avatar, Badge, Button, Dropdown, ScrollArea, Tooltip, toast } from 'frappe-ui'
 import StageDot from './StageDot.vue'
@@ -306,6 +306,16 @@ const moreFor = (row) => [
 // `sm` the quote moves under the city, and Message joins More.
 const query = matchMedia('(max-width: 639px)')
 const narrow = ref(query.matches)
+// ⚠️ A STALE QUOTE IS MARKED ON THE QUOTE, not under the partner: a quiet
+// history icon after the price, explained on hover or focus. After an update
+// every quote carries it, so a badge on each row was noise, and it sat two
+// columns from the price it's about. Focusable, with the same words as its
+// label, so it reads without hovering.
+const STALE_TEXT = 'Quoted before your last update. Message them for a revised quote.'
+const StaleMark = () =>
+  h(Tooltip, { text: STALE_TEXT }, () =>
+    h('span', { tabindex: 0, role: 'img', 'aria-label': STALE_TEXT, class: 'lucide-history size-4 shrink-0 rounded-2 text-ink-gray-6 focus-visible:focus-ring' }),
+  )
 const onWidth = (e) => (narrow.value = e.matches)
 query.addEventListener('change', onWidth)
 onBeforeUnmount(() => query.removeEventListener('change', onWidth))
@@ -410,10 +420,9 @@ const EMPTY = {
                         </Tooltip>
                       </template>
                     </span>
-                    <Badge v-if="row.stale" class="shrink-0" theme="gray" label="Quoted before the update" />
                   </span>
-                  <span v-if="narrow" class="mt-1 block text-sm tabular-nums text-ink-gray-8">
-                    {{ row.price }} · {{ row.weeks }} weeks
+                  <span v-if="narrow" class="mt-1 flex items-center gap-1.5 text-sm tabular-nums text-ink-gray-8">
+                    {{ row.price }} · {{ row.weeks }} weeks<StaleMark v-if="row.stale" />
                   </span>
                 </div>
               </ListCell>
@@ -424,7 +433,7 @@ const EMPTY = {
                    line up digit for digit at this length. -->
               <ListCell v-if="!narrow" class="!items-start">
                 <div>
-                  <span class="block text-base tabular-nums text-ink-gray-8">{{ row.price }}</span>
+                  <span class="flex items-center gap-1.5 text-base tabular-nums text-ink-gray-8">{{ row.price }}<StaleMark v-if="row.stale" /></span>
                   <span class="mt-1 block text-sm tabular-nums text-ink-gray-6">{{ row.weeks }} weeks</span>
                 </div>
               </ListCell>
