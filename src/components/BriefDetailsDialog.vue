@@ -2,7 +2,7 @@
 import { appLabels, appsText, fixShort, industryText, setupLine, sizeShort } from '../data/format'
 import ShortList from './ShortList.vue'
 import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import { Avatar, Badge, Button, Dialog, ScrollArea, dialog } from 'frappe-ui'
+import { Avatar, Badge, Button, Dialog, ScrollArea, dialog, toast } from 'frappe-ui'
 import { useConnectStore } from '../stores/connect'
 import { appLogo } from '../data/apps'
 import RequirementsFields from './RequirementsFields.vue'
@@ -71,26 +71,32 @@ const props = defineProps({
 
 const emit = defineEmits(['update:open', 'saved'])
 
-// ── Editing, card by card ───────────────────────────────────────────────────
-// ⚠️ ONE CARD OPEN AT A TIME, ONE SEND FOR ALL. Each card's pencil turns that
-// card's values into fields; the other cards stay as they are. Every card
-// edits one draft, and the footer's Send sends every change as one update, so
-// partners confirm or re-quote once however many cards were touched. There is
-// no Done or Cancel per card: nothing leaves until Send, the pencil closes its
-// card again, and Discard in the footer drops everything.
+// ── Editing, section by section ─────────────────────────────────────────────
+// ⚠️ ONE SECTION AT A TIME, ON ITS OWN, ONE SEND FOR ALL. A card's pencil
+// swaps the cards for that section's fields at full width, titled with a back
+// arrow; Done (or the arrow) returns to the cards, showing the new values.
+// Every section edits one draft, and only the cards' footer sends — every
+// change as one update, so partners confirm or re-quote once however many
+// sections were touched. Discard there drops everything.
 //
-// It replaced one edit mode for the whole dialog, which turned every card into
-// fields to change one thing, and sending per card, which sent partners an
-// update for each card edited.
+// ⚠️ SAVE OR SEND. A change to the company alone saves (to Settings, and
+// quietly onto what partners have) and the button says Save; once a
+// requirement changed it says Send. See `useRequirementsDraft`.
+//
+// It replaced fields opened inside the card, beside the others, which left the
+// one being edited hard to tell from the rest; before that, one edit mode for
+// the whole dialog, and sending per card.
 const openCard = ref(null)
 const draft = ref(null)
 const editing = computed(() => !!openCard.value)
 const dirty = computed(() => !!draft.value?.dirty)
 const startDraft = () => (draft.value ??= reactive(useRequirementsDraft(props.projectId)))
-const toggle = (card) => {
+const edit = (card) => {
   startDraft()
-  openCard.value = openCard.value === card ? null : card
+  openCard.value = card
 }
+const done = () => (openCard.value = null)
+const SECTION_TITLES = { ask: 'Apps and budget', company: 'Company and setup', scope: 'What you want built' }
 const reset = () => {
   openCard.value = null
   draft.value = null
@@ -100,23 +106,20 @@ watch(
   (isOpen) => isOpen && reset(),
 )
 const canEdit = computed(() => props.editable && !props.lockNote && !!props.projectId && listLayout.value)
-// Each card's pencil: a ghost icon button, filled and pressed while its card
-// is open. Named for what it edits, since the icon alone doesn't say.
-const PENCIL_LABELS = { ask: 'Edit apps and budget', today: 'Edit how you run today', scope: 'Edit what you want built' }
+// Each card's pencil: a ghost icon button, named for what it edits, since the
+// icon alone doesn't say.
 // ⚠️ SHOWN ON HOVER: hidden until the pointer is over its card, or the pencil
-// has keyboard focus, so the cards read as content first. It stays shown while
-// its card is open, and always on touch screens, which have no hover.
+// has keyboard focus, so the cards read as content first. Always shown on
+// touch screens, which have no hover.
 const pencil = (card) => ({
   icon: 'lucide-pencil',
   size: 'sm',
-  variant: openCard.value === card ? 'subtle' : 'ghost',
-  class: openCard.value === card ? '' : 'opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100',
-  'aria-label': PENCIL_LABELS[card],
-  'aria-pressed': openCard.value === card,
-  onClick: () => toggle(card),
+  variant: 'ghost',
+  class: 'opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100',
+  'aria-label': `Edit ${SECTION_TITLES[card].toLowerCase()}`,
+  onClick: () => edit(card),
 })
-const cardClass = (card) =>
-  openCard.value === card ? 'ring-1 ring-inset ring-outline-gray-2' : 'bg-surface-gray-1 dark:bg-surface-gray-2'
+const cardClass = 'bg-surface-gray-1 dark:bg-surface-gray-2'
 // ⚠️ A FADE AT THE SCROLL EDGE, only while more is below. frappe-ui's
 // scrollbar shows once you scroll, so on a short window the fields were cut
 // mid-field with nothing saying the form went on. Measured on scroll and
@@ -146,7 +149,9 @@ watch(
   },
   { flush: 'post' },
 )
+// Each view opens at its top.
 watch(openCard, () => nextTick(() => {
+  if (vp) vp.scrollTop = 0
   if (vp?.firstElementChild) { ro?.disconnect(); ro?.observe(vp); ro?.observe(vp.firstElementChild) }
   measure()
 }))
@@ -160,21 +165,13 @@ const leave = (then) => {
   // destructive pattern gives that a red Discard (frappe-ui `dialog.danger`).
   dialog.danger({
     title: 'Discard changes?',
-    message: 'Your edits won’t be sent, and can’t be recovered.',
+    message: 'Your edits won’t be saved, and can’t be recovered.',
     confirmLabel: 'Discard',
     size: 'sm',
     onConfirm: () => then(),
   })
 }
 const discard = () => leave(reset)
-// "Edit in Settings": Settings replaces this dialog rather than opening on top
-// of it, after the same question about unsent edits.
-const toSettings = () =>
-  leave(() => {
-    reset()
-    emit('update:open', false)
-    store.openSettings('company')
-  })
 const onOpen = (value) => {
   if (value || !dirty.value) {
     if (!value) reset()
@@ -186,16 +183,19 @@ const onOpen = (value) => {
   })
 }
 
-// A missing required answer opens the card it's on, with the field's error.
+// A missing required answer opens the section it's in, with the field's
+// error. Sent: the caller says so (and may close). The company alone: saved
+// here, and the dialog stays on the cards.
 const send = () => {
   const result = draft.value?.submit()
   if (result === false) {
     const e = draft.value.check()
-    openCard.value = e.scope ? 'scope' : 'ask'
+    openCard.value = e.scope ? 'scope' : e.segments || e.employees ? 'company' : 'ask'
     return
   }
-  if (result) emit('saved', result)
   reset()
+  if (result.sent == null) return result.company && toast.success('Company details saved')
+  emit('saved', result)
   if (props.closeOnSave) emit('update:open', false)
 }
 
@@ -240,7 +240,7 @@ const setupText = (b) => {
 }
 const peopleText = (b) => [b.employees && `${sizeShort(b.employees)} people`, b.country].filter(Boolean).join(', ')
 // Each line's text, read the same way off this version and the one it
-// replaced, so a changed line can show its old value struck through.
+// replaced, so a line an update changed can show its old value struck through.
 const READ = {
   apps: (b) => appsText(b.projectApps).full,
   budget: (b) => budgetLabel(b.budget),
@@ -250,16 +250,20 @@ const READ = {
   people: (b) => peopleText(b),
   setup: (b) => setupText(b),
 }
-// What the cards draw. While a draft has changes, the draft, struck against
-// where it started; otherwise the version this was opened on, struck against
-// the one it replaced (an update).
-const shown = computed(() => (dirty.value ? draft.value.asBrief(props.brief ?? {}, draft.value.form) : props.brief ?? {}))
-const before = computed(() => (dirty.value ? draft.value.asBrief(props.brief ?? {}, draft.value.initial) : props.previous))
-// The footer's line: "Budget and apps changed".
+// What the cards draw. While a draft has changes, the draft, as plain new
+// values (the footer names what changed); otherwise the version this was
+// opened on, struck against the one it replaced (an update).
+const shown = computed(() =>
+  dirty.value ? { ...draft.value.asBrief(props.brief ?? {}, draft.value.form), ...draft.value.company } : props.brief ?? {},
+)
+const before = computed(() => (dirty.value ? null : props.previous))
+// The footer's line, company first: "Company size and budget changed".
 const changedLine = computed(() => {
   if (!dirty.value) return ''
-  const parts = changedParts(before.value, shown.value)
-  const line = listOf(parts.length ? parts : ['requirements'])
+  const d = draft.value
+  const asked = d.formDirty ? changedParts(d.asBrief(props.brief ?? {}, d.initial), d.asBrief(props.brief ?? {}, d.form)) : []
+  const parts = [...d.companyChanges, ...(d.formDirty && !asked.length ? ['requirements'] : asked)]
+  const line = listOf(parts)
   return `${line.charAt(0).toUpperCase()}${line.slice(1)} changed`
 })
 const text = (key) => READ[key](shown.value)
@@ -294,7 +298,7 @@ const askRows = computed(() =>
 // own, or one that went out with the requirements (`companyName`). A broadcast
 // reaches partners without it.
 const name = computed(() => props.companyName || (props.own ? (store.company?.name || store.viewer?.company || '') : ''))
-const industries = computed(() => props.brief?.segments ?? [])
+const industries = computed(() => shown.value.segments ?? [])
 // ⚠️ ONE KIND OF LINE: every fact about the company is a 14px icon row in one
 // grey. Size and country share a row, and how it runs today rides on the tools
 // it named ("Tally, Zoho +2, not connected").
@@ -307,10 +311,6 @@ const companyRows = computed(() => {
   ].filter((r) => r.text)
 })
 const companyCard = computed(() => name.value || companyRows.value.length)
-// While the company card is open, how they run today is its fields instead.
-const companyRowsShown = computed(() =>
-  openCard.value === 'today' ? companyRows.value.filter((r) => r.label !== 'How they run today') : companyRows.value,
-)
 
 // The description: two lines, then "Show more" only when it runs past them.
 const clamped = ref(true)
@@ -368,6 +368,13 @@ const focus = computed(() => (packs.value ? (props.brief?.focus ?? '').trim() : 
     :size="listLayout ? '3xl' : 'md'"
     @update:model-value="onOpen"
   >
+    <!-- A section being edited: its name, with the way back to the cards. -->
+    <template v-if="openCard" #title>
+      <div class="flex items-center gap-2">
+        <Button icon="lucide-arrow-left" variant="ghost" aria-label="Back to requirements" class="-ml-1.5" @click="done" />
+        <h3 class="text-2xl-semibold leading-6 text-ink-gray-8">{{ SECTION_TITLES[openCard] }}</h3>
+      </div>
+    </template>
     <!-- Default slot, not `#body-content` — the older name fails silently; see
          the note in `NewProjectDialog`. -->
     <template #default>
@@ -381,115 +388,99 @@ const focus = computed(() => (packs.value ? (props.brief?.focus ?? '').trim() : 
         v-if="brief"
         ref="scroller"
         class="fc-scroll-dialog -mr-4 sm:-mr-6"
-        :class="{ 'fc-scroll-tight': dirty, 'fc-scroll-more': more }"
+        :class="{ 'fc-scroll-tight': dirty || openCard, 'fc-scroll-more': more }"
         viewport-class="pr-4 sm:pr-6"
       >
+      <!-- One section's fields, on their own, in place of the cards. -->
+      <RequirementsFields v-if="openCard" :draft="draft" :section="openCard" />
       <!-- ⚠️ THREE CARDS at 768px (`3xl`): what they want (two thirds) beside
            who they are (one third), then the description. Flat grey fills, no
            borders: none is clickable. gray-2 in dark, where gray-1 is the
-           dialog's own fill. A card being edited is outlined instead, so its
-           fields read as the editable part. A card with nothing left in it
-           (`omit`) drops out and the other takes the row.
+           dialog's own fill. A card with nothing left in it (`omit`) drops out
+           and the other takes the row.
            ⚠️ THE PENCIL TAKES NO COLUMN: it sits at the right end of a row that
-           is already there (the logos, the avatar, a field's label), or floats
-           into the description's first line. -->
-      <!-- While a card is open its row-mate keeps its own height, rather than
-           stretching to the taller fields with an empty grey band. -->
-      <div v-if="listLayout" class="grid grid-cols-1 gap-3 text-base sm:grid-cols-3" :class="openCard && 'sm:items-start'">
+           is already there (the logos, the avatar), or floats into the
+           description's first line. -->
+      <div v-else-if="listLayout" class="grid grid-cols-1 gap-3 text-base sm:grid-cols-3">
         <!-- What they want. The budget and, beside it, the company name are the
              cards' two titles, both `text-lg` (16px). Everything else is a 14px
              icon row; the badges are their own group below. -->
-        <div v-if="askCard" :class="[companyCard ? 'sm:col-span-2' : 'sm:col-span-3', cardClass('ask')]" class="group min-w-0 rounded-6 p-5">
-          <RequirementsFields v-if="openCard === 'ask'" :draft="draft" section="ask">
-            <template #pencil><Button v-bind="pencil('ask')" /></template>
-          </RequirementsFields>
-          <template v-else>
-            <div class="flex items-start justify-between gap-2" :class="showApps && 'mb-3'">
-              <!-- The apps' own coloured logos, stacked like an avatar group,
-                   each ringed in the card's own fill to part it from the one
-                   under it; the first app sits on top. -->
-              <div v-if="showApps" class="flex" aria-hidden="true">
-                <Avatar
-                  v-for="(a, i) in apps"
-                  :key="a"
-                  size="lg"
-                  shape="square"
-                  :image="appLogo(a) ?? undefined"
-                  :label="appLabels([a])[0]"
-                  class="bg-surface-gray-1 ring-2 ring-[--surface-gray-1] dark:bg-surface-gray-2 dark:ring-[--surface-gray-2]"
-                  :class="i && '-ml-1.5'"
-                  :style="{ zIndex: apps.length - i }"
-                />
-              </div>
-              <Button v-if="canEdit" v-bind="pencil('ask')" class="-mr-1.5 -mt-1.5 ml-auto" />
+        <div v-if="askCard" :class="[companyCard ? 'sm:col-span-2' : 'sm:col-span-3', cardClass]" class="group min-w-0 rounded-6 p-5">
+          <div class="flex items-start justify-between gap-2" :class="showApps && 'mb-3'">
+            <!-- The apps' own coloured logos, stacked like an avatar group,
+                 each ringed in the card's own fill to part it from the one
+                 under it; the first app sits on top. -->
+            <div v-if="showApps" class="flex" aria-hidden="true">
+              <Avatar
+                v-for="(a, i) in apps"
+                :key="a"
+                size="lg"
+                shape="square"
+                :image="appLogo(a) ?? undefined"
+                :label="appLabels([a])[0]"
+                class="bg-surface-gray-1 ring-2 ring-[--surface-gray-1] dark:bg-surface-gray-2 dark:ring-[--surface-gray-2]"
+                :class="i && '-ml-1.5'"
+                :style="{ zIndex: apps.length - i }"
+              />
             </div>
-            <p v-if="!hideFacts && text('budget')" class="text-lg font-semibold text-ink-gray-8">
-              <s v-if="was('budget')" class="mr-1 font-normal text-ink-gray-5">{{ was('budget') }}</s>{{ text('budget') }}
-            </p>
-            <ul class="mt-1.5 flex flex-col gap-1.5 text-ink-gray-6">
-              <li v-for="r in askRows" :key="r.label" class="flex min-w-0 items-start gap-2">
-                <span :class="r.icon" class="mt-0.5 size-4 shrink-0 text-ink-gray-5" role="img" :aria-label="r.label" />
-                <span class="text-pretty"><s v-if="r.was" class="mr-1 text-ink-gray-5">{{ r.was }}</s><template v-if="r.list"><ShortList :list="r.list" badge />{{ r.after ? `, ${r.after}` : '' }}</template><template v-else>{{ r.text }}</template></span>
-              </li>
-            </ul>
-            <!-- What to fix: no label and no icon. Phrased as complaints ("Lost
-                 leads", "Slow reports"), they read as problems; set apart below
-                 the list so they don't look like a row missing its icon. -->
-            <div v-if="fixes.length" class="mt-3.5">
-              <p v-if="was('fixes')" class="mb-1.5 text-p-sm text-ink-gray-5"><s>{{ was('fixes') }}</s></p>
-              <div class="flex flex-wrap gap-1">
-                <Badge v-for="f in fixes" :key="f" :label="f" theme="gray" variant="subtle" size="lg" class="dark:bg-surface-gray-3" />
-              </div>
+            <Button v-if="canEdit" v-bind="pencil('ask')" class="-mr-1.5 -mt-1.5 ml-auto" />
+          </div>
+          <p v-if="!hideFacts && text('budget')" class="text-lg font-semibold text-ink-gray-8">
+          <s v-if="was('budget')" class="mr-1 font-normal text-ink-gray-5">{{ was('budget') }}</s>{{ text('budget') }}
+          </p>
+          <ul class="mt-1.5 flex flex-col gap-1.5 text-ink-gray-6">
+            <li v-for="r in askRows" :key="r.label" class="flex min-w-0 items-start gap-2">
+              <span :class="r.icon" class="mt-0.5 size-4 shrink-0 text-ink-gray-5" role="img" :aria-label="r.label" />
+              <span class="text-pretty"><s v-if="r.was" class="mr-1 text-ink-gray-5">{{ r.was }}</s><template v-if="r.list"><ShortList :list="r.list" badge />{{ r.after ? `, ${r.after}` : '' }}</template><template v-else>{{ r.text }}</template></span>
+            </li>
+          </ul>
+          <!-- What to fix: no label and no icon. Phrased as complaints ("Lost
+               leads", "Slow reports"), they read as problems; set apart below
+               the list so they don't look like a row missing its icon. -->
+          <div v-if="fixes.length" class="mt-3.5">
+            <p v-if="was('fixes')" class="mb-1.5 text-p-sm text-ink-gray-5"><s>{{ was('fixes') }}</s></p>
+            <div class="flex flex-wrap gap-1">
+              <Badge v-for="f in fixes" :key="f" :label="f" theme="gray" variant="subtle" size="lg" class="dark:bg-surface-gray-3" />
             </div>
-          </template>
+          </div>
         </div>
 
-        <!-- Who they are, and how they run today. Its pencil edits only how
-             they run today; the company itself comes from Settings, greyed
-             while the card is open, with the way there under it. -->
-        <div v-if="companyCard" :class="[!askCard && 'sm:col-span-3', cardClass('today')]" class="group min-w-0 rounded-6 p-5">
-          <div :class="openCard === 'today' && 'text-ink-gray-5'">
-            <div v-if="name || canEdit" class="flex items-start justify-between gap-2">
-              <Avatar v-if="name" size="lg" shape="square" :label="name" class="[&>*]:bg-surface-gray-3" />
-              <Button v-if="canEdit" v-bind="pencil('today')" class="-mr-1.5 -mt-1.5 ml-auto" />
-            </div>
-            <p v-if="name" class="mt-2 truncate text-lg font-medium" :class="openCard === 'today' ? '' : 'text-ink-gray-8'" :title="name">{{ name }}</p>
-            <ul v-if="companyRowsShown.length" class="flex flex-col gap-1.5" :class="[name && 'mt-1.5', openCard === 'today' ? '' : 'text-ink-gray-6']">
-              <li v-for="r in companyRowsShown" :key="r.label" class="flex min-w-0 items-start gap-2">
-                <span :class="r.icon" class="mt-0.5 size-4 shrink-0 text-ink-gray-5" role="img" :aria-label="r.label" />
-                <span class="text-pretty"><s v-if="r.was" class="mr-1 text-ink-gray-5">{{ r.was }}</s><template v-if="r.list"><ShortList :list="r.list" badge />{{ r.after ? `, ${r.after}` : '' }}</template><template v-else>{{ r.text }}</template></span>
-              </li>
-            </ul>
-            <Button v-if="openCard === 'today'" class="mt-2.5" size="sm" label="Edit in Settings" @click="toSettings" />
+        <!-- Who they are, and how they run today. Its pencil edits both: the
+             company's industries and size, and how this project runs. -->
+        <div v-if="companyCard" :class="[!askCard && 'sm:col-span-3', cardClass]" class="group min-w-0 rounded-6 p-5">
+          <div v-if="name || canEdit" class="flex items-start justify-between gap-2">
+            <Avatar v-if="name" size="lg" shape="square" :label="name" class="[&>*]:bg-surface-gray-3" />
+            <Button v-if="canEdit" v-bind="pencil('company')" class="-mr-1.5 -mt-1.5 ml-auto" />
           </div>
-          <RequirementsFields v-if="openCard === 'today'" class="mt-4" :draft="draft" section="today" />
+          <p v-if="name" class="mt-2 truncate text-lg font-medium text-ink-gray-8" :title="name">{{ name }}</p>
+          <ul v-if="companyRows.length" class="flex flex-col gap-1.5 text-ink-gray-6" :class="name && 'mt-1.5'">
+            <li v-for="r in companyRows" :key="r.label" class="flex min-w-0 items-start gap-2">
+              <span :class="r.icon" class="mt-0.5 size-4 shrink-0 text-ink-gray-5" role="img" :aria-label="r.label" />
+              <span class="text-pretty"><s v-if="r.was" class="mr-1 text-ink-gray-5">{{ r.was }}</s><template v-if="r.list"><ShortList :list="r.list" badge />{{ r.after ? `, ${r.after}` : '' }}</template><template v-else>{{ r.text }}</template></span>
+            </li>
+          </ul>
         </div>
 
         <!-- The details: the one long read, last -->
-        <div v-if="showDescription" :class="cardClass('scope')" class="group rounded-6 p-5 sm:col-span-3">
-          <RequirementsFields v-if="openCard === 'scope'" :draft="draft" section="scope">
-            <template #pencil><Button v-bind="pencil('scope')" /></template>
-          </RequirementsFields>
-          <template v-else>
-            <!-- The pencil floats INSIDE the paragraph: the line clamp makes the
-                 paragraph its own block, which would sit beside a float outside
-                 it and lose a column. Inside, only the first line wraps. -->
-            <p
-              ref="descEl"
-              class="whitespace-pre-line text-p-base leading-relaxed text-ink-gray-6"
-              :class="clamped && 'line-clamp-2'"
-            ><Button v-if="canEdit" v-bind="pencil('scope')" class="float-right -mr-1.5 -mt-1.5 ml-2" />{{ shown.scope }}</p>
-            <!-- Ghost, and pulled left by its own 8px padding so its label lines
-                 up with the text above. -->
-            <Button
-              v-if="overflows || !clamped"
-              class="-ml-2 mt-1"
-              variant="ghost"
-              size="sm"
-              :label="clamped ? 'Show more' : 'Show less'"
-              @click="clamped = !clamped; nextTick(measureDesc)"
-            />
-          </template>
+        <div v-if="showDescription" :class="cardClass" class="group rounded-6 p-5 sm:col-span-3">
+          <!-- The pencil floats INSIDE the paragraph: the line clamp makes the
+               paragraph its own block, which would sit beside a float outside
+               it and lose a column. Inside, only the first line wraps. -->
+          <p
+            ref="descEl"
+            class="whitespace-pre-line text-p-base leading-relaxed text-ink-gray-6"
+            :class="clamped && 'line-clamp-2'"
+          ><Button v-if="canEdit" v-bind="pencil('scope')" class="float-right -mr-1.5 -mt-1.5 ml-2" />{{ shown.scope }}</p>
+          <!-- Ghost, and pulled left by its own 8px padding so its label lines
+               up with the text above. -->
+          <Button
+            v-if="overflows || !clamped"
+            class="-ml-2 mt-1"
+            variant="ghost"
+            size="sm"
+            :label="clamped ? 'Show more' : 'Show less'"
+            @click="clamped = !clamped; nextTick(measureDesc)"
+          />
         </div>
       </div>
       <div v-else class="flex flex-col gap-7">
@@ -557,12 +548,19 @@ const focus = computed(() => (packs.value ? (props.brief?.focus ?? '').trim() : 
     <template v-if="lockNote" #actions>
       <p class="text-p-sm text-ink-gray-6">{{ lockNote }}</p>
     </template>
-    <!-- Changes waiting: what changed, Discard, and the one Send. There is no
-         footer until something has changed. -->
+    <!-- A section being edited: Done, back to the cards. Save and Send are
+         only on the cards, where every change is in sight. -->
+    <template v-else-if="openCard" #actions>
+      <div class="flex justify-end">
+        <Button label="Done" @click="done" />
+      </div>
+    </template>
+    <!-- Changes waiting: what changed, Discard, and the one Save or Send.
+         There is no footer until something has changed. -->
     <template v-else-if="dirty" #actions>
       <div class="flex items-center justify-between gap-4">
         <p class="text-p-sm text-ink-gray-6">
-          {{ draft.requester ? `Sending declines ${draft.requester.name}’s hire request.` : changedLine }}
+          {{ draft.requester && draft.formDirty ? `Sending declines ${draft.requester.name}’s hire request.` : changedLine }}
         </p>
         <div class="flex shrink-0 gap-2">
           <Button variant="ghost" label="Discard" @click="discard" />

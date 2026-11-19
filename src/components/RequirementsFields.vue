@@ -1,27 +1,31 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { Badge, FormControl, MultiSelect, Textarea } from 'frappe-ui'
+import { Badge, Button, FormControl, MultiSelect, Textarea } from 'frappe-ui'
 import AppsSelect from './AppsSelect.vue'
 import { OPERATIONS } from '../data/company'
-import { fixShort } from '../data/format'
+import { MAX_INDUSTRIES, fixShort, industryText } from '../data/format'
+import { useConnectStore } from '../stores/connect'
 
-// One card's fields in the requirements dialog, opened by its pencil. Every
-// card edits the same draft (`useRequirementsDraft`), and nothing goes to
-// partners until the dialog's one Send.
+// One section's fields in the requirements dialog, opened by its card's
+// pencil and shown on their own, full width, in place of the cards. Every
+// section edits the same draft (`useRequirementsDraft`), and nothing leaves
+// until the dialog's one Save or Send.
 //
-//   ask     apps, budget and go-live, the partner wanted, what to fix
-//   today   how this project runs today and the tools it uses
-//   scope   the description
-//
-// ⚠️ THE PENCIL STAYS IN ITS CORNER. Where a card opens on a field, that
-// field's label is drawn here, with the pencil (`#pencil`) at its right end,
-// so the pencil sits on the label line and takes no column of its own.
+//   ask      apps, budget and go-live, the partner wanted, what to fix
+//   company  the company's industries and size (saved to Settings), then how
+//            this project runs today and the tools it uses
+//   scope    the description
 const props = defineProps({
   draft: { type: Object, required: true },
   section: { type: String, required: true },
 })
 
+const store = useConnectStore()
 const form = computed(() => props.draft.form)
+const company = computed(() => props.draft.company)
+// Name and country aren't edited here: country sets the budget bands and the
+// location field. Shown, so it's clear where they went.
+const fixedLine = computed(() => [store.company?.name || store.viewer?.company, store.company?.country].filter(Boolean).join(', '))
 const errors = computed(() => props.draft.errors)
 const fixes = computed(() => fixShort(form.value.problems))
 
@@ -53,10 +57,7 @@ watch(() => form.value.scope, () => nextTick(fit))
   <!-- What they want -->
   <div v-if="section === 'ask'" class="flex flex-col gap-3">
     <div>
-      <div class="mb-1.5 flex items-center justify-between gap-2">
-        <span class="text-xs text-ink-gray-5">Apps <span class="text-ink-red-4">*</span></span>
-        <slot name="pencil" />
-      </div>
+      <p class="mb-1.5 text-xs text-ink-gray-5">Apps <span class="text-ink-red-4">*</span></p>
       <AppsSelect v-model="form.projectApps" aria-label="Apps" placeholder="Select" :error="errors.apps" />
     </div>
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -105,24 +106,67 @@ watch(() => form.value.scope, () => nextTick(fit))
     </div>
   </div>
 
-  <!-- How this project runs today. `fc-select-wrap`: the answers are
-       sentences, and at a third of the dialog they were cut short. -->
-  <div v-else-if="section === 'today'" class="flex flex-col gap-3">
-    <FormControl v-model="form.operations" class="fc-select-wrap" type="select" label="Today" placeholder="Select one" :options="OPERATIONS" />
-    <MultiSelect v-if="draft.showTools" v-model="form.apps" class="fc-select-wrap" label="Tools you use" :options="draft.tools" hide-search>
-      <template #footer />
-      <template #summary>
-        <span class="text-ink-gray-8">{{ namesOf(form.apps, draft.tools, 'None') }}</span>
-      </template>
-    </MultiSelect>
+  <!-- ⚠️ TWO GROUPS, TWO SCOPES. The company's industries and size belong to
+       the account and save to Settings; how this project runs today is the
+       project's own. One note under both would leave which fields it covers
+       unclear, so each group is headed and the note sits under the company. -->
+  <div v-else-if="section === 'company'" class="flex flex-col gap-6">
+    <section class="flex flex-col gap-3">
+      <h4 class="text-base font-medium text-ink-gray-8">Your company</h4>
+      <p v-if="fixedLine" class="flex items-start gap-2 text-p-base text-ink-gray-6">
+        <span class="lucide-building-2 mt-0.5 size-4 shrink-0 text-ink-gray-5" aria-hidden="true" />{{ fixedLine }}
+      </p>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <MultiSelect
+          v-model="company.segments"
+          label="Industries"
+          placeholder="Select"
+          required
+          :options="draft.segmentOptions"
+          :error="draft.errors.segments"
+        >
+          <!-- The picks by name, as the company card reads them, not "3 selected". -->
+          <template #summary>
+            <span v-if="company.segments.length" class="text-ink-gray-8">{{ industryText(company.segments).text }}</span>
+            <span v-else class="text-ink-gray-4">Select</span>
+          </template>
+          <!-- As in Settings: no Select All (40-odd industries, a limit of
+               3), and the count says how many are left. -->
+          <template #footer="{ clear }">
+            <div v-if="company.segments.length" class="flex items-center justify-between border-t border-outline-gray-1 px-2 py-1.5">
+              <Button variant="ghost" size="sm" label="Clear All" @click="clear" />
+              <span class="px-2 text-sm tabular-nums text-ink-gray-5">{{ company.segments.length }} of {{ MAX_INDUSTRIES }}</span>
+            </div>
+          </template>
+        </MultiSelect>
+        <FormControl
+          v-model="company.employees"
+          type="select"
+          label="Employees"
+          placeholder="Select"
+          required
+          :options="draft.sizes"
+          :error="draft.errors.employees"
+        />
+      </div>
+      <p class="text-p-sm text-ink-gray-5">Also saved to Settings</p>
+    </section>
+    <section class="flex flex-col gap-3">
+      <h4 class="text-base font-medium text-ink-gray-8">This project</h4>
+      <!-- `fc-select-wrap`: the answers are sentences, and a long one was cut
+           short in the trigger. -->
+      <FormControl v-model="form.operations" class="fc-select-wrap" type="select" label="Today" placeholder="Select one" :options="OPERATIONS" />
+      <MultiSelect v-if="draft.showTools" v-model="form.apps" class="fc-select-wrap" label="Tools you use" :options="draft.tools" hide-search>
+        <template #footer />
+        <template #summary>
+          <span class="text-ink-gray-8">{{ namesOf(form.apps, draft.tools, 'None') }}</span>
+        </template>
+      </MultiSelect>
+    </section>
   </div>
 
   <!-- The description -->
   <div v-else-if="section === 'scope'" ref="descEl">
-    <div class="mb-1.5 flex items-center justify-between gap-2">
-      <span class="text-xs text-ink-gray-5">What you want built <span class="text-ink-red-4">*</span></span>
-      <slot name="pencil" />
-    </div>
     <Textarea v-model="form.scope" aria-label="What you want built" :rows="4" :maxlength="800" :error="errors.scope" />
   </div>
 </template>

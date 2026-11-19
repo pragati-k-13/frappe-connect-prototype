@@ -750,7 +750,7 @@ textarea[data-slot='control'] {
 .fc-select-wrap button[role='combobox'],
 .fc-select-wrap button[aria-haspopup] {
   align-items: flex-start;
-  padding-block: 0.3125rem;
+  padding-block: 0.25rem;
 }
 .fc-select-wrap button > .grid,
 .fc-select-wrap button > .grid > span:first-child {

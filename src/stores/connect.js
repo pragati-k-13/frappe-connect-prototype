@@ -280,10 +280,6 @@ export const useConnectStore = defineStore('connect', {
     // The Demo menu's "Busy account": the client persona with every answer at
     // its extreme. See `demoBusyAccount`.
     demoBusy: false,
-    // A request from inside a dialog to open the business settings on a tab
-    // ('company'). The shell owns the settings dialog and clears this once it
-    // has opened it. See `openSettings`.
-    settingsAsk: null,
     viewer: {
       name: 'Meera Iyer',
       email: 'meera@northwind.example',
@@ -799,10 +795,6 @@ export const useConnectStore = defineStore('connect', {
     // its extreme — a long company name, three industries, five apps, a
     // description at the 800-character limit — so any screen that drops,
     // clips or wraps an answer badly shows it straight away.
-    openSettings(tab = 'company') {
-      this.settingsAsk = tab
-    },
-
     demoBusyAccount() {
       this.demoAccount('client')
       this.demoBusy = true
@@ -1765,6 +1757,28 @@ export const useConnectStore = defineStore('connect', {
       // asked once. `toggleGeo` would flip it off if it were already set, so
       // this assigns.
       if (country) this.filters.countries = countries?.length ? [...countries] : [country]
+    },
+
+    // ⚠️ THE COMPANY FROM THE REQUIREMENTS DIALOG, NO MESSAGE. Industries and
+    // size, edited beside a project's requirements: saved to Settings, and
+    // written over the copy on every requirements card already sent (and the
+    // version an update replaced, so no card reads it as a change), so
+    // partners see them at once. Nobody is notified: what partners hear about
+    // is requirements, through `updateRequirements`. Country and name stay in
+    // Settings — country sets the budget bands and the location field.
+    updateCompanyDetails({ employees, segments }) {
+      this.company = { ...this.company, employees, segments: [...segments] }
+      for (const p of this.projects) {
+        if (p.answers && 'employees' in p.answers) p.answers = { ...p.answers, employees, segments: [...segments] }
+      }
+      for (const t of this.threads) {
+        for (const m of t.messages ?? []) {
+          if (m.from !== 'you') continue
+          for (const b of [m.brief, m.prev]) {
+            if (b && 'employees' in b) Object.assign(b, { employees, segments: [...segments] })
+          }
+        }
+      }
     },
 
     // The two things sign-up asks that the intake deliberately doesn't: who you
