@@ -17,8 +17,12 @@ The rail starts with Search (⌘K) and Notifications, set apart by space. Search
 rail's places; typing adds People, Leads and Customers. A person opens Firm settings on Users
 with their row picked out. Then one list with no
 labels, ordered by how often each is opened: Leads, Customers, Partnership, Audits, Public
-profile, Invoices, Resources. A Beginner's list starts with Partnership. Each role sees only its
-own rows. Group labels were dropped (2026-11-12): with seven rows the order does their job, and
+profile, Invoices, Resources. Each role sees only its own rows.
+
+**A Beginner's rail is Partnership and Resources** (under Search and Notifications). A Beginner
+isn't listed, gets no leads and has no partner code, so Leads, Customers, Audits, Public profile
+and Invoices would only ever be empty. The full rail arrives once, at Bronze, with the one-time
+landing notice (below), rather than pages appearing one at a time (2026-11-19). Group labels were dropped (2026-11-12): with seven rows the order does their job, and
 "Your firm" made people decide whether Partnership was theirs too. Resources is a rail page,
 not a header-menu link: its collateral library is something Sales comes back to during deals.
 The header menu keeps Firm settings and Partner managers. The sidebar's footer is the signed-in
@@ -43,7 +47,7 @@ From Bronze up, each role lands where its work is:
 | Finance | Billing     | What was paid for customers, and what to bill them   |
 
 The landing changes once, at Bronze, with a one-time notice so it doesn't feel like the app
-moved. Standing still reaches people where they are:
+moved; the full rail arrives with it. Standing still reaches people where they are:
 
 - **Notifications** (rail, with an unread count): a new lead or reply, requirements updated, a
   hire answered, an audit scheduled or done, a certificate expiring, an invoice due. Each opens
@@ -63,8 +67,7 @@ area, and nothing on it would be the anchor.
 - **Role:** Owner, Sales or Finance. It sets the landing screen, the badges and what can be
   done.
 
-An Applicant state (signed up, not yet a partner) may join the tier choice once the onboarding
-designs are in (see Onboarding).
+There's no Applicant state: signing up makes a firm a Beginner (see Onboarding).
 
 ## The tier rubric
 
@@ -74,7 +77,7 @@ up below are from the plans page and need confirming.
 
 | Tier     | Frappe Cloud MRR    | Certified consultants | PMM | FC discount | Listing                     |
 | -------- | ------------------- | --------------------- | --- | ----------- | --------------------------- |
-| Beginner | Below Bronze        | Below Bronze          | —   | *to confirm* | Not listed; page shared by link |
+| Beginner | Below Bronze        | Below Bronze          | —   | *to confirm* | Not listed                  |
 | Bronze   | ₹63,000 / $750      | 2                     | 3   | 15%         | Full profile, large card    |
 | Silver   | ₹2,50,000 / $3,150  | 3                     | 4   | 20%         | Full profile                |
 | Gold     | ₹6,30,000 / $7,500  | 4                     | 5   | 25%         | Full profile, top of list   |
@@ -93,51 +96,70 @@ the partner sees the same ones:
 4. $300 MRR
 5. Bronze reached (needs the PMM audit)
 
+A Beginner's MRR is the firm's own Frappe Cloud billing, the sites it pays for itself. It has no
+partner code yet, so no linked customers count toward it.
+
 ⚠️ The prototype knows only gold, silver and bronze (`data/partners.js`, `TierIcon.vue`), and
 PMM is derived from tier there. Beginner needs to be added, and PMM needs to become its own
 field, since it is a criterion with its own audit and not a label for the tier.
 
 ## 0. Onboarding
 
-Interested companies sign up and track their application in Connect. Ready designs exist for
-this and will be shared, so this section only fixes the steps and states; the screens follow
-those designs.
+**No application (2026-11-19).** Signing up for a partner account makes the firm a Beginner
+straight away, as in Frappe Cloud's partner onboarding (press, `dashboard/src/onboarding`):
+anyone can start working toward it, and Frappe reviews once, when the criteria are met. A
+Beginner isn't listed, gets no leads and has no partner code, so signing up gives no public
+claim to being a partner.
 
-1. Sign up, with company details.
-2. Apply to be a partner. The application shows its status: submitted, in review, or a decision.
-3. Frappe reviews it. A rejection arrives by email with the reason, and the application page
-   says so.
-4. Accept the partner agreement. It can't be skipped.
-5. Create or link the firm's Frappe Cloud account, since every tier needs one billing $100 a
-   month.
-6. The partner code is issued and the firm becomes a Beginner. The owner lands on Partnership,
-   with the milestones, the audit mechanics and the partner code.
-7. Invite the team in Firm settings → Users.
+The screens use press's partner onboarding checklist design, not a new one. The content of
+press's "Interested in partnering with us?" dialog is outdated and isn't used.
+
+1. **Sign up** from "Become a partner": work email, then the one-time code, with name, company
+   and country. The firm is now a Beginner, and the owner lands on Partnership.
+2. **Work through the checklist on Partnership** (§1): the agreement, the company profile, the
+   Frappe Cloud team, certificates and MRR.
+3. **Submit for approval.** This requests the PMM audit. In review, then a decision by email:
+   approved means Bronze (listed, leads, partner code, the full rail); declined shows the reason
+   on Partnership, and the firm carries on as a Beginner.
+4. **Invite the team** in Firm settings → Users, any time.
 
 **Signing in.** Partners sign in the way businesses already do (`LoginPage`, `SignupPage`): work
 email, then a one-time code, no password.
 
 - **Signing in:** Connect knows from the email that it belongs to a partner team, so it opens
   the partner side on that person's landing screen. There's no "I'm a partner" toggle.
-- **Signing up as a new partner:** starts from "Become a partner" on frappe.io/partners and
-  goes into the onboarding steps above. The general sign-up screen stays for businesses.
+- **Becoming a partner:** "Become a partner" on frappe.io/partners opens Connect's partner
+  sign-up, which leads into the onboarding above. The general sign-up screen stays for
+  businesses, with one quiet line under the form: "Joining as a Frappe partner? Become a
+  partner", to the same partner sign-up.
 - **Joining a team:** the owner's invite email links to the same email-and-code step, and the
   person lands with the roles they were given.
-- **One email, one side:** a work email belongs to one company, so an address is either a
-  business user or on a partner team. There's no side picker. Someone who really is on both uses
-  a second email.
-- **One login screen:** no separate partner login or "Partner portal" link. The email decides
-  the side.
+- **Later: a team switcher in the sidebar,** for one email on both sides (a business account
+  and a partner team). Until then, someone on both uses a second email.
+- **The current team is always plain:** the sidebar header names it, the firm name on the
+  partner side and the company name on the business side.
+- **One login screen:** no separate partner login, and no "Partner login" link.
 
 Signing in with the Frappe Cloud account was considered and left out: it would make Sales and
 Finance people create Frappe Cloud accounts they otherwise never need.
 
 ## 1. Partnership
 
-**Beginner.** The milestone checklist is the anchor: the five milestones in order, done ones
-ticked with their date, the next one highlighted with what it takes ("1 more certification",
-"$140 more MRR"). Each links to where it's done: certifications to Certificates below, MRR to Customers, sorted by MRR.
-The partner code sits right below it, since linking a first customer is how MRR starts.
+**Beginner.** The page is press's partner onboarding checklist, in its design. A title row on the
+page itself, not in the breadcrumb bar: "Becoming a Frappe partner" (press says "Your journey to
+becoming a Frappe partner") with the status badge (Beginner, In review, Declined) on the left,
+and **Unregister** on the right, a subtle red button confirmed by a danger dialog. Press's right
+column goes: its firm name is already in the sidebar header. The checklist, in order, done steps
+ticked with their date and the next one open with what it takes ("1 more certification", "$40
+more MRR"):
+
+1. Accept the partner agreement. It can't be skipped.
+2. Complete the company profile (press's fields, on one form).
+3. Link the firm's Frappe Cloud team, so its own billing counts as MRR.
+4. Link two Frappe School certificates. Each holder confirms by email, as in press.
+5. The MRR milestones, tracked from the firm's own Frappe Cloud billing; nothing to update.
+6. Submit for approval, which requests the PMM audit, with its lead time shown from the first
+   visit.
 
 **Bronze and up.** The current tier with its benefits (discount, listing type). Then one row
 per criterion for the **next** tier: MRR, certified consultants, PMM level and eligibility.
@@ -159,7 +181,7 @@ They're shown in two places:
 
 Each is an email link, not a channel inside Connect.
 
-**Partner code.** On Partnership too, with a copy icon, because partners already look for
+**Partner code.** From Bronze, on Partnership too, with a copy icon, because partners already look for
 it here in the PRM portal's Overview.
 
 **Customers, sorted by MRR.** Behind the MRR row: every linked customer with their MRR, so the
@@ -194,14 +216,15 @@ one block, so no partner learns about the wait at the last step:
 - If the audit gives the PMM level but another criterion has slipped since, the tier stays
   where it is and the block names the gap.
 - When to request it: once the other criteria are within reach, with the start-by date that
-  follows from the lead time. A Beginner sees this from their first visit, next to the
-  milestones, not only after $300.
+  follows from the lead time. A Beginner sees this from their first visit, as the checklist's
+  last step.
 - At Gold, there's no next tier. Gold is re-audited to keep it, so the block shows when the
   next audit is due and when to request it.
 
 Settled: the audit lives in the PMM criterion row. Its meta line says where the audit stands
 (needed and the lead time, requested, or scheduled), and the Request audit button appears in
-that row once everything but PMM is met. For a Beginner, the Bronze milestone carries it.
+that row once everything but PMM is met. For a Beginner, the checklist's last step, Submit for
+approval, carries it.
 
 **Audit history.** Below the criteria, one row per past audit: date, auditor, the PMM level it
 gave, the tier that followed, and the report. The newest sits first. A partner with no audits
@@ -230,7 +253,8 @@ confirmed or replaced:
 - **Review at each quarter's end.** Still below then, the tier drops one step. The owner gets an
   email saying what changed: the discount from the next invoice, the listing, and the landing.
 - **Dropping to Beginner:** open Connect threads stay so the partner can finish them, new briefs
-  stop, and the listing goes back to unlisted.
+  stop, and the listing goes back to unlisted. The rail keeps Leads and Customers while there
+  are open threads and linked customers; the rest goes back to a Beginner's rail.
 
 **Error paths**
 
@@ -483,9 +507,8 @@ The other changes:
   closed (block it and explain).
 - **Empty state, Bronze and up:** no briefs yet. Say what makes a brief reach them: their
   regions and industries, and the deal sizes and capacity on their profile.
-- **Beginner:** Connect sends them briefs too, so Leads works the same at every tier. Their rail
-  puts Partnership first, since the milestones to Bronze are their main job; from Bronze up
-  the rail runs Leads, Customers, Partnership.
+- **Beginner:** no Leads. A Beginner isn't listed, so no briefs reach them; Leads arrives with
+  the full rail at Bronze.
 
 ### Lead to customer
 
@@ -651,12 +674,9 @@ live and the owner gets a notice.
   link. The error is shown inline before saving.
 - Two team members edit at once: the second save is told there is a newer version, and is
   shown it.
-- Beginner: they aren't in the directory, since a partner without a PMM audit shouldn't be
-  found through Frappe's own listing, and the listing is what Bronze earns. Their page still
-  works by link: a Beginner can send it to prospects they find themselves, with the partner
-  code on it. The editor says once, at the top, that it's unlisted until Bronze, with Copy
-  link. Bronze makes the same page public, so reaching Bronze first prompts the owner to check
-  the page before it goes live.
+- Beginner: no Public profile. A partner without a PMM audit isn't in the directory, the listing
+  is what Bronze earns, and there's no page by link either. Public profile arrives at Bronze,
+  and the first visit prompts the owner to fill it in before it goes live.
 
 ## 7. Resources
 
@@ -720,10 +740,11 @@ Who acts is in brackets. *Outside* means the step happens outside Connect.
 
 **Working in Connect**
 
-1. **Beginner to Bronze** (Owner): Partnership milestones → an employee certifies on Frappe
-   School (*outside*) → link the certificate on Partnership → share the partner code → approve the
-   link request on Customers → $100 and $300 tick on Partnership → request the audit → Bronze
-   → check the profile before it goes public → one-time notice that the landing changes.
+1. **Beginner to Bronze** (Owner): sign up from "Become a partner" → Partnership checklist →
+   accept the agreement → company profile → link the Frappe Cloud team → an employee certifies
+   on Frappe School (*outside*) → link the certificate on Partnership → the firm's own billing
+   ticks the MRR milestones → Submit for approval (the PMM audit) → Bronze → one-time notice
+   that the landing and the rail change → fill in the profile before it goes public.
 2. **Lead to customer** (Sales): brief in "Needs reply" → reply, send a quote → shortlisted →
    hired, Won → lead leaves the default view, "View in Customers" → customer as Onboarding,
    thread continues in its Messages tab → linked through the partner code, approved without

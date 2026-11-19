@@ -343,8 +343,11 @@ const EMPTY = {
            "N of M replied": the filter menu counts the quotes, and how many
            stayed silent doesn't help choose among those that answered. -->
       <!-- Wraps on a phone: the controls drop under the title rather than
-           pushing the filter off the edge. -->
-      <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+           pushing the filter off the edge.
+           Sticky, so sort and filter stay in reach down a long list. Its own
+           12px above and below (pulled back by -my-3) give the quotes room to
+           pass under it; the page's fill hides them as they do. -->
+      <div class="sticky top-0 z-10 -my-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 bg-surface-base py-3">
         <h2 class="whitespace-nowrap text-xl font-semibold text-ink-gray-8">Hire a Partner</h2>
         <div class="flex shrink-0 items-center gap-2">
         <!-- Sorting needs two quotes to order. -->

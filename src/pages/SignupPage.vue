@@ -161,5 +161,15 @@ useAuthExit()
         Log in
       </RouterLink>
     </p>
+    <!-- Partners don't sign up here: becoming one is an application (firm,
+         certifications, Frappe's review) that starts on frappe.io/partners.
+         One quiet line for a partner who lands here, so they don't end up
+         with a business account. -->
+    <p class="mt-1 text-p-sm text-ink-gray-5">
+      Joining as a Frappe partner?
+      <RouterLink :to="{ name: 'website' }" class="font-medium text-ink-gray-8 underline underline-offset-2">
+        Become a partner
+      </RouterLink>
+    </p>
   </AuthShell>
 </template>
