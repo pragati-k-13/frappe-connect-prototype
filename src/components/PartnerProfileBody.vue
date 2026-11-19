@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Avatar, Button } from 'frappe-ui'
 import TierIcon from './TierIcon.vue'
 import InlineInput from './InlineInput.vue'
@@ -19,6 +19,7 @@ import { visibleClients } from '../data/media'
 import { featuredFor } from '../data/featured'
 import { storiesFor } from '../data/stories'
 import { contributionsFor } from '../data/marketplace'
+import { useConnectStore } from '../stores/connect'
 
 // The partner profile, one body for both sides: a business reading it in the
 // directory (`PartnerProfilePage`) and the partner editing or previewing it
@@ -65,6 +66,17 @@ const subtitle = computed(() => p.value.tagline || p.value.city)
 const featured = computed(() => featuredFor(p.value.id))
 const stories = computed(() => storiesFor(p.value))
 const apps = computed(() => contributionsFor(p.value))
+// ── Reviews, last when there are none ───────────────────────────────────────
+// An empty Reviews row mid-page is a dead end above the sections that do have
+// something, so with none it moves to the foot. Business side only: the
+// partner's own page hides it. Decided when the profile opens, not live, so
+// writing the first review fills the row where it is rather than moving it
+// up the page from under the reader.
+const store = useConnectStore()
+const hasReviews = () => !!p.value.reviews || store.reviewsWrittenFor(p.value.id).length > 0
+const reviewsLast = ref(false)
+watch(() => [p.value.id, props.own], () => (reviewsLast.value = !props.own && !hasReviews()), { immediate: true })
+
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
 const featuredLine = computed(() => {
   const pods = featured.value.filter((f) => f.kind === 'podcast').length
@@ -131,10 +143,11 @@ const featuredLine = computed(() => {
     </div>
 
     <!-- ── About ─────────────────────────────────────────────────────────
-         48px under the strip, 64px straight after the gallery. -->
+         48px under the strip, 64px straight after the gallery, 32px under
+         the header when there's neither. -->
     <PartnerAboutCard
       data-anchor="about"
-      :class="!editable && (clients.length ? '!mt-12' : '!mt-16')"
+      :class="!editable && (clients.length ? '!mt-12' : media.length ? '!mt-16' : '!mt-8')"
       :partner="p"
       :editable="editable"
       @change="emit('change', $event)"
@@ -146,7 +159,7 @@ const featuredLine = computed(() => {
          replies and reports on the Reviews page. No "View all" while
          editing: leaving would mean leaving the draft. -->
     <PartnerReviewsSection
-      v-if="p.reviews || !own"
+      v-if="(p.reviews || !own) && !reviewsLast"
       id="reviews"
       data-anchor="reviews"
       :partner="p"
@@ -183,6 +196,8 @@ const featuredLine = computed(() => {
       <PartnerFeaturedSection data-anchor="featured" :partner="p" />
       <PartnerStoriesSection data-anchor="stories" :partner="p" />
       <PartnerMarketplaceSection data-anchor="marketplace" :partner="p" />
+      <!-- None yet: at the foot, after everything with content. -->
+      <PartnerReviewsSection v-if="reviewsLast" id="reviews" data-anchor="reviews" :partner="p" :view-all-to="reviewsTo" />
     </template>
   </div>
 </template>

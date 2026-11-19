@@ -1,9 +1,8 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Alert, Avatar, Badge, Button, Dialog, Dropdown, ScrollArea, toast } from 'frappe-ui'
+import { Alert, Avatar, Button, Dialog, Dropdown, ScrollArea, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
-import FeedbackDialog from '../components/FeedbackDialog.vue'
 import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
 import HirePartnerDialog from '../components/HirePartnerDialog.vue'
 import NewProjectDialog from '../components/NewProjectDialog.vue'
@@ -11,7 +10,7 @@ import PackScopeDialog from '../components/PackScopeDialog.vue'
 import PackTermsDialog from '../components/PackTermsDialog.vue'
 import ProjectAbout from '../components/ProjectAbout.vue'
 import ProjectBids from '../components/ProjectBids.vue'
-import RecommendationView from '../components/RecommendationView.vue'
+import DraftProject from '../components/DraftProject.vue'
 import HiredPath from '../components/HiredPath.vue'
 import { logoFor } from '../data/logos'
 import PackSetupTasks from '../components/PackSetupTasks.vue'
@@ -172,13 +171,7 @@ const saveDraft = (details) => {
   toast.success('Draft saved')
 }
 
-// Starting it. Booking goes through the checkout, which turns this draft into
-// the pack project (`bookingFor`); sharing makes it custom work in place.
-const bookDraft = () => {
-  store.bookPacksFor(project.value.id, project.value.packs)
-  router.push({ name: 'checkout' })
-}
-
+// Starting it: sharing makes the draft custom work in place.
 const shareDraft = () => {
   const result = store.broadcastBrief(project.value.id)
   if (!result) return
@@ -226,7 +219,6 @@ const onRequirementsSaved = ({ sent: n }) => toast.success(`Sent to ${n} ${n ===
 
 // ── Acting on a task ────────────────────────────────────────────────────────
 const rating = ref(false)
-const feedback = ref(false)
 const termsOpen = ref(false)
 const scopeOpen = ref(false)
 const openScope = () => (scopeOpen.value = true)
@@ -532,38 +524,24 @@ const complete = () => {
                 </template>
               </div>
             </template>
-            <!-- ⚠️ A DRAFT IS ITS RECOMMENDATION: the recommendation screen,
-                 driven by this project's answers, basket and requirements.
-                 Booking or sharing is what starts it. -->
-            <RecommendationView
+            <!-- A draft: what it is and the partners it can go to, with one
+                 action, sharing it. See `DraftProject`. -->
+            <DraftProject
               v-else
+              :project="project"
               :answers="project.answers ?? store.company"
-              :brief="project.brief ?? {}"
-              :packs="project.packs ?? []"
-              :show-feedback="false"
-              @toggle-pack="store.toggleDraftPack(project.id, $event)"
               @update-brief="store.updateDraftBrief(project.id, $event)"
-              @checkout="bookDraft"
               @share="shareDraft"
               @edit-answers="editing = true"
             >
-              <!-- A draft's title goes in the recommendation's column, so it
-                   lines up with the list and the rail meets it at the top. -->
-              <template #header="{ headline }">
-                <div class="flex items-start justify-between gap-4">
-                  <div class="flex min-w-0 items-center gap-2">
-                    <h1 class="text-2xl font-semibold text-ink-gray-8">{{ project.name }}</h1>
-                    <Badge variant="subtle" theme="gray" size="md" label="Draft" />
-                  </div>
-                  <Dropdown v-if="menu.length" :options="menu" align="end">
-                    <Button variant="subtle" aria-label="Project actions">
-                      <template #icon><IconMore class="size-4" /></template>
-                    </Button>
-                  </Dropdown>
-                </div>
-                <h2 class="mt-8 text-lg font-semibold text-ink-gray-8">{{ headline }}</h2>
+              <template #actions>
+                <Dropdown v-if="menu.length" :options="menu" align="end">
+                  <Button variant="subtle" aria-label="Project actions">
+                    <template #icon><IconMore class="size-4" /></template>
+                  </Button>
+                </Dropdown>
               </template>
-            </RecommendationView>
+            </DraftProject>
 
             <!-- Below `lg` there is no rail, so the reference stacks under the
                  work. `-mx-5` cancels the page padding so its rules run edge to
@@ -576,12 +554,12 @@ const complete = () => {
                 :region="region"
                 @scope="openScope"
                 :has-brief="Boolean(brief)"
+                :brief="brief"
                 @requirements="briefOpen = true"
                 :can-review="Boolean(reviewable && project?.completedAt && !reviewed)"
                 :when="project?.completedAt && project.service === 'pack' ? when : null"
                 @message="messagePartner(partner)"
                 @review="rating = true"
-                @feedback="feedback = true"
                 @rename="rename"
               />
             </div>
@@ -601,12 +579,12 @@ const complete = () => {
             :region="region"
             @scope="openScope"
             :has-brief="Boolean(brief)"
+                :brief="brief"
             @requirements="briefOpen = true"
             :can-review="Boolean(reviewable && project?.completedAt && !reviewed)"
             :when="project?.completedAt && project.service === 'pack' ? when : null"
             @message="messagePartner(partner)"
             @review="rating = true"
-            @feedback="feedback = true"
                 @rename="rename"
           />
         </ScrollArea>
@@ -640,7 +618,6 @@ const complete = () => {
       @invoice="downloadInvoice"
     />
     <WriteReviewDialog v-model:open="rating" :project="project" :partner="partner" />
-    <FeedbackDialog v-model:open="feedback" />
     <NewProjectDialog
       :open="editing"
       :draft="draft ? project : null"

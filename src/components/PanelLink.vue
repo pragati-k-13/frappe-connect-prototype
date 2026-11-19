@@ -14,6 +14,8 @@ defineProps({
   // Somewhere outside Connect, opened in a new tab.
   href: { type: String, default: '' },
   avatar: { type: String, default: '' },
+  // The record's logo, when it has one; `avatar` is still its name.
+  image: { type: String, default: '' },
   icon: { type: String, default: '' },
 })
 defineEmits(['click'])
@@ -31,7 +33,7 @@ defineEmits(['click'])
       class="inline-flex h-7 max-w-full items-center gap-1.5 rounded-4 px-2 text-left text-base text-ink-gray-8 transition-colors hover:bg-surface-gray-2 focus-visible:ring-0 focus-visible:focus-ring"
       @click="!to && !href && $emit('click')"
     >
-      <Avatar v-if="avatar" :label="avatar" size="xs" shape="square" class="shrink-0" />
+      <Avatar v-if="avatar" :label="avatar" :image="image || undefined" size="xs" shape="square" class="shrink-0" :class="image && '[&_img]:object-contain'" />
       <span v-else-if="icon" :class="icon" class="size-4 shrink-0 text-ink-gray-5" aria-hidden="true" />
       <span v-else-if="$slots.icon" class="grid size-4 shrink-0 place-items-center text-ink-gray-5" aria-hidden="true"><slot name="icon" /></span>
       <span class="truncate">{{ label }}</span>

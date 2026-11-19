@@ -14,14 +14,16 @@ import { ref } from 'vue'
 // them. Hoisting it out makes one ref for the app: the shells come and go, the
 // choice stays.
 //
-// Starts collapsed: the quiz and the map are the point of the landing screen,
-// and an expanded rail eats width the map wants. Binding the model also takes
-// over from Sidebar's default (collapse only below `sm`), so it stays as left
-// at every width.
+// ⚠️ STARTS EXPANDED. Collapsed, the rail was a column of unlabelled icons
+// whose tooltips only show on hover, and its expand control only appears when
+// the pointer finds the seam — a first visit met six icons and no words. The
+// collapsed state stays for whoever chooses it. Below `sm` it still starts
+// collapsed: binding the model takes over from Sidebar's own default, and an
+// expanded rail would take most of a phone's width.
 //
-// Session-only, by design — a reload starts collapsed again. Persisting it
+// Session-only, by design — a reload starts expanded again. Persisting it
 // would mean writing to localStorage, which nobody has asked for.
-const collapsed = ref(true)
+const collapsed = ref(window.matchMedia('(max-width: 639px)').matches)
 </script>
 
 <script setup>
@@ -68,21 +70,9 @@ const { requireAccount } = useAuthGate()
 // and the two you spend the most time on. Every route under /connect is the
 // partner directory, so the match is a prefix.
 const route = useRoute()
-// ⚠️ The pack flow is excluded from the directory. Every route under /connect
-// used to be the directory; the catalogue was the first that wasn't, and
-// without this both rail rows light up at once.
-//
-// ⚠️ NAMES, not a path prefix. The flow leaves `/connect/packs` after the
-// catalogue — confirming and the booked screen are `/connect/confirm` and
-// `/connect/confirmed` — so a prefix lit "Find partners" on the last two
-// screens of buying a pack, while their own breadcrumb read "Starter packs".
-// The rail and the breadcrumb should never disagree about which section you
-// are in. A new screen in this flow belongs in this set.
-const PACK_ROUTES = new Set(['packs', 'pack', 'checkout', 'pay', 'confirmed'])
-const inPacks = computed(() => PACK_ROUTES.has(route.name))
 const inMessages = computed(() => route.name === 'messages')
 // The tracker's two routes. NAMES rather than a path prefix, for the same
-// reason `PACK_ROUTES` is: a section is the set of screens it is made of, and a
+// reason a path prefix is wrong everywhere here: a section is the set of screens it is made of, and a
 // screen that leaves the prefix later should not fall out of its own rail row.
 const PROJECT_ROUTES = new Set(['projects', 'project'])
 const inProjects = computed(() => PROJECT_ROUTES.has(route.name))
@@ -110,22 +100,22 @@ const partnerRail = computed(() => {
   // Member is view-only: standing, the profile and resources. The team is in
   // Settings → Users, which every role can open.
   const member = role === 'member'
-  const beginner = store.partnerTier === 'beginner'
   const at = (...names) => names.includes(route.name)
   // ONE LIST, NO LABELS. Order does what group labels did: the daily work
   // first (Leads, Customers), then the firm's standing (Partnership, and the
   // Audits that set its PMM level), then the firm's own listing and bills, then
   // Frappe's material last. No counts on the rail: a row waiting on a reply is
-  // bold in its list, and the rest comes through Notifications. A Beginner's
-  // main job is the milestones to Bronze, so Partnership leads for them.
-  const partnership = { label: 'Partnership', to: '/connect/partnership', icon: 'lucide-handshake', active: at('partnership') }
+  // bold in its list, and the rest comes through Notifications.
+  // ⚠️ THE ORDER IS FIXED FOR EVERY TIER. Partnership used to jump to the top
+  // for a Beginner, so the list reshuffled the day a firm reached Bronze. A
+  // Beginner still LANDS on Partnership — that is `partnerHome`'s job, not
+  // the rail's.
   return [
     {
       items: [
-        beginner && partnership,
         !member && role !== 'finance' && { label: 'Leads', to: '/connect/leads', iconComp: LeadsIcon, active: at('leads', 'lead') },
         !member && { label: 'Customers', to: '/connect/customers', icon: 'lucide-building-2', active: at('customers', 'customer') },
-        !beginner && partnership,
+        { label: 'Partnership', to: '/connect/partnership', icon: 'lucide-handshake', active: at('partnership') },
         { label: 'Audits', to: '/connect/audits', icon: 'lucide-clipboard-check', active: at('audits', 'audit') },
         { label: 'Public profile', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile', 'own-reviews') },
         !member && role !== 'sales' && { label: 'Invoices', to: '/connect/invoices', icon: 'lucide-receipt', active: at('invoices') },
@@ -137,11 +127,17 @@ const partnerRail = computed(() => {
 
 // The partner side's firm and person follow the demo tier: Beginner is a
 // different firm. See `data/partnership.js`.
+// Someone with an account: a signed-in business, or the partner side, which
+// the demo shows as signed in whatever the business-side session says.
+const hasAccount = computed(() => store.signedIn || store.role === 'partner')
+
 const shellSubtitle = computed(() => {
   if (store.role === 'partner') {
     return firmFor(store.partnerTier).name
   }
-  return store.signedIn ? store.viewer.name : undefined
+  // The header is the organization on both sides; the person is in the
+  // footer. Falls back to the name for an account with no company yet.
+  return store.signedIn ? store.viewer.company || store.viewer.name : undefined
 })
 
 // The header is already a Dropdown trigger — `SidebarHeader` takes `menuItems`
@@ -189,10 +185,20 @@ watch(
 watch(partnerSettings, (o) => !o && store.openFirmSettings(null))
 const partnerAccount = ref(false)
 
-// ── The partner's footer: the signed-in person ──────────────────────────────
-// The header is the firm (its settings, its managers, help); the footer is
-// you (your settings, theme, log out), as on Frappe Cloud.
-const me = computed(() => account.edits.me ?? firmFor(store.partnerTier).person)
+// ── The footer: the signed-in person, on both sides ─────────────────────────
+// The header is the organization (its settings, help); the footer is you
+// (your settings, theme, log out), as on Frappe Cloud. One layout for both
+// sides, so Log out and Theme are in the same place whichever side you're on.
+const me = computed(() =>
+  store.role === 'partner' ? account.edits.me ?? firmFor(store.partnerTier).person : store.viewer.name,
+)
+// Which tab the business settings dialog opens on: the header's Settings is
+// the company, the footer's is you.
+const settingsTab = ref('profile')
+const openSettings = (tab) => {
+  settingsTab.value = tab
+  settings.value = true
+}
 const themeMenu = computed(() => ({
   label: 'Theme',
   icon: 'lucide-sun-moon',
@@ -207,38 +213,27 @@ const themeMenu = computed(() => ({
   })),
 }))
 const footerMenu = computed(() => [
-  { label: 'Your settings', icon: 'lucide-user-cog', onClick: () => (partnerAccount.value = true) },
+  {
+    label: 'Your settings',
+    icon: 'lucide-user-cog',
+    onClick: () => (store.role === 'partner' ? (partnerAccount.value = true) : openSettings('profile')),
+  },
   themeMenu.value,
-  { label: 'Log out', icon: 'lucide-log-out', onClick: () => { store.setRole('business'); store.logOut(); router.push('/connect') } },
+  { label: 'Log out', icon: 'lucide-log-out', onClick: logOut },
 ])
 
 const logoMenu = computed(() => [
   // Everyone can open the firm's settings to see who's on the team; the other
-  // panels are the owner's. Partner managers open as a list to write to,
-  // rather than jumping to a section of a page.
+  // panels are the owner's.
   ...(store.role === 'partner'
-    ? [
-        { label: 'Firm settings', icon: 'lucide-settings', onClick: () => (partnerSettings.value = true) },
-        ...(standingFor(store.partnerTier, store.partnershipState).managers.length
-          ? [{
-          label: 'Partner managers',
-          icon: 'lucide-life-buoy',
-          submenu: standingFor(store.partnerTier, store.partnershipState).managers.map((m) => ({
-            label: m.name,
-            icon: 'lucide-mail',
-            onClick: () => (window.location.href = `mailto:${m.email}`),
-          })),
-        }]
-          : []),
-      ]
+    ? [{ label: 'Firm settings', icon: 'lucide-settings', onClick: () => (partnerSettings.value = true) }]
     : store.signedIn
-      ? [{ label: 'Settings', icon: 'lucide-settings', onClick: () => (settings.value = true) }]
+      ? [{ label: 'Settings', icon: 'lucide-settings', onClick: () => openSettings('company') }]
       : []),
-  // On the business side the theme lives here, since that side has no footer
-  // menu. `AppSettingsDialog` applies it.
-  ...(store.role === 'partner' ? [] : [themeMenu.value]),
+  // A visitor has no footer, so the theme stays here for them. Signed in, it
+  // is in the footer with the rest of what's yours.
+  ...(hasAccount.value ? [] : [themeMenu.value]),
   { label: 'Give feedback', icon: 'lucide-message-square-quote', onClick: () => (feedback.value = true) },
-  ...(store.signedIn ? [{ label: 'Log out', icon: 'lucide-log-out', onClick: logOut }] : []),
 ])
 
 // `store.logOut()` rather than `setAccount('visitor')`: logging out has to drop
@@ -249,8 +244,13 @@ const logoMenu = computed(() => [
 // The only signal used to be the dropdown closing and the sidebar's subtitle
 // disappearing, neither of which you're looking at when you press it. The count
 // is in the description because that's the part you can't see happen.
+// ⚠️ ONE LOG OUT. There were two on the partner side, and they did different
+// things — one went back to the business side's front door, the other stayed
+// put. Both sides now leave the same way: to the visitor's Home, with a toast.
 const logOut = () => {
+  store.setRole('business')
   const cleared = store.logOut()
+  router.push('/connect')
   toast('Logged out', {
     id: 'auth',
     description: cleared
@@ -292,8 +292,15 @@ const searchOpen = ref(false)
 const readNotification = (n) => (n.requestId ? readRequestNotification(n.requestId) : (n.read = true))
 const readAllNotifications = () => notifItems.value.forEach(readNotification)
 // Search's empty state: the places in the rail.
+const BUSINESS_PLACES = [
+  { to: '/connect/projects', label: 'Projects', icon: 'lucide-briefcase-business' },
+  { to: '/connect/messages', label: 'Messages', icon: 'lucide-inbox' },
+  { to: '/connect/partners', label: 'Partners', icon: 'lucide-building-2' },
+]
 const searchPlaces = computed(() =>
-  partnerRail.value.flatMap((g) => g.items).map((i) => ({ to: i.to, label: i.label, icon: i.icon, iconComp: i.iconComp })),
+  store.role === 'partner'
+    ? partnerRail.value.flatMap((g) => g.items).map((i) => ({ to: i.to, label: i.label, icon: i.icon, iconComp: i.iconComp }))
+    : BUSINESS_PLACES,
 )
 
 // The seam handle. `railY` follows the pointer down the sidebar's right edge so
@@ -359,9 +366,9 @@ defineProps({
          clip it. -->
     <div class="relative z-20 flex shrink-0">
     <Sidebar v-model:collapsed="collapsed" class="fc-sidebar border-r">
-      <!-- The second line is the signed-in viewer's name, and nothing at all
-           when signed out — an app tagline under the app's own name told a
-           visitor what they could already see. -->
+      <!-- The second line is the organization — the firm, or the business's
+           company — and nothing at all when signed out. The person is in the
+           footer. -->
       <SidebarHeader
         title="Frappe Connect"
         :subtitle="shellSubtitle"
@@ -438,175 +445,85 @@ defineProps({
              same reason. It isn't a regression, and it isn't a gap in the
              accessible name either: `SidebarItem` puts `aria-label` on the
              control itself. -->
-        <!-- Signed in only: a visitor has no threads and nothing to be notified
-             of, so the pair would be two dead rows. -->
-        <!-- The partner's rail, filtered by role (see `partnerRail`). The count
-             beside a row is what's waiting on this person there. -->
+        <!-- ── Search and Notifications, on both sides ─────────────────────
+             Signed in only: a visitor has nothing to be notified of. Tools, not
+             places, so they sit above the list of pages and apart from it, in
+             the same spot on the business side and the partner side. -->
+        <nav v-if="hasAccount" class="mb-4 space-y-0.5">
+          <Tooltip text="Search" side="right" :offset="8" :disabled="!collapsed">
+            <div @click="searchOpen = true">
+              <SidebarItem label="Search">
+                <template #prefix><span class="lucide-search size-4 text-ink-gray-6" aria-hidden="true" /></template>
+                <template #suffix><span class="mr-2 text-xs text-ink-gray-5">⌘K</span></template>
+              </SidebarItem>
+            </div>
+          </Tooltip>
+          <NotificationsRailItem :collapsed="collapsed" :unread="unread" @toggle="notifOpen = !notifOpen" />
+        </nav>
+
+        <!-- The partner's pages, filtered by role (see `partnerRail`). -->
         <template v-if="store.role === 'partner'">
-          <!-- Groups split by a gap, no labels, like the business rail. -->
-          <!-- Search and Notifications first, set apart by space, as on the
-               business rail. -->
-          <nav class="mb-4 space-y-0.5">
-            <Tooltip text="Search" side="right" :offset="8" :disabled="!collapsed">
-              <div @click="searchOpen = true">
-                <SidebarItem label="Search">
-                  <template #prefix><span class="lucide-search size-4 text-ink-gray-6" aria-hidden="true" /></template>
-                  <template #suffix><span class="mr-2 text-xs text-ink-gray-5">⌘K</span></template>
-                </SidebarItem>
-              </div>
-            </Tooltip>
-            <NotificationsRailItem :collapsed="collapsed" :unread="unread" @toggle="notifOpen = !notifOpen" />
-          </nav>
           <nav v-for="(group, gi) in partnerRail" :key="gi" class="space-y-0.5" :class="gi > 0 && 'mt-4'">
             <SidebarLabel v-if="group.label" divider>{{ group.label }}</SidebarLabel>
             <Tooltip
               v-for="item in group.items"
               :key="item.to"
-              :text="item.count ? `${item.label}, ${item.count} waiting` : item.label"
+              :text="item.label"
               side="right"
               :offset="8"
               :disabled="!collapsed"
             >
               <SidebarItem :label="item.label" :route="item.to" :active="item.active">
-                <!-- Collapsed, the count can't show, so a dot keeps the signal. -->
                 <template #prefix>
-                  <span class="relative grid place-items-center">
-                    <component :is="item.iconComp" v-if="item.iconComp" class="size-4 text-ink-gray-6" aria-hidden="true" />
-                    <span v-else :class="item.icon" class="size-4 text-ink-gray-6" aria-hidden="true" />
-                    <span
-                      v-if="item.count && collapsed"
-                      class="absolute -right-1 -top-1 size-1.5 rounded-full bg-surface-blue-7"
-                      aria-hidden="true"
-                    />
-                  </span>
-                </template>
-                <template v-if="item.count" #suffix>
-                  <span class="mr-2 text-xs tabular-nums text-ink-gray-5">{{ item.count }}</span>
+                  <component :is="item.iconComp" v-if="item.iconComp" class="size-4 text-ink-gray-6" aria-hidden="true" />
+                  <span v-else :class="item.icon" class="size-4 text-ink-gray-6" aria-hidden="true" />
                 </template>
               </SidebarItem>
             </Tooltip>
           </nav>
         </template>
 
+        <!-- ── The business side's pages ─────────────────────────────────
+             Signed in: Projects, Messages, Partners. No Home — it only repeated
+             these pages and frappe.io's feeds — so the account opens on
+             Projects, and the page you land on is the first row. Messages sits
+             between the work and the directory: replies to a broadcast from
+             Partners land there.
+             Signed out: Home (the visitor's front door) and Partners.
+             Starter Packs are hidden for now; their routes still exist. -->
         <nav v-else-if="store.signedIn" class="space-y-0.5">
-          <!-- An inbox, not a message bubble. The bubble belongs to the Contact
-               buttons that WRITE into this screen; this row is the pile those
-               threads land in. `lucide-inbox` is frappe-ui's own choice for the
-               row too — see the Sidebar `Collapsed` story.
-
-               It was the least speculative item in the rail, and it is now the
-               only live one: the screen exists. ⚠️ The Contact buttons in the
-               listing and on the profiles still toast rather than opening a
-               thread — starting a conversation from there needs a rule for
-               what a brand new thread says, which is a separate decision. -->
+          <Tooltip text="Projects" side="right" :offset="8" :disabled="!collapsed">
+            <SidebarItem label="Projects" route="/connect/projects" :active="inProjects">
+              <template #prefix><span class="lucide-briefcase-business size-4 text-ink-gray-6" aria-hidden="true" /></template>
+            </SidebarItem>
+          </Tooltip>
           <Tooltip text="Messages" side="right" :offset="8" :disabled="!collapsed">
             <SidebarItem label="Messages" route="/connect/messages" :active="inMessages">
-              <template #prefix><LucideInbox class="size-4 text-ink-gray-6" /></template>
+              <template #prefix><span class="lucide-inbox size-4 text-ink-gray-6" aria-hidden="true" /></template>
             </SidebarItem>
           </Tooltip>
-
-          <NotificationsRailItem :collapsed="collapsed" :unread="unread" @toggle="notifOpen = !notifOpen" />
-        </nav>
-
-        <!-- ── Everywhere you can go ──────────────────────────────────────
-             One flat list, no `SidebarLabel`. There used to be two — "Discover"
-             over the first two rows and "Your projects" over Projects —
-             and the second was a heading for a group of one, which labels a
-             section that doesn't exist yet rather than the row that's there.
-             Dropping both leaves five rows total — six signed in, with Home —
-             which needs no taxonomy: the same shape Helpdesk uses, where the
-             personal pair sits above a single unlabelled list of destinations.
-
-             ⚠️ `mt-4`, not the 28px the "Discover" label used to occupy.
-             Holding the label's exact height kept the spacing honest while the
-             words were being removed, but once they were gone 28px was a gap
-             sized for something that is no longer there — it read as a missing
-             heading rather than as a seam. 16px is still 8x the `space-y-0.5`
-             between rows, so the two groups stay unmistakably separate.
-
-             For reference, frappe-ui's own `SidebarSection` separates groups by
-             `mt-2` — but every one of those carries a label doing the work, and
-             here the gap is the only thing saying "these are two lists".
-
-             `space-y-0.5` inside the `nav`, as in frappe-ui's own reference
-             sidebar. The rows were flush before, which reads denser than the
-             component intends and puts an active row's fill hard against its
-             neighbours.
-
-             Find partners takes a building, not a magnifying glass: the item is
-             the directory of partner companies, and search is a control that
-             lives inside it. -->
-        <nav
-          v-if="store.role !== 'partner'"
-          class="space-y-0.5"
-          :class="store.signedIn && 'mt-4'"
-        >
-          <!-- ⚠️ HOME IS LIVE NOW, AND IT IS FOR EVERYONE. It was an inert row
-               shown only to signed-in accounts, on the reasoning that a visitor
-               who arrived from a marketing page has nothing to come home to.
-               That was true while /connect was a marketing page. It is the three
-               questions and the recommendation they produce — the one screen
-               that holds what this account has told us — so a visitor has a home
-               from their first answer. -->
-          <Tooltip text="Home" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Home" route="/connect" :active="inHome">
-              <template #prefix><LucideHouse class="size-4 text-ink-gray-6" /></template>
-            </SidebarItem>
-          </Tooltip>
-          <!-- Starter Packs before Partners: the order the two ways to go live
-               are offered in everywhere else — the landing, Get started. -->
-          <Tooltip text="Starter Packs" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Starter Packs" route="/connect/packs" :active="inPacks">
-              <template #prefix><LucidePackage class="size-4 text-ink-gray-6" /></template>
-            </SidebarItem>
-          </Tooltip>
-          <!-- ⚠️ "Partners", pointing at the DIRECTORY. This row said "Find
-               partners" and went to /connect, which stopped being a partner
-               search the day that page became an intake — it asked three
-               questions about your business and recommended a product. The
-               label named something the destination no longer did.
-               The directory itself had no row at all, reachable only from a
-               link on the landing page, so the fix is one move rather than a
-               rename: the building icon means the directory of partner
-               companies, which is what this row always meant. -->
           <Tooltip text="Partners" side="right" :offset="8" :disabled="!collapsed">
             <SidebarItem label="Partners" route="/connect/partners" :active="inDirectory">
-              <template #prefix><LucideBuilding2 class="size-4 text-ink-gray-6" /></template>
+              <template #prefix><span class="lucide-building-2 size-4 text-ink-gray-6" aria-hidden="true" /></template>
             </SidebarItem>
           </Tooltip>
-          <!-- The collaboration half of the product. Inert until the tracker
-               landed; it is now the index of everything the account has under
-               way, and `inProjects` is what keeps it lit on a project's own
-               detail page — `SidebarItem` compares whole paths, so a child
-               route lights nothing on its own. -->
-          <!-- ⚠️ "Projects", AND THE WORD IT REPLACES WAS DOING THREE JOBS.
-               "Implementation" is half a service name (Custom implementation),
-               it is a STAGE inside a pack project — the page under this row has
-               a button reading "Move to Implementation" — and it was the name
-               of the list of everything. Three meanings in one product, and the
-               list was the only one of the three that had another word
-               available. Everything the list actually says already used it: the
-               rows are projects, the count line says "3 projects", the empty
-               state's button says New project, the route is /connect/projects
-               and the home screen says "You have 2 active projects". -->
-          <!-- Accounts only: a visitor has no projects, and the route sends
-               them to log in. -->
-          <Tooltip
-            v-if="store.signedIn"
-            text="Projects"
-            side="right"
-            :offset="8"
-            :disabled="!collapsed"
-          >
-            <SidebarItem label="Projects" route="/connect/projects" :active="inProjects">
-              <template #prefix><LucideBriefcaseBusiness class="size-4 text-ink-gray-6" /></template>
+        </nav>
+        <nav v-else class="space-y-0.5">
+          <Tooltip text="Home" side="right" :offset="8" :disabled="!collapsed">
+            <SidebarItem label="Home" route="/connect" :active="inHome">
+              <template #prefix><span class="lucide-house size-4 text-ink-gray-6" aria-hidden="true" /></template>
+            </SidebarItem>
+          </Tooltip>
+          <Tooltip text="Partners" side="right" :offset="8" :disabled="!collapsed">
+            <SidebarItem label="Partners" route="/connect/partners" :active="inDirectory">
+              <template #prefix><span class="lucide-building-2 size-4 text-ink-gray-6" aria-hidden="true" /></template>
             </SidebarItem>
           </Tooltip>
         </nav>
 
       </ScrollArea>
-      <!-- The partner's footer: you. -->
-      <div v-if="store.role === 'partner'" class="shrink-0 px-2 pb-2">
+      <!-- The footer: you, on both sides. -->
+      <div v-if="hasAccount" class="shrink-0 px-2 pb-2">
         <Dropdown :options="footerMenu" side="top" align="start">
           <button
             type="button"
@@ -630,10 +547,10 @@ defineProps({
       @read-all="readAllNotifications"
     />
     </div>
-    <SearchPalette v-if="store.role === 'partner'" v-model:open="searchOpen" :places="searchPlaces" />
+    <SearchPalette v-if="hasAccount" v-model:open="searchOpen" :places="searchPlaces" />
 
     <FeedbackDialog v-model:open="feedback" />
-    <AppSettingsDialog v-model:open="settings" />
+    <AppSettingsDialog v-model:open="settings" :initial-tab="settingsTab" />
     <PartnerSettingsDialog v-model:open="partnerSettings" :initial-tab="store.firmSettingsTab" />
     <PartnerAccountDialog v-model:open="partnerAccount" />
 

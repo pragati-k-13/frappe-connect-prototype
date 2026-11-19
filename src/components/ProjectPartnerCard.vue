@@ -50,7 +50,7 @@ const facts = computed(() => {
   if (frappe.value) return [{ icon: IconClock, text: `Typically ${p.responds}` }]
   return [
     { icon: IconRate, text: p.rate ? `From $${p.rate}/hr` : 'Undisclosed', muted: !p.rate },
-    { icon: IconStar, text: `${p.rating}`, sub: `(${p.reviews})` },
+    p.reviews ? { icon: IconStar, text: `${p.rating}`, sub: `(${p.reviews})` } : { icon: IconStar, text: 'No reviews', muted: true },
     { icon: IconClock, text: `Typically ${p.responds}` },
   ]
 })

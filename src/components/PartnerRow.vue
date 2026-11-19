@@ -241,8 +241,11 @@ const industryLine = computed(() => {
               </span>
               <span class="flex items-center gap-1">
                 <LucideStar class="size-3.5 shrink-0 text-ink-gray-6" />
-                {{ partner.rating }}
-                <span class="text-ink-gray-5">({{ partner.reviews }})</span>
+                <template v-if="partner.reviews">
+                  {{ partner.rating }}
+                  <span class="text-ink-gray-5">({{ partner.reviews }})</span>
+                </template>
+                <span v-else class="text-ink-gray-5">No reviews</span>
               </span>
               <span class="flex items-center gap-1">
                 <LucideClock class="size-3.5 shrink-0 text-ink-gray-6" />
@@ -280,8 +283,13 @@ const industryLine = computed(() => {
                  for the places where the star IS the rating: the profile's
                  review scores and the marketplace five-star rows. -->
               <LucideStar class="size-3.5 shrink-0 text-ink-gray-6" />
-              {{ partner.rating }}
-              <span class="text-ink-gray-5">({{ partner.reviews }})</span>
+              <!-- None yet: the slot stays and says so, like "Undisclosed"
+                   beside it, rather than a "0 (0)". -->
+              <template v-if="partner.reviews">
+                {{ partner.rating }}
+                <span class="text-ink-gray-5">({{ partner.reviews }})</span>
+              </template>
+              <span v-else class="text-ink-gray-5">No reviews</span>
             </span>
             <span class="flex items-center gap-1">
               <!-- A clock, not a bubble — the bubble now belongs to Contact, and

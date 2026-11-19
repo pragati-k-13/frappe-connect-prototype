@@ -9,7 +9,6 @@
 //
 // ⚠️ NO QUIZ. This page used to open on a three-question intake ending on a
 // recommendation. The recommendation route still exists; nothing links to it.
-import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Avatar, Badge, Button } from 'frappe-ui'
 import IconBadge from '~icons/lucide/badge-check'
@@ -20,21 +19,14 @@ import IconSparkles from '~icons/lucide/sparkles'
 import IconHandshake from '~icons/lucide/handshake'
 import IconUsers from '~icons/lucide/users'
 import IconPackage from '~icons/lucide/package'
-import IconPlus from '~icons/lucide/plus'
 import ConnectShell from '../components/ConnectShell.vue'
-import HomeDashboard from '../components/HomeDashboard.vue'
 import { STARTER_PACKS, priceFor } from '../data/packs'
 import { PARTNERS } from '../data/partners'
 import { logoFor } from '../data/logos'
 import { useConnectStore } from '../stores/connect'
 
 const store = useConnectStore()
-const dashboard = ref(null)
 const router = useRouter()
-
-// ⚠️ ONE ADDRESS, TWO FACES. The rail's Home row points here, and a returning
-// customer who bookmarked it should land on their projects.
-const showDashboard = computed(() => store.signedIn)
 
 const fromPrice = priceFor(STARTER_PACKS.reduce((a, b) => (b.hours < a.hours ? b : a)))
 
@@ -150,18 +142,8 @@ const orbit = PARTNERS.filter((p) => logoFor(p.id))
 </script>
 
 <template>
-  <ConnectShell :root-label="showDashboard ? 'Home' : 'Get started'" root-to="/connect">
-    <!-- Signed in, the bar's control is "New project" rather than the auth
-         CTA; it opens the dashboard's own dialog. Subtle: a way to add, not
-         the page's primary action. -->
-    <template v-if="showDashboard" #action>
-      <Button variant="subtle" label="New project" @click="dashboard?.startSomething()">
-        <template #prefix><IconPlus class="size-4" /></template>
-      </Button>
-    </template>
-    <HomeDashboard v-if="showDashboard" ref="dashboard" />
-
-    <div v-else class="mx-auto w-full max-w-[1120px] px-5 lg:px-10">
+  <ConnectShell root-label="Get started" root-to="/connect">
+    <div class="mx-auto w-full max-w-[1120px] px-5 lg:px-10">
       <!-- ── Hero ────────────────────────────────────────────────────────
            Text only, centred, with the room to be read slowly. Newsreader for
            the headline and nowhere else; the first line is quieter than the

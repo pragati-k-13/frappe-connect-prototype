@@ -13,6 +13,7 @@ import {
 import { companyName, useLeads } from '../composables/useLeads'
 import { useConnectStore } from '../stores/connect'
 import { ROLE_LABEL } from '../data/partnerAccount'
+import { PARTNERS } from '../data/partners'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 
 // The partner's global search, from the rail and ⌘K. Empty, it offers the
@@ -40,6 +41,15 @@ useKeyboardShortcut({
 })
 
 const typing = computed(() => query.value.trim().length > 0)
+// The business side searches its own projects and the directory; the partner
+// side, its people, leads and customers.
+const isPartner = computed(() => store.role === 'partner')
+const projectItems = computed(() =>
+  store.projects.map((p) => ({ to: `/connect/projects/${p.id}`, label: p.name })),
+)
+const partnerItems = computed(() =>
+  PARTNERS.map((p) => ({ to: `/connect/partners/${p.id}`, label: p.name })),
+)
 const leadItems = computed(() =>
   leads.value.map((l) => ({ to: `/connect/leads/${l.id}`, label: l.project, hint: companyName(l) })),
 )
@@ -60,7 +70,7 @@ function select(value) {
 
 <template>
   <CommandPalette v-model:open="open" v-model:query="query" @select="select">
-    <CommandPaletteInput placeholder="Search people, leads, customers and pages" />
+    <CommandPaletteInput :placeholder="isPartner ? 'Search people, leads, customers and pages' : 'Search projects, partners and pages'" />
     <CommandPaletteList>
       <CommandPaletteGroup label="Go to">
         <CommandPaletteItem v-for="p in props.places" :key="p.to" :value="p">
@@ -72,7 +82,21 @@ function select(value) {
           {{ p.label }}
         </CommandPaletteItem>
       </CommandPaletteGroup>
-      <template v-if="typing">
+      <template v-if="typing && !isPartner">
+        <CommandPaletteGroup label="Projects">
+          <CommandPaletteItem v-for="p in projectItems" :key="p.to" :value="p">
+            <template #prefix><span class="lucide-briefcase-business mr-3 size-4 text-ink-gray-7" aria-hidden="true" /></template>
+            {{ p.label }}
+          </CommandPaletteItem>
+        </CommandPaletteGroup>
+        <CommandPaletteGroup label="Partners">
+          <CommandPaletteItem v-for="p in partnerItems" :key="p.to" :value="p">
+            <template #prefix><span class="lucide-building-2 mr-3 size-4 text-ink-gray-7" aria-hidden="true" /></template>
+            {{ p.label }}
+          </CommandPaletteItem>
+        </CommandPaletteGroup>
+      </template>
+      <template v-if="typing && isPartner">
         <CommandPaletteGroup label="People">
           <CommandPaletteItem v-for="p in peopleItems" :key="p.person" :value="p" :keywords="[p.email]">
             <template #prefix><Avatar :label="p.label" size="xs" class="mr-3" /></template>

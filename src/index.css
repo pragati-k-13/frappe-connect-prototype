@@ -105,6 +105,11 @@
 .fc-logo-avatar img {
   object-fit: contain;
 }
+/* Dark: a dark surface tile, so the logos sit in the page instead of as a
+   column of light squares. */
+[data-theme='dark'] .fc-logo-avatar {
+  background-color: var(--surface-gray-2);
+}
 
 /* Partner listing rows.
    A hovered row hides the divider below it AND the one above it, so the fill
@@ -249,7 +254,10 @@
    Hooks, all frappe-ui's own markup (1.1.0):
      > div.pb-6.pt-5       the body wrapper — header and default slot
      > div.pb-7            the actions row, a sibling of the body
-     .w-full > .mb-6       the header, when there is one
+     .w-full > .mb-6:first-child   the header, when there is one. `:first-child`
+                           because body content can carry `mb-6` too (New
+                           project's progress bar did, and got pinned and
+                           padded as if it were the title).
    `bare` dialogs render neither wrapper, so none of this reaches them.
 
    96px off the height: the container's `py-4` and the panel's `my-8`, twice.
@@ -272,11 +280,11 @@
   overflow-y: auto;
 }
 
-.dialog-content:not(:has(.fc-estimate)) > div.pb-6.pt-5:has(> .flex > .w-full > .mb-6) {
+.dialog-content:not(:has(.fc-estimate)) > div.pb-6.pt-5:has(> .flex > .w-full > .mb-6:first-child) {
   padding-top: 0;
 }
 
-.dialog-content:not(:has(.fc-estimate)) > div.pb-6.pt-5 > .flex > .w-full > .mb-6 {
+.dialog-content:not(:has(.fc-estimate)) > div.pb-6.pt-5 > .flex > .w-full > .mb-6:first-child {
   position: sticky;
   top: 0;
   z-index: 1;
@@ -316,6 +324,27 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* A dialog holding its height (BriefDetailsDialog sets the panel's
+   min-height while a section is open): the body takes the extra room, so the
+   footer stays at the bottom instead of floating under short fields. */
+.dialog-content:has(.fc-scroll-tight) > div.pb-6.pt-5:has(.fc-scroll-dialog),
+.dialog-content:has(.fc-scroll-tight) > div.pb-6.pt-5:has(.fc-scroll-dialog) > .flex,
+.dialog-content:has(.fc-scroll-tight) > div.pb-6.pt-5:has(.fc-scroll-dialog) > .flex > .w-full,
+.fc-scroll-tight > [data-slot='scroll-area-viewport'] {
+  flex: 1 1 auto;
+}
+
+/* A view replacing another inside a dialog: opacity only, quick and
+   decelerating. No movement, so reduced motion needs nothing removed. */
+.fc-fade-in {
+  transition: opacity 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+@starting-style {
+  .fc-fade-in {
+    opacity: 0;
+  }
 }
 
 /* Editing requirements: the footer's 16px is the whole gap under the fields,
@@ -732,4 +761,25 @@ textarea[data-slot='control'] {
 @keyframes fc-row-settle {
   from { opacity: 1; }
   to { opacity: 0; }
+}
+
+/* A frappe-ui Select whose value wraps onto a second line instead of being
+   truncated: for sentence-long answers in a narrow column (the requirements
+   editor's Today and its tools). Works on Select and MultiSelect, whose
+   triggers are both `min-h-7` buttons; only the value span truncates, and
+   Select's sizer, which holds the widest option's width, goes. */
+.fc-select-wrap button[role='combobox'],
+.fc-select-wrap button[aria-haspopup] {
+  align-items: flex-start;
+  padding-block: 0.25rem;
+}
+.fc-select-wrap button > .grid,
+.fc-select-wrap button > .grid > span:first-child {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  line-height: 1.125rem;
+}
+.fc-select-wrap .select-trigger-sizer {
+  display: none;
 }

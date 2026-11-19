@@ -47,6 +47,7 @@ import {
   criteriaLines,
   matchingPartners,
   scopeHint,
+  DEMO_SCOPE,
 } from '../data/custom'
 import { logoFor } from '../data/logos'
 import { PARTNERS } from '../data/partners'
@@ -109,11 +110,6 @@ onMounted(() => {
     router.replace({ query })
   }
 })
-
-// Invented, for the line above: a textile exporter's brief, written to cover
-// every topic `scopeHint` asks about so the hint under the box reads as done.
-const DEMO_SCOPE =
-  'We make and export cotton fabric to buyers in Europe and the US, about 40 orders a month. Today it runs on Tally and spreadsheets, so stock by warehouse and batch is always out of date and GST invoices take a day to prepare. We need sales orders, purchase, batch-wise stock across two warehouses, GST invoicing, and a link to our Shopify store.'
 
 const brief = computed(() => store.brief)
 

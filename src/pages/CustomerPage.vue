@@ -1,4 +1,6 @@
 <script setup>
+import ShortList from '../components/ShortList.vue'
+import { appsText } from '../data/format'
 import { computed, h, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -32,7 +34,7 @@ import ReplyBox from '../components/ReplyBox.vue'
 import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
 import { appsOfLead, originLabel, threadFor, useLeads } from '../composables/useLeads'
 import { PARTNER_SELF } from '../data/partnerView'
-import { PARTNERS, PROJECT_APPS } from '../data/partners'
+import { PARTNERS } from '../data/partners'
 import { logoFor } from '../data/logos'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
@@ -145,9 +147,7 @@ function send(body) {
 const wonLeads = computed(() => (c.value?.leadIds ?? []).map((id) => leads.value.find((l) => l.id === id)).filter(Boolean))
 // The apps from the leads they were won from, until a site is linked: then
 // the Sites tab lists what's really installed, and this goes.
-const leadAppsLine = computed(() =>
-  [...new Set(wonLeads.value.flatMap(appsOfLead))].map((v) => PROJECT_APPS.find((a) => a.value === v)?.label ?? v).join(', '),
-)
+const leadAppsLine = computed(() => appsText([...new Set(wonLeads.value.flatMap(appsOfLead))]))
 
 // Sites linked by an approved request, before their first bill.
 const sites = computed(() =>
@@ -479,8 +479,8 @@ function requestSwitch() {
               <PanelField label="Source">
                 <span class="px-2">{{ originLabel(c) }}</span>
               </PanelField>
-              <PanelField v-if="!sites.length && leadAppsLine" label="Apps">
-                <span class="truncate px-2">{{ leadAppsLine }}</span>
+              <PanelField v-if="!sites.length && leadAppsLine.text" label="Apps">
+                <span class="truncate px-2"><ShortList :list="leadAppsLine" /></span>
               </PanelField>
               <!-- Phones only: the top bar has no room for the owner. -->
               <PanelField class="sm:hidden" label="Owner">

@@ -74,14 +74,17 @@ export const TIMELINES = [
   // ⚠️ WHEN IT GOES LIVE, NOT WHEN IT STARTS. A start date tells a partner when
   // they could begin; a go-live date is what the business is actually held to,
   // and what a partner has to plan the work back from.
-  { value: 'now', label: 'As soon as possible' },
-  { value: 'quarter', label: 'Live within three months' },
-  { value: 'half', label: 'Live within six months' },
-  { value: 'none', label: 'No fixed deadline' },
+  { value: 'now', label: 'As soon as possible', short: 'As soon as possible' },
+  { value: 'quarter', label: 'Live within three months', short: 'Live in 3 months' },
+  { value: 'half', label: 'Live within six months', short: 'Live in 6 months' },
+  { value: 'none', label: 'No fixed deadline', short: 'No fixed deadline' },
 ]
 
 export const timelineLabel = (value) =>
   TIMELINES.find((t) => t.value === value)?.label ?? 'No fixed deadline'
+
+// The go-live as the requirements dialog's row says it: "Live in 3 months".
+export const timelineShort = (value) => TIMELINES.find((t) => t.value === value)?.short ?? ''
 
 export const TIERS = [
   { value: 'gold', label: 'Gold' },
@@ -125,6 +128,10 @@ export const emptyBrief = () => ({
   // so a new project starts prefilled — see `snapshotBrief`.
   operations: '',
   problems: [],
+  // The tools this project replaces or connects to, picked in the requirements
+  // editor. `null` means "as the company answered" (`appsInUse`), the same
+  // fallback as above; `[]` is an answer: none.
+  apps: null,
 })
 
 // Is a partner inside the chips the brief picked? `null` when none are picked,
@@ -211,8 +218,27 @@ export const criteriaSentence = (company, brief) => {
 // Asia Pacific", "Gold or Silver, in Pune or Mumbai". The industry is left
 // out — it is the company's own, and the row beside it says so.
 export const criteriaShort = (company, brief) => {
-  const region = REGIONS.find((r) => r.value === REGION_OF[company?.country])
   const tiers = TIERS.filter((t) => (brief?.tiers ?? []).includes(t.value)).map((t) => t.label)
+  return `${tiers.length ? orList(tiers) : 'Any tier'}, ${partnerWhere(company, brief)}`
+}
+
+// The partner wanted, as one short line for the requirements dialog: "Any
+// partner, Asia Pacific", "Gold or Silver partners, Pune or Mumbai", "Any
+// partner, anywhere". "Partner" leads, so it can't be read as describing the
+// business.
+export const partnerShort = (company, brief) => {
+  const tiers = TIERS.filter((t) => (brief?.tiers ?? []).includes(t.value)).map((t) => t.label)
+  const where = partnerWhere(company, brief).replace(/^anywhere in |^in /, '')
+  return `${tiers.length ? `${orList(tiers)} partners` : 'Any partner'}, ${where}`
+}
+
+const orList = (items) => (items.length > 1 ? `${items.slice(0, -1).join(', ')} or ${items.at(-1)}` : items[0])
+
+// Where the partner may be, as the tail of a sentence: "in Pune or Mumbai",
+// "anywhere in Asia Pacific", "anywhere". Cities win over regions, as they do
+// in matching.
+export const partnerWhere = (company, brief) => {
+  const region = REGIONS.find((r) => r.value === REGION_OF[company?.country])
   const cities = brief?.cities ?? []
   const geo = geoPicked(brief)
   const geoLabels = geo
@@ -220,15 +246,13 @@ export const criteriaShort = (company, brief) => {
         (c) => c.label,
       )
     : []
-  const or = (items) => (items.length > 1 ? `${items.slice(0, -1).join(', ')} or ${items.at(-1)}` : items[0])
-  const where = cities.length
-    ? `in ${or(cities)}`
+  return cities.length
+    ? `in ${orList(cities)}`
     : geoLabels.length
-      ? `in ${or(geoLabels)}`
+      ? `in ${orList(geoLabels)}`
       : anywhere(brief)
         ? 'anywhere'
         : `anywhere in ${region?.label ?? 'your region'}`
-  return `${tiers.length ? or(tiers) : 'Any tier'}, ${where}`
 }
 
 // "Pune", "Pune and Mumbai", "Pune, Mumbai and Kochi".
@@ -350,6 +374,22 @@ const covered = (text) => {
 
 // `{ tone, text }`, where tone is one of 'neutral', 'warn' and 'good'. One
 // sentence, because it sits under a field somebody is mid-thought in.
+// Invented, filled in for the demo: a textile exporter's brief, written to cover
+// every topic `scopeHint` asks about so the hint under the box reads as done.
+export const DEMO_SCOPE =
+  'We make and export cotton fabric to buyers in Europe and the US, about 40 orders a month. Today it runs on Tally and spreadsheets, so stock by warehouse and batch is always out of date and GST invoices take a day to prepare. We need sales orders, purchase, batch-wise stock across two warehouses, GST invoicing, and a link to our Shopify store.'
+
+// The same, per app, so the demo's description matches the apps picked. Each
+// covers what they sell, how it runs today and what keeps going wrong.
+const DEMO_SCOPES = {
+  erpnext: DEMO_SCOPE,
+  crm: 'We sell industrial pumps to factories across Maharashtra, through a team of 12. Today leads sit in Excel and WhatsApp, so follow-ups are late and deals get lost when someone leaves. We need a pipeline per salesperson, reminders, quotations, and a link to our website form.',
+  helpdesk: 'We sell and service water purifiers for homes in Pune, about 300 service requests a month. Today requests come in by phone and email and are tracked on a spreadsheet, so some are lost and customers chase us. We need tickets with SLAs, a customer portal, and technician assignment.',
+  'frappe-hr': 'We are a trading company with 120 staff across three branches. Today attendance is on paper and payroll is done by hand in Excel, so salaries are late and leave balances are often wrong. We need attendance, leave, payroll with PF and ESI, and an employee app.',
+}
+export const demoScopeFor = (apps = []) => DEMO_SCOPES[apps.find((a) => DEMO_SCOPES[a])] ?? DEMO_SCOPE
+export const isDemoScope = (text) => Object.values(DEMO_SCOPES).includes(text)
+
 export const scopeHint = (raw) => {
   const text = (raw ?? '').trim()
   if (!text) {

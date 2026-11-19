@@ -1,14 +1,15 @@
 <script setup>
 import { computed, watch } from 'vue'
-import { Checkbox, Combobox, FormControl, MultiSelect, Radio, RadioGroup } from 'frappe-ui'
+import { Button, Checkbox, FormControl, MultiSelect, Radio, RadioGroup } from 'frappe-ui'
+import { MAX_INDUSTRIES } from '../data/format'
 import {
   APPS_OTHER,
   COMPANY_SIZES,
   COUNTRY_OPTIONS_INDIA_ONLY,
   CURRENT_APPS,
   OPERATIONS,
-  PROBLEMS,
-  SEGMENT_OPTIONS,
+  problemsFor,
+  segmentOptionsFor,
   asksApps,
 } from '../data/company'
 
@@ -44,6 +45,33 @@ const props = defineProps({
   // Already gated on "have they pressed the button yet" by the parent, which
   // owns that decision because it owns the button.
   errors: { type: Object, default: () => ({}) },
+  // The apps the project needs, so "What are you trying to fix?" offers only
+  // what applies to them. Empty shows every option.
+  projectApps: { type: Array, default: () => [] },
+})
+
+const problems = computed(() => problemsFor(props.projectApps))
+// An answer whose option is no longer offered (the apps changed) is dropped,
+// so nothing is saved that isn't on screen.
+watch(
+  problems,
+  (list) => {
+    if (!props.projectApps.length) return
+    const shown = list.map((p) => p.value)
+    const kept = props.form.problems.filter((v) => shown.includes(v))
+    if (kept.length !== props.form.problems.length) props.form.problems = kept
+  },
+  { immediate: true },
+)
+
+// The country answer, kept in step with its first pick. A form that only ever
+// had `country` (an older draft) reads as that one country.
+const countries = computed({
+  get: () => props.form.countries ?? [props.form.country].filter(Boolean),
+  set: (value) => {
+    props.form.countries = value
+    props.form.country = value[0] ?? ''
+  },
 })
 
 // The systems question is a follow-up to the ladder, shown on the three rungs
@@ -74,21 +102,18 @@ const toggleProblem = (value, on) => {
 <template>
   <!-- ── Step 1: who you are ──────────────────────────────────────────────── -->
   <div v-if="step === 1" class="space-y-4">
-    <!-- ⚠️ `Combobox`, not `Select`: this is 43 countries under five region
-         headings, and frappe-ui's `Select` renders neither a group nor a search
-         box — it is a native-shaped picker for short lists. `trigger="button"`
-         puts the search inside the popover rather than making the closed
-         control look like a text field somebody should type their country into.
+    <!-- ⚠️ Not `Select`: this is 43 countries under five region headings,
+         and frappe-ui's `Select` renders neither a group nor a search box.
 
-         One country, not several. The directory's own geo filter takes many,
-         because "where can my partner be?" is a constraint; this asks where the
-         business IS, which has one answer and decides the currency. -->
-    <Combobox
+         ⚠️ SEVERAL COUNTRIES, as `MultiSelect` (Combobox takes one). A
+         business can be based in more than one. The first pick stays the home
+         market in `form.country`, which decides the currency — see
+         `emptyCompanyForm`. -->
+    <MultiSelect
       v-if="askCountry"
-      v-model="form.country"
+      v-model="countries"
       label="Where is your business based?"
-      placeholder="Select a country"
-      trigger="button"
+      placeholder="Select countries"
       required
       :options="COUNTRY_OPTIONS_INDIA_ONLY"
       :error="errors.country"
@@ -102,14 +127,24 @@ const toggleProblem = (value, on) => {
       :options="COMPANY_SIZES"
       :error="errors.employees"
     />
+    <!-- Up to three, the first picked is the main one: see `industryText`. -->
     <MultiSelect
       v-model="form.segments"
-      label="Relevant industry"
+      label="Your industries"
       placeholder="Select"
       required
-      :options="SEGMENT_OPTIONS"
+      :options="segmentOptionsFor(form.segments)"
       :error="errors.segments"
-    />
+    >
+      <!-- No Select All: there are 40-odd industries and the limit is 3. The
+           count shows how many are left. -->
+      <template #footer="{ clear }">
+        <div v-if="form.segments.length" class="flex items-center justify-between border-t border-outline-gray-1 px-2 py-1.5">
+          <Button variant="ghost" size="sm" label="Clear All" @click="clear" />
+          <span class="px-2 text-sm tabular-nums text-ink-gray-5">{{ form.segments.length }} of {{ MAX_INDUSTRIES }}</span>
+        </div>
+      </template>
+    </MultiSelect>
   </div>
 
   <!-- ── Step 2: what you run today ───────────────────────────────────────── -->
@@ -139,10 +174,24 @@ const toggleProblem = (value, on) => {
          the connection on its own, which is why the label names what it is
          asking about rather than saying "which ones?" and relying on the answer
          above to finish the sentence. -->
-    <div v-if="showApps" class="space-y-3">
+    <!-- ⚠️ REVEALED, NOT SWAPPED IN. A `v-if` dropped 70px into a centred
+         dialog in one frame, so the whole card jumped. It now stays mounted and
+         opens by height (the grid-rows trick, so no measuring), with the content
+         fading in and settling 4px. Enter 250ms on a strong ease-out; exit
+         faster, 150ms, because the reader has already moved on. `inert` keeps
+         the closed one out of the tab order. See `.fc-reveal` below. -->
+    <div
+      class="fc-reveal !mt-0"
+      :data-open="showApps || undefined"
+      :inert="!showApps"
+      :aria-hidden="!showApps"
+    >
+      <!-- `-m-1 p-1` gives the select's focus ring room inside the clip. -->
+      <div class="-m-1 min-h-0 overflow-hidden p-1">
+      <div class="fc-reveal-body space-y-3 pt-5">
       <MultiSelect
         v-model="form.apps"
-        label="Which systems do you use?"
+        label="Which tools do you use today?"
         placeholder="Select"
         :options="CURRENT_APPS"
       />
@@ -162,6 +211,8 @@ const toggleProblem = (value, on) => {
         label="What else do you use?"
         placeholder="e.g. a custom system built in-house"
       />
+      </div>
+      </div>
     </div>
   </div>
 
@@ -177,16 +228,19 @@ const toggleProblem = (value, on) => {
          and `Switch` all pass `color="gray-7"`, against the `gray-6` default the
          text inputs on step 1 use. This is a toggle group, so it takes the
          darker one and its heading matches the ladder's on the step before. -->
+    <!-- Options at 14px, matching the radio options on the step before:
+         frappe-ui's Checkbox sets its label at 13px whatever the size. -->
     <fieldset>
       <legend class="block text-sm text-ink-gray-7">What are you trying to fix?</legend>
       <div class="-ml-3 mt-1.5 flex flex-col">
         <Checkbox
-          v-for="p in PROBLEMS"
+          v-for="p in problems"
           :key="p.value"
           :model-value="form.problems.includes(p.value)"
           :label="p.label"
           padded
           size="md"
+          class="[&_[data-slot=label]]:text-base"
           @update:model-value="toggleProblem(p.value, $event)"
         />
       </div>
@@ -198,3 +252,42 @@ const toggleProblem = (value, on) => {
     </fieldset>
   </div>
 </template>
+
+<style scoped>
+/* The systems question's reveal — see the note on it in the template.
+   Height by `grid-template-rows: 0fr → 1fr`; the body fades and settles. */
+.fc-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 150ms cubic-bezier(0.23, 1, 0.32, 1),
+    opacity 100ms ease-out;
+}
+.fc-reveal[data-open] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows 250ms cubic-bezier(0.23, 1, 0.32, 1),
+    opacity 200ms ease-out 50ms;
+}
+.fc-reveal-body {
+  transform: translateY(-4px);
+  transition: transform 150ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.fc-reveal[data-open] .fc-reveal-body {
+  transform: translateY(0);
+  transition-duration: 250ms;
+}
+/* Reduced motion: no height or movement, just the fade. */
+@media (prefers-reduced-motion: reduce) {
+  .fc-reveal,
+  .fc-reveal[data-open] {
+    transition: opacity 150ms ease-out;
+  }
+  .fc-reveal-body {
+    transform: none;
+    transition: none;
+  }
+}
+</style>

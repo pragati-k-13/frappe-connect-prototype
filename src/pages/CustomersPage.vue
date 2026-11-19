@@ -55,8 +55,7 @@ const paysOptions = [
   { label: 'Customer pays', value: 'customer' },
   { label: 'Partner pays', value: 'partner' },
 ]
-// Filter holds what the quick filters don't: who found the customer, the
-// same values as the Source column.
+// Filter holds what the quick filters don't: who found the customer.
 const filterMenu = computed(() =>
   [['', 'Any source'], ...Object.entries(ORIGINS)].map(([v, l]) => ({
     label: l,
@@ -89,11 +88,11 @@ const unpaid = computed(
 )
 const isUnpaid = (c) => c.billing === 'customer' && unpaid.value.has(c.name)
 
-// Contact and Who pays aren't columns: both are looked up on the customer's
-// page, not scanned down a list. Search still matches the contact.
+// Contact isn't a column: it's looked up on the customer's page. Search still
+// matches it. Who pays is, since it decides what the partner can see and bill.
 const COLUMNS = [
   { key: 'stage', label: 'Stage', width: 'minmax(8rem,1fr)' },
-  { key: 'source', label: 'Source', width: 'minmax(9rem,1fr)' },
+  { key: 'pays', label: 'Paid by', width: 'minmax(8rem,1fr)' },
   { key: 'owner', label: 'Owner', width: 'minmax(10rem,1fr)' },
   { key: 'sites', label: 'Sites', width: 'minmax(5rem,0.6fr)' },
   { key: 'mrr', label: 'MRR', width: 'minmax(7rem,0.8fr)' },
@@ -344,7 +343,7 @@ function saveEdit() {
             <ListHeader class="mb-2 rounded-4 bg-surface-gray-2 px-2">
               <ListHeaderCell>Customer</ListHeaderCell>
               <ListHeaderCell v-if="show('stage')" class="hidden md:flex">Stage</ListHeaderCell>
-              <ListHeaderCell v-if="show('source')" class="hidden md:flex">Source</ListHeaderCell>
+              <ListHeaderCell v-if="show('pays')" class="hidden md:flex">Paid by</ListHeaderCell>
               <ListHeaderCell v-if="show('owner')" class="hidden md:flex">Owner</ListHeaderCell>
               <ListHeaderCell v-if="show('sites')" class="hidden justify-end md:flex">Sites</ListHeaderCell>
               <ListHeaderCell v-if="show('mrr')" class="hidden justify-end md:flex">MRR</ListHeaderCell>
@@ -363,9 +362,8 @@ function saveEdit() {
                   <StageDot :color="STAGE[item.stage].dot" />
                   <span class="truncate text-base text-ink-gray-7">{{ STAGE[item.stage].label }}</span>
                 </ListCell>
-                <!-- Connect stands out: it's the source the product brings. -->
-                <ListCell v-if="show('source')" class="hidden min-w-0 md:flex">
-                  <span class="truncate text-base" :class="originOf(item) === 'connect' ? 'text-ink-gray-8' : 'text-ink-gray-5'">{{ originLabel(item) }}</span>
+                <ListCell v-if="show('pays')" class="hidden min-w-0 md:flex">
+                  <span class="truncate text-base text-ink-gray-7">{{ item.billing === 'partner' ? 'Partner' : 'Customer' }}</span>
                 </ListCell>
                 <ListCell v-if="show('owner')" class="hidden min-w-0 gap-2 md:flex">
                   <template v-if="item.owner">

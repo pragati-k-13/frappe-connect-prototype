@@ -43,10 +43,12 @@ export const savedToast = (partner, saved, undo) => {
 //
 // `project` only when sending is what made it: the visitor stays on the
 // profile they were reading, so the toast is where they learn it exists.
-export const requirementsSentToast = (partner, open, project = null) =>
-  toast.success(`Requirements sent to ${partner.name}`, {
+export const requirementsSentToast = (partner, open) =>
+  // One line: who it went to, and the way to the thread. No description: the
+  // project is the one you just wrote, and "Implementation" named a stage the
+  // project isn't in.
+  toast.success(`Sent to ${partner.name}`, {
     id: `inquiry-${partner.id}`,
-    ...(project ? { description: `${project.name} — now in Implementation.` } : {}),
     action: { label: 'View', onClick: open },
   })
 

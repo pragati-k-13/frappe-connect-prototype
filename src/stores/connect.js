@@ -20,7 +20,7 @@ import {
 } from '../data/messages'
 import { demoProjects, nextStage, projectName, stagesFor } from '../data/project'
 import { modulesFor } from '../data/modules'
-import { sharedAnswers } from '../data/company'
+import { appsInUse, asksApps, problemsFor, sharedAnswers } from '../data/company'
 import { INDUSTRIES } from '../data/quiz'
 import { emptyBrief, matchingPartners } from '../data/custom'
 import { takingWork } from '../data/takingWork'
@@ -133,6 +133,9 @@ const packBrief = (project, packs, company) => ({
   project: project?.name ?? '',
   packs: packs.map((p) => p.name),
   country: company.country,
+  // Every country the business is in, for the company card ("India and UAE").
+  // Not `countries`: in a brief that's where the partner may be.
+  companyCountries: company.countries?.length ? [...company.countries] : [company.country].filter(Boolean),
   employees: company.employees,
   segments: company.segments,
   ...sharedAnswers(company),
@@ -156,12 +159,19 @@ const snapshotBrief = (project, own, company) => ({
   countries: [...(own.countries ?? [])],
   geoAsked: Boolean(own.geoAsked),
   country: company.country,
+  // Every country the business is in, for the company card ("India and UAE").
+  // Not `countries`: in a brief that's where the partner may be.
+  companyCountries: company.countries?.length ? [...company.countries] : [company.country].filter(Boolean),
   employees: company.employees,
   segments: company.segments,
   ...sharedAnswers(company),
   // The project's own answers win; the company's fill in until it has them.
   operations: own.operations || company.operations || '',
   problems: own.problems?.length ? [...own.problems] : [...(company.problems ?? [])],
+  // The project's own pick of tools once it has one (`[]` is "none"). Only
+  // while the setup is one that names tools: "Spreadsheets, email and paper"
+  // drops them, so a stale list can't ride along.
+  apps: asksApps(own.operations || company.operations) ? [...(own.apps ?? appsInUse(company))] : [],
 })
 
 // The whole filter set as one object. Built rather than read straight off state
@@ -273,6 +283,9 @@ export const useConnectStore = defineStore('connect', {
     // Northwind is one of the fictional client companies in
     // `data/media.js`, and `.example` is the TLD reserved for documentation —
     // the address can never resolve to a real mailbox.
+    // The Demo menu's "Busy account": the client persona with every answer at
+    // its extreme. See `demoBusyAccount`.
+    demoBusy: false,
     viewer: {
       name: 'Meera Iyer',
       email: 'meera@northwind.example',
@@ -784,8 +797,58 @@ export const useConnectStore = defineStore('connect', {
     // belongs to the persona being switched to. Separate from `setAccount`
     // because `completeLogin` calls that one the moment onboarding finishes,
     // and a brand new account must NOT be handed threads it never started.
+    // ⚠️ FOR DESIGNING, NOT A PERSONA. The client account with every answer at
+    // its extreme — a long company name, three industries, five apps, a
+    // description at the 800-character limit — so any screen that drops,
+    // clips or wraps an answer badly shows it straight away.
+    demoBusyAccount() {
+      this.demoAccount('client')
+      this.demoBusy = true
+      const name = 'Northwind Textiles and Garments Private Limited'
+      this.viewer = { ...this.viewer, company: name }
+      this.company = {
+        ...this.company,
+        name,
+        countries: ['India', 'United Arab Emirates'],
+        employees: 'More than 500',
+        segments: ['Textile Manufacturing', 'Retail', 'Consulting'],
+        operations: 'disconnected',
+        apps: ['Tally', 'Zoho', 'Freshdesk', 'Something else'],
+        appsOther: 'A custom costing sheet',
+      }
+      const apps = ['erpnext', 'frappe-hr', 'crm', 'helpdesk', 'insights']
+      const project = this.projects.find((p) => p.service === 'custom')
+      if (project) {
+        project.apps = apps
+        project.name = `ERPNext, Frappe HR and 3 more for ${name}`
+      }
+      const extreme = {
+        budget: 'inr-3',
+        timeline: 'quarter',
+        segments: [...this.company.segments],
+        companyCountries: [...this.company.countries],
+        employees: this.company.employees,
+        projectApps: apps,
+        operations: 'disconnected',
+        // Every problem offered, so To fix shows at its longest.
+        problems: problemsFor(apps).map((p) => p.value),
+        apps: appsInUse(this.company),
+      }
+      this.brief = {
+        ...this.brief,
+        ...extreme,
+        scope: 'We make and export cotton and blended fabric to buyers in Europe, the US and the Gulf, about 60 orders a month across three factories. Today it runs on Tally, Zoho CRM, Freshdesk and spreadsheets, so stock by warehouse and batch is always out of date, GST invoices take a day to prepare, leads from trade fairs are lost, and buyer complaints sit unanswered for a week. Attendance for 400 workers is on paper. We need sales orders, purchase, batch-wise stock across three warehouses, GST invoicing, a sales pipeline with follow-ups, a helpdesk for buyer complaints, payroll with PF and ESI, owner dashboards, and a link to our Shopify store and our bank. Training for 30 people across sites before the busy season. We also need two years of sales history moved across, and support after launch.',
+      }
+      // The requirements partners were sent carry the same answers.
+      for (const m of this.threads.flatMap((t) => t.messages ?? [])) {
+        if (m.brief?.projectId === project?.id) Object.assign(m.brief, extreme, { scope: this.brief.scope })
+      }
+    },
+
     demoAccount(account) {
       if (!ACCOUNT_STATES.includes(account)) return
+      this.demoBusy = false
+      this.viewer = { ...this.viewer, company: 'Northwind' }
       this.setAccount(account)
       this.threads = account === 'exploring' ? discoveryThreads() : []
       // ⚠️ The client persona is seeded with FOUR projects, and the count is
@@ -1676,12 +1739,14 @@ export const useConnectStore = defineStore('connect', {
     // way to contacting one firm, where it shrank the list behind the screen
     // for nothing anyone asked.
     saveCompany(
-      { country, employees, segments, apps, appsOther, operations, problems, focus },
+      { country, countries, employees, segments, apps, appsOther, operations, problems, focus },
       { narrow = true } = {},
     ) {
       this.company = {
         ...this.company,
         country: country ?? '',
+        // Every country the business is based in; `country` is the first.
+        countries: countries?.length ? [...countries] : [country].filter(Boolean),
         employees,
         segments,
         apps: apps ?? [],
@@ -1698,7 +1763,29 @@ export const useConnectStore = defineStore('connect', {
       // The country answers the partner list's geo filter too — one question,
       // asked once. `toggleGeo` would flip it off if it were already set, so
       // this assigns.
-      if (country) this.filters.countries = [country]
+      if (country) this.filters.countries = countries?.length ? [...countries] : [country]
+    },
+
+    // ⚠️ THE COMPANY FROM THE REQUIREMENTS DIALOG, NO MESSAGE. Industries and
+    // size, edited beside a project's requirements: saved to Settings, and
+    // written over the copy on every requirements card already sent (and the
+    // version an update replaced, so no card reads it as a change), so
+    // partners see them at once. Nobody is notified: what partners hear about
+    // is requirements, through `updateRequirements`. Country and name stay in
+    // Settings — country sets the budget bands and the location field.
+    updateCompanyDetails({ employees, segments }) {
+      this.company = { ...this.company, employees, segments: [...segments] }
+      for (const p of this.projects) {
+        if (p.answers && 'employees' in p.answers) p.answers = { ...p.answers, employees, segments: [...segments] }
+      }
+      for (const t of this.threads) {
+        for (const m of t.messages ?? []) {
+          if (m.from !== 'you') continue
+          for (const b of [m.brief, m.prev]) {
+            if (b && 'employees' in b) Object.assign(b, { employees, segments: [...segments] })
+          }
+        }
+      }
     },
 
     // The two things sign-up asks that the intake deliberately doesn't: who you
@@ -1840,6 +1927,17 @@ export const useConnectStore = defineStore('connect', {
     // reaches them. A rejection notice from a business that never spoke to you
     // is worse than silence, and the partner has lost nothing but the hour they
     // chose to spend on a brief they could see the size of.
+    // Not interested in a firm that hasn't quoted yet. Kept apart from the bids
+    // (a bid is a quote), so the firm can still quote; the list files it under
+    // Not interested until it's restored.
+    setPassed(projectId, partnerId, on) {
+      const project = this.projects.find((p) => p.id === projectId)
+      if (!project) return
+      const passed = new Set(project.passed ?? [])
+      on ? passed.add(partnerId) : passed.delete(partnerId)
+      project.passed = [...passed]
+    },
+
     setBidState(projectId, partnerId, state) {
       const project = this.projects.find((p) => p.id === projectId)
       const bid = project?.bids?.find((b) => b.partnerId === partnerId)

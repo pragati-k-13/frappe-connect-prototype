@@ -11,6 +11,8 @@ import ActivityFeed from '../components/ActivityFeed.vue'
 import PanelSection from '../components/PanelSection.vue'
 import PanelField from '../components/PanelField.vue'
 import PanelLink from '../components/PanelLink.vue'
+import ShortList from '../components/ShortList.vue'
+import { appsText, industryText } from '../data/format'
 import ThreadMessages from '../components/ThreadMessages.vue'
 import ReplyBox from '../components/ReplyBox.vue'
 import BriefDetailsDialog from '../components/BriefDetailsDialog.vue'
@@ -252,7 +254,7 @@ const projectRows = computed(() => {
   return [
     { label: 'Budget', value: budgetLabel(b.budget) },
     { label: 'Timeline', value: b.timeline ? timelineLabel(b.timeline) : '' },
-    { label: 'Industry', value: b.segments?.[0] ?? '' },
+    { label: (b.segments?.length ?? 0) > 1 ? 'Industries' : 'Industry', value: industryText(b.segments).text, list: industryText(b.segments) },
     { label: 'Size', value: b.employees ? `${b.employees} people` : '' },
   ].filter((r) => r.value)
 })
@@ -288,7 +290,9 @@ const briefVersion = ref(null)
 const briefPrevious = ref(null)
 const briefDoc = computed(() => {
   const b = briefVersion.value ?? lead.value?.brief
-  return b ? { ...b, project: lead.value.project } : null
+  // Seeded leads carry their apps as modules only; the dialog reads
+  // `projectApps`, so fill it the way the side panel does.
+  return b ? { ...b, project: lead.value.project, projectApps: b.projectApps ?? appsOfLead({ ...lead.value, brief: b }) } : null
 })
 // From a message: the description is that message's own text. From an update,
 // the facts stay in, because they show what changed and the panel can't.
@@ -583,17 +587,17 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
               </PanelField>
               <PanelField v-if="leadApps.length" label="Apps">
                 <AppsSelect v-if="appsEditable" :model-value="leadApps" variant="ghost" aria-label="Apps" @update:model-value="setApps" />
-                <span v-else class="px-2">{{ appLabels(leadApps) }}</span>
+                <span v-else class="px-2"><ShortList :list="appsText(leadApps)" /></span>
               </PanelField>
               <p v-if="lead.need" class="whitespace-pre-line px-3 text-p-base leading-relaxed text-ink-gray-7">{{ lead.need }}</p>
             </PanelSection>
             <PanelSection v-else title="Project">
               <PanelField v-if="leadApps.length" label="Apps">
                 <AppsSelect v-if="appsEditable" :model-value="leadApps" variant="ghost" aria-label="Apps" @update:model-value="setApps" />
-                <span v-else class="px-2">{{ appLabels(leadApps) }}</span>
+                <span v-else class="px-2"><ShortList :list="appsText(leadApps)" /></span>
               </PanelField>
               <PanelField v-for="row in projectRows" :key="row.label" :label="row.label">
-                <span class="px-2">{{ row.value }}</span>
+                <span class="px-2"><ShortList v-if="row.list" :list="row.list" /><template v-else>{{ row.value }}</template></span>
               </PanelField>
               <PanelField label="Requirements">
                 <PanelLink label="View requirements" icon="lucide-file-text" @click="briefVersion = null; briefPrevious = null; briefOmit = ['facts']; briefOpen = true" />
@@ -616,7 +620,7 @@ const reasonOptions = PRM_LOST_REASONS.map((r) => ({ label: r, value: r }))
     </div>
 
 
-    <BriefDetailsDialog v-model:open="briefOpen" :brief="briefDoc" :omit="briefOmit" :previous="briefPrevious" />
+    <BriefDetailsDialog v-model:open="briefOpen" :brief="briefDoc" :omit="briefOmit" :previous="briefPrevious" :company-name="companyName(lead)" />
     <SendQuoteDialog v-model:open="quoting" :from="lastBid" @send="requote" />
     <Dialog
       v-if="lead?.company"

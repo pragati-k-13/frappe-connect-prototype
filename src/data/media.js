@@ -57,7 +57,12 @@ const PLACEHOLDER_GALLERY = [
   { id: 'still-3', kind: 'image', src: MEDIA['placeholder-3'], alt: 'Placeholder image 3' },
 ]
 
-export const mediaFor = () => PLACEHOLDER_GALLERY.filter((m) => m.src)
+// Partners with no media at all, so the sparse profile has a real case to
+// render: Momscode (nothing but the About card) and Kingstech (one story).
+// Their seed has no reviews either.
+const SPARSE = new Set(['momscode', 'kingstech-services'])
+
+export const mediaFor = (id) => (SPARSE.has(id) ? [] : PLACEHOLDER_GALLERY.filter((m) => m.src))
 
 // The partner's clients, from their success stories: one per customer, in the
 // order the partner lists them, and only those with a logo. Partners don't

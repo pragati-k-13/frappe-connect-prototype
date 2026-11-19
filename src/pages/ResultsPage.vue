@@ -7,6 +7,7 @@
 // an unset filter rather than a silent constraint.
 
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { Button, MultiSelect, TextInput, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import PartnerList from '../components/PartnerList.vue'
@@ -22,6 +23,7 @@ const APP_CHIPS = APPS.filter((a) => a.value !== 'drive')
 import { INDUSTRIES, REGIONS } from '../data/quiz'
 
 const store = useConnectStore()
+const router = useRouter()
 
 const results = computed(() => store.results)
 const suggestions = computed(() => store.suggestions)
@@ -464,7 +466,7 @@ const clearTooltip = computed(() => {
            row height and `items-center` centres the text against it — the
            `text-p-base`-in-a-flex-row trap in FRAPPE-UI-NOTES needs the text to
            be the tallest item to bite, and it isn't. -->
-      <div class="mt-9 flex flex-wrap items-center gap-x-1 gap-y-1">
+      <div class="mt-9 flex min-h-7 flex-wrap items-center gap-x-1 gap-y-1">
         <p class="text-p-base text-ink-gray-6">
           <template v-if="results.length">
             {{ results.length }} {{ results.length === 1 ? 'partner' : 'partners' }}
@@ -480,6 +482,16 @@ const clearTooltip = computed(() => {
           variant="ghost"
           label="Clear filters"
           @click="clearFilters"
+        />
+        <!-- ⚠️ STOPGAP. Home's dashboard was the saved list's only door, and
+             it is gone; this keeps the page reachable until saved partners get
+             their real place on this screen. -->
+        <Button
+          v-if="store.savedPartners.length"
+          class="ml-auto"
+          variant="ghost"
+          :label="`Saved (${store.savedPartners.length})`"
+          @click="router.push({ name: 'saved-partners' })"
         />
       </div>
 
