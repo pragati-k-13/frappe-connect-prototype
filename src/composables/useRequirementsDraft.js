@@ -104,9 +104,8 @@ export function useRequirementsDraft(projectId) {
     ...TIMELINES.map((t) => ({ label: t.label.replace(/^Live within/, 'Within'), value: t.value })),
   ]
   // The short names, as the reading view's badges: one answer, one set of
-  // words in both modes. New project keeps the sentences, where it's asked;
-  // here the sentence is each tag's tooltip (`full`).
-  const problems = problemsFor().map((p) => ({ label: p.short, value: p.value, full: p.label }))
+  // words in both modes. New project keeps the sentences, where it's asked.
+  const problems = problemsFor().map((p) => ({ label: p.short, value: p.value }))
   const tiers = TIERS.map((t) => ({ label: t.label, value: t.value }))
   const cities = INDIA_CITIES.map((c) => ({ label: c, value: c }))
   // ⚠️ ONE LOCATION FIELD: cities for a business in India, where the city list

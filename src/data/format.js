@@ -21,21 +21,8 @@ export const appLabels = (values) =>
 // Apps: two names, then a count.
 export const appsText = (values) => shortList(appLabels(values), 2)
 
-// An industry as screens show it: "Textile Manufacturing" → "Textile Mfg".
-// Pickers keep the full names; anything that reads them back uses this.
-export const industryShort = (segment) => (segment ?? '').replace(/ Manufacturing$/, ' Mfg')
-
 // Industries: the main one (the first picked), then a count.
-export const industryText = (segments) => shortList((segments ?? []).map(industryShort), 1)
-
-// Countries, short: "India", "India and UAE", "India +2". The long names are
-// cut to the ones people say.
-const COUNTRY_SHORT = { 'United Arab Emirates': 'UAE', 'United States': 'US', 'United Kingdom': 'UK' }
-export const countriesText = (countries) => {
-  const list = (countries ?? []).filter(Boolean).map((c) => COUNTRY_SHORT[c] ?? c)
-  if (list.length === 2) return `${list[0]} and ${list[1]}`
-  return list.length > 2 ? `${list[0]} +${list.length - 1}` : list[0] ?? ''
-}
+export const industryText = (segments) => shortList(segments, 1)
 
 // Up to three industries: enough for a business across domains, few enough
 // that nobody ticks everything.
@@ -62,15 +49,13 @@ export const setupShort = (value) => OPERATIONS.find((o) => o.value === value)?.
 export const sizeShort = (employees) =>
   (employees ?? '').replace(/^More than (\d+)$/, '$1+').replace(/^(\d+) to (\d+)$/, '$1–$2')
 
-// Size and where they are, as one line: "500+ people, India and UAE".
-export const peopleLine = (employees, countries) =>
-  [employees && `${sizeShort(employees)} people`, countriesText(countries)].filter(Boolean).join(', ')
-
-// How they run today: the tools they named ("Tally, Zoho, Freshdesk"), or, with
-// none named, the setup ("Tools that don't connect"). Inside the line every
-// tool is mid-sentence, so a leading article is lowercased ("An in-house
-// system" → "an in-house system").
+// How they run today and with what, as one line: the tools as a short list,
+// then the setup as a tail ("Tally, Zoho +2" + "not connected"). Inside the line
+// every tool is mid-sentence, so a leading article is lowercased ("An in-house
+// system" → "an in-house system"). No tools named: the setup alone.
 export const setupLine = (operations, tools) => {
   const names = (tools ?? []).map((a) => a.replace(/^(An?) (?=[a-z])/, (m) => m.toLowerCase()))
-  return names.length ? names.join(', ') : setupShort(operations)
+  const op = OPERATIONS.find((o) => o.value === operations)
+  if (!names.length) return { list: null, after: op?.short ?? '' }
+  return { list: shortList(names, 2), after: op?.withTools ?? '' }
 }

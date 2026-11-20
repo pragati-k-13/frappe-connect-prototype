@@ -1,6 +1,7 @@
 <script setup>
-import { appLabels, appsText, fixShort, industryText, peopleLine, setupLine } from '../data/format'
-import { computed, nextTick, onBeforeUnmount, reactive, ref, watch, watchEffect } from 'vue'
+import { appLabels, appsText, fixShort, industryText, setupLine, sizeShort } from '../data/format'
+import ShortList from './ShortList.vue'
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { Avatar, Badge, Button, Dialog, ScrollArea, dialog, toast } from 'frappe-ui'
 import { useConnectStore } from '../stores/connect'
 import { appLogo } from '../data/apps'
@@ -71,7 +72,7 @@ const props = defineProps({
 const emit = defineEmits(['update:open', 'saved'])
 
 // ── Editing, section by section ─────────────────────────────────────────────
-// ⚠️ ONE SECTION AT A TIME, ON ITS OWN, ONE SEND FOR ALL. A card's Edit
+// ⚠️ ONE SECTION AT A TIME, ON ITS OWN, ONE SEND FOR ALL. A card's pencil
 // swaps the cards for that section's fields at full width, titled with a back
 // arrow; Done (or the arrow) returns to the cards, showing the new values.
 // Every section edits one draft, and only the cards' footer sends — every
@@ -90,15 +91,8 @@ const draft = ref(null)
 const editing = computed(() => !!openCard.value)
 const dirty = computed(() => !!draft.value?.dirty)
 const startDraft = () => (draft.value ??= reactive(useRequirementsDraft(props.projectId)))
-// ⚠️ THE DIALOG HOLDS ITS HEIGHT WHILE A SECTION IS OPEN. Opening one
-// swapped ~550px of cards for a 300–470px form, and the centred dialog jumped
-// in and out each time. The cards' height is taken as Edit is clicked and set
-// as the panel's minimum until Done or back; a taller section still grows it.
-const lockedHeight = ref(0)
-const panelEl = () => scroller.value?.$el?.closest?.('.dialog-content')
 const edit = (card) => {
   startDraft()
-  if (!openCard.value) lockedHeight.value = panelEl()?.offsetHeight ?? 0
   openCard.value = card
 }
 const done = () => (openCard.value = null)
@@ -112,15 +106,15 @@ watch(
   (isOpen) => isOpen && reset(),
 )
 const canEdit = computed(() => props.editable && !props.lockNote && !!props.projectId && listLayout.value)
-// Each card's "Edit": a subtle text button, not a pencil icon. The word goes in
-// the slot, not `label`, so the aria-label can name what it edits ("Edit apps
-// and budget"): Button's `label` would override it.
-// ⚠️ SHOWN ON HOVER: hidden until the pointer is over its card, or the button
+// Each card's pencil: a ghost icon button, named for what it edits, since the
+// icon alone doesn't say.
+// ⚠️ SHOWN ON HOVER: hidden until the pointer is over its card, or the pencil
 // has keyboard focus, so the cards read as content first. Always shown on
 // touch screens, which have no hover.
-const editButton = (card) => ({
+const pencil = (card) => ({
+  icon: 'lucide-pencil',
   size: 'sm',
-  variant: 'subtle',
+  variant: 'ghost',
   class: 'opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100',
   'aria-label': `Edit ${SECTION_TITLES[card].toLowerCase()}`,
   onClick: () => edit(card),
@@ -131,11 +125,6 @@ const cardClass = 'bg-surface-gray-1 dark:bg-surface-gray-2'
 // mid-field with nothing saying the form went on. Measured on scroll and
 // whenever the viewport or its content changes size.
 const scroller = ref(null)
-// The height hold (see `edit`), here because it reads `scroller`.
-watchEffect(() => {
-  const el = panelEl()
-  if (el) el.style.minHeight = openCard.value && lockedHeight.value ? `${lockedHeight.value}px` : ''
-})
 const more = ref(false)
 let vp = null
 let ro = null
@@ -241,10 +230,15 @@ const fixesOf = (b) => fixShort((b.problems ?? []).filter((p) => !(p === 'integr
 // an article ("An in-house system", a typed "A custom costing sheet") takes a
 // lowercase one. Only "A"/"An" before a lowercase word: names stay as written.
 const toolNames = (apps) => apps.map((a) => a.replace(/^(An?) (?=[a-z])/, (m) => m.toLowerCase()))
-// ⚠️ SHORT FORMS, FULL LISTS: "Live in 3 months", "500+ people, India and
-// UAE", "Textile Mfg", but every app, industry and tool by name, never "+N".
-// This dialog is where the full lists are; the screens that shorten them point
-// here. Everything comes from data/format.js and data/custom.js.
+// ⚠️ SHORT FORMS THROUGHOUT: two apps or industries then "+N" (the count
+// shows the rest on hover; the logos and the edit form show every app), "Live
+// in 3 months", "500+ people, India". The full-length card read as a wall of
+// text. Everything comes from data/format.js and data/custom.js.
+const setupText = (b) => {
+  const { list, after } = setupLine(b.operations, b.apps)
+  return list ? [list.full, after].filter(Boolean).join(', ') : after
+}
+const peopleText = (b) => [b.employees && `${sizeShort(b.employees)} people`, b.country].filter(Boolean).join(', ')
 // Each line's text, read the same way off this version and the one it
 // replaced, so a line an update changed can show its old value struck through.
 const READ = {
@@ -253,8 +247,8 @@ const READ = {
   timeline: (b) => timelineShort(b.timeline),
   partner: (b) => partnerShort({ country: b.country }, b),
   fixes: (b) => fixesOf(b).join(', '),
-  people: (b) => peopleLine(b.employees, b.companyCountries ?? [b.country]),
-  setup: (b) => setupLine(b.operations, b.apps),
+  people: (b) => peopleText(b),
+  setup: (b) => setupText(b),
 }
 // What the cards draw. While a draft has changes, the draft, as plain new
 // values (the footer names what changed); otherwise the version this was
@@ -279,12 +273,6 @@ const was = (key) => {
   return before_ !== text(key) ? before_ : ''
 }
 const fixes = computed(() => fixesOf(shown.value))
-// To fix: the first three, then "+N more", which shows the rest in place and
-// turns into "Show less", as the description's own toggle does.
-const FIXES_SHOWN = 3
-const allFixes = ref(false)
-const fixesShown = computed(() => (allFixes.value ? fixes.value : fixes.value.slice(0, FIXES_SHOWN)))
-const fixesHidden = computed(() => fixes.value.length - FIXES_SHOWN)
 // ⚠️ NOTHING IS LEFT OUT OF THE CARDS. `omit: ['facts']` once dropped what the
 // Lead page's side panel lists, but this dialog covers that panel while it's
 // open, and the cards lost their anchors: the ask began at "Any partner tier"
@@ -300,7 +288,7 @@ const askCard = computed(() => showApps.value || !hideFacts.value || fixes.value
 // is the company's own country in the card beside this one.
 const askRows = computed(() =>
   [
-    { icon: 'lucide-boxes', label: 'Apps', text: showApps.value ? text('apps') : '', was: was('apps') },
+    { icon: 'lucide-boxes', label: 'Apps', text: showApps.value ? text('apps') : '', list: appsText(apps.value), was: was('apps') },
     { icon: 'lucide-calendar', label: 'Go-live', text: hideFacts.value ? '' : text('timeline'), was: was('timeline') },
     { icon: 'lucide-globe', label: 'Partner wanted', text: text('partner'), was: was('partner') },
   ].filter((r) => r.text),
@@ -312,13 +300,14 @@ const askRows = computed(() =>
 const name = computed(() => props.companyName || (props.own ? (store.company?.name || store.viewer?.company || '') : ''))
 const industries = computed(() => shown.value.segments ?? [])
 // ⚠️ ONE KIND OF LINE: every fact about the company is a 14px icon row in one
-// grey. Size and countries share a row; how it runs today is the tools it
-// named ("Tally, Zoho, Freshdesk").
+// grey. Size and country share a row, and how it runs today rides on the tools
+// it named ("Tally, Zoho +2, not connected").
 const companyRows = computed(() => {
+  const b = shown.value
   return [
-    { icon: 'lucide-factory', label: 'Industry', text: industryText(industries.value).full },
+    { icon: 'lucide-factory', label: 'Industry', text: industryText(industries.value).full, list: industryText(industries.value) },
     { icon: 'lucide-users', label: 'Size and country', text: text('people'), was: was('people') },
-    { icon: 'lucide-wrench', label: 'How they run today', text: text('setup'), was: was('setup') },
+    { icon: 'lucide-wrench', label: 'How they run today', text: text('setup'), ...setupLine(b.operations, b.apps), was: was('setup') },
   ].filter((r) => r.text)
 })
 const companyCard = computed(() => name.value || companyRows.value.length)
@@ -335,7 +324,6 @@ watch(
   () => [props.open, props.brief?.scope, editing.value],
   () => {
     clamped.value = true
-    allFixes.value = false
     nextTick(measureDesc)
   },
   { immediate: true },
@@ -404,24 +392,21 @@ const focus = computed(() => (packs.value ? (props.brief?.focus ?? '').trim() : 
         viewport-class="pr-4 sm:pr-6"
       >
       <!-- One section's fields, on their own, in place of the cards. -->
-      <!-- `fc-fade-in` here and on the cards: the body fades in when one view
-           replaces the other (150ms, opacity only), so the swap reads as a
-           switch rather than a glitch. Keyed, so a new section fades too. -->
-      <RequirementsFields v-if="openCard" :key="openCard" class="fc-fade-in" :draft="draft" :section="openCard" />
-      <!-- ⚠️ THREE CARDS at 768px (`3xl`): what they want (three fifths) beside
-           who they are (two fifths), then the description. Flat grey fills, no
+      <RequirementsFields v-if="openCard" :draft="draft" :section="openCard" />
+      <!-- ⚠️ THREE CARDS at 768px (`3xl`): what they want (two thirds) beside
+           who they are (one third), then the description. Flat grey fills, no
            borders: none is clickable. gray-2 in dark, where gray-1 is the
            dialog's own fill. A card with nothing left in it (`omit`) drops out
            and the other takes the row.
-           ⚠️ THE EDIT BUTTON TAKES NO COLUMN: it sits at the right end of a row that
+           ⚠️ THE PENCIL TAKES NO COLUMN: it sits at the right end of a row that
            is already there (the logos, the avatar), or floats into the
            description's first line. -->
-      <div v-else-if="listLayout" class="fc-fade-in grid grid-cols-1 gap-4 text-base sm:grid-cols-5">
+      <div v-else-if="listLayout" class="grid grid-cols-1 gap-3 text-base sm:grid-cols-3">
         <!-- What they want. The budget and, beside it, the company name are the
              cards' two titles, both `text-lg` (16px). Everything else is a 14px
              icon row; the badges are their own group below. -->
-        <div v-if="askCard" :class="[companyCard ? 'sm:col-span-3' : 'sm:col-span-5', cardClass]" class="group min-w-0 rounded-6 px-5 py-6">
-          <div class="flex items-center justify-between gap-2" :class="showApps && 'mb-3'">
+        <div v-if="askCard" :class="[companyCard ? 'sm:col-span-2' : 'sm:col-span-3', cardClass]" class="group min-w-0 rounded-6 p-5">
+          <div class="flex items-start justify-between gap-2" :class="showApps && 'mb-3'">
             <!-- The apps' own coloured logos, stacked like an avatar group,
                  each ringed in the card's own fill to part it from the one
                  under it; the first app sits on top. -->
@@ -438,72 +423,54 @@ const focus = computed(() => (packs.value ? (props.brief?.focus ?? '').trim() : 
                 :style="{ zIndex: apps.length - i }"
               />
             </div>
-            <Button v-if="canEdit" v-bind="editButton('ask')" class="ml-auto">Edit</Button>
+            <Button v-if="canEdit" v-bind="pencil('ask')" class="-mr-1.5 -mt-1.5 ml-auto" />
           </div>
           <p v-if="!hideFacts && text('budget')" class="text-lg font-semibold text-ink-gray-8">
           <s v-if="was('budget')" class="mr-1 font-normal text-ink-gray-5">{{ was('budget') }}</s>{{ text('budget') }}
           </p>
-          <ul class="mt-3 flex flex-col gap-2 text-ink-gray-6">
+          <ul class="mt-1.5 flex flex-col gap-1.5 text-ink-gray-6">
             <li v-for="r in askRows" :key="r.label" class="flex min-w-0 items-start gap-2">
-              <span :class="r.icon" class="mt-0.5 size-4 shrink-0 text-ink-gray-6" role="img" :aria-label="r.label" />
-              <span class="text-pretty"><s v-if="r.was" class="mr-1 text-ink-gray-5">{{ r.was }}</s>{{ r.text }}</span>
+              <span :class="r.icon" class="mt-0.5 size-4 shrink-0 text-ink-gray-5" role="img" :aria-label="r.label" />
+              <span class="text-pretty"><s v-if="r.was" class="mr-1 text-ink-gray-5">{{ r.was }}</s><template v-if="r.list"><ShortList :list="r.list" badge />{{ r.after ? `, ${r.after}` : '' }}</template><template v-else>{{ r.text }}</template></span>
             </li>
           </ul>
           <!-- What to fix: no label and no icon. Phrased as complaints ("Lost
                leads", "Slow reports"), they read as problems; set apart below
                the list so they don't look like a row missing its icon. -->
-          <div v-if="fixes.length" class="mt-5">
+          <div v-if="fixes.length" class="mt-3.5">
             <p v-if="was('fixes')" class="mb-1.5 text-p-sm text-ink-gray-5"><s>{{ was('fixes') }}</s></p>
-            <div class="flex flex-wrap gap-1.5">
-              <Badge v-for="f in fixesShown" :key="f" :label="f" theme="gray" variant="subtle" size="lg" class="!bg-surface-base dark:!bg-surface-gray-3" />
-              <!-- Ghost, at the badges' own 24px height and 13px gray-6 text,
-                   so it reads as the end of the row, not louder than it. The
-                   same element toggles, so keyboard focus stays on it. It moves
-                   when the list opens: to the end of the last row, and with the
-                   dialog, which stays centred as it grows. -->
-              <Button
-                v-if="fixesHidden > 0"
-                variant="ghost"
-                size="sm"
-                class="!h-6 rounded-full !text-sm !text-ink-gray-6"
-                :aria-label="allFixes ? 'Show fewer problems' : `Show ${fixesHidden} more problems`"
-                :aria-expanded="allFixes"
-                @click="allFixes = !allFixes"
-              >
-                <!-- The text as a slot, not `label`: Button's `label` would
-                     override the aria-label above. -->
-                {{ allFixes ? 'Show less' : `+${fixesHidden} more` }}
-              </Button>
+            <div class="flex flex-wrap gap-1">
+              <Badge v-for="f in fixes" :key="f" :label="f" theme="gray" variant="subtle" size="lg" class="dark:bg-surface-gray-3" />
             </div>
           </div>
         </div>
 
-        <!-- Who they are, and how they run today. Its Edit covers both: the
+        <!-- Who they are, and how they run today. Its pencil edits both: the
              company's industries and size, and how this project runs. -->
-        <div v-if="companyCard" :class="[askCard ? 'sm:col-span-2' : 'sm:col-span-5', cardClass]" class="group min-w-0 rounded-6 px-5 py-6">
-          <div v-if="name || canEdit" class="flex items-center justify-between gap-2">
+        <div v-if="companyCard" :class="[!askCard && 'sm:col-span-3', cardClass]" class="group min-w-0 rounded-6 p-5">
+          <div v-if="name || canEdit" class="flex items-start justify-between gap-2">
             <Avatar v-if="name" size="lg" shape="square" :label="name" class="[&>*]:bg-surface-gray-3" />
-            <Button v-if="canEdit" v-bind="editButton('company')" class="ml-auto">Edit</Button>
+            <Button v-if="canEdit" v-bind="pencil('company')" class="-mr-1.5 -mt-1.5 ml-auto" />
           </div>
           <p v-if="name" class="mt-2 truncate text-lg font-medium text-ink-gray-8" :title="name">{{ name }}</p>
-          <ul v-if="companyRows.length" class="flex flex-col gap-2 text-ink-gray-6" :class="name && 'mt-3'">
+          <ul v-if="companyRows.length" class="flex flex-col gap-1.5 text-ink-gray-6" :class="name && 'mt-1.5'">
             <li v-for="r in companyRows" :key="r.label" class="flex min-w-0 items-start gap-2">
-              <span :class="r.icon" class="mt-0.5 size-4 shrink-0 text-ink-gray-6" role="img" :aria-label="r.label" />
-              <span class="text-pretty"><s v-if="r.was" class="mr-1 text-ink-gray-5">{{ r.was }}</s>{{ r.text }}</span>
+              <span :class="r.icon" class="mt-0.5 size-4 shrink-0 text-ink-gray-5" role="img" :aria-label="r.label" />
+              <span class="text-pretty"><s v-if="r.was" class="mr-1 text-ink-gray-5">{{ r.was }}</s><template v-if="r.list"><ShortList :list="r.list" badge />{{ r.after ? `, ${r.after}` : '' }}</template><template v-else>{{ r.text }}</template></span>
             </li>
           </ul>
         </div>
 
         <!-- The details: the one long read, last -->
-        <div v-if="showDescription" :class="cardClass" class="group rounded-6 px-5 py-6 sm:col-span-5">
-          <!-- The Edit button floats INSIDE the paragraph: the line clamp makes the
+        <div v-if="showDescription" :class="cardClass" class="group rounded-6 p-5 sm:col-span-3">
+          <!-- The pencil floats INSIDE the paragraph: the line clamp makes the
                paragraph its own block, which would sit beside a float outside
                it and lose a column. Inside, only the first line wraps. -->
           <p
             ref="descEl"
-            class="whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7"
+            class="whitespace-pre-line text-p-base leading-relaxed text-ink-gray-6"
             :class="clamped && 'line-clamp-2'"
-          ><Button v-if="canEdit" v-bind="editButton('scope')" class="float-right -mt-0.5 ml-2">Edit</Button>{{ shown.scope }}</p>
+          ><Button v-if="canEdit" v-bind="pencil('scope')" class="float-right -mr-1.5 -mt-1.5 ml-2" />{{ shown.scope }}</p>
           <!-- Ghost, and pulled left by its own 8px padding so its label lines
                up with the text above. -->
           <Button
@@ -522,7 +489,7 @@ const focus = computed(() => (packs.value ? (props.brief?.focus ?? '').trim() : 
              icon, since the icon is the label. -->
         <!-- One per line, the card's own layout. A two-column grid wrapped
              them into uneven pairs whose columns meant nothing. -->
-        <ul v-if="!omit.includes('facts')" class="flex flex-col gap-2 text-p-base text-ink-gray-7">
+        <ul v-if="!omit.includes('facts')" class="flex flex-col gap-2 text-p-base text-ink-gray-6">
           <li
             v-for="f in facts"
             :key="f.label"
@@ -530,7 +497,7 @@ const focus = computed(() => (packs.value ? (props.brief?.focus ?? '').trim() : 
           >
             <component
               :is="f.icon"
-              class="mt-0.5 size-4 shrink-0 text-ink-gray-6"
+              class="mt-0.5 size-4 shrink-0 text-ink-gray-5"
               role="img"
               :aria-label="f.label"
             />
@@ -552,9 +519,9 @@ const focus = computed(() => (packs.value ? (props.brief?.focus ?? '').trim() : 
           <h4 class="text-base font-medium text-ink-gray-8">
             {{ own ? 'What you bought' : 'What they bought' }}
           </h4>
-          <ul class="flex flex-col gap-2 text-p-base text-ink-gray-7">
+          <ul class="flex flex-col gap-2 text-p-base text-ink-gray-6">
             <li v-for="name in packs" :key="name" class="flex items-start gap-2">
-              <IconPackage class="mt-0.5 size-4 shrink-0 text-ink-gray-6" aria-hidden="true" />
+              <IconPackage class="mt-0.5 size-4 shrink-0 text-ink-gray-5" aria-hidden="true" />
               {{ name }}
             </li>
           </ul>
@@ -564,20 +531,20 @@ const focus = computed(() => (packs.value ? (props.brief?.focus ?? '').trim() : 
           <h4 class="text-base font-medium text-ink-gray-8">
             {{ own ? 'How you run today' : 'How they run today' }}
           </h4>
-          <ul class="flex flex-col gap-2 text-p-base text-ink-gray-7">
+          <ul class="flex flex-col gap-2 text-p-base text-ink-gray-6">
             <li v-for="line in today" :key="line">{{ line }}</li>
           </ul>
         </section>
 
         <section v-if="focus" class="flex flex-col gap-2">
           <h4 class="text-base font-medium text-ink-gray-8">Focus for the sessions</h4>
-          <p class="whitespace-pre-line text-p-base leading-relaxed text-ink-gray-7">{{ focus }}</p>
+          <p class="whitespace-pre-line text-p-base leading-relaxed text-ink-gray-6">{{ focus }}</p>
         </section>
 
       </div>
       </ScrollArea>
     </template>
-    <!-- Locked: the line that says why, and no Edit buttons. -->
+    <!-- Locked: the line that says why, and no pencils. -->
     <template v-if="lockNote" #actions>
       <p class="text-p-sm text-ink-gray-6">{{ lockNote }}</p>
     </template>
@@ -585,20 +552,18 @@ const focus = computed(() => (packs.value ? (props.brief?.focus ?? '').trim() : 
          only on the cards, where every change is in sight. -->
     <template v-else-if="openCard" #actions>
       <div class="flex justify-end">
-        <Button variant="solid" label="Done" @click="done" />
+        <Button label="Done" @click="done" />
       </div>
     </template>
     <!-- Changes waiting: what changed, Discard, and the one Save or Send.
          There is no footer until something has changed. -->
     <template v-else-if="dirty" #actions>
-      <!-- Fades in: it appears as you return from a section, and popping in
-           at that moment read as the layout breaking. -->
-      <div class="fc-fade-in flex items-center justify-between gap-4">
+      <div class="flex items-center justify-between gap-4">
         <p class="text-p-sm text-ink-gray-6">
           {{ draft.requester && draft.formDirty ? `Sending declines ${draft.requester.name}’s hire request.` : changedLine }}
         </p>
         <div class="flex shrink-0 gap-2">
-          <Button variant="subtle" label="Discard" @click="discard" />
+          <Button variant="ghost" label="Discard" @click="discard" />
           <Button variant="solid" :label="draft.sendLabel" @click="send" />
         </div>
       </div>
