@@ -74,17 +74,14 @@ export const TIMELINES = [
   // ⚠️ WHEN IT GOES LIVE, NOT WHEN IT STARTS. A start date tells a partner when
   // they could begin; a go-live date is what the business is actually held to,
   // and what a partner has to plan the work back from.
-  { value: 'now', label: 'As soon as possible', short: 'As soon as possible' },
-  { value: 'quarter', label: 'Live within three months', short: 'Live in 3 months' },
-  { value: 'half', label: 'Live within six months', short: 'Live in 6 months' },
-  { value: 'none', label: 'No fixed deadline', short: 'No fixed deadline' },
+  { value: 'now', label: 'As soon as possible' },
+  { value: 'quarter', label: 'Live within three months' },
+  { value: 'half', label: 'Live within six months' },
+  { value: 'none', label: 'No fixed deadline' },
 ]
 
 export const timelineLabel = (value) =>
   TIMELINES.find((t) => t.value === value)?.label ?? 'No fixed deadline'
-
-// The go-live as the requirements dialog's row says it: "Live in 3 months".
-export const timelineShort = (value) => TIMELINES.find((t) => t.value === value)?.short ?? ''
 
 export const TIERS = [
   { value: 'gold', label: 'Gold' },
@@ -128,10 +125,6 @@ export const emptyBrief = () => ({
   // so a new project starts prefilled — see `snapshotBrief`.
   operations: '',
   problems: [],
-  // The tools this project replaces or connects to, picked in the requirements
-  // editor. `null` means "as the company answered" (`appsInUse`), the same
-  // fallback as above; `[]` is an answer: none.
-  apps: null,
 })
 
 // Is a partner inside the chips the brief picked? `null` when none are picked,
@@ -218,27 +211,8 @@ export const criteriaSentence = (company, brief) => {
 // Asia Pacific", "Gold or Silver, in Pune or Mumbai". The industry is left
 // out — it is the company's own, and the row beside it says so.
 export const criteriaShort = (company, brief) => {
-  const tiers = TIERS.filter((t) => (brief?.tiers ?? []).includes(t.value)).map((t) => t.label)
-  return `${tiers.length ? orList(tiers) : 'Any tier'}, ${partnerWhere(company, brief)}`
-}
-
-// The partner wanted, as one short line for the requirements dialog: "Any
-// partner, Asia Pacific", "Gold or Silver partners, Pune or Mumbai", "Any
-// partner, anywhere". "Partner" leads, so it can't be read as describing the
-// business.
-export const partnerShort = (company, brief) => {
-  const tiers = TIERS.filter((t) => (brief?.tiers ?? []).includes(t.value)).map((t) => t.label)
-  const where = partnerWhere(company, brief).replace(/^anywhere in |^in /, '')
-  return `${tiers.length ? `${orList(tiers)} partners` : 'Any partner'}, ${where}`
-}
-
-const orList = (items) => (items.length > 1 ? `${items.slice(0, -1).join(', ')} or ${items.at(-1)}` : items[0])
-
-// Where the partner may be, as the tail of a sentence: "in Pune or Mumbai",
-// "anywhere in Asia Pacific", "anywhere". Cities win over regions, as they do
-// in matching.
-export const partnerWhere = (company, brief) => {
   const region = REGIONS.find((r) => r.value === REGION_OF[company?.country])
+  const tiers = TIERS.filter((t) => (brief?.tiers ?? []).includes(t.value)).map((t) => t.label)
   const cities = brief?.cities ?? []
   const geo = geoPicked(brief)
   const geoLabels = geo
@@ -246,13 +220,15 @@ export const partnerWhere = (company, brief) => {
         (c) => c.label,
       )
     : []
-  return cities.length
-    ? `in ${orList(cities)}`
+  const or = (items) => (items.length > 1 ? `${items.slice(0, -1).join(', ')} or ${items.at(-1)}` : items[0])
+  const where = cities.length
+    ? `in ${or(cities)}`
     : geoLabels.length
-      ? `in ${orList(geoLabels)}`
+      ? `in ${or(geoLabels)}`
       : anywhere(brief)
         ? 'anywhere'
         : `anywhere in ${region?.label ?? 'your region'}`
+  return `${tiers.length ? or(tiers) : 'Any tier'}, ${where}`
 }
 
 // "Pune", "Pune and Mumbai", "Pune, Mumbai and Kochi".

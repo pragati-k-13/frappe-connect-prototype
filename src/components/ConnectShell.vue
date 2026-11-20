@@ -199,16 +199,6 @@ const openSettings = (tab) => {
   settingsTab.value = tab
   settings.value = true
 }
-// A dialog elsewhere asking for Settings (the requirements dialog's "Edit in
-// Settings"): opened here, where the settings dialog lives.
-watch(
-  () => store.settingsAsk,
-  (tab) => {
-    if (!tab) return
-    openSettings(tab)
-    store.settingsAsk = null
-  },
-)
 const themeMenu = computed(() => ({
   label: 'Theme',
   icon: 'lucide-sun-moon',

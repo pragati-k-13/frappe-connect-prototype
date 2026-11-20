@@ -1,5 +1,4 @@
 <script setup>
-import { industryText } from '../data/format'
 import { computed } from 'vue'
 import { Button, Dialog, toast } from 'frappe-ui'
 import IconExternal from '~icons/lucide/arrow-up-right'
@@ -39,7 +38,7 @@ const rows = computed(() => {
   }
   return [
     { label: 'Company name', value: c.name || store.viewer.company },
-    { label: 'Industry', value: industryText(c.segments).full },
+    { label: 'Industry', value: c.segments?.join(', ') },
     { label: 'No. of employees', value: c.employees },
   ]
 })

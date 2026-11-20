@@ -20,7 +20,6 @@ import TierIcon from './TierIcon.vue'
 import { TIMELINES, budgetLabel, matchingPartners } from '../data/custom'
 import { cityOf } from '../data/partners'
 import { logoFor } from '../data/logos'
-import { industryText } from '../data/format'
 import { useConnectStore } from '../stores/connect'
 
 const props = defineProps({
@@ -41,7 +40,7 @@ const summary = computed(() => {
   return [
     countries.join(', '),
     a.employees && `${a.employees} people`,
-    industryText(a.segments).text,
+    (a.segments ?? []).join(', '),
     TIMELINES.find((t) => t.value === brief.value.timeline)?.label,
     // "Not decided yet" is an answer, not a fact about the project.
     brief.value.budget !== 'unsure' && budgetLabel(brief.value.budget),

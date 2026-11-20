@@ -13,11 +13,9 @@ import {
   COMPANY_SIZES,
   COUNTRY_OPTIONS_INDIA_ONLY,
   SEGMENT_OPTIONS,
-  segmentOptionsFor,
   SELECTABLE_COUNTRY,
 } from '../../data/company'
 import { useConnectStore } from '../../stores/connect'
-import { MAX_INDUSTRIES } from '../../data/format'
 
 // ⚠️ THE COMPANY, ASKED ONCE. Where it is based, how big and what industry
 // used to open every New project dialog, pre-filled and asked again. They are
@@ -36,7 +34,7 @@ const saved = () => ({
 const form = reactive(saved())
 const dirty = computed(() => JSON.stringify(form) !== JSON.stringify(saved()))
 const valid = computed(
-  () => form.name.trim() && form.country && form.employees && form.segments.length && form.segments.length <= MAX_INDUSTRIES,
+  () => form.name.trim() && form.country && form.employees && form.segments.length,
 )
 
 const save = () => {
@@ -78,21 +76,11 @@ const save = () => {
       />
       <MultiSelect
         v-model="form.segments"
-        label="Your industries"
-        :error="form.segments.length > MAX_INDUSTRIES ? `Pick up to ${MAX_INDUSTRIES}` : ''"
+        label="Industry"
         placeholder="Select"
         required
-        :options="segmentOptionsFor(form.segments)"
-      >
-        <!-- No Select All: there are 40-odd industries and the limit is 3. The
-             count shows how many are left. -->
-        <template #footer="{ clear }">
-          <div v-if="form.segments.length" class="flex items-center justify-between border-t border-outline-gray-1 px-2 py-1.5">
-            <Button variant="ghost" size="sm" label="Clear All" @click="clear" />
-            <span class="px-2 text-sm tabular-nums text-ink-gray-5">{{ form.segments.length }} of {{ MAX_INDUSTRIES }}</span>
-          </div>
-        </template>
-      </MultiSelect>
+        :options="SEGMENT_OPTIONS"
+      />
     </div>
   </SettingsBody>
 </template>

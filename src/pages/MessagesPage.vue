@@ -1,6 +1,4 @@
 <script setup>
-import ShortList from '../components/ShortList.vue'
-import { industryText } from '../data/format'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Avatar, Badge, Button, Dropdown, ScrollArea, TabButtons, toast } from 'frappe-ui'
@@ -929,7 +927,7 @@ watch(
                     </li>
                     <li v-if="m.brief.segments?.[0]" class="flex items-center gap-2">
                       <LucideFactory class="size-4 shrink-0 text-ink-gray-6" aria-label="Industry" />
-                      <ShortList :list="industryText(m.brief.segments)" />
+                      {{ m.brief.segments[0] }}
                     </li>
                   </ul>
                   <Button
