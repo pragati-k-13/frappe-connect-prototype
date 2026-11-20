@@ -1,7 +1,6 @@
 import { computed, reactive, ref } from 'vue'
 import { TIERS, TIMELINES, asksCity, briefErrors, budgetBandsFor, partnerWhere } from '../data/custom'
-import { APPS_OTHER, COMPANY_SIZES, CURRENT_APPS, appsInUse, asksApps, problemsFor, segmentOptionsFor } from '../data/company'
-import { MAX_INDUSTRIES } from '../data/format'
+import { APPS_OTHER, CURRENT_APPS, appsInUse, asksApps, problemsFor } from '../data/company'
 import { INDIA_CITIES, PARTNERS } from '../data/partners'
 import { GEO_CHOICES } from '../data/quiz'
 import { useConnectStore } from '../stores/connect'
@@ -10,11 +9,6 @@ import { useConnectStore } from '../stores/connect'
 // draft for the whole dialog: each card's pencil opens its fields onto it, and
 // one Send in the footer sends every change at once, so partners get a single
 // update however many cards were touched. See docs/edit-requirements.md.
-//
-// ⚠️ TWO KINDS OF CHANGE IN ONE DRAFT. The requirements (`form`) go to
-// partners as an update. The company's industries and size (`company`) are
-// saved to Settings and reach partners quietly, with no message — see
-// `updateCompanyDetails`. Discard drops both; nothing saves before Save/Send.
 //
 // Made when the first pencil is pressed, dropped on Send or Discard.
 export function useRequirementsDraft(projectId) {
@@ -35,19 +29,7 @@ export function useRequirementsDraft(projectId) {
     return b
   })()
   const form = reactive(JSON.parse(JSON.stringify(initial)))
-  const formDirty = computed(() => JSON.stringify(form) !== JSON.stringify(initial))
-  // From Settings, where it saves: what the next send would carry.
-  const companyInitial = { employees: store.company.employees ?? '', segments: [...(store.company.segments ?? [])] }
-  const company = reactive(JSON.parse(JSON.stringify(companyInitial)))
-  // What changed about the company, as the footer names it.
-  const companyChanges = computed(() =>
-    [
-      JSON.stringify(company.segments) !== JSON.stringify(companyInitial.segments) && 'industries',
-      company.employees !== companyInitial.employees && 'company size',
-    ].filter(Boolean),
-  )
-  const companyDirty = computed(() => companyChanges.value.length > 0)
-  const dirty = computed(() => formDirty.value || companyDirty.value)
+  const dirty = computed(() => JSON.stringify(form) !== JSON.stringify(initial))
   const showTools = computed(() => asksApps(form.operations))
 
   // The draft as a brief the reading view can draw: `base` is the version on
@@ -69,18 +51,9 @@ export function useRequirementsDraft(projectId) {
   })
 
   const tried = ref(false)
-  // Each part is checked only once it has changed: an old gap in what was
-  // sent shouldn't block saving the company, nor the reverse.
   const check = () => ({
-    ...(formDirty.value && {
-      ...briefErrors({ scope: form.scope ?? '', budget: form.budget ?? '' }),
-      ...(form.projectApps?.length ? {} : { apps: 'Pick at least one app' }),
-    }),
-    ...(companyDirty.value && {
-      ...(company.segments.length ? {} : { segments: 'Pick at least one industry' }),
-      ...(company.segments.length > MAX_INDUSTRIES && { segments: `Pick up to ${MAX_INDUSTRIES}` }),
-      ...(company.employees ? {} : { employees: 'Pick a size' }),
-    }),
+    ...briefErrors({ scope: form.scope ?? '', budget: form.budget ?? '' }),
+    ...(form.projectApps?.length ? {} : { apps: 'Pick at least one app' }),
   })
   const errors = computed(() => (tried.value ? check() : {}))
 
@@ -88,12 +61,9 @@ export function useRequirementsDraft(projectId) {
   const requester = computed(() =>
     project.value?.hireRequest ? PARTNERS.find((p) => p.id === project.value.hireRequest) : null,
   )
-  // Save when only the company changed: nothing goes to partners as a message,
-  // so the button doesn't say it does.
-  const sendLabel = computed(() => {
-    if (!formDirty.value) return 'Save'
-    return requester.value ? 'Decline request and send' : `Send to ${count} ${count === 1 ? 'partner' : 'partners'}`
-  })
+  const sendLabel = computed(() =>
+    requester.value ? 'Decline request and send' : `Send to ${count} ${count === 1 ? 'partner' : 'partners'}`,
+  )
 
   // ── Options for the pickers ───────────────────────────────────────────────
   const bands = computed(() => budgetBandsFor(answers.value.country))
@@ -124,8 +94,6 @@ export function useRequirementsDraft(projectId) {
     const t = partnerWhere({ country: answers.value.country }, { ...form, cities: [], regions: [], countries: [] })
     return t.charAt(0).toUpperCase() + t.slice(1)
   })
-  const sizes = COMPANY_SIZES
-  const segmentOptions = computed(() => segmentOptionsFor(company.segments))
   // Tools in use: the intake's list, plus any name typed under "Something else".
   const tools = computed(() => {
     const listed = CURRENT_APPS.filter((o) => o.value !== APPS_OTHER)
@@ -133,27 +101,17 @@ export function useRequirementsDraft(projectId) {
     return [...listed, ...typed]
   })
 
-  // Returns `false` when a required field is missing and `errors` now says
-  // which; otherwise `{ sent, messageId }` from the store once requirements
-  // went out, and `company: true` when the company was saved. The company
-  // saves first, so an update sent with it carries the new details.
+  // Returns the store's result (null when nothing changed), or `false` when a
+  // required field is missing and `errors` now says which.
   function submit() {
     tried.value = true
     if (Object.keys(check()).length) return false
-    const savedCompany = companyDirty.value
-    if (savedCompany) store.updateCompanyDetails({ employees: company.employees, segments: [...company.segments] })
-    const sent = formDirty.value
-      ? store.updateRequirements(projectId, { ...form, apps: showTools.value ? [...form.apps] : [] })
-      : null
-    return { ...(sent ?? {}), company: savedCompany }
+    return store.updateRequirements(projectId, { ...form, apps: showTools.value ? [...form.apps] : [] })
   }
 
   return {
     form,
     initial,
-    formDirty,
-    company,
-    companyChanges,
     dirty,
     errors,
     check,
@@ -173,7 +131,5 @@ export function useRequirementsDraft(projectId) {
     geoPick,
     whereNone,
     tools,
-    sizes,
-    segmentOptions,
   }
 }
