@@ -27,7 +27,7 @@ const collapsed = ref(window.matchMedia('(max-width: 639px)').matches)
 </script>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, provide, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   Alert,
@@ -130,6 +130,13 @@ const partnerRail = computed(() => {
 // Someone with an account: a signed-in business, or the partner side, which
 // the demo shows as signed in whatever the business-side session says.
 const hasAccount = computed(() => store.signedIn || store.role === 'partner')
+// ⚠️ THE WEBSITE SHELL. Signed out, the app's sidebar is gone: a visitor
+// arrives from frappe.io, and a rail with two links in it said "you are inside
+// a product" to someone who has no account yet. They get a website nav instead
+// — the logo (which goes Home) and the auth link — and the sidebar appears on
+// the far side of sign-in. The breadcrumb moves into the page (`PageCrumbs`),
+// because the nav has no page title slot.
+const website = computed(() => !hasAccount.value)
 
 const shellSubtitle = computed(() => {
   if (store.role === 'partner') {
@@ -317,7 +324,7 @@ const onRailMove = (e) => {
 //
 // Sidebar owns its own collapse behaviour (auto-collapses below `sm`), so
 // there's no responsive handling to write here.
-defineProps({
+const props = defineProps({
   // Trailing breadcrumb label. Unset on the list screens, where the bar just
   // reads the root.
   crumb: { type: String, default: null },
@@ -345,7 +352,24 @@ defineProps({
   // The pages that sell packs: a bag at the bar's far edge, with the count,
   // that goes to the cart page. The one way into the cart, the same on each.
   cart: { type: Boolean, default: false },
+  // The partner directory: the way to the saved list, with its count, in the
+  // app's top bar. Always shown, "Saved" at zero. Signed out the top bar is
+  // the website nav, and the directory carries Saved in its count row.
+  saved: { type: Boolean, default: false },
 })
+
+// What `PageCrumbs` reads to draw the breadcrumb inside a page, in the
+// website shell only. Signed in, the top bar carries it.
+provide(
+  'fcCrumbs',
+  computed(() => ({
+    show: website.value && !!props.crumb,
+    rootLabel: props.rootLabel,
+    rootTo: props.rootTo,
+    trail: props.trail,
+    crumb: props.crumb,
+  })),
+)
 
 // Slots: `default` is the screen. `#action` is optional and replaces the top
 // bar's trailing control — see the note at the slot for why it replaces the
@@ -364,7 +388,7 @@ defineProps({
     <!-- The rail and its notifications panel, which slides out of the rail's
          right edge over the page. Outside the Sidebar so its scroll area can't
          clip it. -->
-    <div class="relative z-20 flex shrink-0">
+    <div v-if="!website" class="relative z-20 flex shrink-0">
     <Sidebar v-model:collapsed="collapsed" class="fc-sidebar border-r">
       <!-- The second line is the organization — the firm, or the business's
            company — and nothing at all when signed out. The person is in the
@@ -569,7 +593,7 @@ defineProps({
            keyboard, since an `opacity-0` control is still focusable. -->
       <!-- Gone while Notifications is open: the panel covers the seam, and a
            collapse chevron on the panel's edge reads as the panel's own. -->
-      <div v-if="!notifOpen" class="group absolute inset-y-0 -left-1.5 z-20 w-3" @mousemove="onRailMove">
+      <div v-if="!notifOpen && !website" class="group absolute inset-y-0 -left-1.5 z-20 w-3" @mousemove="onRailMove">
         <span
           class="absolute left-1/2 top-0 h-full -translate-x-1/2 border-l border-outline-gray-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
           aria-hidden="true"
@@ -604,7 +628,39 @@ defineProps({
            against nothing. -->
       <!-- 44px, Frappe CRM's bar height on this scale (CRM's 42px isn't a
            step here). `!` because PageHeader carries its own `min-h-12`. -->
-      <PageHeader v-if="!bare" class="!min-h-11 h-11 shrink-0">
+      <!-- The website nav, signed out. The logo is Home; the one control is
+           the auth link. No page actions here — a page's own Contact lives in
+           the page, and the nav stays the same on every screen and at every
+           scroll position. -->
+      <header
+        v-if="website && !bare"
+        class="flex h-12 shrink-0 items-center justify-between border-b px-5"
+      >
+        <RouterLink to="/connect" class="flex items-center gap-2 rounded text-base font-medium text-ink-gray-9">
+          <ConnectMark size="md" />
+          Frappe Connect
+        </RouterLink>
+        <div class="flex items-center gap-2">
+          <Button
+            v-if="authCta"
+            variant="ghost"
+            class="-mr-2"
+            label="Log in or create account"
+            @click="requireAccount()"
+          >
+            <template #suffix><LucideArrowRight class="size-4" /></template>
+          </Button>
+          <Button
+            v-if="cart"
+            variant="subtle"
+            :label="store.packs.length ? `View cart (${store.packs.length})` : 'View cart'"
+            @click="router.push({ name: 'cart' })"
+          >
+            <template #prefix><IconBag class="size-4" aria-hidden="true" /></template>
+          </Button>
+        </div>
+      </header>
+      <PageHeader v-else-if="!bare" class="!min-h-11 h-11 shrink-0">
         <!-- "Partners" alone on the list screens; a breadcrumb once you're
              inside one. `crumb` is the trailing label, and "Partners" becomes
              the link back — the profile is a level down, so the bar is where
@@ -661,61 +717,79 @@ defineProps({
           <slot name="title-suffix" />
         </span>
 
-        <!-- The trailing control. A page fills it through `#action` — the
-             profile does, with its own Contact.
-
-             ⚠️ Whatever a page puts in this slot REPLACES the auth CTA rather
-             than joining it: the bar holds one control, and two ghost buttons
-             side by side in a 48px strip would be a choice nobody is asking the
-             visitor to make.
-
-             `-mr-2` cancels the ghost Button's own 8px of horizontal padding.
-             A ghost has no fill to see, so what reads as the bar's right
-             padding is where its LABEL stops — 28px in, against the crumb's 20
-             on the left. Pulling the box back lands the ink on the same 20px
-             the header pads to, which is what the solid button in frappe-ui's
-             own PageHeader example gets for free. Same correction the profile
-             page's ghost buttons make with `-ml-2`. Anything filling `#action`
-             wants it too. -->
-        <slot name="action">
-          <!-- Signed out: one auth CTA, the ghost "Log in or create account".
-               It used to promote to a solid "Create account" on the results
-               screen, but a solid button in the chrome outranks the page's own
-               primary action.
-
-               It goes through `requireAccount`, the gate in `utils/auth.js`:
-               signed out, it navigates to the sign-up screen carrying `?next=`
-               back to here. This is the seam the removed `LoginDialog` used to
-               fill and that `signInToast` stood in for; both are gone.
-
-               Signed in: nothing here. The account surface isn't designed yet,
-               so the bar shows the absence of the CTA rather than a stand-in
-               for a control whose shape nobody has decided. `store.viewer`
-               holds the identity for whenever user settings land. Reading
-               `store.signedIn` rather than `store.account` keeps the enum in
-               the store — see `stores/connect.js`. -->
+        <!-- The bar's right side as ONE item: PageHeader spaces its children
+             with `justify-between`, so three loose controls would put the
+             middle one in the centre of the bar. Saved sits first, so the
+             ghost auth CTA keeps the far edge its `-mr-2` is tuned for. -->
+        <div class="flex items-center gap-2">
+          <!-- Same shape as the cart's: labelled, with the count, so the bookmark
+               on a row and this button read as one feature. Shown at zero too,
+               so the bookmark has somewhere visible to go before the first save.
+               Signed in only: this bar is the app's. A visitor's Saved is in
+               the directory's count row (`ResultsPage`). -->
           <Button
-            v-if="authCta && !store.signedIn && store.role !== 'partner'"
-            variant="ghost"
-            class="-mr-2"
-            label="Log in or create account"
-            @click="requireAccount()"
+            v-if="saved"
+            variant="subtle"
+            :label="store.savedPartners.length ? `Saved (${store.savedPartners.length})` : 'Saved'"
+            @click="router.push({ name: 'saved-partners' })"
           >
-            <template #suffix><LucideArrowRight class="size-4" /></template>
+            <template #prefix><LucideBookmark class="size-4" aria-hidden="true" /></template>
           </Button>
-        </slot>
-        <!-- ⚠️ A BAG, not a cart: `shopping-cart` is the Buying module's mark.
-             Labelled, in the catalogue's words ("View cart (2)" beside its
-             total): an icon alone up here went unnoticed. -->
-        <Button
-          v-if="cart"
-          class="ml-2"
-          variant="subtle"
-          :label="store.packs.length ? `View cart (${store.packs.length})` : 'View cart'"
-          @click="router.push({ name: 'cart' })"
-        >
-          <template #prefix><IconBag class="size-4" aria-hidden="true" /></template>
-        </Button>
+          <!-- The trailing control. A page fills it through `#action` — the
+               profile does, with its own Contact.
+
+               ⚠️ Whatever a page puts in this slot REPLACES the auth CTA rather
+               than joining it: the bar holds one control, and two ghost buttons
+               side by side in a 48px strip would be a choice nobody is asking the
+               visitor to make.
+
+               `-mr-2` cancels the ghost Button's own 8px of horizontal padding.
+               A ghost has no fill to see, so what reads as the bar's right
+               padding is where its LABEL stops — 28px in, against the crumb's 20
+               on the left. Pulling the box back lands the ink on the same 20px
+               the header pads to, which is what the solid button in frappe-ui's
+               own PageHeader example gets for free. Same correction the profile
+               page's ghost buttons make with `-ml-2`. Anything filling `#action`
+               wants it too. -->
+          <slot name="action">
+            <!-- Signed out: one auth CTA, the ghost "Log in or create account".
+                 It used to promote to a solid "Create account" on the results
+                 screen, but a solid button in the chrome outranks the page's own
+                 primary action.
+
+                 It goes through `requireAccount`, the gate in `utils/auth.js`:
+                 signed out, it navigates to the sign-up screen carrying `?next=`
+                 back to here. This is the seam the removed `LoginDialog` used to
+                 fill and that `signInToast` stood in for; both are gone.
+
+                 Signed in: nothing here. The account surface isn't designed yet,
+                 so the bar shows the absence of the CTA rather than a stand-in
+                 for a control whose shape nobody has decided. `store.viewer`
+                 holds the identity for whenever user settings land. Reading
+                 `store.signedIn` rather than `store.account` keeps the enum in
+                 the store — see `stores/connect.js`. -->
+            <Button
+              v-if="authCta && !store.signedIn && store.role !== 'partner'"
+              variant="ghost"
+              class="-mr-2"
+              label="Log in or create account"
+              @click="requireAccount()"
+            >
+              <template #suffix><LucideArrowRight class="size-4" /></template>
+            </Button>
+          </slot>
+          <!-- ⚠️ A BAG, not a cart: `shopping-cart` is the Buying module's mark.
+               Labelled, in the catalogue's words ("View cart (2)" beside its
+               total): an icon alone up here went unnoticed. -->
+          <Button
+            v-if="cart"
+            variant="subtle"
+            :label="store.packs.length ? `View cart (${store.packs.length})` : 'View cart'"
+            @click="router.push({ name: 'cart' })"
+          >
+            <template #prefix><IconBag class="size-4" aria-hidden="true" /></template>
+          </Button>
+        </div>
       </PageHeader>
 
       <!-- frappe-ui's ScrollArea: overlay scrollbars that fade in on hover or

@@ -11,14 +11,15 @@ import { useRoute, useRouter } from 'vue-router'
 import { Button, Tooltip } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import PartnerProfileBody from '../components/PartnerProfileBody.vue'
+import PageCrumbs from '../components/PageCrumbs.vue'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { useAuthGate } from '../utils/auth'
+import { guestSavedToast } from '../feedback'
 import { PARTNERS } from '../data/partners'
 import { takingWork } from '../data/takingWork'
 import { logoFor } from '../data/logos'
 import { clientsFor, mediaFor } from '../data/media'
-import { savedToast } from '../feedback'
 import { useContactPartner } from '../utils/contact'
 
 const route = useRoute()
@@ -50,16 +51,14 @@ const { contactPartner } = useContactPartner()
 // says plainly that it's in memory only.
 const saved = computed(() => Boolean(partner.value && store.isSaved(partner.value.id)))
 
-// Same gesture as the row's, same copy — see `feedback.js`.
-// ⚠️ The partner is read BEFORE the gate, not inside the held action. Signing
-// in navigates away and back, so by the time the action runs this component is
-// gone and `partner` — a computed over the route's `:id` — has resolved against
-// the auth screen's route in between. Closing over the plain object from
-// `PARTNERS` sidesteps the whole question.
+// Same gesture as the row's. Signed in there's no toast: the filled bookmark
+// is the confirmation, and clicking it again is the undo.
 const toggleSave = () => {
   const p = partner.value
   if (!p) return
-  requireAccount(() => savedToast(p, store.toggleSaved(p.id), () => store.toggleSaved(p.id)))
+  // No gate, as on the row: a visitor's first save tells them the list lasts
+  // the visit.
+  if (store.toggleSaved(p.id) && !store.signedIn) guestSavedToast(() => requireAccount())
 }
 
 // ── Does the page's own Contact still show? ──────────────────────────────────
@@ -174,6 +173,7 @@ onBeforeUnmount(() => observer?.disconnect())
     >
       <!-- Ordered by weight: Contact is the page's one solid button, the
            outcome the directory exists for; Save is subtle and icon-only. -->
+      <template #crumbs><PageCrumbs /></template>
       <template #actions>
         <!-- Same control, same word, same stateful aria-label as the row's
              bookmark — see `PartnerRow.vue`. -->

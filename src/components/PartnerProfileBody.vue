@@ -92,36 +92,41 @@ const featuredLine = computed(() => {
     <!-- ── Header ───────────────────────────────────────────────────────
          Identity left, the page's own actions right. ⚠️ No `flex-wrap`: a
          long tagline wraps, and the actions stay beside the name. -->
-    <div data-anchor="header" class="flex items-start justify-between gap-6">
-      <div class="flex min-w-0 flex-1 items-start gap-3">
-        <Avatar v-if="logo" :image="logo" :label="`${p.name} logo`" size="3xl" shape="square" class="fc-logo-avatar" />
-        <div
-          v-else
-          class="grid size-12 shrink-0 place-items-center rounded-4 text-base-semibold text-white"
-          :style="{ backgroundColor: p.color }"
-          aria-hidden="true"
-        >
-          {{ p.initials }}
-        </div>
-        <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-2">
-            <h1 class="text-xl font-semibold text-ink-gray-9">{{ p.name }}</h1>
-            <TierIcon :tier="p.tier" />
+    <!-- The breadcrumb (website shell only) sits with the header as one
+         group, so the page's `space-y-24` doesn't push them apart. -->
+    <div class="space-y-3">
+      <slot name="crumbs" />
+      <div data-anchor="header" class="flex items-start justify-between gap-6">
+        <div class="flex min-w-0 flex-1 items-start gap-3">
+          <Avatar v-if="logo" :image="logo" :label="`${p.name} logo`" size="3xl" shape="square" class="fc-logo-avatar" />
+          <div
+            v-else
+            class="grid size-12 shrink-0 place-items-center rounded-4 text-base-semibold text-white"
+            :style="{ backgroundColor: p.color }"
+            aria-hidden="true"
+          >
+            {{ p.initials }}
           </div>
-          <InlineInput
-            v-if="editable"
-            wrap
-            :model-value="p.tagline ?? ''"
-            label="Tagline"
-            placeholder="Add a tagline"
-            @commit="emit('change', { tagline: $event })"
-          />
-          <!-- `py-1`: the same box as the tagline field, so switching to
-               Preview doesn't move the page. -->
-          <p v-else-if="subtitle" class="py-1 text-p-base text-ink-gray-6">{{ subtitle }}</p>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <h1 class="text-xl font-semibold text-ink-gray-9">{{ p.name }}</h1>
+              <TierIcon :tier="p.tier" />
+            </div>
+            <InlineInput
+              v-if="editable"
+              wrap
+              :model-value="p.tagline ?? ''"
+              label="Tagline"
+              placeholder="Add a tagline"
+              @commit="emit('change', { tagline: $event })"
+            />
+            <!-- `py-1`: the same box as the tagline field, so switching to
+                 Preview doesn't move the page. -->
+            <p v-else-if="subtitle" class="py-1 text-p-base text-ink-gray-6">{{ subtitle }}</p>
+          </div>
         </div>
+        <div v-if="$slots.actions" class="flex shrink-0 items-center gap-2"><slot name="actions" /></div>
       </div>
-      <div v-if="$slots.actions" class="flex shrink-0 items-center gap-2"><slot name="actions" /></div>
     </div>
 
     <!-- ── Media ─────────────────────────────────────────────────────────

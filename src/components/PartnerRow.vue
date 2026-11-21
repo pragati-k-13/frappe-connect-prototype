@@ -6,7 +6,7 @@ import TierIcon from './TierIcon.vue'
 import { logoFor } from '../data/logos'
 import { takingWork } from '../data/takingWork'
 import { storiesFor } from '../data/stories'
-import { savedToast } from '../feedback'
+import { guestSavedToast, savedToast } from '../feedback'
 import { useConnectStore } from '../stores/connect'
 import { useAuthGate } from '../utils/auth'
 import { useContactPartner } from '../utils/contact'
@@ -17,6 +17,10 @@ const props = defineProps({
   // Contact — for places that list a few partners to get back to rather than
   // to compare or reach out from (the home screen's saved partners).
   compact: { type: Boolean, default: false },
+  // The saved list: un-saving drops the row, so nothing is left to click
+  // again — a toast with Undo is the way back. Elsewhere the filled bookmark
+  // and the top bar's count are the confirmation, and the bookmark undoes.
+  undoToast: { type: Boolean, default: false },
 })
 
 const store = useConnectStore()
@@ -24,25 +28,22 @@ const { requireAccount } = useAuthGate()
 const { contactPartner } = useContactPartner()
 
 // Read from the store, not a local `ref`. A real build writes to the visitor's
-// saved partners, which is the first thing an account actually buys you — and
-// which is why it's gated: `requireAccount` holds the toggle while the visitor
-// signs in, then runs it once they're back, so they land on a saved partner
-// rather than back where they started having to press it again.
+// saved partners.
 //
 // It used to be a local `ref(false)` here and another one on the profile page,
 // which meant saving from the row and then opening that partner showed it
 // unsaved. One list on the store is what lets the confirmation be true.
 const saved = computed(() => store.isSaved(props.partner.id))
 
-// The toggle, the confirmation and the undo are one gesture, so they're one
-// function. `toggleSaved` hands back the state it moved to, and Undo is simply
-// the same call again.
-// The partner is read BEFORE the gate. Signing in unmounts this row, and an
-// action holding `props` of a dead component is a question not worth having —
-// the object from `PARTNERS` outlives every screen.
+// `toggleSaved` hands back the state it moved to, and Undo is simply the same
+// call again.
+// No gate: a visitor can save too. Their list lasts the session, and the
+// first save says so (`guestSavedToast`); signing in keeps it.
 const toggleSave = () => {
   const p = props.partner
-  requireAccount(() => savedToast(p, store.toggleSaved(p.id), () => store.toggleSaved(p.id)))
+  const now = store.toggleSaved(p.id)
+  if (now && !store.signedIn) guestSavedToast(() => requireAccount())
+  else if (props.undoToast && !now) savedToast(p, now, () => store.toggleSaved(p.id))
 }
 
 // A real logo when `src/assets/partners/<id>.<ext>` exists, initials otherwise —
