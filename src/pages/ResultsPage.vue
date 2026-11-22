@@ -7,7 +7,6 @@
 // an unset filter rather than a silent constraint.
 
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
 import { Button, MultiSelect, TextInput, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import PartnerList from '../components/PartnerList.vue'
@@ -23,7 +22,6 @@ const APP_CHIPS = APPS.filter((a) => a.value !== 'drive')
 import { INDUSTRIES, REGIONS } from '../data/quiz'
 
 const store = useConnectStore()
-const router = useRouter()
 
 const results = computed(() => store.results)
 const suggestions = computed(() => store.suggestions)
@@ -317,7 +315,7 @@ const clearTooltip = computed(() => {
 </script>
 
 <template>
-  <ConnectShell>
+  <ConnectShell saved>
     <div class="fc-page-list py-8">
       <h1 class="text-xl font-semibold text-ink-gray-9">
         Work with certified partners with vast expertise
@@ -482,16 +480,6 @@ const clearTooltip = computed(() => {
           variant="ghost"
           label="Clear filters"
           @click="clearFilters"
-        />
-        <!-- ⚠️ STOPGAP. Home's dashboard was the saved list's only door, and
-             it is gone; this keeps the page reachable until saved partners get
-             their real place on this screen. -->
-        <Button
-          v-if="store.savedPartners.length"
-          class="ml-auto"
-          variant="ghost"
-          :label="`Saved (${store.savedPartners.length})`"
-          @click="router.push({ name: 'saved-partners' })"
         />
       </div>
 
