@@ -27,7 +27,7 @@ const collapsed = ref(window.matchMedia('(max-width: 639px)').matches)
 </script>
 
 <script setup>
-import { computed, provide, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   Alert,
@@ -134,8 +134,8 @@ const hasAccount = computed(() => store.signedIn || store.role === 'partner')
 // arrives from frappe.io, and a rail with two links in it said "you are inside
 // a product" to someone who has no account yet. They get a website nav instead
 // — the logo (which goes Home) and the auth link — and the sidebar appears on
-// the far side of sign-in. The way back up moves into the page (`PageBack`),
-// because the nav has no page title slot.
+// the far side of sign-in. No breadcrumb for visitors: the browser's Back
+// does that job on a website.
 const website = computed(() => !hasAccount.value)
 
 const shellSubtitle = computed(() => {
@@ -324,7 +324,7 @@ const onRailMove = (e) => {
 //
 // Sidebar owns its own collapse behaviour (auto-collapses below `sm`), so
 // there's no responsive handling to write here.
-const props = defineProps({
+defineProps({
   // Trailing breadcrumb label. Unset on the list screens, where the bar just
   // reads the root.
   crumb: { type: String, default: null },
@@ -357,19 +357,6 @@ const props = defineProps({
   // can't save, and their top bar is the website nav.
   saved: { type: Boolean, default: false },
 })
-
-// What `PageBack` reads to draw the way back up inside a page, in the
-// website shell only. Signed in, the top bar carries it.
-provide(
-  'fcCrumbs',
-  computed(() => ({
-    show: website.value && !!props.crumb,
-    rootLabel: props.rootLabel,
-    rootTo: props.rootTo,
-    trail: props.trail,
-    crumb: props.crumb,
-  })),
-)
 
 // Slots: `default` is the screen. `#action` is optional and replaces the top
 // bar's trailing control — see the note at the slot for why it replaces the

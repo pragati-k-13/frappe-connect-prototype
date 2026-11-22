@@ -36,7 +36,6 @@ import IconAward from '~icons/lucide/award'
 import IconUsers from '~icons/lucide/users'
 import IconUser from '~icons/lucide/user-round'
 import ConnectShell from '../components/ConnectShell.vue'
-import PageBack from '../components/PageBack.vue'
 import CompanyQuestions from '../components/CompanyQuestions.vue'
 import FilterChip from '../components/FilterChip.vue'
 import { GEO_CHOICES, REGION_OF } from '../data/quiz'
@@ -244,7 +243,6 @@ const share = () => {
     >
         <!-- ── The quiz ─────────────────────────────────────────────────── -->
         <div class="min-w-0">
-          <PageBack class="mb-6" />
           <!-- The wizard's own stepper, rounded the same way — `Progress` has no
                prop for segment shape. -->
           <Progress

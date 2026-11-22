@@ -11,7 +11,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { Button } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import PartnerProfileBody from '../components/PartnerProfileBody.vue'
-import PageBack from '../components/PageBack.vue'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import SaveButton from '../components/SaveButton.vue'
@@ -153,7 +152,6 @@ onBeforeUnmount(() => observer?.disconnect())
     >
       <!-- Ordered by weight: Contact is the page's one solid button, the
            outcome the directory exists for; Save is subtle and icon-only. -->
-      <template #crumbs><PageBack /></template>
       <template #actions>
         <!-- Same control, same word, same stateful aria-label as the row's
              bookmark — see `PartnerRow.vue`. -->

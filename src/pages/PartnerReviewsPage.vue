@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
-import PageBack from '../components/PageBack.vue'
 import EmptyState from '../components/EmptyState.vue'
 import PartnerReviewsSection from '../components/PartnerReviewsSection.vue'
 import ReviewReply from '../components/ReviewReply.vue'
@@ -50,7 +49,6 @@ const { contactPartner } = useContactPartner()
     </div>
 
     <div v-else class="fc-page-read pb-24 pt-8">
-      <PageBack class="mb-4" />
       <EmptyState v-if="!partner.reviews" icon="lucide-star" title="No reviews yet" />
       <PartnerReviewsSection v-else :partner="partner" full>
         <template #actions="{ review: r }">
