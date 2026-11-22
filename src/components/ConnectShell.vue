@@ -134,7 +134,7 @@ const hasAccount = computed(() => store.signedIn || store.role === 'partner')
 // arrives from frappe.io, and a rail with two links in it said "you are inside
 // a product" to someone who has no account yet. They get a website nav instead
 // — the logo (which goes Home) and the auth link — and the sidebar appears on
-// the far side of sign-in. The breadcrumb moves into the page (`PageCrumbs`),
+// the far side of sign-in. The way back up moves into the page (`PageBack`),
 // because the nav has no page title slot.
 const website = computed(() => !hasAccount.value)
 
@@ -358,7 +358,7 @@ const props = defineProps({
   saved: { type: Boolean, default: false },
 })
 
-// What `PageCrumbs` reads to draw the breadcrumb inside a page, in the
+// What `PageBack` reads to draw the way back up inside a page, in the
 // website shell only. Signed in, the top bar carries it.
 provide(
   'fcCrumbs',
