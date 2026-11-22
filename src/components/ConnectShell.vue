@@ -253,11 +253,12 @@ const logoMenu = computed(() => [
 // is in the description because that's the part you can't see happen.
 // ⚠️ ONE LOG OUT. There were two on the partner side, and they did different
 // things — one went back to the business side's front door, the other stayed
-// put. Both sides now leave the same way: to the visitor's Home, with a toast.
+// put. Both sides now leave the same way: to the partner list, which is the
+// visitor's home, with a toast.
 const logOut = () => {
   store.setRole('business')
   const cleared = store.logOut()
-  router.push('/connect')
+  router.push('/connect/partners')
   toast('Logged out', {
     id: 'auth',
     description: cleared
@@ -623,7 +624,9 @@ defineProps({
         v-if="website && !bare"
         class="flex h-12 shrink-0 items-center justify-between border-b px-5"
       >
-        <RouterLink to="/connect" class="flex items-center gap-2 rounded text-base font-medium text-ink-gray-9">
+        <!-- The logo goes to the partner list: with Home stored (see the
+             router), the list is home. -->
+        <RouterLink to="/connect/partners" class="flex items-center gap-2 rounded text-base font-medium text-ink-gray-9">
           <ConnectMark size="md" />
           Frappe Connect
         </RouterLink>
