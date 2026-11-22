@@ -295,8 +295,8 @@ const industryLine = computed(() => {
          it the row link would sit on top of both buttons. -->
     <ListCell :class="compact ? '' : 'self-start'">
       <div class="relative flex shrink-0 items-center gap-1.5">
-        <!-- Toggles signed in; signed out it asks for an account in place.
-             See `SaveButton`. -->
+        <!-- Signed in only; a visitor's one action is Contact. See
+             `SaveButton`. -->
         <SaveButton :partner="partner" :undo-toast="undoToast" />
         <!-- Opens the conversation with this partner and goes to it. Gated,
              unlike before: there IS something behind it now, and a thread needs

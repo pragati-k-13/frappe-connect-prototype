@@ -1,20 +1,17 @@
 <script setup>
 import { computed } from 'vue'
-import { Button, Popover, Tooltip } from 'frappe-ui'
+import { Button, Tooltip } from 'frappe-ui'
 import { savedToast } from '../feedback'
 import { useConnectStore } from '../stores/connect'
-import { useAuthGate } from '../utils/auth'
 
 // The bookmark, one definition for the listing row and the profile header.
 //
-// Signed in, it toggles. Signed out, saving needs an account, and the bookmark
-// opens a small popover in place rather than sending the visitor to a sign-up
-// page they didn't ask for: they stay on the list and choose. Either way into
-// an account holds the save and runs it on the way back (`requireAccount`), so
-// they land on a partner that is already saved.
-//
-// No guest saving: a list that vanished with the tab didn't serve how people
-// shortlist a partner, over days and with colleagues.
+// ⚠️ SIGNED IN ONLY. A visitor sees no bookmark at all: saving needs an
+// account, and asking for one here (a popover) while Contact beside it went
+// straight to sign-up was two behaviours for the same gate on every row. With
+// Save gone, Contact is the visitor's one action and the one place they meet
+// the gate. Guest saving went earlier — a list that vanished with the tab
+// didn't serve how people shortlist a partner, over days and with colleagues.
 const props = defineProps({
   partner: { type: Object, required: true },
   // Ghost in a listing row, subtle in the profile header.
@@ -25,20 +22,12 @@ const props = defineProps({
 })
 
 const store = useConnectStore()
-const { requireAccount } = useAuthGate()
 const saved = computed(() => store.isSaved(props.partner.id))
 
 const toggle = () => {
   const p = props.partner
   const now = store.toggleSaved(p.id)
   if (props.undoToast && !now) savedToast(p, now, () => store.toggleSaved(p.id))
-}
-
-// The partner is read BEFORE the gate: signing in unmounts this component,
-// and the held action outlives it.
-const saveAfter = (screen) => {
-  const id = props.partner.id
-  requireAccount(() => store.isSaved(id) || store.toggleSaved(id), { screen })
 }
 </script>
 
@@ -55,24 +44,4 @@ const saveAfter = (screen) => {
       </template>
     </Button>
   </Tooltip>
-
-  <!-- ⚠️ NO TOOLTIP signed out. frappe-ui's Tooltip and Popover both need the
-       button as their trigger: inside the trigger slot the Tooltip took the
-       click and the popover never opened; around the Popover the tooltip
-       never showed. The popover explains itself on click, and the button
-       keeps its `aria-label`. -->
-  <Popover v-else side="bottom" align="end">
-    <template #trigger>
-      <Button :variant="variant" :aria-label="`Save ${partner.name}`">
-        <template #icon><LucideBookmark class="size-4" /></template>
-      </Button>
-    </template>
-    <div class="w-72 p-3">
-      <p class="text-base font-medium text-ink-gray-9">Create an account to save partners</p>
-      <div class="mt-3 flex gap-2">
-        <Button variant="solid" label="Create account" @click="saveAfter('signup')" />
-        <Button variant="ghost" label="Log in" @click="saveAfter('login')" />
-      </div>
-    </div>
-  </Popover>
 </template>
