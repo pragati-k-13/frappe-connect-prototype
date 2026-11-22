@@ -353,8 +353,8 @@ const props = defineProps({
   // that goes to the cart page. The one way into the cart, the same on each.
   cart: { type: Boolean, default: false },
   // The partner directory: the way to the saved list, with its count, in the
-  // app's top bar. Always shown, "Saved" at zero. Signed out the top bar is
-  // the website nav, and the directory carries Saved in its count row.
+  // app's top bar. Always shown, "Saved" at zero. Signed in only: visitors
+  // can't save, and their top bar is the website nav.
   saved: { type: Boolean, default: false },
 })
 
@@ -725,8 +725,8 @@ provide(
           <!-- Same shape as the cart's: labelled, with the count, so the bookmark
                on a row and this button read as one feature. Shown at zero too,
                so the bookmark has somewhere visible to go before the first save.
-               Signed in only: this bar is the app's. A visitor's Saved is in
-               the directory's count row (`ResultsPage`). -->
+               Signed in only: this bar is the app's, and visitors can't
+               save. -->
           <Button
             v-if="saved"
             variant="subtle"

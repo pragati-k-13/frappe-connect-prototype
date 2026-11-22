@@ -481,20 +481,6 @@ const clearTooltip = computed(() => {
           label="Clear filters"
           @click="clearFilters"
         />
-        <!-- A visitor's Saved: in the page, at the right of the count and
-             right above the rows' bookmarks. The website nav stays logo and
-             auth only. Shown at zero, so saving changes a number rather than
-             making a button appear. Ghost: a fill here would compete with
-             every row's Contact. Signed in, Saved is in the app's top bar. -->
-        <Button
-          v-if="!store.signedIn"
-          class="-mr-2 ml-auto"
-          variant="ghost"
-          :label="store.savedPartners.length ? `Saved (${store.savedPartners.length})` : 'Saved'"
-          route="/connect/partners/saved"
-        >
-          <template #prefix><LucideBookmark class="size-4" aria-hidden="true" /></template>
-        </Button>
       </div>
 
       <!-- First page of results -->

@@ -296,10 +296,9 @@ export const useConnectStore = defineStore('connect', {
     // component-local `ref`s they disagreed the moment you used both — save
     // from the row, open that partner, and it showed unsaved.
     //
-    // A visitor can save too; signing up or logging in keeps what they saved
-    // (`completeLogin` leaves this alone — a real build merges it into the
-    // account's list without duplicates). Cleared on log out, because by then
-    // the list belongs to the account.
+    // An account's list: a visitor can't save (`SaveButton` asks them to sign
+    // up first). Cleared on log out, because a saved list belongs to an
+    // account.
     //
     // ⚠️ In memory only. A real build writes this to the visitor's account;
     // a reload still loses it.

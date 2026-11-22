@@ -245,6 +245,9 @@ const routes = [
     path: '/connect/partners/saved',
     name: 'saved-partners',
     component: () => import('./pages/SavedPartnersPage.vue'),
+    // An account's list: visitors can't save, so they go to log in, and
+    // `?next=` brings them back here.
+    beforeEnter: requireAccount,
   },
   // Nested under the listing so the URL carries the depth the breadcrumb shows.
   // `:id` is the partner slug — the same id that resolves their logo file.
