@@ -6,7 +6,6 @@ import {
   AccordionHeader,
   AccordionItem,
   AccordionRoot,
-  AccordionTrigger,
 } from '../lib/accordion'
 import { COUNTRY_OPTIONS_INDIA_ONLY, SELECTABLE_COUNTRY } from '../data/company'
 import { longDate, standingFor } from '../data/partnership'
@@ -168,7 +167,7 @@ function saveLink() {
           :value="step.value"
           class="border-b border-outline-gray-1 last:border-b-0"
         >
-          <!-- The row toggles too, but the chevron is the trigger: a real
+          <!-- The row toggles too, but the chevron is the control: a real
                button, and the one stop for the keyboard. -->
           <AccordionHeader
             class="m-0 flex cursor-pointer items-center gap-3 py-4 text-left data-[state=open]:pb-1 text-base font-medium text-ink-gray-8"
@@ -190,17 +189,23 @@ function saveLink() {
             <span v-if="step.summaryRight" class="shrink-0 whitespace-nowrap text-sm font-normal text-ink-gray-6">
               {{ step.summaryRight }}
             </span>
-            <AccordionTrigger as-child>
-              <Button variant="ghost" :aria-label="openStep === step.value ? `Collapse ${step.title}` : `Expand ${step.title}`">
-                <template #icon>
-                  <span
-                    class="lucide-chevron-down size-4 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none"
-                    :class="openStep === step.value && 'rotate-180'"
-                    aria-hidden="true"
-                  />
-                </template>
-              </Button>
-            </AccordionTrigger>
+            <!-- Not reka's AccordionTrigger: that puts `data-state="open"` on it,
+                 and frappe-ui's Button reads that as pressed (it's how a
+                 Dropdown trigger stays filled while its menu is open). -->
+            <Button
+              variant="ghost"
+              :aria-expanded="openStep === step.value"
+              :aria-label="openStep === step.value ? `Collapse ${step.title}` : `Expand ${step.title}`"
+              @click="openStep = openStep === step.value ? '' : step.value"
+            >
+              <template #icon>
+                <span
+                  class="lucide-chevron-down size-4 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none"
+                  :class="openStep === step.value && 'rotate-180'"
+                  aria-hidden="true"
+                />
+              </template>
+            </Button>
           </AccordionHeader>
 
           <AccordionContent class="fc-accordion-content overflow-hidden text-pretty text-sm leading-relaxed text-ink-gray-6">
