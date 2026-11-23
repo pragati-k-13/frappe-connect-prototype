@@ -49,8 +49,10 @@ const blank = () => ({
   reviewReports: {},
   // The signed-in person's name, once they change it in their settings.
   me: null,
-  // Their address, for a firm that signed up in the demo.
+  // Their address and the firm's country, for a firm that signed up in the
+  // demo. Country sets the checklist's currency and MRR target.
   email: null,
+  country: null,
   // Per lead or customer id: follow-ups logged, activity recorded here.
   followUps: {},
   activity: {},
@@ -219,12 +221,12 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
     // Partner sign-up. Replaces the demo's Beginner firm with a new one: the
     // owner who signed up, nothing else. Signing up makes a firm a Beginner,
     // with no application.
-    holdSignup({ name, email }) {
-      this.signup = { name, email }
+    holdSignup({ name, email, country }) {
+      this.signup = { name, email, country }
     },
     startFresh() {
-      const { name, email } = this.signup ?? {}
-      this.byTier.beginner = { ...blank(), fresh: true, me: name ?? null, email: email ?? null }
+      const { name, email, country } = this.signup ?? {}
+      this.byTier.beginner = { ...blank(), fresh: true, me: name ?? null, email: email ?? null, country: country ?? null }
       this.signup = null
     },
     // Unregister: the firm stops being a Beginner partner and its checklist

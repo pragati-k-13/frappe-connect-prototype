@@ -1,7 +1,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
-import { Button, Checkbox, Combobox, Dialog, FormControl, FormLabel, MultiSelect, Progress, ScrollArea, Tooltip, toast } from 'frappe-ui'
-import { COUNTRY_OPTIONS_INDIA_ONLY, SELECTABLE_COUNTRY } from '../data/company'
+import { Button, Checkbox, Dialog, FormControl, FormLabel, MultiSelect, Progress, ScrollArea, Tooltip, toast } from 'frappe-ui'
+import { SELECTABLE_COUNTRY } from '../data/company'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 
 // The checklist's "Fill out company information": three steps, then saved.
@@ -10,8 +10,8 @@ import { usePartnerAccountStore } from '../stores/partnerAccount'
 // onboardingLeftContainer/modal/CompanyInformationModal.vue` and its three
 // `CompanyInformationForm…Step.vue`): the same steps, fields, options, copy,
 // validation and layout. What differs:
-//   - Country is asked in step 1. Press has it from its registration step,
-//     which Connect doesn't have; it sets the MRR target and currency.
+//   - Country isn't asked: it comes from partner sign-up, as press's comes
+//     from its registration step. It sets the currency and MRR target.
 //   - Files are picked, not uploaded: there is no backend. The name shows as
 //     press shows the uploaded file's URL.
 //   - Verticals use frappe-ui's MultiSelect, not a native multiple select.
@@ -30,7 +30,11 @@ watch(open, (isOpen) => {
   for (const k of Object.keys(draft)) delete draft[k]
   Object.assign(
     draft,
-    { company_name: account.firmName ?? '', country: SELECTABLE_COUNTRY, revenue_currency: 'INR', verticals_served: [] },
+    {
+      company_name: account.firmName ?? '',
+      country: account.edits.country ?? SELECTABLE_COUNTRY,
+      verticals_served: [],
+    },
     account.edits.firmProfile ?? {},
   )
   step.value = 0
@@ -49,11 +53,10 @@ const currencyOptions = [
 ]
 const rangeOptions = ['1-10', '11-50', '51-200', '201+'].map((v) => ({ label: v, value: v }))
 const certifiedOptions = ['0', '1-5', '6-20', '21+'].map((v) => ({ label: v, value: v }))
-// Currency follows the country, as in press.
-watch(
-  () => draft.country,
-  (c) => c && (draft.revenue_currency = c === 'India' ? 'INR' : 'USD'),
-)
+// Currency follows the country from sign-up, as in press.
+watch(open, (isOpen) => {
+  if (isOpen && !draft.revenue_currency) draft.revenue_currency = draft.country === 'India' ? 'INR' : 'USD'
+})
 const currencyPrefix = computed(() => ({ USD: '$', EUR: '€' })[draft.revenue_currency] ?? '₹')
 const mrrTargetLabel = computed(() => (draft.country === 'India' ? '₹10,000' : '$100'))
 
@@ -174,15 +177,8 @@ function save() {
         <FormControl v-model="draft.address" label="Address" required size="sm" placeholder="Company's registered address" :class="{ 'fc-has-error': errors1.address }" />
         <p v-if="errors1.address" class="-mt-3 text-sm text-ink-red-4">{{ errors1.address }}</p>
 
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div class="flex flex-col gap-5">
-            <FormControl v-model="draft.headquarter_city" label="Headquarter city" required size="sm" placeholder="Headquarter city" :class="{ 'fc-has-error': errors1.headquarter_city }" />
-            <p v-if="errors1.headquarter_city" class="-mt-3 text-sm text-ink-red-4">{{ errors1.headquarter_city }}</p>
-          </div>
-          <!-- India only for now, as on every form that asks: see
-               `COUNTRY_OPTIONS_INDIA_ONLY`. -->
-          <Combobox v-model="draft.country" label="Country" required size="sm" trigger="button" placeholder="Select a country" :options="COUNTRY_OPTIONS_INDIA_ONLY" />
-        </div>
+        <FormControl v-model="draft.headquarter_city" label="Headquarter city" required size="sm" placeholder="Headquarter city" :class="{ 'fc-has-error': errors1.headquarter_city }" />
+        <p v-if="errors1.headquarter_city" class="-mt-3 text-sm text-ink-red-4">{{ errors1.headquarter_city }}</p>
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div class="flex flex-col gap-1">

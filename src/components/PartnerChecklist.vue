@@ -42,7 +42,9 @@ const certsDone = computed(() => certCount.value >= 2)
 // Press's targets: ₹10,000 in India, $100 elsewhere. A firm that has just
 // signed up has no billing yet.
 const country = computed(
-  () => account.edits.firmProfile?.country ?? (account.edits.fresh ? SELECTABLE_COUNTRY : null),
+  () =>
+    account.edits.firmProfile?.country ??
+    (account.edits.fresh ? (account.edits.country ?? SELECTABLE_COUNTRY) : null),
 )
 const currency = computed(() => (country.value === 'India' ? 'INR' : standing.value.mrr.currency))
 const mrrTarget = computed(() => (currency.value === 'INR' ? 10_000 : 100))

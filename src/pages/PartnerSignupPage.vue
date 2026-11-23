@@ -1,8 +1,9 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button, FormControl } from 'frappe-ui'
+import { Button, Combobox, FormControl } from 'frappe-ui'
 import AuthShell from '../components/AuthShell.vue'
+import { COUNTRY_OPTIONS_INDIA_ONLY, SELECTABLE_COUNTRY } from '../data/company'
 import { isEmail } from '../utils/auth'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 
@@ -13,16 +14,18 @@ import { usePartnerAccountStore } from '../stores/partnerAccount'
 // isn't listed, gets no leads and has no partner code, so there is nothing to
 // review at this point. Frappe reviews once, when the Bronze criteria are met.
 //
-// ⚠️ Only who you are and where to send the code. The firm's name and country
-// are the first step on Partnership's way to Bronze, as in Frappe Cloud's
-// partner onboarding, so sign-up stays two screens: this, then the code.
+// ⚠️ Who you are, where to send the code, and the country. Country is here
+// because it sets the firm's currency and MRR target from the start, as press's
+// registration does. Everything else about the firm is the first step of the
+// checklist on Partnership, so sign-up stays two screens: this, then the code.
 //
 // Signing in is NOT here. Partners use the one log-in screen, and Connect
 // tells a partner from the email.
 const account = usePartnerAccountStore()
 const router = useRouter()
 
-const form = reactive({ name: '', email: '' })
+// India only for now — see `COUNTRY_OPTIONS_INDIA_ONLY`.
+const form = reactive({ name: '', email: '', country: SELECTABLE_COUNTRY })
 
 // Quiet until the first submit, live after it. See `SignupPage`.
 const submitted = ref(false)
@@ -32,13 +35,14 @@ const errors = computed(() => {
   if (!form.name.trim()) e.name = 'Enter your full name'
   if (!form.email.trim()) e.email = 'Enter your work email'
   else if (!isEmail(form.email)) e.email = 'Enter a valid email address, like you@company.com'
+  if (!form.country) e.country = 'Select a country'
   return e
 })
 
 const submit = () => {
   submitted.value = true
   if (Object.keys(errors.value).length) return
-  account.holdSignup({ name: form.name.trim(), email: form.email.trim() })
+  account.holdSignup({ name: form.name.trim(), email: form.email.trim(), country: form.country })
   router.push({ name: 'partner-signup-verify', query: { email: form.email.trim() } })
 }
 </script>
@@ -63,6 +67,15 @@ const submit = () => {
         placeholder="name@company.com"
         autocomplete="email"
         :error="errors.email"
+      />
+      <Combobox
+        v-model="form.country"
+        size="sm"
+        label="Country"
+        placeholder="Select a country"
+        trigger="button"
+        :options="COUNTRY_OPTIONS_INDIA_ONLY"
+        :error="errors.country"
       />
       <Button type="submit" variant="solid" size="md" class="w-full" label="Continue" />
     </form>
