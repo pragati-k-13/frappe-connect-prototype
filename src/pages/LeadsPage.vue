@@ -1,5 +1,4 @@
 <script setup>
-import { appsText } from '../data/format'
 import { computed, ref } from 'vue'
 import { Alert, Avatar, Badge, Button, Dropdown, Select, TabButtons, TextInput } from 'frappe-ui'
 import { List, ListCell, ListHeader, ListHeaderCell, ListRow, ListRows } from 'frappe-ui/list'
@@ -11,6 +10,7 @@ import { usePartnerAccountStore } from '../stores/partnerAccount'
 import { useConnectStore } from '../stores/connect'
 import { PRM_STAGES } from '../data/partnerAccount'
 import { ORIGINS, appsOfLead, companyName, isClosed, lastAt, needsReply, originOf, useLeads } from '../composables/useLeads'
+import { PROJECT_APPS } from '../data/partners'
 
 // SCREEN — Leads, styled as Frappe CRM's list: a plain breadcrumb, quick
 // filters with Refresh, Filter, Sort and Columns beside
@@ -108,6 +108,7 @@ const COLUMNS = [
 // Apps is there for partners who sort through leads by product; off until
 // picked from Columns.
 const shownCols = ref(COLUMNS.map((c) => c.key).filter((k) => k !== 'apps'))
+const appLabels = (l) => appsOfLead(l).map((v) => PROJECT_APPS.find((a) => a.value === v)?.label ?? v).join(', ')
 const show = (k) => shownCols.value.includes(k)
 const columnsMenu = computed(() =>
   COLUMNS.map((c) => ({
@@ -261,7 +262,7 @@ const time = (at) => {
               </ListCell>
               <ListCell v-if="show('probability')" class="hidden text-base text-ink-gray-7 md:flex">{{ item.probability ?? '—' }}</ListCell>
               <ListCell v-if="show('apps')" class="hidden min-w-0 md:flex">
-                <span class="truncate text-base text-ink-gray-7">{{ appsText(appsOfLead(item)).text || '—' }}</span>
+                <span class="truncate text-base text-ink-gray-7">{{ appLabels(item) || '—' }}</span>
               </ListCell>
               <ListCell class="justify-end whitespace-nowrap text-base text-ink-gray-5">{{ time(lastAt(item)) }}</ListCell>
             </ListRow>

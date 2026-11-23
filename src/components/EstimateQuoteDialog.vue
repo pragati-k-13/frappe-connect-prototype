@@ -1,6 +1,5 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import { Button, Checkbox, Dialog, ScrollArea } from 'frappe-ui'
 // Reached for directly because frappe-ui's `Dialog` renders `message` only as
 // the FALLBACK content of its default slot — so any dialog with a body of its
@@ -49,12 +48,8 @@ const emit = defineEmits(['close'])
 const store = useConnectStore()
 const { contactPartner } = useContactPartner()
 
-// Resolved through the router rather than written as a literal, so the href
-// carries `BASE_URL` — under GitHub Pages the app lives at
-// /frappe-connect-prototype/, and a hand-written "/connect#starter-packs"
-// would 404 there. Computed once: neither the route nor the base moves.
-const router = useRouter()
-const packsHref = router.resolve({ name: 'connect', hash: '#starter-packs' }).href
+// No "What's in a Starter Pack?" link: Starter Packs are on hold, and the
+// page it pointed at (Home's packs section) is no longer routed.
 
 // Table metrics, spelled out once because they're a spec rather than a taste.
 //
@@ -568,37 +563,6 @@ const close = () => {
           @click="contactWithEstimate"
         >
           <template #prefix><LucideMessageSquare class="size-4" /></template>
-        </Button>
-
-        <!-- The one question the panel provokes and doesn't answer: what a
-             starter pack actually contains. The rows above are the visitor's
-             project; a pack is a fixed scope Frappe implements, and the two are
-             compared constantly on this screen without the second ever being
-             spelled out. The comparison table on `/connect` spells it out, so
-             this points there rather than restating it in a modal.
-
-             Full width and `subtle`, matching the primary's footprint exactly
-             so the two read as a stacked pair rather than a button with a
-             footnote. The variant is what separates them now that the width
-             doesn't: solid carries the action, subtle carries the aside. Ghost
-             was too quiet at this width — a full-width control with no fill is
-             a large area of nothing, and the label floated in the middle of it
-             unattached to anything.
-
-             ⚠️ NEW TAB, via `link` (frappe-ui's Button renders `link` as an
-             `<a target="_blank" rel="noreferrer noopener">`; `route` would be
-             the same-tab RouterLink). Deliberate: the ticks above are a tuned
-             estimate that closing this panel throws away by design, and losing
-             it to a definition lookup is a different thing from losing it to
-             "I'm done". Reading what a pack contains is exactly the question
-             you ask WHILE deciding. -->
-        <Button
-          variant="subtle"
-          class="mt-2 w-full"
-          :href="packsHref"
-          label="What's in a Starter Pack?"
-        >
-          <template #suffix><LucideArrowUpRight class="size-4" /></template>
         </Button>
       </div>
     </template>

@@ -36,9 +36,9 @@ const router = useRouter()
 
 const DOORS = [
   {
-    title: 'Explore Starter Packs',
-    body: 'The fastest way to get started with ERPNext.',
-    to: '/connect/packs',
+    title: 'Find a Frappe partner',
+    body: 'Browse certified partners by region and industry.',
+    to: '/connect/partners',
   },
   {
     title: 'Need a custom implementation?',

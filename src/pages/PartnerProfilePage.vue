@@ -8,14 +8,12 @@
 
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Button, Tooltip } from 'frappe-ui'
+import { Button } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import PartnerProfileBody from '../components/PartnerProfileBody.vue'
-import PageCrumbs from '../components/PageCrumbs.vue'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
-import { useAuthGate } from '../utils/auth'
-import { guestSavedToast } from '../feedback'
+import SaveButton from '../components/SaveButton.vue'
 import { PARTNERS } from '../data/partners'
 import { takingWork } from '../data/takingWork'
 import { logoFor } from '../data/logos'
@@ -40,26 +38,7 @@ const media = computed(() => (partner.value ? (published.value.media ?? mediaFor
 const logos = computed(() => (partner.value ? (published.value.logos ?? clientsFor(partner.value.id)) : []))
 
 const store = useConnectStore()
-const { requireAccount } = useAuthGate()
 const { contactPartner } = useContactPartner()
-
-// The same list the listing row reads, not a second copy. These two used to be
-// independent `ref(false)`s — the comment here said sharing them would imply
-// persistence the mock doesn't have — but the cost was that saving from the row
-// and then opening the partner showed it unsaved, which is worse than implying
-// too much: it's the app contradicting itself. The store holds one list and
-// says plainly that it's in memory only.
-const saved = computed(() => Boolean(partner.value && store.isSaved(partner.value.id)))
-
-// Same gesture as the row's. Signed in there's no toast: the filled bookmark
-// is the confirmation, and clicking it again is the undo.
-const toggleSave = () => {
-  const p = partner.value
-  if (!p) return
-  // No gate, as on the row: a visitor's first save tells them the list lasts
-  // the visit.
-  if (store.toggleSaved(p.id) && !store.signedIn) guestSavedToast(() => requireAccount())
-}
 
 // ── Does the page's own Contact still show? ──────────────────────────────────
 // The chrome's Contact is a STAND-IN for the one in the page header, not a
@@ -173,22 +152,10 @@ onBeforeUnmount(() => observer?.disconnect())
     >
       <!-- Ordered by weight: Contact is the page's one solid button, the
            outcome the directory exists for; Save is subtle and icon-only. -->
-      <template #crumbs><PageCrumbs /></template>
       <template #actions>
         <!-- Same control, same word, same stateful aria-label as the row's
              bookmark — see `PartnerRow.vue`. -->
-        <Tooltip text="Save">
-          <Button
-            variant="subtle"
-            :aria-pressed="saved"
-            :aria-label="saved ? `Remove ${partner.name} from saved` : `Save ${partner.name}`"
-            @click="toggleSave"
-          >
-            <template #icon>
-              <LucideBookmark class="size-4" :class="saved ? 'fill-current' : ''" />
-            </template>
-          </Button>
-        </Tooltip>
+        <SaveButton :partner="partner" variant="subtle" />
         <!-- The same message bubble the listing row's Contact carries: one
              action, one mark. -->
         <Button v-if="open" ref="pageContact" variant="solid" label="Contact" @click="contactPartner(partner)">

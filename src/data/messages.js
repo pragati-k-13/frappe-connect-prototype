@@ -423,18 +423,17 @@ const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 const sorted = (v) => [...(v ?? [])].sort()
 
 // The parts of the requirements an edit can change, in the order the event
-// line names them. Short nouns, so "Changed: …" stays one line, worded
-// after the questions that ask them (New project and the edit view).
+// line names them. Short nouns, so "Changed: …" stays one line.
 const PARTS = [
   ['description', (b) => (b?.scope ?? '').trim()],
   ['apps', (b) => sorted(b?.projectApps)],
   ['modules', (b) => b?.modules ?? {}],
   ['budget', (b) => b?.budget ?? ''],
   ['timeline', (b) => b?.timeline ?? ''],
-  ['operations today', (b) => [b?.operations ?? '', sorted(b?.apps)]],
-  ['what to fix', (b) => sorted(b?.problems)],
+  ['current setup', (b) => b?.operations ?? ''],
+  ['what needs fixing', (b) => sorted(b?.problems)],
   [
-    'partner tier and location',
+    'looking for',
     (b) => [sorted(b?.cities), sorted(b?.tiers), sorted(b?.regions), sorted(b?.countries)],
   ],
 ]

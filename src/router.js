@@ -30,16 +30,22 @@ const routes = [
   // bring it back, restore this route and the rail item in `SiteRail`:
   //   { path: '/get-started', name: 'get-started',
   //     component: () => import('./pages/GetStartedPage.vue') },
-  // The intake is for visitors. Signed in, there is no Home: a business opens
-  // on Projects (whose empty state starts one) and a partner on their role's
-  // page. This is also where sign-in lands when no `next` is waiting.
+  // ⚠️ HOME IS STORED, NOT ROUTED. It explained Starter Packs and sending
+  // requirements to several partners, both on hold, and visitors from
+  // frappe.io come for the partner list — so the list is home. `/connect`
+  // stays as a redirect so old links, bookmarks and Back still work.
+  // `pages/ConnectLandingPage.vue` is kept; to bring Home back, give this
+  // route `component: () => import('./pages/ConnectLandingPage.vue')` and
+  // return `true` for visitors instead of the list.
+  // Signed in there is no Home either: a business opens on its newest project
+  // (or Projects, with none) and a partner on their role's page. This is also where sign-in lands when no
+  // `next` is waiting.
   {
     path: '/connect',
     name: 'connect',
-    component: () => import('./pages/ConnectLandingPage.vue'),
-    beforeEnter: () => {
+    redirect: () => {
       const store = useConnectStore()
-      if (!store.signedIn) return true
+      if (!store.signedIn) return '/connect/partners'
       return store.role === 'partner' ? store.partnerHome : store.projectHome
     },
   },
@@ -252,6 +258,9 @@ const routes = [
     path: '/connect/partners/saved',
     name: 'saved-partners',
     component: () => import('./pages/SavedPartnersPage.vue'),
+    // An account's list: visitors can't save, so they go to log in, and
+    // `?next=` brings them back here.
+    beforeEnter: requireAccount,
   },
   // Nested under the listing so the URL carries the depth the breadcrumb shows.
   // `:id` is the partner slug — the same id that resolves their logo file.

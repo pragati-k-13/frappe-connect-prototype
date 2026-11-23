@@ -1,7 +1,6 @@
 <script setup>
 import { computed, watch } from 'vue'
-import { Button, Checkbox, FormControl, MultiSelect, Radio, RadioGroup } from 'frappe-ui'
-import { MAX_INDUSTRIES } from '../data/format'
+import { Checkbox, FormControl, MultiSelect, Radio, RadioGroup } from 'frappe-ui'
 import {
   APPS_OTHER,
   COMPANY_SIZES,
@@ -9,7 +8,7 @@ import {
   CURRENT_APPS,
   OPERATIONS,
   problemsFor,
-  segmentOptionsFor,
+  SEGMENT_OPTIONS,
   asksApps,
 } from '../data/company'
 
@@ -127,24 +126,14 @@ const toggleProblem = (value, on) => {
       :options="COMPANY_SIZES"
       :error="errors.employees"
     />
-    <!-- Up to three, the first picked is the main one: see `industryText`. -->
     <MultiSelect
       v-model="form.segments"
-      label="Your industries"
+      label="Relevant industry"
       placeholder="Select"
       required
-      :options="segmentOptionsFor(form.segments)"
+      :options="SEGMENT_OPTIONS"
       :error="errors.segments"
-    >
-      <!-- No Select All: there are 40-odd industries and the limit is 3. The
-           count shows how many are left. -->
-      <template #footer="{ clear }">
-        <div v-if="form.segments.length" class="flex items-center justify-between border-t border-outline-gray-1 px-2 py-1.5">
-          <Button variant="ghost" size="sm" label="Clear All" @click="clear" />
-          <span class="px-2 text-sm tabular-nums text-ink-gray-5">{{ form.segments.length }} of {{ MAX_INDUSTRIES }}</span>
-        </div>
-      </template>
-    </MultiSelect>
+    />
   </div>
 
   <!-- ── Step 2: what you run today ───────────────────────────────────────── -->

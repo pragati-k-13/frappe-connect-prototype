@@ -261,16 +261,8 @@ const options = computed(() => [
               label: 'Ongoing project',
               // Seeded with four projects covering every state the tracker
               // renders. See `demoProjects`.
-              icon: store.account === 'client' && !store.demoBusy ? 'lucide-check' : 'lucide-minus',
+              icon: checkAccount('client'),
               onClick: () => setAccount('client'),
-            },
-            {
-              // For designing: every answer at its extreme (long name, three
-              // industries, five apps, a full description). See
-              // `demoBusyAccount`.
-              label: 'Busy account',
-              icon: store.demoBusy ? 'lucide-check' : 'lucide-minus',
-              onClick: () => store.demoBusyAccount(),
             },
           ],
         },

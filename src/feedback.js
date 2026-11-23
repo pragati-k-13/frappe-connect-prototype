@@ -28,20 +28,6 @@ export const savedToast = (partner, saved, undo) => {
   })
 }
 
-// A visitor's first save, once per session. Saving needs no account, but a
-// visitor's list lasts only until the tab closes, and this is the one moment
-// they are told so. After it, the Saved page carries the same line. Signed-in
-// saves stay silent: the bookmark and the top bar's count are the confirmation.
-let guestToldOnce = false
-export const guestSavedToast = (createAccount) => {
-  if (guestToldOnce) return
-  guestToldOnce = true
-  toast('Saved for this visit', {
-    id: 'saved-guest',
-    action: { label: 'Create account', onClick: createAccount },
-  })
-}
-
 // Requirements sent to one partner. The one thing the visitor cannot see for
 // themselves after pressing Send, because the dialog closes and the screen
 // behind it is the profile they were already reading — nothing on it changes.

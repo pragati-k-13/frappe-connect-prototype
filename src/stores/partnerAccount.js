@@ -11,7 +11,6 @@ import { activitySeed, customerFacts, followUpsSeed } from '../data/records'
 import { auditsSeed, nextAuditId, todayIso } from '../data/audits'
 import { firmFor } from '../data/partnership'
 import { originOf } from '../composables/useLeads'
-import { industryShort } from '../data/format'
 
 // What the partner changes in the demo: customers approved, link
 // requests handled, billing switches, notes, the team, the CRM connection.
@@ -209,7 +208,7 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
         contact: lead.company.contact,
         email: lead.company.email,
         phone: lead.company.phone,
-        industry: industryShort(lead.brief?.segments?.[0]),
+        industry: lead.brief?.segments?.[0] ?? '',
         country: lead.brief?.country ?? '',
         source: lead.source === 'crm' ? 'crm' : 'connect',
         origin: originOf(lead),

@@ -27,7 +27,7 @@ const collapsed = ref(window.matchMedia('(max-width: 639px)').matches)
 </script>
 
 <script setup>
-import { computed, provide, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   Alert,
@@ -158,8 +158,8 @@ const hasAccount = computed(() => store.signedIn || store.role === 'partner')
 // arrives from frappe.io, and a rail with two links in it said "you are inside
 // a product" to someone who has no account yet. They get a website nav instead
 // — the logo (which goes Home) and the auth link — and the sidebar appears on
-// the far side of sign-in. The breadcrumb moves into the page (`PageCrumbs`),
-// because the nav has no page title slot.
+// the far side of sign-in. No breadcrumb for visitors: the browser's Back
+// does that job on a website.
 const website = computed(() => !hasAccount.value)
 
 const shellSubtitle = computed(() => {
@@ -277,11 +277,12 @@ const logoMenu = computed(() => [
 // is in the description because that's the part you can't see happen.
 // ⚠️ ONE LOG OUT. There were two on the partner side, and they did different
 // things — one went back to the business side's front door, the other stayed
-// put. Both sides now leave the same way: to the visitor's Home, with a toast.
+// put. Both sides now leave the same way: to the partner list, which is the
+// visitor's home, with a toast.
 const logOut = () => {
   store.setRole('business')
   const cleared = store.logOut()
-  router.push('/connect')
+  router.push('/connect/partners')
   toast('Logged out', {
     id: 'auth',
     description: cleared
@@ -356,7 +357,7 @@ const onRailMove = (e) => {
 //
 // Sidebar owns its own collapse behaviour (auto-collapses below `sm`), so
 // there's no responsive handling to write here.
-const props = defineProps({
+defineProps({
   // Trailing breadcrumb label. Unset on the list screens, where the bar just
   // reads the root.
   crumb: { type: String, default: null },
@@ -385,23 +386,10 @@ const props = defineProps({
   // that goes to the cart page. The one way into the cart, the same on each.
   cart: { type: Boolean, default: false },
   // The partner directory: the way to the saved list, with its count, in the
-  // app's top bar. Always shown, "Saved" at zero. Signed out the top bar is
-  // the website nav, and the directory carries Saved in its count row.
+  // app's top bar. Always shown, "Saved" at zero. Signed in only: visitors
+  // can't save, and their top bar is the website nav.
   saved: { type: Boolean, default: false },
 })
-
-// What `PageCrumbs` reads to draw the breadcrumb inside a page, in the
-// website shell only. Signed in, the top bar carries it.
-provide(
-  'fcCrumbs',
-  computed(() => ({
-    show: website.value && !!props.crumb,
-    rootLabel: props.rootLabel,
-    rootTo: props.rootTo,
-    trail: props.trail,
-    crumb: props.crumb,
-  })),
-)
 
 // Slots: `default` is the screen. `#action` is optional and replaces the top
 // bar's trailing control — see the note at the slot for why it replaces the
@@ -674,7 +662,9 @@ provide(
         v-if="website && !bare"
         class="flex h-12 shrink-0 items-center justify-between border-b px-5"
       >
-        <RouterLink to="/connect" class="flex items-center gap-2 rounded text-base font-medium text-ink-gray-9">
+        <!-- The logo goes to the partner list: with Home stored (see the
+             router), the list is home. -->
+        <RouterLink to="/connect/partners" class="flex items-center gap-2 rounded text-base font-medium text-ink-gray-9">
           <ConnectMark size="md" />
           Frappe Connect
         </RouterLink>
@@ -763,8 +753,8 @@ provide(
           <!-- Same shape as the cart's: labelled, with the count, so the bookmark
                on a row and this button read as one feature. Shown at zero too,
                so the bookmark has somewhere visible to go before the first save.
-               Signed in only: this bar is the app's. A visitor's Saved is in
-               the directory's count row (`ResultsPage`). -->
+               Signed in only: this bar is the app's, and visitors can't
+               save. -->
           <Button
             v-if="saved"
             variant="subtle"

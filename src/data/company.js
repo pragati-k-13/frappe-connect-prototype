@@ -1,4 +1,3 @@
-import { MAX_INDUSTRIES } from './format'
 import { COUNTRY_OPTIONS, INDUSTRIES } from './quiz'
 
 // The company questions: what is asked, in what order, and what counts as an
@@ -65,16 +64,6 @@ export const SEGMENT_OPTIONS = INDUSTRIES.map((i) => ({
   options: i.segments.map((sg) => ({ label: sg, value: sg })),
 }))
 
-// The industry options for a form that already has `picked`: once the limit is
-// reached the rest are greyed out, so a fourth can't be picked at all.
-export const segmentOptionsFor = (picked = []) =>
-  picked.length < MAX_INDUSTRIES
-    ? SEGMENT_OPTIONS
-    : SEGMENT_OPTIONS.map((g) => ({
-        ...g,
-        options: g.options.map((o) => ({ ...o, disabled: !picked.includes(o.value) })),
-      }))
-
 // ── Step 2: what you run today ───────────────────────────────────────────────
 
 // What they are running today, by name. Optional, and the one question here
@@ -117,19 +106,14 @@ export const APPS_OTHER = 'Something else'
 // itself in exactly one — which is what makes it single-select. The placeholder
 // copy ("We manage everything on spreadsheets/paper") described tools; these
 // describe a SITUATION, which is what a partner is actually scoping against.
-// `short`: the answer as the requirements dialog's company card shows it, one
-// line at a third of the dialog, and about the company rather than in its
-// voice ("its system", not "how we work"), since partners read it too. The
-// question keeps `label`, where the business is answering. Shown only through
-// `setupShort` in format.js, and only when they named no tools.
 export const OPERATIONS = [
-  { value: 'manual', label: 'Spreadsheets, email and paper', short: 'Spreadsheets and email' },
+  { value: 'manual', label: 'Spreadsheets, email and paper' },
   // ⚠️ APP-AGNOSTIC. These read as an ERP ladder ("accounting software", "an
   // ERP") when the project may be CRM, Helpdesk or HR. The values stay, so
   // saved answers still read.
-  { value: 'accounting', label: 'One tool for part of it, the rest by hand', short: 'One tool, the rest by hand' },
-  { value: 'disconnected', label: "Several tools that don't talk to each other", short: "Tools that don't connect" },
-  { value: 'outgrown', label: 'A system that no longer fits how we work', short: 'Outgrown its system' },
+  { value: 'accounting', label: 'One tool for part of it, the rest by hand' },
+  { value: 'disconnected', label: 'Several tools that do not talk to each other' },
+  { value: 'outgrown', label: 'A system that no longer fits how we work' },
 ]
 
 // ⚠️ The first rung is the one that names no software, so it is the one rung
@@ -149,25 +133,21 @@ export const asksApps = (operations) =>
 // other two. Phrased as symptoms the visitor would recognise in their own week
 // rather than as categories ("Lack of digitalization of processes") — nobody
 // describes their month that way.
-// `short`: the same answer as a 1–3 word name, for the requirements dialog's
-// badges and its edit picker, where seven sentences read as a wall of text.
-// Each must make sense on its own: it is shown without the sentence. Shown only
-// through `fixShort` in format.js.
 export const PROBLEMS = [
-  { value: 'manual-work', label: 'Manual work that should be automated', short: 'Manual work' },
+  { value: 'manual-work', label: 'Manual work that should be automated' },
   // ⚠️ THE ONE PEOPLE PROBLEM, and it was added rather than found. Without it
   // the HR and Payroll pack could never be recommended off this question. See
   // `data/recommendation.js`.
-  { value: 'people', label: 'Payroll, leave and attendance are run by hand', short: 'Payroll by hand', apps: ['frappe-hr'] },
-  { value: 'close', label: 'Reports take too long to put together', short: 'Slow reports', apps: ['erpnext', 'insights'] },
-  { value: 'visibility', label: 'No reliable view of stock and orders', short: 'No view of stock', apps: ['erpnext'] },
-  { value: 'leads', label: 'Leads and follow-ups slip through the cracks', short: 'Lost leads', apps: ['crm'] },
-  { value: 'support', label: 'Customer requests get lost or answered late', short: 'Slow customer replies', apps: ['helpdesk'] },
-  { value: 'scale', label: 'We are outgrowing what we have', short: 'Outgrowing current tools' },
+  { value: 'people', label: 'Payroll, leave and attendance are run by hand', apps: ['frappe-hr'] },
+  { value: 'close', label: 'Reports take too long to put together', apps: ['erpnext', 'insights'] },
+  { value: 'visibility', label: 'No reliable view of stock and orders', apps: ['erpnext'] },
+  { value: 'leads', label: 'Leads and follow-ups slip through the cracks', apps: ['crm'] },
+  { value: 'support', label: 'Customer requests get lost or answered late', apps: ['helpdesk'] },
+  { value: 'scale', label: 'We are outgrowing what we have' },
   // ⚠️ NO LONGER OFFERED: each repeated an answer on the step before ("Several
   // tools…", "A system that no longer fits"). Kept so saved answers still read.
-  { value: 'integration', label: 'Tools that do not talk to each other', short: 'Disconnected tools', offered: false },
-  { value: 'fit', label: 'Our tools cannot handle how we actually work', short: 'Tools that don\'t fit', offered: false },
+  { value: 'integration', label: 'Tools that do not talk to each other', offered: false },
+  { value: 'fit', label: 'Our tools cannot handle how we actually work', offered: false },
 ]
 
 // The options for a project: the ones for the apps it needs, plus the two
@@ -217,7 +197,6 @@ export const companyErrors = (form) => {
   if (!form.country) e.country = 'Select a country'
   if (!form.employees) e.employees = 'Select a size'
   if (!form.segments.length) e.segments = 'Select an industry'
-  else if (form.segments.length > MAX_INDUSTRIES) e.segments = `Pick up to ${MAX_INDUSTRIES}`
   if (!OPERATIONS.some((o) => o.value === form.operations)) e.operations = 'Pick the closest description'
   if (!form.problems.length) e.problems = 'Pick at least one'
   return e

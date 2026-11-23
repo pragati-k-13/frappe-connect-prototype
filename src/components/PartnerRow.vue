@@ -1,14 +1,13 @@
 <script setup>
 import { computed } from 'vue'
-import { Avatar, Button, Tooltip } from 'frappe-ui'
+import { Avatar, Button } from 'frappe-ui'
 import { ListCell, ListRow } from 'frappe-ui/list'
 import TierIcon from './TierIcon.vue'
 import { logoFor } from '../data/logos'
 import { takingWork } from '../data/takingWork'
 import { storiesFor } from '../data/stories'
-import { guestSavedToast, savedToast } from '../feedback'
+import SaveButton from './SaveButton.vue'
 import { useConnectStore } from '../stores/connect'
-import { useAuthGate } from '../utils/auth'
 import { useContactPartner } from '../utils/contact'
 
 const props = defineProps({
@@ -24,27 +23,7 @@ const props = defineProps({
 })
 
 const store = useConnectStore()
-const { requireAccount } = useAuthGate()
 const { contactPartner } = useContactPartner()
-
-// Read from the store, not a local `ref`. A real build writes to the visitor's
-// saved partners.
-//
-// It used to be a local `ref(false)` here and another one on the profile page,
-// which meant saving from the row and then opening that partner showed it
-// unsaved. One list on the store is what lets the confirmation be true.
-const saved = computed(() => store.isSaved(props.partner.id))
-
-// `toggleSaved` hands back the state it moved to, and Undo is simply the same
-// call again.
-// No gate: a visitor can save too. Their list lasts the session, and the
-// first save says so (`guestSavedToast`); signing in keeps it.
-const toggleSave = () => {
-  const p = props.partner
-  const now = store.toggleSaved(p.id)
-  if (now && !store.signedIn) guestSavedToast(() => requireAccount())
-  else if (props.undoToast && !now) savedToast(p, now, () => store.toggleSaved(p.id))
-}
 
 // A real logo when `src/assets/partners/<id>.<ext>` exists, initials otherwise —
 // see `data/logos.js`. Both render in the same 40px box so the list never
@@ -316,22 +295,9 @@ const industryLine = computed(() => {
          it the row link would sit on top of both buttons. -->
     <ListCell :class="compact ? '' : 'self-start'">
       <div class="relative flex shrink-0 items-center gap-1.5">
-        <!-- One word, and the same word in both states: the filled icon
-           already says whether this partner is saved. The `aria-label` stays
-           stateful and names the partner — a screen reader gets no icon to
-           read, so it needs the verb the tooltip can drop. -->
-        <Tooltip text="Save">
-          <Button
-            variant="ghost"
-            :aria-pressed="saved"
-            :aria-label="saved ? `Remove ${partner.name} from saved` : `Save ${partner.name}`"
-            @click="toggleSave"
-          >
-            <template #icon>
-              <LucideBookmark class="size-4" :class="saved ? 'fill-current text-ink-gray-8' : ''" />
-            </template>
-          </Button>
-        </Tooltip>
+        <!-- Signed in only; a visitor's one action is Contact. See
+             `SaveButton`. -->
+        <SaveButton :partner="partner" :undo-toast="undoToast" />
         <!-- Opens the conversation with this partner and goes to it. Gated,
              unlike before: there IS something behind it now, and a thread needs
              an account to belong to — see `useContactPartner`. -->
