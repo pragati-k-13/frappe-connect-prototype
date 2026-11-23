@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
-import { Button, Checkbox, Combobox, Dialog, FormControl, MultiSelect, ScrollArea, Tooltip, toast } from 'frappe-ui'
+import { Button, Checkbox, Combobox, Dialog, FormControl, FormLabel, MultiSelect, Progress, ScrollArea, Tooltip, toast } from 'frappe-ui'
 import { COUNTRY_OPTIONS_INDIA_ONLY, SELECTABLE_COUNTRY } from '../data/company'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 
@@ -15,6 +15,8 @@ import { usePartnerAccountStore } from '../stores/partnerAccount'
 //   - Files are picked, not uploaded: there is no backend. The name shows as
 //     press shows the uploaded file's URL.
 //   - Verticals use frappe-ui's MultiSelect, not a native multiple select.
+//   - frappe-ui throughout: Progress for the step bar, subtle (filled) fields
+//     rather than press's outline ones, and frappe-ui's required marks.
 const open = defineModel('open', { type: Boolean, default: false })
 const account = usePartnerAccountStore()
 
@@ -153,32 +155,33 @@ function save() {
         </div>
         <Button variant="ghost" icon="lucide-x" aria-label="Close" class="-mr-1" @click="open = false" />
       </div>
-      <div class="mt-4 flex w-full items-center">
-        <div
-          class="h-0.5 shrink-0 bg-surface-gray-9 transition-[width] duration-200 ease-out"
-          :style="{ width: `${((step + 1) / TOTAL) * 100}%` }"
-        />
-        <div class="h-px min-w-0 flex-1 bg-outline-gray-1" />
-      </div>
+      <!-- frappe-ui's Progress, one segment per step, where press draws its
+           own bar. -->
+      <Progress class="mt-4" size="sm" :intervals="TOTAL" :value="((step + 1) / TOTAL) * 100" />
     </div>
 
-    <ScrollArea class="-mx-1 max-h-[62vh] min-h-[360px]" viewport-class="px-1">
+    <!-- The repo's dialog scroll (`fc-scroll-dialog`, as in AddLeadDialog):
+         the header stays put and only the fields scroll, on frappe-ui's
+         scrollbar. The inner min height keeps the three steps one height,
+         as in press. -->
+    <ScrollArea class="fc-scroll-dialog -mr-4 sm:-mr-6" viewport-class="pr-4 sm:pr-6">
+      <div class="min-h-[360px] px-px">
       <!-- ── Step 1 ─────────────────────────────────────────────────────── -->
       <form v-show="step === 0" class="flex flex-col gap-5" novalidate @submit.prevent="primary">
-        <FormControl v-model="draft.company_name" label="Registered company" size="sm" variant="outline" :class="{ 'fc-has-error': errors1.company_name }" />
+        <FormControl v-model="draft.company_name" label="Registered company" required size="sm" :class="{ 'fc-has-error': errors1.company_name }" />
         <p v-if="errors1.company_name" class="-mt-3 text-sm text-ink-red-4">{{ errors1.company_name }}</p>
 
-        <FormControl v-model="draft.address" label="Address" size="sm" variant="outline" placeholder="Company's registered address" :class="{ 'fc-has-error': errors1.address }" />
+        <FormControl v-model="draft.address" label="Address" required size="sm" placeholder="Company's registered address" :class="{ 'fc-has-error': errors1.address }" />
         <p v-if="errors1.address" class="-mt-3 text-sm text-ink-red-4">{{ errors1.address }}</p>
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div class="flex flex-col gap-5">
-            <FormControl v-model="draft.headquarter_city" label="Headquarter city" size="sm" variant="outline" placeholder="Headquarter city" :class="{ 'fc-has-error': errors1.headquarter_city }" />
+            <FormControl v-model="draft.headquarter_city" label="Headquarter city" required size="sm" placeholder="Headquarter city" :class="{ 'fc-has-error': errors1.headquarter_city }" />
             <p v-if="errors1.headquarter_city" class="-mt-3 text-sm text-ink-red-4">{{ errors1.headquarter_city }}</p>
           </div>
           <!-- India only for now, as on every form that asks: see
                `COUNTRY_OPTIONS_INDIA_ONLY`. -->
-          <Combobox v-model="draft.country" label="Country" size="sm" variant="outline" trigger="button" placeholder="Select a country" :options="COUNTRY_OPTIONS_INDIA_ONLY" />
+          <Combobox v-model="draft.country" label="Country" required size="sm" trigger="button" placeholder="Select a country" :options="COUNTRY_OPTIONS_INDIA_ONLY" />
         </div>
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -189,7 +192,7 @@ function save() {
             </div>
             <div class="relative">
               <span class="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-ink-gray-6">{{ currencyPrefix }}</span>
-              <FormControl v-model="draft.annual_revenue" size="sm" variant="outline" placeholder="Amount" :class="['[&_input]:pl-7', { 'fc-has-error': errors1.annual_revenue }]" />
+              <FormControl v-model="draft.annual_revenue" size="sm" placeholder="Amount" :class="['[&_input]:pl-7', { 'fc-has-error': errors1.annual_revenue }]" />
             </div>
             <p v-if="errors1.annual_revenue" class="text-sm text-ink-red-4">{{ errors1.annual_revenue }}</p>
           </div>
@@ -198,7 +201,7 @@ function save() {
               <span class="text-xs text-ink-gray-6">Revenue currency</span>
               <span class="text-xs text-ink-gray-5">Optional</span>
             </div>
-            <FormControl v-model="draft.revenue_currency" type="select" size="sm" variant="outline" :options="currencyOptions" />
+            <FormControl v-model="draft.revenue_currency" type="select" size="sm" :options="currencyOptions" />
             <p class="text-xs leading-4 text-ink-gray-5">Partner MRR target for this country: {{ mrrTargetLabel }}.</p>
           </div>
         </div>
@@ -209,27 +212,27 @@ function save() {
               <span class="text-xs text-ink-gray-6">No. of employees</span>
               <span class="text-xs text-ink-gray-5">Optional</span>
             </div>
-            <FormControl v-model="draft.employee_range" type="select" size="sm" variant="outline" placeholder="Select a range" :options="rangeOptions" />
+            <FormControl v-model="draft.employee_range" type="select" size="sm" placeholder="Select a range" :options="rangeOptions" />
           </div>
           <div class="flex flex-col gap-1">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs text-ink-gray-6">No. of certified employees</span>
               <span class="text-xs text-ink-gray-5">Optional</span>
             </div>
-            <FormControl v-model="draft.certified_employees_range" type="select" size="sm" variant="outline" placeholder="Select" :options="certifiedOptions" />
+            <FormControl v-model="draft.certified_employees_range" type="select" size="sm" placeholder="Select" :options="certifiedOptions" />
           </div>
         </div>
         <button type="submit" class="hidden" />
       </form>
 
       <!-- ── Step 2 ─────────────────────────────────────────────────────── -->
-      <form v-show="step === 1" class="flex flex-col gap-5" @submit.prevent="primary">
+      <form v-show="step === 1" class="flex flex-col gap-5" novalidate @submit.prevent="primary">
         <div class="flex flex-col gap-1">
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs text-ink-gray-6">Verticals served</span>
             <span class="text-xs text-ink-gray-5">Optional</span>
           </div>
-          <MultiSelect v-model="draft.verticals_served" class="w-full" size="sm" variant="outline" placeholder="Select" :options="verticalOptions" />
+          <MultiSelect v-model="draft.verticals_served" class="w-full" size="sm" placeholder="Select" :options="verticalOptions" />
         </div>
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div class="flex flex-col gap-1">
@@ -237,56 +240,56 @@ function save() {
               <span class="text-xs text-ink-gray-6">No. of customers</span>
               <span class="text-xs text-ink-gray-5">Optional</span>
             </div>
-            <FormControl v-model="draft.customer_count_range" type="select" size="sm" variant="outline" placeholder="Select" :options="rangeOptions" />
+            <FormControl v-model="draft.customer_count_range" type="select" size="sm" placeholder="Select" :options="rangeOptions" />
           </div>
           <div class="flex flex-col gap-1">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs text-ink-gray-6">No. of ERPNext customers</span>
               <span class="text-xs text-ink-gray-5">Optional</span>
             </div>
-            <FormControl v-model="draft.erpnext_customer_count_range" type="select" size="sm" variant="outline" placeholder="Select" :options="rangeOptions" />
+            <FormControl v-model="draft.erpnext_customer_count_range" type="select" size="sm" placeholder="Select" :options="rangeOptions" />
           </div>
         </div>
       </form>
 
       <!-- ── Step 3 ─────────────────────────────────────────────────────── -->
-      <form v-show="step === 2" class="flex min-h-[360px] flex-col gap-5" @submit.prevent="primary">
+      <form v-show="step === 2" class="flex min-h-[360px] flex-col gap-5" novalidate @submit.prevent="primary">
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div class="flex flex-col gap-1">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs text-ink-gray-6">Existing Partnerships</span>
               <span class="text-xs text-ink-gray-5">Optional</span>
             </div>
-            <FormControl v-model="draft.existing_partnerships" type="select" size="sm" variant="outline" placeholder="Select" :options="partnershipOptions" />
+            <FormControl v-model="draft.existing_partnerships" type="select" size="sm" placeholder="Select" :options="partnershipOptions" />
           </div>
           <div class="flex flex-col gap-1">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs text-ink-gray-6">No. of ERP implementations</span>
               <span class="text-xs text-ink-gray-5">Optional</span>
             </div>
-            <FormControl v-model="draft.erp_implementations_range" type="select" size="sm" variant="outline" placeholder="Select" :options="rangeOptions" />
+            <FormControl v-model="draft.erp_implementations_range" type="select" size="sm" placeholder="Select" :options="rangeOptions" />
           </div>
         </div>
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div class="flex flex-col gap-1">
             <div class="flex items-center gap-1">
-              <span class="text-xs text-ink-gray-6">Company logo</span>
+              <FormLabel label="Company logo" required />
               <Tooltip :text="logoHelp"><span class="lucide-circle-help size-3 text-ink-gray-5" aria-hidden="true" /></Tooltip>
             </div>
             <input ref="logoInput" type="file" accept="image/*" class="hidden" @change="pick($event, 'company_logo', 'logo', checkLogo)" />
-            <Button variant="outline" class="w-full !justify-start" :label="draft.company_logo ? 'Replace logo' : 'Upload logo'" @click="logoInput.click()" />
+            <Button class="w-full !justify-start" :label="draft.company_logo ? 'Replace logo' : 'Upload logo'" @click="logoInput.click()" />
             <p v-if="draft.company_logo" class="mt-1 truncate text-xs text-ink-gray-6">{{ draft.company_logo }}</p>
             <p v-if="fileError.logo" class="mt-1 text-sm text-ink-red-4">{{ fileError.logo }}</p>
             <p v-if="errors3.company_logo" class="text-sm text-ink-red-4">Company logo is required.</p>
           </div>
           <div class="flex flex-col gap-1">
             <div class="flex items-center gap-1">
-              <span class="text-xs text-ink-gray-6">Incorporation certificate</span>
+              <FormLabel label="Incorporation certificate" required />
               <Tooltip :text="certificateHelp"><span class="lucide-circle-help size-3 text-ink-gray-5" aria-hidden="true" /></Tooltip>
             </div>
             <input ref="certInput" type="file" accept="application/pdf,image/*" class="hidden" @change="pick($event, 'incorporation_certificate', 'cert', checkDoc)" />
-            <Button variant="outline" class="w-full !justify-start" :label="draft.incorporation_certificate ? 'Replace document' : 'Attach document'" @click="certInput.click()" />
+            <Button class="w-full !justify-start" :label="draft.incorporation_certificate ? 'Replace document' : 'Attach document'" @click="certInput.click()" />
             <p v-if="draft.incorporation_certificate" class="mt-1 truncate text-xs text-ink-gray-6">{{ draft.incorporation_certificate }}</p>
             <p v-if="fileError.cert" class="mt-1 text-sm text-ink-red-4">{{ fileError.cert }}</p>
             <p v-if="errors3.incorporation_certificate" class="text-sm text-ink-red-4">Incorporation certificate is required.</p>
@@ -294,18 +297,21 @@ function save() {
         </div>
 
         <div class="mt-1 flex flex-col gap-3">
-          <Checkbox v-model="draft.agreed_to_due_diligence" label="I shall abide by the due diligence" />
+          <Checkbox v-model="draft.agreed_to_due_diligence" label="I shall abide by the due diligence" required />
           <p v-if="errors3.due_diligence" class="-mt-2 text-sm text-ink-red-4">Due diligence confirmation is required.</p>
-          <div class="flex items-start gap-2">
-            <Checkbox id="partnership-agreement-checkbox" v-model="draft.agreed_to_partnership_agreement" />
-            <label for="partnership-agreement-checkbox" class="text-base font-medium text-ink-gray-8">
+          <Checkbox v-model="draft.agreed_to_partnership_agreement" required>
+            <template #label>
               I accept the
               <a :href="PARTNERSHIP_AGREEMENT_LINK" target="_blank" rel="noopener noreferrer" class="underline">Partnership agreement</a>
-            </label>
-          </div>
+              <!-- The label slot drops frappe-ui's own mark; this is its markup. -->
+              <span class="ml-1 select-none text-ink-red-5" aria-hidden="true">*</span>
+              <span class="sr-only">(required)</span>
+            </template>
+          </Checkbox>
           <p v-if="errors3.partnership_agreement" class="-mt-2 text-sm text-ink-red-4">Partnership agreement acceptance is required.</p>
         </div>
       </form>
+      </div>
     </ScrollArea>
 
     <template #actions>
