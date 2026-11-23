@@ -73,11 +73,24 @@ const blank = () => ({
   firmProfile: null,
   linkedCerts: [],
   submitted: null,
+  // The Frappe Cloud team whose billing counts as MRR, once the owner has
+  // connected it. The seeded firm has; a firm that just signed up hasn't
+  // (`startFresh`).
+  frappeCloudTeam: 'Lumen Digital',
+})
+
+// The demo Beginner: one certificate linked by email and still waiting on its
+// holder, so the checklist shows a pending one from the start.
+const beginnerSeed = () => ({
+  ...blank(),
+  linkedCerts: [
+    { name: 'Framework', full: true, ref: 'arvind@lumen.example', status: 'pending', issued: '2026-09-04', expires: '2028-09-04' },
+  ],
 })
 
 export const usePartnerAccountStore = defineStore('partnerAccount', {
   state: () => ({
-    byTier: { beginner: blank(), 'bronze-up': { ...blank(), audits: auditsSeed() } },
+    byTier: { beginner: beginnerSeed(), 'bronze-up': { ...blank(), audits: auditsSeed() } },
     // Partner sign-up's form, held until the code comes back on verify.
     signup: null,
   }),
@@ -226,21 +239,36 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
     },
     startFresh() {
       const { name, email, country } = this.signup ?? {}
-      this.byTier.beginner = { ...blank(), fresh: true, me: name ?? null, email: email ?? null, country: country ?? null }
+      this.byTier.beginner = {
+        ...blank(),
+        fresh: true,
+        me: name ?? null,
+        email: email ?? null,
+        country: country ?? null,
+        frappeCloudTeam: null,
+      }
       this.signup = null
     },
     // Unregister: the firm stops being a Beginner partner and its checklist
     // goes. The demo's own Beginner firm comes back in its place.
     unregister() {
-      this.byTier.beginner = blank()
+      this.byTier.beginner = beginnerSeed()
     },
     // Everything the company information form asked; `name` and `country`
     // are what the rest of the app reads.
     saveFirmProfile(profile) {
       this.edits.firmProfile = { ...profile, done: todayIso() }
     },
+    // ⚠️ STANDS IN FOR A ROUND TRIP. The real Connect goes to Frappe Cloud,
+    // where the owner signs in (or signs up) and picks the team, and comes
+    // back. The demo has no Frappe Cloud, so it links the firm's own team.
+    connectFrappeCloud(team) {
+      this.edits.frappeCloudTeam = team
+    },
+    // A linked certificate waits for its holder to confirm by email, as in
+    // press; only confirmed ones count toward the two.
     linkBeginnerCert(cert) {
-      this.edits.linkedCerts.push(cert)
+      this.edits.linkedCerts.push({ ...cert, status: 'pending' })
     },
     submitForApproval() {
       this.edits.submitted = todayIso()
