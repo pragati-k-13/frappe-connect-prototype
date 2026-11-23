@@ -181,7 +181,7 @@ function saveLink() {
             />
             <span class="min-w-0 flex-1">
               <span
-                class="text-base font-medium text-ink-gray-8"
+                class="text-base font-medium text-ink-gray-7"
                 :class="step.completed && 'line-through'"
               >
                 {{ step.title }}<span class="text-ink-red-4"> *</span>
