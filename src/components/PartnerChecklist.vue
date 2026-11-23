@@ -172,7 +172,7 @@ function saveLink() {
           <!-- The row toggles too, but the chevron is the trigger: a real
                button, and the one stop for the keyboard. -->
           <AccordionHeader
-            class="m-0 flex cursor-pointer items-center gap-3 py-4 text-left text-base font-medium text-ink-gray-8"
+            class="m-0 flex cursor-pointer items-center gap-3 py-4 text-left data-[state=open]:pb-1 text-base font-medium text-ink-gray-8"
             @click="toggle(step.value, $event)"
           >
             <span
@@ -206,7 +206,7 @@ function saveLink() {
 
           <AccordionContent class="fc-accordion-content overflow-hidden text-pretty text-sm leading-relaxed text-ink-gray-6">
             <div class="pb-4 pl-7 pr-1 pt-0">
-              <div class="mb-2 max-w-prose text-p-base font-normal leading-5 text-ink-gray-6">
+              <div class="mb-4 max-w-prose text-p-base font-normal leading-5 text-ink-gray-6">
                 <p>{{ step.description }}</p>
                 <p v-if="step.link" class="mt-2">
                   {{ step.linkPrefix }}
