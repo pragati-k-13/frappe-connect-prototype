@@ -84,10 +84,15 @@ const routes = [
   // ⚠️ NOT GUARDED, and nothing on it is. It is reachable signed-out on
   // purpose — someone who has answered three questions is owed the answer
   // before being asked to make an account. The gate is on Checkout.
+  // ⚠️ HELD BACK WITH BROADCAST, which sends requirements to every matching
+  // partner at once and isn't in this release. The route stays as a redirect
+  // so old links land somewhere; `pages/RecommendPage.vue` is kept. To bring
+  // it back, swap the redirect for
+  // `component: () => import('./pages/RecommendPage.vue')`.
   {
     path: '/connect/recommendation',
     name: 'recommendation',
-    component: () => import('./pages/RecommendPage.vue'),
+    redirect: '/connect/partners',
   },
   // Where the money moves: straight to the processor's page. There is no
   // checkout screen of ours in front of it — the basket and its total were on
@@ -249,10 +254,13 @@ const routes = [
   // One brief to every partner that matches, with the questions that make the
   // match asked on the page — the Get started page's custom door. A static
   // segment, so it outranks `:id` like `saved` does.
+  // ⚠️ HELD BACK WITH BROADCAST, as `recommendation` above. Kept as
+  // `pages/ContactPartnersPage.vue`; to bring it back, swap the redirect for
+  // `component: () => import('./pages/ContactPartnersPage.vue')`.
   {
     path: '/connect/partners/contact',
     name: 'contact-partners',
-    component: () => import('./pages/ContactPartnersPage.vue'),
+    redirect: '/connect/partners',
   },
   {
     path: '/connect/partners/saved',

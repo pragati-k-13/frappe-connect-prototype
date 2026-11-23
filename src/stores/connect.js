@@ -27,6 +27,7 @@ import { takingWork } from '../data/takingWork'
 import { bidFor, repliesToBrief } from '../data/bids'
 import { STARTER_PACKS, packConflicts } from '../data/packs'
 import { recommendedPackValues } from '../data/recommendation'
+import { INTEREST_STEP } from '../data/features'
 
 // Projects the rail shows by name. Past this, the newest and an "All projects"
 // row that opens the list.
@@ -1110,7 +1111,7 @@ export const useConnectStore = defineStore('connect', {
       // One quote shortlisted and one passed on, so the comparison table opens
       // with something in it and the inbox shows both settled states.
       const bids = project.bids ?? []
-      if (bids[0]) this.setBidState(project.id, bids[0].partnerId, 'shortlisted')
+      if (bids[0] && INTEREST_STEP) this.setBidState(project.id, bids[0].partnerId, 'shortlisted')
       if (bids[1]) this.setBidState(project.id, bids[1].partnerId, 'not-interested')
 
       // ⚠️ THE CONVERSATION CONTINUES AFTER A SHORTLIST, which is the point of
@@ -1603,14 +1604,36 @@ export const useConnectStore = defineStore('connect', {
       )
     },
 
-    // ⚠️ HIDING A RECOMMENDATION IS NOT "NOT INTERESTED". That one answers a
-    // firm that has your requirements; this only says you don't want this
-    // suggestion, so nothing is sent and the firm never knows.
+    // ⚠️ HIDING IS NOT "NOT INTERESTED". Any row can be hidden — a suggestion,
+    // a firm you're waiting on, a quote — and nothing is sent: it's yours, for
+    // "no" or "later", and Restore brings it back. Not interested is the one
+    // that tells the firm.
     setHidden(projectId, partnerId, on) {
       const project = this.projects.find((p) => p.id === projectId)
       if (!project) return
       const ids = project.hidden ?? []
       project.hidden = on ? [...new Set([...ids, partnerId])] : ids.filter((id) => id !== partnerId)
+    },
+
+    // ⚠️ NOT INTERESTED TELLS THE PARTNER, AS A STATUS LINE. It used to only
+    // file the quote away, so the firm kept following up on a project that
+    // had moved on. It's an event in the thread — "Northwind isn't taking this
+    // forward · over budget" — like the contact-details line, not a message
+    // written in the business's voice; only a note it typed goes as one. A
+    // quote becomes 'not-interested'; a firm that hasn't quoted goes to
+    // `passed`. The reasons stay with the project: why a quote was turned
+    // down is what the marketplace learns from.
+    sendNotInterested(projectId, partnerId, { reasons = [], note = '' }) {
+      const project = this.projects.find((p) => p.id === projectId)
+      if (!project) return
+      const bid = project.bids?.find((b) => b.partnerId === partnerId)
+      if (bid) bid.state = 'not-interested'
+      else this.setPassed(projectId, partnerId, true)
+      project.notInterested = { ...(project.notInterested ?? {}), [partnerId]: reasons }
+      const thread = this.threads.find((t) => t.partnerId === partnerId)
+      if (!thread) return
+      thread.messages.push({ id: `ni-${Date.now()}`, from: 'you', at: Date.now(), kind: 'not-interested', reasons })
+      if (note.trim()) this.sendMessage(thread.id, note.trim())
     },
 
     cancelSend(projectId, partnerId) {

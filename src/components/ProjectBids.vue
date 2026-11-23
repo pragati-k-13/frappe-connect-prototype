@@ -6,6 +6,7 @@ import StageDot from './StageDot.vue'
 import TierIcon from './TierIcon.vue'
 import EmptyState from './EmptyState.vue'
 import SendRequirementsDialog from './SendRequirementsDialog.vue'
+import NotInterestedDialog from './NotInterestedDialog.vue'
 import { List, ListCell, ListHeader, ListHeaderCell, ListHeaderCellSort, ListRow } from 'frappe-ui/list'
 import IconMessage from '~icons/lucide/message-square'
 import IconMore from '~icons/lucide/ellipsis'
@@ -14,6 +15,7 @@ import { logoFor } from '../data/logos'
 import { quoteStanding } from '../data/messages'
 import { MISS_LABEL, briefErrors, fitRank, recommendedPartners } from '../data/custom'
 import { SEND_HOLD_MS, useConnectStore } from '../stores/connect'
+import { INTEREST_STEP } from '../data/features'
 
 // The replies to a broadcast, and the whole of choosing a partner.
 //
@@ -212,16 +214,16 @@ const suggestions = computed(() => {
 const recommended = computed(() => suggestions.value.filter((r) => !r.hidden))
 const hiddenRows = computed(() => suggestions.value.filter((r) => r.hidden))
 
+const unhide = (row) => {
+  store.setHidden(props.project.id, row.partnerId, false)
+  toast.success(`${row.partner.name} restored`)
+}
 const hide = (row) => {
   store.setHidden(props.project.id, row.partnerId, true)
   toast(`${row.partner.name} hidden`, {
     id: `hide-${row.partnerId}`,
     action: { label: 'Undo', onClick: () => store.setHidden(props.project.id, row.partnerId, false) },
   })
-}
-const unhide = (row) => {
-  store.setHidden(props.project.id, row.partnerId, false)
-  toast.success(`${row.partner.name} restored`)
 }
 // ⚠️ A MISS EVERY ROW SHARES IS SAID ONCE, above the table, not on six rows.
 // Repeated, it stopped telling the rows apart.
@@ -297,16 +299,22 @@ const STATUS = {
   passed: { label: 'Not interested', dot: 'bg-surface-gray-5' },
 }
 
+// ⚠️ TWO WAYS TO SET A FIRM ASIDE. Hide is private and instant, with Undo,
+// for "no" or "later". Not interested… tells the firm, so it opens a dialog
+// with the words first — see `NotInterestedDialog`. There's no Restore after
+// it: the firm has been told, and the way back is a message.
+const declining = ref(null)
+const decliningName = ref('')
 const passOn = (row) => {
-  store.setPassed(props.project.id, row.partnerId, true)
-  toast(`${row.partner.name} moved to Not interested`, {
-    id: `not-interested-${row.partnerId}`,
-    action: { label: 'Undo', onClick: () => store.setPassed(props.project.id, row.partnerId, false) },
-  })
+  declining.value = row
+  decliningName.value = row.partner.name
 }
-const restorePassed = (row) => {
-  store.setPassed(props.project.id, row.partnerId, false)
-  toast.success(`${row.partner.name} restored`)
+const sendNotInterested = (payload) => {
+  const row = declining.value
+  if (!row) return
+  store.sendNotInterested(props.project.id, row.partnerId, payload)
+  toast.success(`Sent to ${row.partner.name}`)
+  declining.value = null
 }
 const moreForOther = (row) =>
   [
@@ -315,8 +323,13 @@ const moreForOther = (row) =>
       icon: 'lucide-message-square',
       onClick: () => router.push({ name: 'messages', query: { thread: row.partnerId } }),
     },
-    row.status !== 'passed' && row.status !== 'sending' && {
-      label: 'Not interested',
+    !isHidden(row.partnerId) && row.status !== 'sending' && row.status !== 'passed' && {
+      label: 'Hide',
+      icon: 'lucide-eye-off',
+      onClick: () => hide(row),
+    },
+    row.status === 'waiting' && {
+      label: 'Not interested…',
       icon: 'lucide-ban',
       onClick: () => passOn(row),
     },
@@ -338,13 +351,24 @@ const VIEWS = {
 }
 const RECOMMENDED_IN = { all: true, notSent: true }
 const view = ref('all')
+// Hidden rows leave every view but Hidden, whatever their status. Hidden
+// shows them all, quotes and firms you're waiting on as well as suggestions.
+const isHidden = (id) => hiddenIds.value.includes(id)
+const rowsIn = (key) =>
+  key === 'hidden'
+    ? rows.value.filter((r) => isHidden(r.partnerId))
+    : rows.value.filter((r) => !isHidden(r.partnerId) && VIEWS[key].match(r))
+const othersIn = (key) =>
+  key === 'hidden'
+    ? others.value.filter((r) => isHidden(r.partnerId))
+    : others.value.filter((r) => !isHidden(r.partnerId) && OTHERS_IN[key](r))
 const count = (key) =>
-  rows.value.filter(VIEWS[key].match).length +
-  others.value.filter(OTHERS_IN[key]).length +
+  rowsIn(key).length +
+  othersIn(key).length +
   (RECOMMENDED_IN[key] ? recommended.value.length : 0) +
   (key === 'hidden' ? hiddenRows.value.length : 0)
-const visible = computed(() => rows.value.filter(VIEWS[view.value].match))
-const visibleOthers = computed(() => others.value.filter(OTHERS_IN[view.value]))
+const visible = computed(() => rowsIn(view.value))
+const visibleOthers = computed(() => othersIn(view.value))
 // The rows after the quotes, in three runs — see the template.
 const tail = computed(() => [
   { key: 'open', rows: visibleOthers.value.filter((r) => r.status !== 'declined') },
@@ -358,16 +382,14 @@ const visibleRecommended = computed(() =>
 // "Details shared" under a name only when it tells rows apart: a broadcast
 // sends the requirements alone, so some quotes there have the company and
 // some don't. Sent from the table, every row has it.
-const shareVaries = computed(() => rows.value.some((r) => r.state === 'pending'))
+const shareVaries = computed(() => INTEREST_STEP && rows.value.some((r) => r.state === 'pending'))
 
-// A status nobody is in isn't offered: picking it only blanked the table.
+// ⚠️ EVERY VIEW, ALWAYS, WITH ITS COUNT. Leaving out the empty ones made the
+// menu change shape as rows moved — hiding a partner added "Hidden" — and a
+// menu that rearranges itself reads as broken. A 0 says the same thing and
+// stays put; picking it shows the view's empty state.
 const viewOptions = computed(() =>
-  Object.entries(VIEWS)
-    // …and one that shows exactly what All shows isn't a choice.
-    .filter(
-      ([key]) => key === 'all' || key === view.value || (count(key) && count(key) !== count('all')),
-    )
-    .map(([key, v]) => ({
+  Object.entries(VIEWS).map(([key, v]) => ({
     label: v.label,
     count: count(key),
     selected: view.value === key,
@@ -422,25 +444,6 @@ const shareDetails = (row) => {
   toast.success(`Details shared with ${row.partner.name}`)
 }
 
-const notInterested = (row) => {
-  store.setBidState(props.project.id, row.partnerId, 'not-interested')
-  toast(`${row.partner.name} moved to Not interested`, {
-    id: `not-interested-${row.partnerId}`,
-    action: {
-      label: 'Undo',
-      onClick: () => store.setBidState(props.project.id, row.partnerId, row.state),
-    },
-  })
-}
-
-// Back to where it was before: shared stays shared in the thread, so a firm
-// whose details went out comes back as shared.
-const restore = (row) => {
-  const thread = store.threads.find((t) => t.partnerId === row.partnerId)
-  const wasShared = thread?.messages.some((m) => m.kind === 'company')
-  store.setBidState(props.project.id, row.partnerId, wasShared ? 'shortlisted' : 'pending')
-  toast.success(`${row.partner.name} restored`)
-}
 
 // Message is on every row, so More holds Share details (until it's done) and
 // Not interested — and nothing on a row that is already not interested, where
@@ -452,15 +455,22 @@ const moreFor = (row) => [
     icon: 'lucide-message-square',
     onClick: () => router.push({ name: 'messages', query: { thread: row.partnerId } }),
   },
-  row.state === 'pending' && {
+  INTEREST_STEP && row.state === 'pending' && {
     label: 'Share details',
     icon: 'lucide-send',
     onClick: () => shareDetails(row),
   },
+  // A firm told "not interested" has its own filter; hiding it too would
+  // offer a Restore that undoes nothing the firm was told.
+  !isHidden(row.partnerId) && row.state !== 'not-interested' && {
+    label: 'Hide',
+    icon: 'lucide-eye-off',
+    onClick: () => hide(row),
+  },
   row.state !== 'not-interested' && {
-    label: 'Not interested',
+    label: 'Not interested…',
     icon: 'lucide-ban',
-    onClick: () => notInterested(row),
+    onClick: () => passOn(row),
   },
 ].filter(Boolean)
 
@@ -624,9 +634,10 @@ const EMPTY = {
                 >
                   <template #icon><IconMessage class="size-4" /></template>
                 </Button>
-                <Button v-if="row.state !== 'not-interested'" label="Hire" @click="emit('choose', row.partner)" />
-                <!-- The way back, on the row, where Hire would be. -->
-                <Button v-else label="Restore" @click="restore(row)" />
+                <!-- Hidden: the way back, where Hire would be. Not interested
+                     has none — the firm was told. -->
+                <Button v-if="isHidden(row.partnerId)" label="Restore" @click="unhide(row)" />
+                <Button v-else-if="row.state !== 'not-interested'" label="Hire" @click="emit('choose', row.partner)" />
                 <Dropdown v-if="moreFor(row).length" :options="moreFor(row)" align="end">
                   <Button variant="ghost" :aria-label="`More for ${row.partner.name}`">
                     <template #icon><IconMore class="size-4" /></template>
@@ -692,7 +703,7 @@ const EMPTY = {
                 >
                   <template #icon><IconMessage class="size-4" /></template>
                 </Button>
-                <Button v-if="row.status === 'passed'" label="Restore" @click="restorePassed(row)" />
+                <Button v-if="isHidden(row.partnerId)" label="Restore" @click="unhide(row)" />
                 <Dropdown v-if="moreForOther(row).length" :options="moreForOther(row)" align="end">
                   <Button variant="ghost" :aria-label="`More for ${row.partner.name}`">
                     <template #icon><IconMore class="size-4" /></template>
@@ -771,6 +782,12 @@ const EMPTY = {
       </div>
     </template>
 
+    <NotInterestedDialog
+      :open="Boolean(declining)"
+      :partner-name="decliningName"
+      @update:open="!$event && (declining = null)"
+      @send="sendNotInterested"
+    />
     <SendRequirementsDialog
       :open="Boolean(asking)"
       :brief="brief"

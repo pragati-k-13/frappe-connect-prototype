@@ -1,5 +1,6 @@
 import { FRAPPE_TEAM, PARTNERS } from './partners'
 import { isRewrite } from '../lib/wordDiff'
+import { INTEREST_STEP } from './features'
 
 // The messages screen's data: what a thread is, when one counts as active, and
 // the ways threads come into existence.
@@ -354,7 +355,7 @@ export const threadStatus = (thread, bidState = null) => {
   if (thread?.broadcast && msgs.some((m) => m.kind === 'decline')) return 'declined'
   const bid = [...msgs].reverse().find((m) => m.kind === 'bid')
   if (bid) {
-    if (bidState === 'shortlisted') return 'shortlisted'
+    if (bidState === 'shortlisted') return INTEREST_STEP ? 'shortlisted' : 'quoted'
     if (bidState === 'not-interested') return 'not-interested'
     return 'quoted'
   }
