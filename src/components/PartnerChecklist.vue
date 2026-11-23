@@ -88,6 +88,12 @@ const steps = computed(() => [
 
 // The next step still to do opens on its own, as in press.
 const openStep = ref('')
+// A click anywhere on the row opens or closes it; the chevron button handles
+// its own.
+function toggle(value, e) {
+  if (e.target.closest('button')) return
+  openStep.value = openStep.value === value ? '' : value
+}
 const nextPending = computed(() => steps.value.find((s) => !s.completed)?.value ?? '')
 watch(nextPending, (v) => (openStep.value = v), { immediate: true })
 
@@ -163,30 +169,38 @@ function saveLink() {
           :value="step.value"
           class="border-b border-outline-gray-1 last:border-b-0"
         >
-          <AccordionHeader class="m-0">
-            <AccordionTrigger
-              class="group flex w-full items-center gap-3 border-0 bg-transparent py-3 text-left text-base font-medium text-ink-gray-8 outline-none ring-inset transition-colors focus-visible:ring-2 focus-visible:ring-outline-gray-3"
-            >
+          <!-- The row toggles too, but the chevron is the trigger: a real
+               button, and the one stop for the keyboard. -->
+          <AccordionHeader
+            class="m-0 flex cursor-pointer items-center gap-3 py-4 text-left text-base font-medium text-ink-gray-8"
+            @click="toggle(step.value, $event)"
+          >
+            <span
+              :class="step.completed ? 'lucide-circle-check text-ink-green-4' : 'lucide-circle-dashed text-ink-gray-5'"
+              class="size-4 shrink-0"
+              aria-hidden="true"
+            />
+            <span class="min-w-0 flex-1">
               <span
-                :class="step.completed ? 'lucide-circle-check text-ink-green-3' : 'lucide-circle-dashed text-ink-gray-5'"
-                class="size-4 shrink-0"
-                aria-hidden="true"
-              />
-              <span class="min-w-0 flex-1">
-                <span
-                  class="text-base font-medium"
-                  :class="step.completed ? 'text-ink-gray-5 line-through' : 'text-ink-gray-8'"
-                >
-                  {{ step.title }}<span class="text-ink-red-4"> *</span>
-                </span>
+                class="text-base font-medium text-ink-gray-8"
+                :class="step.completed && 'line-through'"
+              >
+                {{ step.title }}<span class="text-ink-red-4"> *</span>
               </span>
-              <span v-if="step.summaryRight" class="shrink-0 whitespace-nowrap pr-2 text-sm font-normal text-ink-gray-6">
-                {{ step.summaryRight }}
-              </span>
-              <span
-                class="lucide-chevron-down size-4 shrink-0 text-ink-gray-6 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] group-data-[state=open]:rotate-180 motion-reduce:transition-none"
-                aria-hidden="true"
-              />
+            </span>
+            <span v-if="step.summaryRight" class="shrink-0 whitespace-nowrap text-sm font-normal text-ink-gray-6">
+              {{ step.summaryRight }}
+            </span>
+            <AccordionTrigger as-child>
+              <Button variant="ghost" :aria-label="openStep === step.value ? `Collapse ${step.title}` : `Expand ${step.title}`">
+                <template #icon>
+                  <span
+                    class="lucide-chevron-down size-4 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none"
+                    :class="openStep === step.value && 'rotate-180'"
+                    aria-hidden="true"
+                  />
+                </template>
+              </Button>
             </AccordionTrigger>
           </AccordionHeader>
 
@@ -205,7 +219,7 @@ function saveLink() {
                 <div class="h-2 overflow-hidden rounded-full bg-surface-gray-2">
                   <div class="h-full rounded-full bg-surface-gray-7 transition-all" :style="{ width: `${mrrProgress}%` }" />
                 </div>
-                <div class="flex items-center justify-between text-sm text-ink-gray-6">
+                <div class="flex items-center justify-between text-p-base text-ink-gray-6">
                   <span>{{ fmt(mrrCurrent) }} current MRR</span>
                   <span>{{ fmt(mrrTarget) }} target</span>
                 </div>

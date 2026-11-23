@@ -227,6 +227,11 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
       this.byTier.beginner = { ...blank(), fresh: true, me: name ?? null, email: email ?? null }
       this.signup = null
     },
+    // Unregister: the firm stops being a Beginner partner and its checklist
+    // goes. The demo's own Beginner firm comes back in its place.
+    unregister() {
+      this.byTier.beginner = blank()
+    },
     saveFirmProfile({ name, country }) {
       this.edits.firmProfile = { name, country, done: todayIso() }
     },

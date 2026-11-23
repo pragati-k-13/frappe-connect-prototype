@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Avatar, Badge, Button, Dialog, FormControl, Tooltip, toast } from 'frappe-ui'
+import { Avatar, Badge, Button, Dialog, Dropdown, FormControl, Tooltip, dialog, toast } from 'frappe-ui'
+import { useRouter } from 'vue-router'
 import { NumberCard } from 'frappe-ui/charts'
 import ConnectShell from '../components/ConnectShell.vue'
 import TierIcon from '../components/TierIcon.vue'
@@ -34,6 +35,31 @@ const s = computed(() => ({
   consultants: account.team.filter((p) => p.counts).length,
 }))
 const beginner = computed(() => store.partnerTier === 'beginner')
+
+// ── Unregister ──────────────────────────────────────────────────────────────
+// A Beginner's owner can stop being a partner, as in press's onboarding
+// (`UnregisterButton.vue`). In the header's More menu: it's rare, and
+// destructive, so it stays out of the checklist.
+const router = useRouter()
+const moreMenu = computed(() =>
+  beginner.value && store.partnerRole === 'owner'
+    ? [{ label: 'Unregister', icon: 'lucide-log-out', theme: 'red', onClick: confirmUnregister }]
+    : [],
+)
+function confirmUnregister() {
+  dialog.danger({
+    title: 'Unregister partnership?',
+    message: 'Your firm stops being a Beginner partner and its checklist progress is cleared. You can sign up again any time.',
+    confirmLabel: 'Unregister',
+    size: 'sm',
+    onConfirm: async () => {
+      account.unregister()
+      store.setRole('business')
+      toast.success('Partner registration removed')
+      await router.push({ name: 'website' })
+    },
+  })
+}
 // Bronze and up lead with the firm; the tier is the badge beside it. At Gold
 // there is no next tier, so the name stands alone.
 const title = computed(() => {
@@ -186,6 +212,11 @@ const auditCaption = computed(() => {
 
 <template>
   <ConnectShell root-label="Partnership">
+    <template v-if="moreMenu.length" #action>
+      <Dropdown :options="moreMenu">
+        <Button icon="lucide-ellipsis" aria-label="More actions" />
+      </Dropdown>
+    </template>
     <!-- A Beginner's page is the checklist to Bronze, and nothing else. -->
     <PartnerChecklist v-if="beginner" />
     <div v-else class="fc-page-list py-8">
