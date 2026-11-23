@@ -1,13 +1,14 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Button, Combobox, Dialog, FormControl, toast } from 'frappe-ui'
+import { Button, Dialog, FormControl, toast } from 'frappe-ui'
+import CompanyInformationDialog from './CompanyInformationDialog.vue'
 import {
   AccordionContent,
   AccordionHeader,
   AccordionItem,
   AccordionRoot,
 } from '../lib/accordion'
-import { COUNTRY_OPTIONS_INDIA_ONLY, SELECTABLE_COUNTRY } from '../data/company'
+import { SELECTABLE_COUNTRY } from '../data/company'
 import { longDate, standingFor } from '../data/partnership'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
@@ -21,8 +22,7 @@ import { usePartnerAccountStore } from '../stores/partnerAccount'
 // is in the sidebar header and Resources is in the sidebar.
 //
 // What differs from press: there is no "Register" step, because signing up for
-// Connect already made the firm a Beginner. The company profile is two fields
-// rather than press's three-screen form. MRR is the firm's own Frappe Cloud
+// Connect already made the firm a Beginner. MRR is the firm's own Frappe Cloud
 // billing, since a Beginner has no partner code to link customers with.
 const store = useConnectStore()
 const account = usePartnerAccountStore()
@@ -105,23 +105,10 @@ function submit() {
 }
 
 // ── Company information ─────────────────────────────────────────────────────
+// Press's three-step form: `CompanyInformationDialog`.
 const profileOpen = ref(false)
-const profileSubmitted = ref(false)
-const profile = ref({ name: '', country: SELECTABLE_COUNTRY })
-const profileError = computed(() =>
-  profileSubmitted.value && !profile.value.name.trim() ? 'Enter your company name' : undefined,
-)
 function openProfile() {
-  profile.value = { name: account.firmName ?? '', country: SELECTABLE_COUNTRY }
-  profileSubmitted.value = false
   profileOpen.value = true
-}
-function saveProfile() {
-  profileSubmitted.value = true
-  if (profileError.value) return
-  account.saveFirmProfile({ name: profile.value.name.trim(), country: profile.value.country })
-  profileOpen.value = false
-  toast.success('Company information saved')
 }
 
 // ── Link a certificate ──────────────────────────────────────────────────────
@@ -247,25 +234,7 @@ function saveLink() {
       </div>
     </div>
 
-    <!-- ── Company information ─────────────────────────────────────────── -->
-    <Dialog v-model:open="profileOpen" size="md" title="Company information">
-      <form class="space-y-4" novalidate @submit.prevent="saveProfile">
-        <FormControl v-model="profile.name" label="Company name" autofocus :error="profileError" />
-        <!-- India only for now, as on every form that asks: see
-             `COUNTRY_OPTIONS_INDIA_ONLY`. -->
-        <Combobox
-          v-model="profile.country"
-          label="Country"
-          placeholder="Select a country"
-          trigger="button"
-          :options="COUNTRY_OPTIONS_INDIA_ONLY"
-        />
-        <div class="flex justify-end gap-2 pt-2">
-          <Button label="Cancel" @click="profileOpen = false" />
-          <Button type="submit" variant="solid" label="Save" />
-        </div>
-      </form>
-    </Dialog>
+    <CompanyInformationDialog v-model:open="profileOpen" />
 
     <!-- ── Link a certificate ──────────────────────────────────────────── -->
     <Dialog v-model:open="linkOpen" size="md" title="Link a certificate">

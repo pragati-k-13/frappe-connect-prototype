@@ -66,7 +66,7 @@ const blank = () => ({
   // firm profile is filled in. See `startFresh`.
   fresh: false,
   // A Beginner's checklist (`PartnerChecklist`). The firm profile, the first
-  // step: `{ name, country, done }`. Certificates linked by ID or email, which
+  // step: `{ name, country, done, …the rest of press's form }`. Certificates linked by ID or email, which
   // count without a person on the team. When it was submitted for approval.
   firmProfile: null,
   linkedCerts: [],
@@ -232,8 +232,10 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
     unregister() {
       this.byTier.beginner = blank()
     },
-    saveFirmProfile({ name, country }) {
-      this.edits.firmProfile = { name, country, done: todayIso() }
+    // Everything the company information form asked; `name` and `country`
+    // are what the rest of the app reads.
+    saveFirmProfile(profile) {
+      this.edits.firmProfile = { ...profile, done: todayIso() }
     },
     linkBeginnerCert(cert) {
       this.edits.linkedCerts.push(cert)
