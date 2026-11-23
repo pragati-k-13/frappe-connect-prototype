@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Avatar, Badge, Button, Dialog, FormControl, Tooltip, toast } from 'frappe-ui'
+import { Avatar, Badge, Button, Combobox, Dialog, FormControl, Tooltip, toast } from 'frappe-ui'
 import { NumberCard } from 'frappe-ui/charts'
 import ConnectShell from '../components/ConnectShell.vue'
 import TierIcon from '../components/TierIcon.vue'
@@ -17,6 +17,7 @@ import {
   standingFor,
 } from '../data/partnership'
 import { auditShortDate, openNcs } from '../data/audits'
+import { COUNTRY_OPTIONS_INDIA_ONLY, SELECTABLE_COUNTRY } from '../data/company'
 import { useAuditReadiness } from '../composables/useAuditReadiness'
 
 // SCREEN — Partnership: where the firm stands with Frappe and what gets it up
@@ -169,9 +170,14 @@ const { ready: readyForAudit } = useAuditReadiness()
 const milestones = computed(() => {
   if (!beginner.value) return []
   // Certifications tick from the Certificates count.
-  const list = s.value.milestones.map((m) =>
-    m.key === 'cert-2' && s.value.consultants >= 2 ? { ...m, done: '2026-10-30' } : m,
-  )
+  // A firm that has just signed up has reached none of them yet.
+  const seeded = account.edits.fresh
+    ? s.value.milestones.map(({ done, todo, ...m }) => (m.key === 'bronze' ? { ...m, todo } : m))
+    : s.value.milestones
+  const list = [
+    profileStep.value,
+    ...seeded.map((m) => (m.key === 'cert-2' && s.value.consultants >= 2 ? { ...m, done: '2026-10-30' } : m)),
+  ]
   const firstOpen = list.findIndex((m) => !m.done)
   return list.map((m, i) => ({
     ...m,
@@ -186,6 +192,35 @@ const milestones = computed(() => {
           : null,
   }))
 })
+
+// ── The firm profile ────────────────────────────────────────────────────────
+// The first step, and the one sign-up hands over: the firm's name and country.
+// The seeded Beginner did it when it joined.
+const profileStep = computed(() => ({
+  key: 'profile',
+  label: 'Complete your firm profile',
+  done: account.edits.firmProfile?.done ?? (account.edits.fresh ? null : '2026-07-28'),
+  todo: 'Company name and country',
+  action: true,
+}))
+const profileOpen = ref(false)
+const profileSubmitted = ref(false)
+const profile = ref({ name: '', country: SELECTABLE_COUNTRY })
+const profileError = computed(() =>
+  profileSubmitted.value && !profile.value.name.trim() ? 'Enter your company name' : undefined,
+)
+function openProfile() {
+  profile.value = { name: account.edits.firmProfile?.name ?? '', country: SELECTABLE_COUNTRY }
+  profileSubmitted.value = false
+  profileOpen.value = true
+}
+function saveProfile() {
+  profileSubmitted.value = true
+  if (profileError.value) return
+  account.saveFirmProfile({ name: profile.value.name.trim(), country: profile.value.country })
+  profileOpen.value = false
+  toast.success('Firm profile saved')
+}
 
 // ── The audit ───────────────────────────────────────────────────────────────
 // Audits are their own page; the PMM card goes there. Its badge says when
@@ -249,7 +284,14 @@ const auditCaption = computed(() => {
                       {{ m.label }}
                     </span>
                     <Badge v-if="m.next" theme="blue" variant="subtle" size="sm" label="Next" />
-                    <span class="shrink-0 text-sm text-ink-gray-5">
+                    <Button
+                      v-if="m.action && !m.done && canRequestAudit"
+                      class="-my-1.5"
+                      size="sm"
+                      label="Add details"
+                      @click="openProfile"
+                    />
+                    <span v-else class="shrink-0 text-sm text-ink-gray-5">
                       {{ m.done ? `Done ${shortDate(m.done)}` : m.todo }}
                     </span>
                     <span
@@ -357,6 +399,26 @@ const auditCaption = computed(() => {
 
       </div>
     </div>
+    <!-- ── Firm profile ─────────────────────────────────────────────────── -->
+    <Dialog v-model:open="profileOpen" size="md" title="Firm profile">
+      <form class="space-y-4" novalidate @submit.prevent="saveProfile">
+        <FormControl v-model="profile.name" label="Company name" autofocus :error="profileError" />
+        <!-- India only for now, as on every form that asks: see
+             `COUNTRY_OPTIONS_INDIA_ONLY`. -->
+        <Combobox
+          v-model="profile.country"
+          label="Country"
+          placeholder="Select a country"
+          trigger="button"
+          :options="COUNTRY_OPTIONS_INDIA_ONLY"
+        />
+        <div class="flex justify-end gap-2 pt-2">
+          <Button label="Cancel" @click="profileOpen = false" />
+          <Button type="submit" variant="solid" label="Save" />
+        </div>
+      </form>
+    </Dialog>
+
     <!-- ── Link a certificate ───────────────────────────────────────────── -->
     <Dialog
       v-model:open="linking"

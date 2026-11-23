@@ -164,7 +164,9 @@ const website = computed(() => !hasAccount.value)
 
 const shellSubtitle = computed(() => {
   if (store.role === 'partner') {
-    return firmFor(store.partnerTier).name
+    // A firm that has just signed up has no name until its profile is filled
+    // in; until then, the person, as on the business side.
+    return account.firmName ?? account.edits.me
   }
   // The header is the organization on both sides; the person is in the
   // footer. Falls back to the name for an account with no company yet.

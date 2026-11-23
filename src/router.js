@@ -74,6 +74,15 @@ const routes = [
     name: 'login-verify',
     component: () => import('./pages/VerifyPage.vue'),
   },
+  // Partner sign-up, from "Become a partner": name and email, then the same
+  // code screen. Finishing makes the firm a Beginner and lands on Partnership.
+  // There is no partner log-in: partners sign in on `login`.
+  { path: '/connect/partner-signup', name: 'partner-signup', component: () => import('./pages/PartnerSignupPage.vue') },
+  {
+    path: '/connect/partner-signup/verify',
+    name: 'partner-signup-verify',
+    component: () => import('./pages/VerifyPage.vue'),
+  },
   // Where the booking flow stops: confirm the pack and book the call.
   //
   // What the intake adds up to, and the basket it produces. This replaced

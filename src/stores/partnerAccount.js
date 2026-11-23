@@ -49,6 +49,8 @@ const blank = () => ({
   reviewReports: {},
   // The signed-in person's name, once they change it in their settings.
   me: null,
+  // Their address, for a firm that signed up in the demo.
+  email: null,
   // Per lead or customer id: follow-ups logged, activity recorded here.
   followUps: {},
   activity: {},
@@ -59,10 +61,21 @@ const blank = () => ({
   threads: {},
   // PMM audits, newest first. Seeded for Bronze and up; a Beginner has none.
   audits: [],
+  // A firm that signed up in this demo rather than the seeded one: no team
+  // but the person who signed up, no milestones reached, no name until the
+  // firm profile is filled in. See `startFresh`.
+  fresh: false,
+  // The firm profile, the first step on a Beginner's way to Bronze:
+  // `{ name, country, done }`.
+  firmProfile: null,
 })
 
 export const usePartnerAccountStore = defineStore('partnerAccount', {
-  state: () => ({ byTier: { beginner: blank(), 'bronze-up': { ...blank(), audits: auditsSeed() } } }),
+  state: () => ({
+    byTier: { beginner: blank(), 'bronze-up': { ...blank(), audits: auditsSeed() } },
+    // Partner sign-up's form, held until the code comes back on verify.
+    signup: null,
+  }),
 
   getters: {
     tier: () => useConnectStore().partnerTier,
@@ -177,9 +190,19 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
       return linkRequestsFor(this.tier).filter((r) => !this.edits.handled[r.id])
     },
 
+    // The firm's name once it has one. A firm that has just signed up has none
+    // until its profile is filled in.
+    firmName() {
+      return this.edits.firmProfile?.name ?? (this.edits.fresh ? null : firmFor(this.tier).name)
+    },
+
     team() {
       const connect = useConnectStore()
-      return [...teamFor(this.tier, connect.partnershipState), ...this.edits.invited]
+      // A new firm is the person who signed up and nobody else.
+      const seeded = this.edits.fresh
+        ? [{ id: 'me', name: this.edits.me, email: this.edits.email, roles: ['owner'], cert: null, status: 'none', counts: false }]
+        : teamFor(this.tier, connect.partnershipState)
+      return [...seeded, ...this.edits.invited]
         .filter((p) => !this.edits.removed.includes(p.id))
         .map((p) => {
           const cert = this.edits.certs[p.id]
@@ -190,6 +213,20 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
   },
 
   actions: {
+    // Partner sign-up. Replaces the demo's Beginner firm with a new one: the
+    // owner who signed up, nothing else. Signing up makes a firm a Beginner,
+    // with no application.
+    holdSignup({ name, email }) {
+      this.signup = { name, email }
+    },
+    startFresh() {
+      const { name, email } = this.signup ?? {}
+      this.byTier.beginner = { ...blank(), fresh: true, me: name ?? null, email: email ?? null }
+      this.signup = null
+    },
+    saveFirmProfile({ name, country }) {
+      this.edits.firmProfile = { name, country, done: todayIso() }
+    },
     handleRequest(id, outcome, link = null) {
       this.edits.handled[id] = outcome
       if (link) this.edits.requestLinks[id] = link
