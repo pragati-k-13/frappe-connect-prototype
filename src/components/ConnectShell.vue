@@ -48,7 +48,7 @@ import IconBag from '~icons/lucide/shopping-bag'
 import FeedbackDialog from './FeedbackDialog.vue'
 import AppSettingsDialog from './settings/AppSettingsDialog.vue'
 import { useAuthGate } from '../utils/auth'
-import { useConnectStore } from '../stores/connect'
+import { PROJECT_ROWS, useConnectStore } from '../stores/connect'
 import { firmFor, longDate, standingFor } from '../data/partnership'
 import LeadsIcon from './icons/LeadsIcon.vue'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
@@ -57,6 +57,7 @@ import PartnerAccountDialog from './settings/PartnerAccountDialog.vue'
 import NotificationsPanel from './NotificationsPanel.vue'
 import NotificationsRailItem from './NotificationsRailItem.vue'
 import SearchPalette from './SearchPalette.vue'
+import NewProjectDialog from './NewProjectDialog.vue'
 import { notifications, readRequestNotification, requestNotification } from '../data/notifications'
 
 const store = useConnectStore()
@@ -71,11 +72,34 @@ const { requireAccount } = useAuthGate()
 // partner directory, so the match is a prefix.
 const route = useRoute()
 const inMessages = computed(() => route.name === 'messages')
-// The tracker's two routes. NAMES rather than a path prefix, for the same
-// reason a path prefix is wrong everywhere here: a section is the set of screens it is made of, and a
-// screen that leaves the prefix later should not fall out of its own rail row.
-const PROJECT_ROUTES = new Set(['projects', 'project'])
-const inProjects = computed(() => PROJECT_ROUTES.has(route.name))
+// ── Projects, by name ──────────────────────────────────────────────────────
+// ⚠️ THE PROJECT IS THE ROW, not a "Projects" list. Most accounts have one, and
+// a list of one is a click that tells you nothing. So the rail names each
+// project (newest first) and goes straight to it; past `PROJECT_ROWS` it keeps
+// the newest and an "All projects" row for the rest. With none, a "Projects"
+// row opens the empty state, which is where sign-in lands too.
+// "Requirements sent" belongs to the project it names, so it lights that row.
+const openProjectId = computed(() =>
+  route.name === 'project' ? route.params.id : route.name === 'brief-sent' ? route.query.project : null,
+)
+const projectRows = computed(() => {
+  const icon = 'lucide-briefcase-business'
+  const list = [...store.projects].reverse()
+  const row = (p) => ({ to: `/connect/projects/${p.id}`, label: p.name, icon, active: openProjectId.value === p.id })
+  if (!list.length) return [{ to: '/connect/projects', label: 'Projects', icon, active: route.name === 'projects' }]
+  if (list.length <= PROJECT_ROWS) return list.map(row)
+  const newest = row(list[0])
+  return [
+    newest,
+    {
+      to: '/connect/projects',
+      label: 'All projects',
+      icon: 'lucide-layers',
+      // An older project has no row of its own, so it lights the list's.
+      active: route.name === 'projects' || (Boolean(openProjectId.value) && !newest.active),
+    },
+  ]
+})
 // ⚠️ THE DIRECTORY IS NOW ITS OWN DESTINATION, matched by name rather than by
 // subtraction. It used to be "everything under /connect that isn't one of the
 // other sections", because the rail's first row pointed at /connect and the
@@ -301,15 +325,23 @@ const readNotification = (n) => (n.requestId ? readRequestNotification(n.request
 const readAllNotifications = () => notifItems.value.forEach(readNotification)
 // Search's empty state: the places in the rail.
 const BUSINESS_PLACES = [
-  { to: '/connect/projects', label: 'Projects', icon: 'lucide-briefcase-business' },
   { to: '/connect/messages', label: 'Messages', icon: 'lucide-inbox' },
   { to: '/connect/partners', label: 'Partners', icon: 'lucide-building-2' },
 ]
 const searchPlaces = computed(() =>
   store.role === 'partner'
     ? partnerRail.value.flatMap((g) => g.items).map((i) => ({ to: i.to, label: i.label, icon: i.icon, iconComp: i.iconComp }))
-    : BUSINESS_PLACES,
+    : [...projectRows.value, ...BUSINESS_PLACES],
 )
+// Search's one action, and the business side's only one: starting a project
+// has no rail row of its own once you have a project.
+const searchActions = computed(() =>
+  store.role === 'partner' ? [] : [{ label: 'New project', icon: 'lucide-plus', run: () => store.openNewProject() }],
+)
+const createProject = (details) => {
+  store.newProjectOpen = false
+  router.push(`/connect/projects/${store.createProject(details)}`)
+}
 
 // The seam handle. `railY` follows the pointer down the sidebar's right edge so
 // the chevron appears where the hand already is, rather than at a fixed spot
@@ -496,17 +528,17 @@ defineProps({
         </template>
 
         <!-- ── The business side's pages ─────────────────────────────────
-             Signed in: Projects, Messages, Partners. No Home — it only repeated
-             these pages and frappe.io's feeds — so the account opens on
-             Projects, and the page you land on is the first row. Messages sits
+             Signed in: your projects by name, Messages, Partners. No Home — it
+             only repeated these pages and frappe.io's feeds — so the account
+             opens on the newest project, the first row. Messages sits
              between the work and the directory: replies to a broadcast from
              Partners land there.
              Signed out: Home (the visitor's front door) and Partners.
              Starter Packs are hidden for now; their routes still exist. -->
         <nav v-else-if="store.signedIn" class="space-y-0.5">
-          <Tooltip text="Projects" side="right" :offset="8" :disabled="!collapsed">
-            <SidebarItem label="Projects" route="/connect/projects" :active="inProjects">
-              <template #prefix><span class="lucide-briefcase-business size-4 text-ink-gray-6" aria-hidden="true" /></template>
+          <Tooltip v-for="p in projectRows" :key="p.to" :text="p.label" side="right" :offset="8" :disabled="!collapsed">
+            <SidebarItem :label="p.label" :route="p.to" :active="p.active">
+              <template #prefix><span :class="p.icon" class="size-4 shrink-0 text-ink-gray-6" aria-hidden="true" /></template>
             </SidebarItem>
           </Tooltip>
           <Tooltip text="Messages" side="right" :offset="8" :disabled="!collapsed">
@@ -559,7 +591,13 @@ defineProps({
       @read-all="readAllNotifications"
     />
     </div>
-    <SearchPalette v-if="hasAccount" v-model:open="searchOpen" :places="searchPlaces" />
+    <SearchPalette v-if="hasAccount" v-model:open="searchOpen" :places="searchPlaces" :actions="searchActions" />
+    <NewProjectDialog
+      v-if="store.signedIn && store.role !== 'partner'"
+      :open="store.newProjectOpen"
+      @close="store.newProjectOpen = false"
+      @create="createProject"
+    />
 
     <FeedbackDialog v-model:open="feedback" />
     <AppSettingsDialog v-model:open="settings" :initial-tab="settingsTab" />

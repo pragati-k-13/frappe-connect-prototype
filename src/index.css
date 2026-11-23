@@ -741,3 +741,9 @@ textarea[data-slot='control'] {
   from { opacity: 1; }
   to { opacity: 0; }
 }
+
+/* Toast titles wrap without a one-word last line: "Sent to Tridots Tech with
+   your company details" left "details" alone on the second line. */
+[data-sonner-toast] [data-title] {
+  text-wrap: pretty;
+}

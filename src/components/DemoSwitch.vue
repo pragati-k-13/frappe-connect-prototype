@@ -139,8 +139,10 @@ const stages = computed(() => (project.value ? stagesFor(project.value.service) 
 //
 // Offered only where it means something: a custom project whose brief has gone
 // out and whose replies have not come back.
-const awaitingReplies = computed(
-  () => Boolean(project.value?.broadcast) && !project.value?.bids?.length,
+// Any firm sent the requirements that hasn't had its turn to reply — sends go
+// one at a time now, so this can come true again after the first replies.
+const awaitingReplies = computed(() =>
+  (project.value?.broadcast?.partnerIds ?? []).some((id) => !(project.value.replied ?? []).includes(id)),
 )
 // After the business edits sent requirements: the partners who quoted answer,
 // one confirming and the next sending a new quote. See docs/edit-requirements.md.

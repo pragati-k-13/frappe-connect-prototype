@@ -37,8 +37,8 @@ const routes = [
   // `pages/ConnectLandingPage.vue` is kept; to bring Home back, give this
   // route `component: () => import('./pages/ConnectLandingPage.vue')` and
   // return `true` for visitors instead of the list.
-  // Signed in there is no Home either: a business opens on Projects and a
-  // partner on their role's page. This is also where sign-in lands when no
+  // Signed in there is no Home either: a business opens on its newest project
+  // (or Projects, with none) and a partner on their role's page. This is also where sign-in lands when no
   // `next` is waiting.
   {
     path: '/connect',
@@ -46,7 +46,7 @@ const routes = [
     redirect: () => {
       const store = useConnectStore()
       if (!store.signedIn) return '/connect/partners'
-      return store.role === 'partner' ? store.partnerHome : { name: 'projects' }
+      return store.role === 'partner' ? store.partnerHome : store.projectHome
     },
   },
   // The two auth screens. Routes rather than a dialog, and outside
@@ -84,10 +84,15 @@ const routes = [
   // ⚠️ NOT GUARDED, and nothing on it is. It is reachable signed-out on
   // purpose — someone who has answered three questions is owed the answer
   // before being asked to make an account. The gate is on Checkout.
+  // ⚠️ HELD BACK WITH BROADCAST, which sends requirements to every matching
+  // partner at once and isn't in this release. The route stays as a redirect
+  // so old links land somewhere; `pages/RecommendPage.vue` is kept. To bring
+  // it back, swap the redirect for
+  // `component: () => import('./pages/RecommendPage.vue')`.
   {
     path: '/connect/recommendation',
     name: 'recommendation',
-    component: () => import('./pages/RecommendPage.vue'),
+    redirect: '/connect/partners',
   },
   // Where the money moves: straight to the processor's page. There is no
   // checkout screen of ours in front of it — the basket and its total were on
@@ -198,7 +203,14 @@ const routes = [
     path: '/connect/projects',
     name: 'projects',
     component: () => import('./pages/ProjectsPage.vue'),
-    beforeEnter: requireAccount,
+    // With one to three projects the rail lists them by name and has no row
+    // for this page, so it goes to the newest rather than somewhere the rail
+    // cannot point to. Empty, or past three, it is a rail destination.
+    beforeEnter: (to) => {
+      const store = useConnectStore()
+      if (!store.signedIn) return requireAccount(to)
+      return store.hasProject && !store.projectListInRail ? store.projectHome : true
+    },
   },
   // ⚠️ `:id` is the project's own id, not a slug: projects are named by the
   // people who own them and two can share a name. An unknown id renders an
@@ -242,10 +254,13 @@ const routes = [
   // One brief to every partner that matches, with the questions that make the
   // match asked on the page — the Get started page's custom door. A static
   // segment, so it outranks `:id` like `saved` does.
+  // ⚠️ HELD BACK WITH BROADCAST, as `recommendation` above. Kept as
+  // `pages/ContactPartnersPage.vue`; to bring it back, swap the redirect for
+  // `component: () => import('./pages/ContactPartnersPage.vue')`.
   {
     path: '/connect/partners/contact',
     name: 'contact-partners',
-    component: () => import('./pages/ContactPartnersPage.vue'),
+    redirect: '/connect/partners',
   },
   {
     path: '/connect/partners/saved',

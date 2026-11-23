@@ -5,15 +5,25 @@ import { Avatar, Badge, Button, Dropdown, ScrollArea, Tooltip, toast } from 'fra
 import StageDot from './StageDot.vue'
 import TierIcon from './TierIcon.vue'
 import EmptyState from './EmptyState.vue'
+import SendRequirementsDialog from './SendRequirementsDialog.vue'
+import NotInterestedDialog from './NotInterestedDialog.vue'
 import { List, ListCell, ListHeader, ListHeaderCell, ListHeaderCellSort, ListRow } from 'frappe-ui/list'
 import IconMessage from '~icons/lucide/message-square'
 import IconMore from '~icons/lucide/ellipsis'
 import { PARTNERS, cityOf } from '../data/partners'
 import { logoFor } from '../data/logos'
 import { quoteStanding } from '../data/messages'
-import { useConnectStore } from '../stores/connect'
+import { MISS_LABEL, briefErrors, fitRank, recommendedPartners } from '../data/custom'
+import { SEND_HOLD_MS, useConnectStore } from '../stores/connect'
+import { INTEREST_STEP } from '../data/features'
 
 // The replies to a broadcast, and the whole of choosing a partner.
+//
+// ⚠️ ONE TABLE FROM THE START. Before anything is sent it lists the recommended
+// partners, each with its own Send; sending changes a row's status, not the
+// table. It used to be a separate list ("N matching partners") with one Share
+// button to all of them, which changed shape on sharing and, when nobody
+// matched, left the project on an empty state with nothing to do.
 //
 // ⚠️ THIS IS WHERE BIDS ARE COMPARED, AND MESSAGES IS WHERE THEY ARRIVE. A
 // quote lands in the partner's own thread; the numbers are pulled together
@@ -88,8 +98,14 @@ const dirOf = (key) => (sort.value.key === key ? sort.value.dir : null)
 // arrows show only on hover — so on a touch screen sorting didn't exist, and
 // nothing said why the list was in the order it was in. The button names the
 // order ("Arrived first") and the headers and it share one state.
+// ⚠️ BEST FIT BY DEFAULT, and the controls are there from the start. The
+// table now opens before anything is sent, when "Arrived first" orders
+// nothing. Best fit is the recommendation's own order; among quotes that fit
+// equally it falls back to arrival, so the neutral order the comment above
+// argues for still decides between them.
 const SORTS = [
-  { key: null, label: 'Arrived first' },
+  { key: null, label: 'Best fit' },
+  { key: 'arrived', label: 'Arrived first' },
   { key: 'quote', label: 'Lowest quote', desc: 'Highest quote' },
   { key: 'timeline', label: 'Shortest timeline', desc: 'Longest timeline' },
   { key: 'partner', label: 'Partner A–Z', desc: 'Partner Z–A' },
@@ -106,15 +122,22 @@ const sortOptions = computed(() =>
   })),
 )
 const COMPARE = {
+  arrived: (a, b) => a.arrivedAt - b.arrivedAt,
   partner: (a, b) => a.partner.name.localeCompare(b.partner.name),
   quote: (a, b) => a.amount - b.amount,
   timeline: (a, b) => a.weeks - b.weeks || a.amount - b.amount,
 }
+const rank = computed(() => fitRank(answers.value, brief.value))
+const byFit = (a, b) => (rank.value.get(a.partnerId) ?? 999) - (rank.value.get(b.partnerId) ?? 999)
+// Rows without a quote follow Partner A–Z when it's chosen, and fit otherwise:
+// a price or timeline order has nothing to order them by.
+const orderUnquoted = (a, b) =>
+  sort.value.key === 'partner' ? (sort.value.dir === 'asc' ? 1 : -1) * COMPARE.partner(a, b) : byFit(a, b)
 const rows = computed(() => {
   const { key, dir } = sort.value
   const sign = dir === 'asc' ? 1 : -1
   const shared = (r) => (r.state === 'shortlisted' ? 0 : 1)
-  const byDefault = (a, b) => shared(a) - shared(b) || a.arrivedAt - b.arrivedAt
+  const byDefault = (a, b) => shared(a) - shared(b) || byFit(a, b) || a.arrivedAt - b.arrivedAt
   return (props.project.bids ?? [])
     .map((bid) => ({
       ...bid,
@@ -140,44 +163,158 @@ const declined = (partnerId) => {
   const i = msgs.findLastIndex((m) => m.kind === 'decline')
   return i >= 0 && !msgs.slice(i).some((m) => m.kind === 'bid')
 }
+const sending = computed(() => props.project.sending ?? [])
+const written = computed(() => [...(props.project.broadcast?.partnerIds ?? []), ...sending.value])
 const others = computed(() => {
   const quoted = new Set((props.project.bids ?? []).map((b) => b.partnerId))
-  return (props.project.broadcast?.partnerIds ?? [])
+  return written.value
     .filter((id) => !quoted.has(id))
     .map((id) => ({
       partnerId: id,
       partner: partnerOf(id),
-      status: (props.project.passed ?? []).includes(id) ? 'passed' : declined(id) ? 'declined' : 'waiting',
+      status: sending.value.includes(id)
+        ? 'sending'
+        : (props.project.passed ?? []).includes(id)
+          ? 'passed'
+          : declined(id)
+            ? 'declined'
+            : 'waiting',
     }))
     .filter((r) => r.partner)
-    .sort((a, b) => (a.status === 'declined') - (b.status === 'declined'))
+    .sort((a, b) => (a.status === 'declined') - (b.status === 'declined') || orderUnquoted(a, b))
 })
+
+// ── Not sent yet ────────────────────────────────────────────────────────────
+// The project's recommended partners nobody has written to, last in the table:
+// the firms you're waiting on stay on top. Ranked, never empty — a partner that
+// misses one of your answers says which on its row. See `recommendedPartners`.
+const brief = computed(() => store.briefOf(props.project.id))
+const answers = computed(() => props.project.answers ?? store.company)
+const hiddenIds = computed(() => props.project.hidden ?? [])
+// Every suggestion, hidden ones included; the views split them. A hidden firm
+// makes room for the next-closest one when the exact matches run short.
+const suggestions = computed(() => {
+  if (props.project.partnerId) return []
+  const taken = new Set([...written.value, ...(props.project.bids ?? []).map((b) => b.partnerId)])
+  const hidden = new Set(hiddenIds.value)
+  const shown = recommendedPartners(answers.value, brief.value, 6 + hidden.size)
+  const ids = new Set(shown.map((s) => s.partner.id))
+  // A hidden firm that would no longer be suggested still has to be findable.
+  const extra = hiddenIds.value.filter((id) => !ids.has(id)).map((id) => ({ partner: partnerOf(id), misses: [] }))
+  return [...shown, ...extra]
+    .filter(({ partner }) => partner && !taken.has(partner.id))
+    .map(({ partner, misses }) => ({
+      partnerId: partner.id,
+      partner,
+      note: misses.map((m) => MISS_LABEL[m]).join(' · '),
+      hidden: hidden.has(partner.id),
+    }))
+    .sort(orderUnquoted)
+})
+const recommended = computed(() => suggestions.value.filter((r) => !r.hidden))
+const hiddenRows = computed(() => suggestions.value.filter((r) => r.hidden))
+
+const unhide = (row) => {
+  store.setHidden(props.project.id, row.partnerId, false)
+  toast.success(`${row.partner.name} restored`)
+}
+const hide = (row) => {
+  store.setHidden(props.project.id, row.partnerId, true)
+  toast(`${row.partner.name} hidden`, {
+    id: `hide-${row.partnerId}`,
+    action: { label: 'Undo', onClick: () => store.setHidden(props.project.id, row.partnerId, false) },
+  })
+}
+// ⚠️ A MISS EVERY ROW SHARES IS SAID ONCE, above the table, not on six rows.
+// Repeated, it stopped telling the rows apart.
+// Decided once, when the page opens with nothing sent: computed live, the line
+// left on the first Send and pulled the table up under the pointer. The firms
+// sent to after that came from the same list, so the sentence stays true.
+const sharedNote = (() => {
+  if (written.value.length || rows.value.length) return ''
+  const notes = new Set(recommended.value.map((r) => r.note))
+  const [only] = notes
+  return notes.size === 1 && only ? only : ''
+})()
+
+// ⚠️ NO CONFIRMATION. The requirements are in the rail and each Send names one
+// firm, so a dialog would repeat the page. The send is held for a few seconds
+// and the toast's Undo takes it back — see `queueSend`. The dialog opens only
+// when the budget or description is missing.
+const asking = ref(null)
+// Kept after `asking` clears, so the title doesn't empty while the dialog fades.
+const askingName = ref('')
+const send = (row) => {
+  if (Object.keys(briefErrors(brief.value)).length) {
+    asking.value = row
+    askingName.value = row.partner.name
+    return
+  }
+  queue(row)
+}
+const queue = (row) => {
+  const id = `send-${row.partnerId}`
+  // Sonner pauses its timer on hover; the hold doesn't. Closing the toast when
+  // the send goes out keeps Undo from outliving what it could undo.
+  flip(() => store.queueSend(props.project.id, row.partnerId, () => toast.dismiss(id)), row.partnerId)
+  // ⚠️ WHAT WENT IS SAID HERE, not in a line above the table: at the moment
+  // it happens, while Undo can still take it back.
+  toast(`Sent to ${row.partner.name} with your company details`, {
+    id,
+    duration: SEND_HOLD_MS,
+    action: { label: 'Undo', onClick: () => store.cancelSend(props.project.id, row.partnerId) },
+  })
+}
+
+// The shared miss as a sentence: what it means for these firms.
+const SHARED_NOTE = {
+  'Above your budget': 'None of these usually take projects at your budget.',
+  'Other industries': 'None of these have worked in your industry.',
+  'Outside your region': 'None of these are in your region.',
+}
+
+// ⚠️ ONE HEADING AT EVERY STAGE. It was "Recommended partners" until the first
+// quote and "Hire a partner" after: neither named the whole table, and the
+// page's title changed while you were away. Finding a partner is true from the
+// first suggestion to the hire, and the table goes once you hire.
+const heading = 'Find a partner'
 // Which of these rows each view shows: a firm marked Not interested before it
 // quoted sits in that view with the quotes marked the same way.
 const OTHERS_IN = {
   all: (r) => r.status !== 'passed',
-  shared: () => false,
-  declined: (r) => r.status === 'passed',
+  quoted: () => false,
+  waiting: (r) => r.status === 'waiting' || r.status === 'sending',
+  notSent: () => false,
+  declined: (r) => r.status === 'declined',
+  passed: (r) => r.status === 'passed',
+  hidden: () => false,
 }
 
 // The lead list's status style: a dot and a word. Waiting is still open, so it
 // takes the open-lead blue; a decline takes Lost's red.
 const STATUS = {
+  sending: { label: 'Sending…', dot: 'bg-surface-gray-5' },
   waiting: { label: 'Awaiting quote', dot: 'bg-surface-blue-7' },
   declined: { label: 'Declined', dot: 'bg-surface-red-6' },
   passed: { label: 'Not interested', dot: 'bg-surface-gray-5' },
 }
 
+// ⚠️ TWO WAYS TO SET A FIRM ASIDE. Hide is private and instant, with Undo,
+// for "no" or "later". Not interested… tells the firm, so it opens a dialog
+// with the words first — see `NotInterestedDialog`. There's no Restore after
+// it: the firm has been told, and the way back is a message.
+const declining = ref(null)
+const decliningName = ref('')
 const passOn = (row) => {
-  store.setPassed(props.project.id, row.partnerId, true)
-  toast(`${row.partner.name} moved to Not interested`, {
-    id: `not-interested-${row.partnerId}`,
-    action: { label: 'Undo', onClick: () => store.setPassed(props.project.id, row.partnerId, false) },
-  })
+  declining.value = row
+  decliningName.value = row.partner.name
 }
-const restorePassed = (row) => {
-  store.setPassed(props.project.id, row.partnerId, false)
-  toast.success(`${row.partner.name} restored`)
+const sendNotInterested = (payload) => {
+  const row = declining.value
+  if (!row) return
+  store.sendNotInterested(props.project.id, row.partnerId, payload)
+  toast.success(`Sent to ${row.partner.name}`)
+  declining.value = null
 }
 const moreForOther = (row) =>
   [
@@ -186,23 +323,71 @@ const moreForOther = (row) =>
       icon: 'lucide-message-square',
       onClick: () => router.push({ name: 'messages', query: { thread: row.partnerId } }),
     },
-    row.status !== 'passed' && {
-      label: 'Not interested',
+    !isHidden(row.partnerId) && row.status !== 'sending' && row.status !== 'passed' && {
+      label: 'Hide',
+      icon: 'lucide-eye-off',
+      onClick: () => hide(row),
+    },
+    row.status === 'waiting' && {
+      label: 'Not interested…',
       icon: 'lucide-ban',
       onClick: () => passOn(row),
     },
   ].filter(Boolean)
 
+// ⚠️ VIEWS BY STATUS, the words the Quote column already uses. "Details
+// shared" was a view when sharing was a separate step; every Send shares them
+// now, so it no longer splits the list.
 const VIEWS = {
   all: { label: 'All', match: (r) => r.state !== 'not-interested' },
-  shared: { label: 'Details shared', match: (r) => r.state === 'shortlisted' },
-  declined: { label: 'Not interested', match: (r) => r.state === 'not-interested' },
+  quoted: { label: 'Quoted', match: (r) => r.state !== 'not-interested' },
+  waiting: { label: 'Awaiting quote', match: () => false },
+  notSent: { label: 'Suggested', match: () => false },
+  // Their no and yours are different filters: one ends the firm's interest,
+  // the other yours.
+  declined: { label: 'Declined', match: () => false },
+  passed: { label: 'Not interested', match: (r) => r.state === 'not-interested' },
+  hidden: { label: 'Hidden', match: () => false },
 }
+const RECOMMENDED_IN = { all: true, notSent: true }
 const view = ref('all')
-const count = (key) => rows.value.filter(VIEWS[key].match).length + others.value.filter(OTHERS_IN[key]).length
-const visible = computed(() => rows.value.filter(VIEWS[view.value].match))
-const visibleOthers = computed(() => others.value.filter(OTHERS_IN[view.value]))
+// Hidden rows leave every view but Hidden, whatever their status. Hidden
+// shows them all, quotes and firms you're waiting on as well as suggestions.
+const isHidden = (id) => hiddenIds.value.includes(id)
+const rowsIn = (key) =>
+  key === 'hidden'
+    ? rows.value.filter((r) => isHidden(r.partnerId))
+    : rows.value.filter((r) => !isHidden(r.partnerId) && VIEWS[key].match(r))
+const othersIn = (key) =>
+  key === 'hidden'
+    ? others.value.filter((r) => isHidden(r.partnerId))
+    : others.value.filter((r) => !isHidden(r.partnerId) && OTHERS_IN[key](r))
+const count = (key) =>
+  rowsIn(key).length +
+  othersIn(key).length +
+  (RECOMMENDED_IN[key] ? recommended.value.length : 0) +
+  (key === 'hidden' ? hiddenRows.value.length : 0)
+const visible = computed(() => rowsIn(view.value))
+const visibleOthers = computed(() => othersIn(view.value))
+// The rows after the quotes, in three runs — see the template.
+const tail = computed(() => [
+  { key: 'open', rows: visibleOthers.value.filter((r) => r.status !== 'declined') },
+  { key: 'suggested', rows: visibleRecommended.value },
+  { key: 'declined', rows: visibleOthers.value.filter((r) => r.status === 'declined') },
+])
+const visibleRecommended = computed(() =>
+  RECOMMENDED_IN[view.value] ? recommended.value : view.value === 'hidden' ? hiddenRows.value : [],
+)
 
+// "Details shared" under a name only when it tells rows apart: a broadcast
+// sends the requirements alone, so some quotes there have the company and
+// some don't. Sent from the table, every row has it.
+const shareVaries = computed(() => INTEREST_STEP && rows.value.some((r) => r.state === 'pending'))
+
+// ⚠️ EVERY VIEW, ALWAYS, WITH ITS COUNT. Leaving out the empty ones made the
+// menu change shape as rows moved — hiding a partner added "Hidden" — and a
+// menu that rearranges itself reads as broken. A 0 says the same thing and
+// stays put; picking it shows the view's empty state.
 const viewOptions = computed(() =>
   Object.entries(VIEWS).map(([key, v]) => ({
     label: v.label,
@@ -259,25 +444,6 @@ const shareDetails = (row) => {
   toast.success(`Details shared with ${row.partner.name}`)
 }
 
-const notInterested = (row) => {
-  store.setBidState(props.project.id, row.partnerId, 'not-interested')
-  toast(`${row.partner.name} moved to Not interested`, {
-    id: `not-interested-${row.partnerId}`,
-    action: {
-      label: 'Undo',
-      onClick: () => store.setBidState(props.project.id, row.partnerId, row.state),
-    },
-  })
-}
-
-// Back to where it was before: shared stays shared in the thread, so a firm
-// whose details went out comes back as shared.
-const restore = (row) => {
-  const thread = store.threads.find((t) => t.partnerId === row.partnerId)
-  const wasShared = thread?.messages.some((m) => m.kind === 'company')
-  store.setBidState(props.project.id, row.partnerId, wasShared ? 'shortlisted' : 'pending')
-  toast.success(`${row.partner.name} restored`)
-}
 
 // Message is on every row, so More holds Share details (until it's done) and
 // Not interested — and nothing on a row that is already not interested, where
@@ -289,15 +455,22 @@ const moreFor = (row) => [
     icon: 'lucide-message-square',
     onClick: () => router.push({ name: 'messages', query: { thread: row.partnerId } }),
   },
-  row.state === 'pending' && {
+  INTEREST_STEP && row.state === 'pending' && {
     label: 'Share details',
     icon: 'lucide-send',
     onClick: () => shareDetails(row),
   },
+  // A firm told "not interested" has its own filter; hiding it too would
+  // offer a Restore that undoes nothing the firm was told.
+  !isHidden(row.partnerId) && row.state !== 'not-interested' && {
+    label: 'Hide',
+    icon: 'lucide-eye-off',
+    onClick: () => hide(row),
+  },
   row.state !== 'not-interested' && {
-    label: 'Not interested',
+    label: 'Not interested…',
     icon: 'lucide-ban',
-    onClick: () => notInterested(row),
+    onClick: () => passOn(row),
   },
 ].filter(Boolean)
 
@@ -312,8 +485,12 @@ onBeforeUnmount(() => query.removeEventListener('change', onWidth))
 
 const EMPTY = {
   all: { icon: 'lucide-inbox', title: 'No partners yet' },
-  shared: { icon: 'lucide-send', title: 'No details shared yet' },
-  declined: { icon: 'lucide-ban', title: 'No one marked not interested' },
+  quoted: { icon: 'lucide-inbox', title: 'No quotes yet' },
+  waiting: { icon: 'lucide-clock', title: 'No quotes pending' },
+  notSent: { icon: 'lucide-send', title: 'Sent to every recommended partner' },
+  declined: { icon: 'lucide-ban', title: 'No one declined' },
+  passed: { icon: 'lucide-ban', title: 'No one marked not interested' },
+  hidden: { icon: 'lucide-eye-off', title: 'No hidden partners' },
 }
 </script>
 
@@ -322,7 +499,7 @@ const EMPTY = {
     <!-- Nothing back yet. A real state: a broadcast sent an hour ago has no
          replies, and the page says so rather than draw an empty table. -->
     <EmptyState
-      v-if="!rows.length && !others.length"
+      v-if="!rows.length && !others.length && !recommended.length"
       icon="lucide-inbox"
       title="No quotes yet"
       :description="`Sent to ${sent} partners`"
@@ -338,10 +515,11 @@ const EMPTY = {
            12px above and below (pulled back by -my-3) give the quotes room to
            pass under it; the page's fill hides them as they do. -->
       <div class="sticky top-0 z-10 -my-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 bg-surface-base py-3">
-        <h2 class="whitespace-nowrap text-xl font-semibold text-ink-gray-8">Hire a Partner</h2>
+        <h2 class="whitespace-nowrap text-xl font-semibold text-ink-gray-8">{{ heading }}</h2>
         <div class="flex shrink-0 items-center gap-2">
-        <!-- Sorting needs two quotes to order. -->
-        <Dropdown v-if="rows.length > 1" :options="sortOptions" align="end">
+        <!-- Both controls from the start: arriving mid-task, they rebuilt the
+             bar under the pointer. -->
+        <Dropdown :options="sortOptions" align="end">
           <Button :label="sortLabel" icon-left="lucide-arrow-up-down" icon-right="lucide-chevron-down" />
         </Dropdown>
         <Dropdown :options="viewOptions" align="end">
@@ -353,19 +531,31 @@ const EMPTY = {
         </div>
       </div>
 
+      <!-- Gone once a quote lands ("none of these" would include it) and on
+           views that aren't suggestions. Neither is a click on a row, so the
+           table never moves under the pointer. -->
+      <p
+        v-if="sharedNote && !rows.length && (view === 'all' || view === 'notSent') && visibleRecommended.length"
+        class="mt-4 text-p-base text-ink-gray-6"
+      >
+        {{ SHARED_NOTE[sharedNote] ?? `${sharedNote}.` }}
+      </p>
+
       <div ref="listEl" class="mt-4">
-        <EmptyState v-if="!visible.length && !visibleOthers.length" :icon="EMPTY[view].icon" :title="EMPTY[view].title" />
+        <EmptyState v-if="!visible.length && !visibleOthers.length && !visibleRecommended.length" :icon="EMPTY[view].icon" :title="EMPTY[view].title" />
 
         <!-- frappe-ui's List in column mode. Static rows: each carries a
              profile link and buttons of its own, so the row is not a target. -->
         <ScrollArea v-else orientation="horizontal">
           <List
-            :class="narrow ? '' : 'min-w-max'"
             :columns="narrow ? ['minmax(0,1fr)', 'auto'] : ['minmax(0,5fr)', 'minmax(9rem,2fr)', '8rem']"
             :row-height="narrow ? 84 : 72"
           >
             <ListHeader>
               <ListHeaderCellSort :direction="dirOf('partner')" @click="sortBy('partner')">Partner</ListHeaderCellSort>
+              <!-- ⚠️ ALWAYS "QUOTE". A row without one says why in the same
+                   cell — Suggested, Awaiting quote, Declined — so the column
+                   means one thing at every stage. -->
               <ListHeaderCellSort v-if="!narrow" :direction="dirOf('quote')" @click="sortBy('quote')">
                 Quote
               </ListHeaderCellSort>
@@ -404,7 +594,7 @@ const EMPTY = {
                   </span>
                   <span class="mt-1 flex min-w-0 items-center gap-2 text-sm text-ink-gray-6">
                     <span class="truncate">
-                      {{ cityOf(row.partner) }}<template v-if="row.state === 'shortlisted'">
+                      {{ cityOf(row.partner) }}<template v-if="shareVaries && row.state === 'shortlisted'">
                         ·
                         <!-- What "details" means, in the hire dialog's words. The
                              visible text is enough on its own; this adds which. -->
@@ -444,9 +634,10 @@ const EMPTY = {
                 >
                   <template #icon><IconMessage class="size-4" /></template>
                 </Button>
-                <Button v-if="row.state !== 'not-interested'" label="Hire" @click="emit('choose', row.partner)" />
-                <!-- The way back, on the row, where Hire would be. -->
-                <Button v-else label="Restore" @click="restore(row)" />
+                <!-- Hidden: the way back, where Hire would be. Not interested
+                     has none — the firm was told. -->
+                <Button v-if="isHidden(row.partnerId)" label="Restore" @click="unhide(row)" />
+                <Button v-else-if="row.state !== 'not-interested'" label="Hire" @click="emit('choose', row.partner)" />
                 <Dropdown v-if="moreFor(row).length" :options="moreFor(row)" align="end">
                   <Button variant="ghost" :aria-label="`More for ${row.partner.name}`">
                     <template #icon><IconMore class="size-4" /></template>
@@ -454,13 +645,18 @@ const EMPTY = {
                 </Dropdown>
               </ListCell>
             </ListRow>
+            <!-- ⚠️ IN ORDER OF WHAT EACH ASKS OF YOU: quotes (above), then firms
+                 you're waiting on, then suggestions you could send to, then
+                 declines — closed, kept as a record. A decline used to sit
+                 second, above rows you could still act on. -->
+            <template v-for="part in tail" :key="part.key">
             <!-- Not quoted yet: the same partner cell, and the status where the
                  quote goes, in the lead list's dot-and-word style. The actions
                  follow a quoted row's order — Message, Restore where Hire would be,
                  More — with no empty slot where there's nothing to hire, so on
                  these rows Message sits one button further right. -->
             <ListRow
-              v-for="row in visibleOthers"
+              v-for="row in part.key === 'suggested' ? [] : part.rows"
               :key="row.partnerId"
               :data-partner="row.partnerId"
               class="!items-start pt-4"
@@ -507,7 +703,7 @@ const EMPTY = {
                 >
                   <template #icon><IconMessage class="size-4" /></template>
                 </Button>
-                <Button v-if="row.status === 'passed'" label="Restore" @click="restorePassed(row)" />
+                <Button v-if="isHidden(row.partnerId)" label="Restore" @click="unhide(row)" />
                 <Dropdown v-if="moreForOther(row).length" :options="moreForOther(row)" align="end">
                   <Button variant="ghost" :aria-label="`More for ${row.partner.name}`">
                     <template #icon><IconMore class="size-4" /></template>
@@ -515,9 +711,91 @@ const EMPTY = {
                 </Dropdown>
               </ListCell>
             </ListRow>
+            <!-- Not sent yet: the partner cell with what it misses, if
+                 anything, and Send where Hire goes once they quote. Hidden
+                 suggestions render the same, with Restore. -->
+            <ListRow
+              v-for="row in part.key === 'suggested' ? part.rows : []"
+              :key="row.partnerId"
+              :data-partner="row.partnerId"
+              class="!items-start pt-4"
+            >
+              <ListCell class="!items-start gap-3">
+                <Avatar
+                  :image="logoFor(row.partnerId)"
+                  :label="row.partner.name"
+                  size="2xl"
+                  shape="square"
+                  class="fc-logo-avatar shrink-0"
+                />
+                <div class="min-w-0">
+                  <span class="flex items-center gap-2">
+                    <RouterLink
+                      :to="{ name: 'partner', params: { id: row.partnerId } }"
+                      class="truncate text-base text-ink-gray-8 hover:underline"
+                    >
+                      {{ row.partner.name }}
+                    </RouterLink>
+                    <TierIcon :tier="row.partner.tier" />
+                  </span>
+                  <span class="mt-1 flex min-w-0 items-center gap-1 text-sm text-ink-gray-6">
+                    <span class="truncate">{{ cityOf(row.partner) }}<template v-if="row.note && !sharedNote"> · {{ row.note }}</template></span>
+                    <template v-if="narrow">
+                      <span aria-hidden="true">·</span>
+                      <span class="truncate">{{ row.hidden ? 'Hidden' : 'Suggested' }}</span>
+                    </template>
+                  </span>
+                </div>
+              </ListCell>
+              <!-- ⚠️ "SUGGESTED", NOT "NOT SENT", AND A HOLLOW RING. "Not sent"
+                   named an action that hadn't happened, so every suggestion
+                   read as a task left undone; sending is optional. A filled
+                   dot marks a step in the process; the ring, in the same 8px
+                   and 16px box as `StageDot`, reads as not started — the same
+                   family, lighter than the statuses that need you. -->
+              <ListCell v-if="!narrow" class="!items-start gap-2">
+                <span class="mt-0.5 grid size-4 shrink-0 place-items-center" aria-hidden="true">
+                  <span class="size-2 rounded-full border border-outline-gray-4" />
+                </span>
+                <span class="text-base text-ink-gray-6">{{ row.hidden ? 'Hidden' : 'Suggested' }}</span>
+              </ListCell>
+              <!-- Send, then More — the order a quoted row uses for Hire. The
+                   message icon says where Send lands: a conversation. -->
+              <ListCell class="-mt-1 !items-start justify-end gap-1.5">
+                <Button v-if="row.hidden" label="Restore" @click="unhide(row)" />
+                <template v-else>
+                  <Button label="Send" icon-left="lucide-message-square" @click="send(row)" />
+                  <Dropdown
+                    :options="[{ label: 'Hide', icon: 'lucide-eye-off', onClick: () => hide(row) }]"
+                    align="end"
+                  >
+                    <Button variant="ghost" :aria-label="`More for ${row.partner.name}`">
+                      <template #icon><IconMore class="size-4" /></template>
+                    </Button>
+                  </Dropdown>
+                </template>
+              </ListCell>
+            </ListRow>
+            </template>
           </List>
         </ScrollArea>
       </div>
     </template>
+
+    <NotInterestedDialog
+      :open="Boolean(declining)"
+      :partner-name="decliningName"
+      @update:open="!$event && (declining = null)"
+      @send="sendNotInterested"
+    />
+    <SendRequirementsDialog
+      :open="Boolean(asking)"
+      :brief="brief"
+      :country="answers.country ?? ''"
+      :partner-name="askingName"
+      @update:open="!$event && (asking = null)"
+      @update-brief="store.updateDraftBrief(project.id, $event)"
+      @send="queue(asking); asking = null"
+    />
   </section>
 </template>

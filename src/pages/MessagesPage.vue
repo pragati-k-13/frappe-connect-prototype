@@ -31,6 +31,9 @@ import { PARTNERS, implementerFor, isFrappe } from '../data/partners'
 import { logoFor } from '../data/logos'
 import { STATUS_LABELS, changeLine, isActive, isUpdate, lastAt, quoteStanding, threadStatus } from '../data/messages'
 import { useConnectStore } from '../stores/connect'
+import NotInterestedDialog from '../components/NotInterestedDialog.vue'
+import { reasonsLine } from '../data/notInterested'
+import { INTEREST_STEP } from '../data/features'
 
 // SCREEN — messages. The destination the confirmed screen has been promising
 // ("Project details sent via Messaging") and the one every Contact button in
@@ -226,6 +229,7 @@ const preview = (thread) => {
                 m.brief.project
               : asText(m.body)
   if (m.kind === 'company') return `${companyName.value} · shared`
+  if (m.kind === 'not-interested') return 'You: not taking this forward'
   if (m.kind === 'confirmed') return 'Confirmed their quote'
   if (m.kind === 'hire-declined') return 'You declined the hire request'
   return m.from === 'you' ? `You: ${body}` : body
@@ -330,8 +334,53 @@ const compareProject = computed(() => {
   const project = bidProject.value
   if (!project || project.partnerId) return null
   const bid = project.bids.find((b) => b.partnerId === open.value?.partnerId)
-  return bid?.state === 'shortlisted' ? project : null
+  if (!bid) return null
+  // Without the Interested step every quote still in play is a way back.
+  return (INTEREST_STEP ? bid.state === 'shortlisted' : bid.state !== 'not-interested') ? project : null
 })
+
+// The project this firm is a row of, while nobody is hired: the one whose
+// table Not interested and Restore act on.
+// ⚠️ THE THREAD'S OWN PROJECT FIRST — the one its latest requirements are
+// for — so a firm on two projects is marked on the one this conversation is
+// about, not whichever comes first.
+const tableProject = computed(() => {
+  const id = open.value?.partnerId
+  if (!id) return null
+  const own = (open.value.messages ?? []).findLast((m) => m.kind === 'brief')?.brief?.projectId
+  const inTable = (p) =>
+    !p.partnerId &&
+    ((p.bids ?? []).some((b) => b.partnerId === id) || (p.broadcast?.partnerIds ?? []).includes(id))
+  const ownProject = store.projects.find((p) => p.id === own)
+  if (ownProject) return inTable(ownProject) ? ownProject : null
+  return (
+    store.projects.find(
+      (p) =>
+        !p.partnerId &&
+        ((p.bids ?? []).some((b) => b.partnerId === id) || (p.broadcast?.partnerIds ?? []).includes(id)),
+    ) ?? null
+  )
+})
+const isNotInterested = computed(() => {
+  const p = tableProject.value
+  const id = open.value?.partnerId
+  if (!p || !id) return false
+  const bid = (p.bids ?? []).find((b) => b.partnerId === id)
+  return bid ? bid.state === 'not-interested' : (p.passed ?? []).includes(id)
+})
+// ⚠️ IN THE MENU, NOT A BAR. The "Take this forward?" bar asked about every
+// quote because Interested had to be chosen; Not interested is occasional, so
+// it waits in ••• and the composer stays the thread's only footer. It tells
+// the firm, so it opens `NotInterestedDialog` with the words first. Hiding a
+// firm is the project table's; here, Archive does that job.
+const declining = ref(false)
+const sendNotInterested = (payload) => {
+  const p = tableProject.value
+  const t = open.value
+  if (!p || !t) return
+  store.sendNotInterested(p.id, t.partnerId, payload)
+  toast.success(`Sent to ${t.partner.name}`)
+}
 
 // ⚠️ THE DECISION IS ABOUT THE PARTNER, NOT A QUOTE. It used to sit on the
 // quote card, which tied it to one figure — and a partner may revise the
@@ -357,7 +406,12 @@ const threadMenu = computed(() => {
           description: 'It would find a word anywhere in this conversation.',
         }),
     },
-    ...(openBid.value?.state === 'shortlisted'
+    ...(tableProject.value && !isNotInterested.value
+      ? [
+          { label: 'Not interested…', icon: 'lucide-ban', onClick: () => (declining.value = true) },
+        ]
+      : []),
+    ...(INTEREST_STEP && openBid.value?.state === 'shortlisted'
       ? [
           {
             label: 'Undo interested',
@@ -754,6 +808,11 @@ watch(
             <p v-if="m.kind === 'confirmed'" class="mt-6 text-center text-p-sm text-ink-gray-5">
               <span class="text-ink-gray-7">{{ open.partner.name }}</span> confirmed their quote · {{ time(m.at) }}
             </p>
+            <!-- Not interested: an event, like the lines around it. See
+                 `sendNotInterested`. -->
+            <p v-else-if="m.kind === 'not-interested'" class="mt-6 text-pretty text-center text-p-sm text-ink-gray-5">
+              You're not taking this forward<template v-if="reasonsLine(m.reasons)"> · {{ reasonsLine(m.reasons) }}</template> · {{ time(m.at) }}
+            </p>
             <p v-else-if="m.kind === 'hire-declined'" class="mt-6 text-center text-p-sm text-ink-gray-5">
               You declined <span class="text-ink-gray-7">{{ open.partner.name }}</span>’s hire request · {{ time(m.at) }}
             </p>
@@ -1053,7 +1112,8 @@ watch(
              does not reveal who you are. Once Interested, the bar is gone —
              the details are out and there is nothing to take back. Not
              interested keeps a way back, because nothing was shared. -->
-        <div v-if="open.broadcast && openBid" class="shrink-0 px-5 pt-3">
+        <!-- Held back with broadcast — see `INTEREST_STEP`. -->
+        <div v-if="INTEREST_STEP && open.broadcast && openBid" class="shrink-0 px-5 pt-3">
           <!-- The reference's shape: a centred line, two buttons with icons
                under it. No frame. The primary answer comes first. -->
           <div v-if="openBid.state === 'pending'" class="pb-3 text-center">
@@ -1185,6 +1245,11 @@ watch(
       close-on-save
       @saved="onSaved"
       @update:open="!$event && (briefDetails = null)"
+    />
+    <NotInterestedDialog
+      v-model:open="declining"
+      :partner-name="open?.partner.name ?? ''"
+      @send="sendNotInterested"
     />
   </ConnectShell>
 </template>

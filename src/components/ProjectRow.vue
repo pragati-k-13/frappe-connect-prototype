@@ -8,6 +8,7 @@ import IconShortlisted from '~icons/lucide/bookmark-check'
 import { logoFor } from '../data/logos'
 import { implementerFor } from '../data/partners'
 import { serviceOf } from '../data/project'
+import { INTEREST_STEP } from '../data/features'
 
 // One project in the Projects list.
 //
@@ -64,11 +65,12 @@ const facts = computed(() => {
     const bids = props.project.bids ?? []
     return [
       { text: plural(bids.length, 'quote'), icon: IconQuotes },
-      {
+      // Shortlisting is the Interested step, held back with broadcast.
+      INTEREST_STEP && {
         text: `${bids.filter((b) => b.state === 'shortlisted').length} shortlisted`,
         icon: IconShortlisted,
       },
-    ]
+    ].filter(Boolean)
   }
   return [{ text: partner.value?.name ?? 'No partner yet', logo: logo.value }]
 })

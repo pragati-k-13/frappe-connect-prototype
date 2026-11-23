@@ -4,6 +4,8 @@ import { Avatar, Badge, Button, Dropdown, toast } from 'frappe-ui'
 import IconBuilding from '~icons/lucide/building-2'
 import DescriptionText from './DescriptionText.vue'
 import { awaitingRequote, changeLine, isUpdate, quoteStanding } from '../data/messages'
+import { INTEREST_STEP } from '../data/features'
+import { reasonsLine } from '../data/notInterested'
 
 // One Connect thread as the partner reads it: the brief, the quote, the
 // moment the company shared its details, replies, and the hire. Shared by the
@@ -85,9 +87,13 @@ const messageMenu = (m) => [
         <span class="text-ink-gray-7">{{ m.from === 'you' ? 'You' : (self?.name ?? 'The partner') }}</span>
         changed the apps from {{ m.was }} to {{ m.now }} · {{ time(m.at) }}
       </p>
+      <p v-else-if="m.kind === 'not-interested'" class="mt-6 text-pretty text-center text-p-sm text-ink-gray-5">
+        <span class="text-ink-gray-7">{{ company?.name }}</span>
+        isn't taking this forward<template v-if="reasonsLine(m.reasons)"> · {{ reasonsLine(m.reasons) }}</template> · {{ time(m.at) }}
+      </p>
       <p v-else-if="m.kind === 'shared'" class="mt-6 text-center text-p-sm text-ink-gray-5">
         <span class="text-ink-gray-7">{{ company?.name }}</span>
-        is interested in your quote and shared their contact details · {{ time(m.at) }}
+        {{ INTEREST_STEP ? 'is interested in your quote and shared' : 'shared' }} their contact details · {{ time(m.at) }}
       </p>
       <!-- The hire request, and what became of it. -->
       <p v-else-if="m.kind === 'hire-sent'" class="mt-6 text-center text-p-sm text-ink-gray-5">

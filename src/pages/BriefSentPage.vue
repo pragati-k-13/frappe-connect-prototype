@@ -44,7 +44,11 @@ const partners = computed(() =>
 </script>
 
 <template>
-  <ConnectShell root-label="Projects" root-to="/connect/projects" crumb="Requirements sent">
+  <ConnectShell
+    :root-label="project?.name ?? 'Projects'"
+    :root-to="project ? `/connect/projects/${project.id}` : store.projectHome"
+    crumb="Requirements sent"
+  >
     <div class="fc-page-read py-10">
       <!-- No project behind the link: a reload after the store was cleared, or
            a forwarded URL. The list is the honest destination. -->
@@ -57,7 +61,7 @@ const partners = computed(() =>
           class="mt-4"
           variant="solid"
           label="See what's under way"
-          :route="{ name: 'projects' }"
+          :route="store.projectHome"
         />
       </div>
 

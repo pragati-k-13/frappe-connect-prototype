@@ -27,6 +27,18 @@ import { takingWork } from '../data/takingWork'
 import { bidFor, repliesToBrief } from '../data/bids'
 import { STARTER_PACKS, packConflicts } from '../data/packs'
 import { recommendedPackValues } from '../data/recommendation'
+import { INTEREST_STEP } from '../data/features'
+
+// Projects the rail shows by name. Past this, the newest and an "All projects"
+// row that opens the list.
+export const PROJECT_ROWS = 3
+
+// ⚠️ A SEND FROM THE PARTNER TABLE IS HELD, not confirmed. There is no dialog
+// before it, so a click is the decision, and the toast's Undo is the way back
+// — which only works while nothing has gone out. `project.sending` holds the
+// firms in that window; the timers live outside the state.
+export const SEND_HOLD_MS = 5000
+const sendTimers = new Map()
 
 // A skipped question stores `null`, which every filter below reads as "no
 // constraint". That keeps skip and never-asked identical downstream, so the
@@ -263,6 +275,9 @@ export const useConnectStore = defineStore('connect', {
     firmSettingsTab: null,
     // A person to pick out when Firm settings opens on Users (from search).
     firmSettingsFocus: null,
+    // Opens New project from anywhere (Search, a project's ••• menu, the
+    // empty state); ConnectShell owns the dialog.
+    newProjectOpen: false,
     partnershipState: 'working',
     // See ACCOUNT_STATES above. Deliberately NOT cleared by `reset()`: it's
     // which demo you're in, not something the quiz collected — same as `role`.
@@ -532,6 +547,18 @@ export const useConnectStore = defineStore('connect', {
     // an empty state rather than an error.
     projectBy: (state) => (id) => state.projects.find((p) => p.id === id) ?? null,
 
+    // ⚠️ THE PROJECT IS THE DESTINATION, not a list of one. Most accounts have
+    // a single project, so the rail lists projects by name and the list page
+    // only has a row once there are more than fit: `PROJECT_ROWS`.
+    newestProject: (state) => state.projects.at(-1) ?? null,
+    projectListInRail: (state) => state.projects.length > PROJECT_ROWS,
+    // Where "your projects" goes: the newest one, or the empty state. Sign-in
+    // lands here, and so does anything that used to send you to the list.
+    projectHome: (state) => {
+      const newest = state.projects.at(-1)
+      return newest ? `/connect/projects/${newest.id}` : '/connect/projects'
+    },
+
     // The module scope the estimate modal prices.
     //
     // The projects an INQUIRY can be sent about, newest first.
@@ -760,6 +787,9 @@ export const useConnectStore = defineStore('connect', {
       if (tier !== 'beginner' && tier !== 'bronze-up') return
       this.partnerTier = tier
       this.partnershipState = 'working'
+    },
+    openNewProject() {
+      this.newProjectOpen = true
     },
     openFirmSettings(tab, focus = null) {
       this.firmSettingsTab = tab
@@ -1081,7 +1111,7 @@ export const useConnectStore = defineStore('connect', {
       // One quote shortlisted and one passed on, so the comparison table opens
       // with something in it and the inbox shows both settled states.
       const bids = project.bids ?? []
-      if (bids[0]) this.setBidState(project.id, bids[0].partnerId, 'shortlisted')
+      if (bids[0] && INTEREST_STEP) this.setBidState(project.id, bids[0].partnerId, 'shortlisted')
       if (bids[1]) this.setBidState(project.id, bids[1].partnerId, 'not-interested')
 
       // ⚠️ THE CONVERSATION CONTINUES AFTER A SHORTLIST, which is the point of
@@ -1499,6 +1529,7 @@ export const useConnectStore = defineStore('connect', {
       if (!partner || !project) return null
 
       if (brief) project.brief = pickBrief({ ...this.briefOf(projectId), ...brief })
+      this.addToTable(project, partner.id)
       const snapshot = snapshotBrief(
         project,
         this.briefOf(projectId),
@@ -1532,6 +1563,85 @@ export const useConnectStore = defineStore('connect', {
 
       this.threads = [...this.threads, contactThread(partner, snapshot, message.trim())]
       return partner.id
+    },
+
+    // ⚠️ EVERY FIRM WITH THE REQUIREMENTS IS A ROW on the project's table,
+    // however they got them: Send on the table, Contact on a profile, or a
+    // broadcast. `broadcast.partnerIds` is that list. Before this, a firm
+    // reached through Contact was only in Messages. The first send makes a
+    // saved project custom work, as a broadcast does.
+    addToTable(project, partnerId) {
+      const ids = project.broadcast?.partnerIds ?? []
+      if (!ids.includes(partnerId)) {
+        project.broadcast = { at: project.broadcast?.at ?? Date.now(), partnerIds: [...ids, partnerId] }
+      }
+      project.bids ??= []
+      if (!project.service) {
+        project.service = 'custom'
+        project.stage = 'choosing'
+        project.serviceAt = Date.now()
+      }
+    },
+
+    // Send on the project's table: held for `SEND_HOLD_MS`, then the same
+    // `sendBrief` Contact uses — requirements and company. `onSent` lets the
+    // page close its Undo once there is nothing left to undo.
+    queueSend(projectId, partnerId, onSent = null) {
+      const project = this.projects.find((p) => p.id === projectId)
+      if (!project || project.sending?.includes(partnerId)) return
+      project.sending = [...(project.sending ?? []), partnerId]
+      const key = `${projectId}:${partnerId}`
+      sendTimers.set(
+        key,
+        setTimeout(() => {
+          sendTimers.delete(key)
+          const p = this.projects.find((x) => x.id === projectId)
+          if (!p?.sending?.includes(partnerId)) return
+          p.sending = p.sending.filter((id) => id !== partnerId)
+          this.sendBrief({ partnerId, projectId })
+          onSent?.()
+        }, SEND_HOLD_MS),
+      )
+    },
+
+    // ⚠️ HIDING IS NOT "NOT INTERESTED". Any row can be hidden — a suggestion,
+    // a firm you're waiting on, a quote — and nothing is sent: it's yours, for
+    // "no" or "later", and Restore brings it back. Not interested is the one
+    // that tells the firm.
+    setHidden(projectId, partnerId, on) {
+      const project = this.projects.find((p) => p.id === projectId)
+      if (!project) return
+      const ids = project.hidden ?? []
+      project.hidden = on ? [...new Set([...ids, partnerId])] : ids.filter((id) => id !== partnerId)
+    },
+
+    // ⚠️ NOT INTERESTED TELLS THE PARTNER, AS A STATUS LINE. It used to only
+    // file the quote away, so the firm kept following up on a project that
+    // had moved on. It's an event in the thread — "Northwind isn't taking this
+    // forward · over budget" — like the contact-details line, not a message
+    // written in the business's voice; only a note it typed goes as one. A
+    // quote becomes 'not-interested'; a firm that hasn't quoted goes to
+    // `passed`. The reasons stay with the project: why a quote was turned
+    // down is what the marketplace learns from.
+    sendNotInterested(projectId, partnerId, { reasons = [], note = '' }) {
+      const project = this.projects.find((p) => p.id === projectId)
+      if (!project) return
+      const bid = project.bids?.find((b) => b.partnerId === partnerId)
+      if (bid) bid.state = 'not-interested'
+      else this.setPassed(projectId, partnerId, true)
+      project.notInterested = { ...(project.notInterested ?? {}), [partnerId]: reasons }
+      const thread = this.threads.find((t) => t.partnerId === partnerId)
+      if (!thread) return
+      thread.messages.push({ id: `ni-${Date.now()}`, from: 'you', at: Date.now(), kind: 'not-interested', reasons })
+      if (note.trim()) this.sendMessage(thread.id, note.trim())
+    },
+
+    cancelSend(projectId, partnerId) {
+      const key = `${projectId}:${partnerId}`
+      clearTimeout(sendTimers.get(key))
+      sendTimers.delete(key)
+      const project = this.projects.find((p) => p.id === projectId)
+      if (project?.sending) project.sending = project.sending.filter((id) => id !== partnerId)
     },
 
     // ── Editing sent requirements ────────────────────────────────────────
@@ -1818,17 +1928,31 @@ export const useConnectStore = defineStore('connect', {
     // Not every partner replies — see `repliesToBrief`.
     simulateReplies(id) {
       const project = this.projects.find((p) => p.id === id)
-      if (!project?.broadcast || project.bids?.length) return null
-      const bids = project.broadcast.partnerIds
+      if (!project?.broadcast) return null
+      // ⚠️ ONLY FIRMS NOT ASKED BEFORE. Sends now go one at a time, so a firm
+      // added after the first replies still gets its turn; one already asked
+      // keeps the answer it gave. `repliesToBrief` decides who answers.
+      const asked = new Set(project.replied ?? [])
+      const fresh = project.broadcast.partnerIds.filter((pid) => !asked.has(pid))
+      if (!fresh.length) return null
+      project.replied = [...asked, ...fresh]
+      // A firm that has the company already — sent from the table or Contact —
+      // arrives as shared, the state Share details would have put it in.
+      const shared = (pid) =>
+        this.threads.find((t) => t.partnerId === pid)?.messages.some((m) => m.kind === 'company')
+      const bids = fresh
         .map((pid) => PARTNERS.find((p) => p.id === pid))
         .filter((p) => p && repliesToBrief(p))
-        .map((p) => ({ ...bidFor(p, { country: this.company.country }), state: 'pending' }))
+        .map((p) => ({
+          ...bidFor(p, { country: this.company.country }),
+          state: shared(p.id) ? 'shortlisted' : 'pending',
+        }))
 
       for (const bid of bids) {
         const thread = this.threads.find((t) => t.partnerId === bid.partnerId)
         if (thread) thread.messages.push(bidMessage(bid))
       }
-      project.bids = bids
+      project.bids = [...(project.bids ?? []), ...bids]
       return bids.length
     },
 

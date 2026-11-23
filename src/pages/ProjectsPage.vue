@@ -1,10 +1,8 @@
 <script setup>
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed } from 'vue'
 import { Button, ScrollArea } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
-import NewProjectDialog from '../components/NewProjectDialog.vue'
 import ProjectRow from '../components/ProjectRow.vue'
 import { useAuthGate } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
@@ -17,10 +15,10 @@ import { useConnectStore } from '../stores/connect'
 // months before either — and a single-project screen would have had to pick one
 // of them to be "the" project and hide the rest.
 //
-// It is also the rail's "Projects" row, which was inert until now. The
-// row exists in `ConnectShell` for exactly this destination.
+// Reached from the rail only when it has a row for it: "Projects" with none
+// yet (the empty state), "All projects" past `PROJECT_ROWS`. In between the
+// route sends you to the newest project — see the router.
 const store = useConnectStore()
-const router = useRouter()
 const { requireAccount } = useAuthGate()
 
 const projects = computed(() => store.projects)
@@ -31,25 +29,16 @@ const projects = computed(() => store.projects)
 // are most likely to be coming back to.
 const ordered = computed(() => [...projects.value].reverse())
 
-const creating = ref(false)
-
 // Gated, like every other control that writes to an account. Signed out, this
 // sends them to sign up carrying `?next=` back here, and the dialog opens once
 // they land — see `holdUntilLogin`.
-const startNew = () => requireAccount(() => (creating.value = true))
+const startNew = () => requireAccount(() => store.openNewProject())
 
-// Straight into the project it made. A new project is one decision away from
-// being useful and the list has nothing to add — leaving the reader on the
-// index to find the row they just created is a step that exists only because
-// the code was easier to write that way.
-const create = (details) => {
-  creating.value = false
-  router.push(`/connect/projects/${store.createProject(details)}`)
-}
+// Creating lands on the new project: `ConnectShell` owns the dialog.
 </script>
 
 <template>
-  <ConnectShell root-label="Projects" root-to="/connect/projects" :flush="!ordered.length">
+  <ConnectShell :root-label="store.projectListInRail ? 'All projects' : 'Projects'" root-to="/connect/projects" :flush="!ordered.length">
     <!-- ⚠️ NO TOP-BAR ACTION, and that part still holds. New project lived here
          as the bar's trailing control on the grounds that it was the one thing
          on this screen that isn't opening a row; it sits on the list's own
@@ -127,6 +116,5 @@ const create = (details) => {
       </template>
     </div>
 
-    <NewProjectDialog :open="creating" @close="creating = false" @create="create" />
   </ConnectShell>
 </template>

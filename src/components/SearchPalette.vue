@@ -24,6 +24,9 @@ import { usePartnerAccountStore } from '../stores/partnerAccount'
 // and its rebuild lives here while the API settles.
 const props = defineProps({
   places: { type: Array, default: () => [] },
+  // Things to do rather than places to go, shown above them while the query
+  // is empty: `{ label, icon, run }`.
+  actions: { type: Array, default: () => [] },
 })
 const open = defineModel('open', { type: Boolean, default: false })
 
@@ -62,7 +65,8 @@ const peopleItems = computed(() =>
 )
 
 function select(value) {
-  if (value.person) store.openFirmSettings('users', value.person)
+  if (value.run) value.run()
+  else if (value.person) store.openFirmSettings('users', value.person)
   else router.push(value.to)
   query.value = ''
 }
@@ -72,6 +76,12 @@ function select(value) {
   <CommandPalette v-model:open="open" v-model:query="query" @select="select">
     <CommandPaletteInput :placeholder="isPartner ? 'Search people, leads, customers and pages' : 'Search projects, partners and pages'" />
     <CommandPaletteList>
+      <CommandPaletteGroup v-if="props.actions.length && !typing" label="Actions">
+        <CommandPaletteItem v-for="a in props.actions" :key="a.label" :value="a">
+          <template #prefix><span :class="a.icon" class="mr-3 size-4 text-ink-gray-7" aria-hidden="true" /></template>
+          {{ a.label }}
+        </CommandPaletteItem>
+      </CommandPaletteGroup>
       <CommandPaletteGroup label="Go to">
         <CommandPaletteItem v-for="p in props.places" :key="p.to" :value="p">
           <!-- The rail's own icon, component or class, so each place looks the same in both. -->
