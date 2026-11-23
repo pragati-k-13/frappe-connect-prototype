@@ -1,30 +1,28 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Avatar, Badge, Button, Combobox, Dialog, FormControl, Tooltip, toast } from 'frappe-ui'
+import { Avatar, Badge, Button, Dialog, FormControl, Tooltip, toast } from 'frappe-ui'
 import { NumberCard } from 'frappe-ui/charts'
 import ConnectShell from '../components/ConnectShell.vue'
 import TierIcon from '../components/TierIcon.vue'
 import PageIntro from '../components/PageIntro.vue'
 import EmptyState from '../components/EmptyState.vue'
+import PartnerChecklist from '../components/PartnerChecklist.vue'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 import {
-  TIERS,
   longDate,
   shortMoney,
   nextTier,
-  shortDate,
   standingFor,
 } from '../data/partnership'
 import { auditShortDate, openNcs } from '../data/audits'
-import { COUNTRY_OPTIONS_INDIA_ONLY, SELECTABLE_COUNTRY } from '../data/company'
 import { useAuditReadiness } from '../composables/useAuditReadiness'
 
 // SCREEN — Partnership: where the firm stands with Frappe and what gets it up
 // a tier. See PARTNER-VIEW-PLAN.md §1.
 //
-// One anchor per tier. A Beginner's is the milestone checklist; from Bronze up
-// it is the next tier's criteria as tiles, the audit behind PMM's. Everything
+// One anchor per tier. A Beginner's is the checklist to Bronze
+// (`PartnerChecklist`); from Bronze up it is the next tier's criteria as tiles, the audit behind PMM's. Everything
 // else on the page (certificates, the managers) supports that one block and sits lighter than it.
 
 const store = useConnectStore()
@@ -39,10 +37,8 @@ const beginner = computed(() => store.partnerTier === 'beginner')
 // Bronze and up lead with the firm; the tier is the badge beside it. At Gold
 // there is no next tier, so the name stands alone.
 const title = computed(() => {
-  if (beginner.value) return next.value ? `${tier.value.label} partner, working toward ${next.value.label}` : `${tier.value.label} partner`
   return next.value ? `${s.value.firm.name}, working toward ${next.value.label}` : s.value.firm.name
 })
-const tier = computed(() => TIERS[s.value.tier])
 const next = computed(() => nextTier(s.value.tier))
 const currency = computed(() => s.value.mrr.currency)
 
@@ -166,62 +162,6 @@ const counts = computed(() => {
 // Request audit dialog.
 const { ready: readyForAudit } = useAuditReadiness()
 
-// ── Beginner: the milestones ────────────────────────────────────────────────
-const milestones = computed(() => {
-  if (!beginner.value) return []
-  // Certifications tick from the Certificates count.
-  // A firm that has just signed up has reached none of them yet.
-  const seeded = account.edits.fresh
-    ? s.value.milestones.map(({ done, todo, ...m }) => (m.key === 'bronze' ? { ...m, todo } : m))
-    : s.value.milestones
-  const list = [
-    profileStep.value,
-    ...seeded.map((m) => (m.key === 'cert-2' && s.value.consultants >= 2 ? { ...m, done: '2026-10-30' } : m)),
-  ]
-  const firstOpen = list.findIndex((m) => !m.done)
-  return list.map((m, i) => ({
-    ...m,
-    // The audit's lead time sits on the milestone that needs it.
-    todo: m.key === 'bronze' ? `PMM ${TIERS.bronze.pmm} audit, requested ${TIERS.bronze.leadDays} days ahead` : m.todo,
-    next: i === firstOpen,
-    route:
-      m.to === 'contributions' && canSeeContributions.value
-        ? '/connect/customers?sort=mrr'
-        : m.to === 'team'
-          ? '/connect/partnership#certificates'
-          : null,
-  }))
-})
-
-// ── The firm profile ────────────────────────────────────────────────────────
-// The first step, and the one sign-up hands over: the firm's name and country.
-// The seeded Beginner did it when it joined.
-const profileStep = computed(() => ({
-  key: 'profile',
-  label: 'Complete your firm profile',
-  done: account.edits.firmProfile?.done ?? (account.edits.fresh ? null : '2026-07-28'),
-  todo: 'Company name and country',
-  action: true,
-}))
-const profileOpen = ref(false)
-const profileSubmitted = ref(false)
-const profile = ref({ name: '', country: SELECTABLE_COUNTRY })
-const profileError = computed(() =>
-  profileSubmitted.value && !profile.value.name.trim() ? 'Enter your company name' : undefined,
-)
-function openProfile() {
-  profile.value = { name: account.edits.firmProfile?.name ?? '', country: SELECTABLE_COUNTRY }
-  profileSubmitted.value = false
-  profileOpen.value = true
-}
-function saveProfile() {
-  profileSubmitted.value = true
-  if (profileError.value) return
-  account.saveFirmProfile({ name: profile.value.name.trim(), country: profile.value.country })
-  profileOpen.value = false
-  toast.success('Firm profile saved')
-}
-
 // ── The audit ───────────────────────────────────────────────────────────────
 // Audits are their own page; the PMM card goes there. Its badge says when
 // there is something to wait for or act on, and its caption the last audit.
@@ -246,7 +186,9 @@ const auditCaption = computed(() => {
 
 <template>
   <ConnectShell root-label="Partnership">
-    <div class="fc-page-list py-8">
+    <!-- A Beginner's page is the checklist to Bronze, and nothing else. -->
+    <PartnerChecklist v-if="beginner" />
+    <div v-else class="fc-page-list py-8">
       <div>
         <div class="min-w-0 space-y-16">
           <!-- ── The anchor ───────────────────────────────────────────── -->
@@ -254,60 +196,16 @@ const auditCaption = computed(() => {
             <PageIntro
               class="!pb-5"
               :title="title"
-              :description="beginner ? tier.listing : ''"
             >
               <!-- Bronze and up: the tier as a labelled badge closing the
                    line, so the title never says it twice. -->
-              <template v-if="!beginner" #suffix><TierIcon :tier="s.tier" labelled size="lg" /></template>
+              <template #suffix><TierIcon :tier="s.tier" labelled size="lg" /></template>
             </PageIntro>
-
-            <!-- Beginner: the five milestones Frappe tracks, in order. -->
-            <template v-if="beginner">
-              <h2 class="text-lg-semibold text-ink-gray-8">Your way to Bronze</h2>
-              <ol class="mt-3 divide-y divide-outline-gray-1">
-                <li v-for="m in milestones" :key="m.key">
-                  <component
-                    :is="m.route ? 'RouterLink' : 'div'"
-                    :to="m.route ?? undefined"
-                    class="-mx-2 flex items-center gap-3 rounded-4 px-2 py-3"
-                    :class="m.route && 'transition-colors hover:bg-surface-gray-2'"
-                  >
-                    <span
-                      :class="m.done ? 'lucide-circle-check' : 'lucide-circle'"
-                      class="size-4 shrink-0 text-ink-gray-5"
-                      aria-hidden="true"
-                    />
-                    <span
-                      class="min-w-0 flex-1 text-base"
-                      :class="m.next ? 'font-medium text-ink-gray-9' : 'text-ink-gray-8'"
-                    >
-                      {{ m.label }}
-                    </span>
-                    <Badge v-if="m.next" theme="blue" variant="subtle" size="sm" label="Next" />
-                    <Button
-                      v-if="m.action && !m.done && canRequestAudit"
-                      class="-my-1.5"
-                      size="sm"
-                      label="Add details"
-                      @click="openProfile"
-                    />
-                    <span v-else class="shrink-0 text-sm text-ink-gray-5">
-                      {{ m.done ? `Done ${shortDate(m.done)}` : m.todo }}
-                    </span>
-                    <span
-                      v-if="m.route"
-                      class="lucide-chevron-right size-4 shrink-0 text-ink-gray-5"
-                      aria-hidden="true"
-                    />
-                  </component>
-                </li>
-              </ol>
-            </template>
 
             <!-- Bronze and up: the next tier's criteria, one tile each. No
                  heading: the title above already names the tier. Only PMM
                  opens anything; the others have nowhere useful to go. -->
-            <template v-else-if="next">
+            <template v-if="next">
               <h2 class="sr-only">{{ next.label }} needs</h2>
               <!-- MRR wide on the left, the two counts stacked beside it; the
                    MRR card stretches to their height. -->
@@ -399,26 +297,6 @@ const auditCaption = computed(() => {
 
       </div>
     </div>
-    <!-- ── Firm profile ─────────────────────────────────────────────────── -->
-    <Dialog v-model:open="profileOpen" size="md" title="Firm profile">
-      <form class="space-y-4" novalidate @submit.prevent="saveProfile">
-        <FormControl v-model="profile.name" label="Company name" autofocus :error="profileError" />
-        <!-- India only for now, as on every form that asks: see
-             `COUNTRY_OPTIONS_INDIA_ONLY`. -->
-        <Combobox
-          v-model="profile.country"
-          label="Country"
-          placeholder="Select a country"
-          trigger="button"
-          :options="COUNTRY_OPTIONS_INDIA_ONLY"
-        />
-        <div class="flex justify-end gap-2 pt-2">
-          <Button label="Cancel" @click="profileOpen = false" />
-          <Button type="submit" variant="solid" label="Save" />
-        </div>
-      </form>
-    </Dialog>
-
     <!-- ── Link a certificate ───────────────────────────────────────────── -->
     <Dialog
       v-model:open="linking"

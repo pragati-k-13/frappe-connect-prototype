@@ -134,6 +134,17 @@ const partnerRail = computed(() => {
   // for a Beginner, so the list reshuffled the day a firm reached Bronze. A
   // Beginner still LANDS on Partnership — that is `partnerHome`'s job, not
   // the rail's.
+  // A Beginner isn't listed, so it has no leads, customers, profile, invoices
+  // or audits yet: Partnership and Resources are all there is.
+  if (store.partnerTier === 'beginner')
+    return [
+      {
+        items: [
+          { label: 'Partnership', to: '/connect/partnership', icon: 'lucide-handshake', active: at('partnership') },
+          { label: 'Resources', to: '/connect/resources', icon: 'lucide-folder', active: at('resources') },
+        ],
+      },
+    ]
   return [
     {
       items: [

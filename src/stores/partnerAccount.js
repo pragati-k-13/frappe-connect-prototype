@@ -65,9 +65,12 @@ const blank = () => ({
   // but the person who signed up, no milestones reached, no name until the
   // firm profile is filled in. See `startFresh`.
   fresh: false,
-  // The firm profile, the first step on a Beginner's way to Bronze:
-  // `{ name, country, done }`.
+  // A Beginner's checklist (`PartnerChecklist`). The firm profile, the first
+  // step: `{ name, country, done }`. Certificates linked by ID or email, which
+  // count without a person on the team. When it was submitted for approval.
   firmProfile: null,
+  linkedCerts: [],
+  submitted: null,
 })
 
 export const usePartnerAccountStore = defineStore('partnerAccount', {
@@ -226,6 +229,12 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
     },
     saveFirmProfile({ name, country }) {
       this.edits.firmProfile = { name, country, done: todayIso() }
+    },
+    linkBeginnerCert(cert) {
+      this.edits.linkedCerts.push(cert)
+    },
+    submitForApproval() {
+      this.edits.submitted = todayIso()
     },
     handleRequest(id, outcome, link = null) {
       this.edits.handled[id] = outcome

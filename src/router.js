@@ -1,9 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useConnectStore } from './stores/connect'
 
-const asPartner = () => {
+// A Beginner has Partnership and Resources only (see the rail in
+// `ConnectShell`); any other partner screen sends them to Partnership.
+const BEGINNER_ROUTES = new Set(['partnership', 'resources'])
+const asPartner = (to) => {
   const store = useConnectStore()
   if (store.role !== 'partner') store.setRole('partner')
+  if (store.partnerTier === 'beginner' && !BEGINNER_ROUTES.has(to.name)) return { name: 'partnership' }
 }
 
 // One route per screen in the handoff.

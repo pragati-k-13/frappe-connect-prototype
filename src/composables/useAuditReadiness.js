@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
-import { TIERS, nextTier, shortMoney, standingFor } from '../data/partnership'
+import { nextTier, shortMoney, standingFor } from '../data/partnership'
 
 // Whether the firm can ask for a PMM audit yet: every criterion of the next
 // tier but PMM is met. Partnership's badge and the Request audit dialog both
@@ -30,13 +30,8 @@ export function useAuditReadiness() {
   const missing = computed(() => {
     if (ready.value) return null
     const s = standing.value
-    if (beginner.value) {
-      // Certifications tick from the Certificates count, as on Partnership.
-      const step = s.milestones.find(
-        (m) => !m.done && m.key !== 'bronze' && !(m.key === 'cert-2' && s.consultants >= 2),
-      )
-      return step ? `You need ${step.todo} before a ${TIERS.bronze.label} audit.` : null
-    }
+    // A Beginner submits the checklist on Partnership instead.
+    if (beginner.value) return null
     const n = next.value
     if (!n) return null
     const currency = s.mrr.currency
