@@ -462,22 +462,68 @@ const bandRung = (value) => {
   return m ? Number(m[1]) : null
 }
 
-export const matchingPartners = (intake, brief) => {
+// What keeps a partner out, one word per reason. Empty is a match.
+const missesOf = (p, intake, brief) => {
   const region = intake?.country ? regionOfCountry(intake.country) : null
   const wanted = groupsOf(intake?.segments)
   const geo = geoPicked(brief)
-  return PARTNERS.filter((p) => {
-    if (!takingWork(p)) return false
-    // The brief's own region chips win over the business's country when set.
-    // Asked and left empty is anywhere.
-    if (geo ? !inGeo(p, geo) : !anywhere(brief) && region && p.region !== region) return false
-    // No industry answered is no industry constraint, same as everywhere else.
-    if (wanted.size && !p.industries.some((s) => wanted.has(GROUP_OF_SEGMENT[s]))) return false
-    // Any office counts: a Mumbai firm with a Pune office is a Pune partner.
-    if (brief?.cities?.length && !citiesOf(p).some((c) => brief.cities.includes(c))) return false
-    if (brief?.tiers?.length && !brief.tiers.includes(p.tier)) return false
-    const rung = bandRung(brief?.budget)
-    if (rung !== null && rung < p.minBand) return false
-    return true
-  })
+  const misses = []
+  // The brief's own region chips win over the business's country when set.
+  // Asked and left empty is anywhere.
+  if (geo ? !inGeo(p, geo) : !anywhere(brief) && region && p.region !== region) misses.push('region')
+  // No industry answered is no industry constraint, same as everywhere else.
+  if (wanted.size && !p.industries.some((s) => wanted.has(GROUP_OF_SEGMENT[s]))) misses.push('industry')
+  // Any office counts: a Mumbai firm with a Pune office is a Pune partner.
+  if (brief?.cities?.length && !citiesOf(p).some((c) => brief.cities.includes(c))) misses.push('city')
+  if (brief?.tiers?.length && !brief.tiers.includes(p.tier)) misses.push('tier')
+  const rung = bandRung(brief?.budget)
+  if (rung !== null && rung < p.minBand) misses.push('budget')
+  return misses
+}
+
+export const matchingPartners = (intake, brief) =>
+  PARTNERS.filter((p) => takingWork(p) && !missesOf(p, intake, brief).length)
+
+// ── Recommended on a project ────────────────────────────────────────────────
+// ⚠️ RANKED, NEVER EMPTY. The strict match above can return nobody — an
+// Automotive business under ₹5 lakh matched no one, and the project opened on
+// a dead end. Here every exact match comes first, and when there are fewer
+// than `min`, the closest misses fill the list, each saying what it misses on
+// its row. A region miss costs most: an implementation runs across time zones
+// badly. Same order within a cost as the directory.
+export const MISS_LABEL = {
+  region: 'Outside your region',
+  industry: 'Other industries',
+  city: 'Not in your cities',
+  tier: 'Other tier',
+  budget: 'Above your budget',
+}
+const MISS_COST = { region: 3, industry: 2, city: 1, tier: 1, budget: 1 }
+const costOf = (misses) => misses.reduce((n, m) => n + MISS_COST[m], 0)
+
+const scoredPartners = (intake, brief) =>
+  PARTNERS.filter(takingWork).map((partner, i) => ({
+    partner,
+    misses: missesOf(partner, intake, brief),
+    i,
+  }))
+
+// Every firm's place in fit order — fewest and cheapest misses first, then the
+// directory's order — for the table's Best fit sort.
+export const fitRank = (intake, brief) =>
+  new Map(
+    scoredPartners(intake, brief)
+      .sort((a, b) => costOf(a.misses) - costOf(b.misses) || a.i - b.i)
+      .map((s, rank) => [s.partner.id, rank]),
+  )
+
+export const recommendedPartners = (intake, brief, min = 6) => {
+  const scored = scoredPartners(intake, brief)
+  const exact = scored.filter((s) => !s.misses.length)
+  if (exact.length >= min) return exact
+  const near = scored
+    .filter((s) => s.misses.length)
+    .sort((a, b) => costOf(a.misses) - costOf(b.misses) || a.i - b.i)
+    .slice(0, min - exact.length)
+  return [...exact, ...near]
 }

@@ -40,7 +40,7 @@ const routes = [
     beforeEnter: () => {
       const store = useConnectStore()
       if (!store.signedIn) return true
-      return store.role === 'partner' ? store.partnerHome : { name: 'projects' }
+      return store.role === 'partner' ? store.partnerHome : store.projectHome
     },
   },
   // The two auth screens. Routes rather than a dialog, and outside
@@ -192,7 +192,14 @@ const routes = [
     path: '/connect/projects',
     name: 'projects',
     component: () => import('./pages/ProjectsPage.vue'),
-    beforeEnter: requireAccount,
+    // With one to three projects the rail lists them by name and has no row
+    // for this page, so it goes to the newest rather than somewhere the rail
+    // cannot point to. Empty, or past three, it is a rail destination.
+    beforeEnter: (to) => {
+      const store = useConnectStore()
+      if (!store.signedIn) return requireAccount(to)
+      return store.hasProject && !store.projectListInRail ? store.projectHome : true
+    },
   },
   // ⚠️ `:id` is the project's own id, not a slug: projects are named by the
   // people who own them and two can share a name. An unknown id renders an

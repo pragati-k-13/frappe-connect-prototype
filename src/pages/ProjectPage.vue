@@ -10,7 +10,6 @@ import PackScopeDialog from '../components/PackScopeDialog.vue'
 import PackTermsDialog from '../components/PackTermsDialog.vue'
 import ProjectAbout from '../components/ProjectAbout.vue'
 import ProjectBids from '../components/ProjectBids.vue'
-import DraftProject from '../components/DraftProject.vue'
 import HiredPath from '../components/HiredPath.vue'
 import { logoFor } from '../data/logos'
 import PackSetupTasks from '../components/PackSetupTasks.vue'
@@ -56,8 +55,13 @@ const partner = computed(() => implementerFor(project.value?.partnerId))
 const reviewable = computed(() => Boolean(partner.value) && !isFrappe(partner.value))
 // ⚠️ A LIST. A project holds several packs — they are disjoint modules and
 // the recommendation ticks more than one.
+// Only on a project that BOUGHT them: an unshared project still carries the
+// packs it was recommended (`createProject`), which are not a purchase and
+// would hide its budget and requirements in the rail.
 const packs = computed(() =>
-  (project.value?.packs ?? []).map((v) => STARTER_PACKS.find((p) => p.value === v)).filter(Boolean),
+  project.value?.service === 'pack'
+    ? (project.value.packs ?? []).map((v) => STARTER_PACKS.find((p) => p.value === v)).filter(Boolean)
+    : [],
 )
 const stage = computed(() => stageOf(project.value?.service, project.value?.stage))
 const region = computed(() => marketFor(store.company.country) ?? DEFAULT_REGION)
@@ -168,23 +172,14 @@ const deleting = ref(false)
 const saveDraft = (details) => {
   store.updateDraft(project.value.id, details)
   editing.value = false
-  toast.success('Draft saved')
-}
-
-// Starting it: sharing makes the draft custom work in place.
-const shareDraft = () => {
-  const result = store.broadcastBrief(project.value.id)
-  if (!result) return
-  toast.success(`Sent to ${result.sent} ${result.sent === 1 ? 'partner' : 'partners'}`, {
-    description: 'Their quotes arrive in Messages and on this page.',
-  })
+  toast.success('Saved')
 }
 
 const deleteDraft = () => {
   const name = project.value.name
   if (!store.deleteDraft(project.value.id)) return
   deleting.value = false
-  router.push('/connect/projects')
+  router.push(store.projectHome)
   toast.success(`${name} deleted`)
 }
 
@@ -194,15 +189,30 @@ const rename = (name) => {
   toast.success('Project renamed')
 }
 
+// ⚠️ EVERY PROJECT ACTION IN ONE MENU, the bar's •••, on every stage. Edit
+// first; New project in its own group, because the rail has no "Projects" row
+// to hang a + on and people who open this menu to edit find it here (Search
+// offers it too); Delete last, red, and only before the requirements have gone
+// to partners — after that there are people relying on them.
+// ⚠️ NO "DRAFT" IN THE COPY. It is the code's name for a project nobody has
+// been sent yet, not a word the business uses for it.
 const menu = computed(() => [
-  ...(draft.value
-    ? [
-        { label: 'Edit draft', icon: 'lucide-pencil', onClick: () => (editing.value = true) },
-        { label: 'Delete draft', icon: 'lucide-trash-2', onClick: () => (deleting.value = true) },
-      ]
-    : sent.value
-      ? [{ label: 'Edit requirements', icon: 'lucide-pencil', onClick: () => (briefOpen.value = true) }]
-      : []),
+  {
+    group: 'edit',
+    hideLabel: true,
+    options: [
+      draft.value && { label: 'Edit', icon: 'lucide-pencil', onClick: () => (editing.value = true) },
+      sent.value && { label: 'Edit', icon: 'lucide-pencil', onClick: () => (briefOpen.value = true) },
+    ].filter(Boolean),
+  },
+  { group: 'new', hideLabel: true, options: [{ label: 'New project', icon: 'lucide-plus', onClick: () => store.openNewProject() }] },
+  {
+    group: 'delete',
+    hideLabel: true,
+    options: draft.value
+      ? [{ label: 'Delete project', icon: 'lucide-trash-2', theme: 'red', onClick: () => (deleting.value = true) }]
+      : [],
+  },
 ])
 
 // ── Editing sent requirements ───────────────────────────────────────────────
@@ -412,16 +422,26 @@ const complete = () => {
        page: it runs the full height beside the content with its own scroll. -->
   <ConnectShell
     flush
-    root-label="Projects"
+    :root-label="store.projectListInRail ? 'All projects' : (project?.name ?? 'Project')"
     root-to="/connect/projects"
-    :crumb="project?.name ?? 'Project'"
+    :crumb="store.projectListInRail ? (project?.name ?? 'Project') : null"
   >
+    <!-- The name alone: with one to three projects the rail lists them and
+         has no list page to go back to. Past that, "All projects /" returns. -->
+    <!-- The •••, on every project, whatever its stage. -->
+    <template v-if="project" #action>
+      <Dropdown :options="menu" align="end">
+        <Button variant="subtle" aria-label="Project actions">
+          <template #icon><IconMore class="size-4" /></template>
+        </Button>
+      </Dropdown>
+    </template>
     <div class="flex min-h-0 min-w-0 flex-1">
       <ScrollArea class="min-h-0 min-w-0 flex-1">
         <!-- The started project's column brings its own padding
              (`fc-page-read`); the missing-project state and a draft keep the
              page's. -->
-        <div class="w-full py-8" :class="!project || draft ? 'px-5 lg:px-8' : ''">
+        <div class="w-full py-8" :class="!project ? 'px-5 lg:px-8' : ''">
           <!-- An id that names nothing: a forwarded or stale link should land
                somewhere it can be recovered from. -->
           <div v-if="!project" class="py-20 text-center">
@@ -429,15 +449,14 @@ const complete = () => {
             <p class="mx-auto mt-1 max-w-sm text-p-base text-ink-gray-6">
               This link doesn't match any of your projects.
             </p>
-            <Button class="mt-4" variant="solid" label="Go to projects" route="/connect/projects" />
+            <Button class="mt-4" variant="solid" label="Go to projects" :route="store.projectHome" />
           </div>
 
           <!-- ⚠️ `fc-page-read`, 720px and centred — the app's width for a page
                read top to bottom, which names a project — so body copy does
-               not stretch across a wide pane beside the rail. A draft has no rail — the
-               recommendation carries its own, at the page's right edge, and
-               centres its own column — so it is not capped here at all. -->
-          <div v-else class="mx-auto w-full" :class="draft ? '' : 'fc-page-read'">
+               not stretch across a wide pane beside the rail. Every stage has
+               the rail, the unshared one included. -->
+          <div v-else class="fc-page-read mx-auto w-full">
             <!-- ⚠️ NO TITLE HERE on a started project, at any width: the
                  column opens on the work. The breadcrumb names the project,
                  and the rail's header renames it — below `lg`, at the foot of
@@ -471,8 +490,11 @@ const complete = () => {
               </div>
             </template>
 
-            <template v-else-if="stage">
-              <div :class="draft ? 'mt-10' : ''">
+            <!-- ⚠️ ONE BRANCH FOR NOTHING-SENT AND CHOOSING, so the first send
+                 doesn't swap in a second table: a separate branch remounted
+                 it five seconds after Send and dropped its filter and sort. -->
+            <template v-else-if="stage || draft">
+              <div>
                 <!-- frappe-ui Alert, as the partner side's link requests use. -->
                 <Alert
                   v-if="requester"
@@ -483,7 +505,9 @@ const complete = () => {
 
                 <!-- The quotes, while nobody is hired. Once somebody is, the
                      decision is made and the partner leads the page. -->
-                <ProjectBids v-if="!project.partnerId" :project="project" @choose="choose" />
+                <!-- Keyed by project: one instance across the first send, a fresh
+                     sort and filter on the next project. -->
+                <ProjectBids v-if="!project.partnerId" :key="project.id" :project="project" @choose="choose" />
 
                 <template v-else-if="partner">
                   <!-- ⚠️ THE PAGE'S ANCHOR: who is doing it, on a fill, the name
@@ -524,29 +548,12 @@ const complete = () => {
                 </template>
               </div>
             </template>
-            <!-- A draft: what it is and the partners it can go to, with one
-                 action, sharing it. See `DraftProject`. -->
-            <DraftProject
-              v-else
-              :project="project"
-              :answers="project.answers ?? store.company"
-              @update-brief="store.updateDraftBrief(project.id, $event)"
-              @share="shareDraft"
-              @edit-answers="editing = true"
-            >
-              <template #actions>
-                <Dropdown v-if="menu.length" :options="menu" align="end">
-                  <Button variant="subtle" aria-label="Project actions">
-                    <template #icon><IconMore class="size-4" /></template>
-                  </Button>
-                </Dropdown>
-              </template>
-            </DraftProject>
+
 
             <!-- Below `lg` there is no rail, so the reference stacks under the
                  work. `-mx-5` cancels the page padding so its rules run edge to
                  edge. -->
-            <div v-if="!draft" class="-mx-5 mt-10 border-t border-outline-gray-1 lg:hidden">
+            <div class="-mx-5 mt-10 border-t border-outline-gray-1 lg:hidden">
               <ProjectAbout
                 :project="project"
                 :packs="packs"
@@ -568,7 +575,7 @@ const complete = () => {
       </ScrollArea>
 
       <aside
-        v-if="project && !draft"
+        v-if="project"
         class="hidden w-[352px] shrink-0 flex-col border-l border-outline-gray-1 lg:flex"
       >
         <ScrollArea class="min-h-0 flex-1">
@@ -627,10 +634,13 @@ const complete = () => {
     <!-- ⚠️ CONFIRMED, because it cannot be undone. -->
     <Dialog
       v-model="deleting"
-      title="Delete draft?"
-      :message="`${project?.name ?? 'This draft'} and its requirements will be deleted.`"
+      title="Delete this project?"
+      :message="`${project?.name ?? 'This project'} and its requirements will be deleted. This can't be undone.`"
       size="sm"
-      :actions="[{ label: 'Delete', variant: 'solid', theme: 'red', onClick: deleteDraft }]"
+      :actions="[
+        { label: 'Cancel', onClick: ({ close }) => close() },
+        { label: 'Delete', variant: 'solid', theme: 'red', onClick: deleteDraft },
+      ]"
     />
     <BriefDetailsDialog
       v-model:open="briefOpen"
