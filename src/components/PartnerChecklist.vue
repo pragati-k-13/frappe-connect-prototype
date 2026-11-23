@@ -69,7 +69,6 @@ const steps = computed(() => [
     completed: certsDone.value,
     description:
       'Link two Framework or ERPNext certificates from Frappe School. We will send a verification email to each certificate holder to confirm the link.',
-    linkPrefix: 'Don’t have certification?',
     link: { text: 'Browse upcoming batches', url: 'https://school.frappe.io/lms/batches' },
     summaryRight: certsDone.value ? null : `${Math.min(certCount.value, 2)} / 2 linked`,
     actionLabel: canEdit.value ? 'Link certificate' : null,
@@ -208,12 +207,6 @@ function saveLink() {
             <div class="pb-4 pl-7 pr-1 pt-0">
               <div class="mb-4 max-w-prose text-p-base font-normal leading-5 text-ink-gray-6">
                 <p>{{ step.description }}</p>
-                <p v-if="step.link" class="mt-2">
-                  {{ step.linkPrefix }}
-                  <a :href="step.link.url" target="_blank" rel="noopener noreferrer" class="underline">
-                    {{ step.link.text }}
-                  </a>
-                </p>
               </div>
               <div v-if="step.mrr" class="mb-4 flex max-w-prose flex-col gap-2">
                 <div class="h-2 overflow-hidden rounded-full bg-surface-gray-2">
@@ -224,7 +217,11 @@ function saveLink() {
                   <span>{{ fmt(mrrTarget) }} target</span>
                 </div>
               </div>
-              <Button v-if="step.actionLabel" variant="solid" :label="step.actionLabel" @click="step.onClick" />
+              <div v-if="step.actionLabel || step.link" class="flex flex-wrap gap-2">
+                <Button v-if="step.actionLabel" variant="solid" :label="step.actionLabel" @click="step.onClick" />
+                <!-- External: frappe-ui opens an `href` Button in a new tab. -->
+                <Button v-if="step.link" :label="step.link.text" :href="step.link.url" />
+              </div>
             </div>
           </AccordionContent>
         </AccordionItem>
