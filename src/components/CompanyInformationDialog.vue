@@ -148,10 +148,13 @@ function save() {
 <template>
   <Dialog v-model:open="open" size="2xl" :dismissible="false" :show-close-button="false">
     <div class="mb-5">
-      <div class="flex items-start justify-between gap-4">
+      <div class="flex items-center justify-between gap-4">
         <div class="min-w-0">
-          <p class="text-sm leading-5 text-ink-gray-6">Step {{ step + 1 }}/{{ TOTAL }}</p>
-          <h3 class="mt-1 truncate text-2xl-semibold leading-6 text-ink-gray-8">{{ title }}</h3>
+          <!-- The step count in the headline, muted, rather than on a line of
+               its own above it as in press. -->
+          <h3 class="truncate text-2xl-semibold leading-6 text-ink-gray-8">
+            {{ title }} <span class="text-ink-gray-5">{{ step + 1 }}/{{ TOTAL }}</span>
+          </h3>
         </div>
         <Button variant="ghost" icon="lucide-x" aria-label="Close" class="-mr-1" @click="open = false" />
       </div>
