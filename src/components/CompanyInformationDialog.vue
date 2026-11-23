@@ -151,7 +151,7 @@ function save() {
       <div class="flex items-start justify-between gap-4">
         <div class="min-w-0">
           <p class="text-sm leading-5 text-ink-gray-6">Step {{ step + 1 }}/{{ TOTAL }}</p>
-          <h3 class="mt-1 truncate text-lg font-semibold leading-6 text-ink-gray-9">{{ title }}</h3>
+          <h3 class="mt-1 truncate text-2xl-semibold leading-6 text-ink-gray-8">{{ title }}</h3>
         </div>
         <Button variant="ghost" icon="lucide-x" aria-label="Close" class="-mr-1" @click="open = false" />
       </div>
