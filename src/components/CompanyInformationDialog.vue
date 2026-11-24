@@ -1,6 +1,7 @@
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
-import { Button, Checkbox, Dialog, FormControl, FormLabel, MultiSelect, ScrollArea, Tooltip, toast } from 'frappe-ui'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { Button, Checkbox, Dialog, Dropdown, FormControl, FormLabel, MultiSelect, ScrollArea, toast } from 'frappe-ui'
+import lumenLogo from '../assets/lumen-digital.svg'
 import { DEMO_FIRM_PROFILE, SELECTABLE_COUNTRY } from '../data/company'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
 
@@ -24,6 +25,11 @@ import { usePartnerAccountStore } from '../stores/partnerAccount'
 //     title and close, size lg, fields 16px apart, field
 //     errors through `:error`. Subtle (filled) fields
 //     rather than press's outline ones, and frappe-ui's required marks.
+//   - Saved as you go, unlike press, which saves only at the end: finding a
+//     logo and an incorporation certificate takes time. Every change is kept
+//     (`firmProfileDraft`), Continue marks a step done, and reopening goes to
+//     the first step not done. So the dialog closes any way (Esc, outside
+//     click, ×), and the footer says "Saved" rather than a toast after.
 const open = defineModel('open', { type: Boolean, default: false })
 const account = usePartnerAccountStore()
 
@@ -37,9 +43,15 @@ const demoName = (email) => {
 const step = ref(0)
 const draft = reactive({})
 const submitted = reactive({ 0: false, 1: false, 2: false })
+// Off while the dialog fills itself on open, so only the owner's own changes
+// save.
+let ready = false
+const saved = ref(false)
 
-watch(open, (isOpen) => {
+watch(open, async (isOpen) => {
   if (!isOpen) return
+  ready = false
+  const progress = account.edits.firmProfileDraft
   for (const k of Object.keys(draft)) delete draft[k]
   Object.assign(
     draft,
@@ -48,16 +60,34 @@ watch(open, (isOpen) => {
       country: account.edits.country ?? SELECTABLE_COUNTRY,
     },
     // Demo answers first, so a demo clicks straight through; what was saved
-    // wins over them.
-    { ...DEMO_FIRM_PROFILE, verticals_served: [...DEMO_FIRM_PROFILE.verticals_served] },
+    // wins over them. Not once there's progress: then the draft is the whole
+    // answer, so the checklist's "left" line and the dialog agree.
+    progress
+      ? {}
+      : {
+          ...DEMO_FIRM_PROFILE,
+          verticals_served: [...DEMO_FIRM_PROFILE.verticals_served],
+          existing_partnerships: [...DEMO_FIRM_PROFILE.existing_partnerships],
+        },
     account.edits.firmProfile ?? {},
+    progress?.values ?? {},
   )
-  step.value = 0
+  // Saved before partnerships became a multiselect: one name, not a list.
+  if (typeof draft.existing_partnerships === 'string') draft.existing_partnerships = [draft.existing_partnerships]
+  step.value = Math.min(progress?.stepsDone ?? 0, TOTAL - 1)
   submitted[0] = submitted[1] = submitted[2] = false
+  saved.value = Boolean(progress)
+  await nextTick()
+  ready = true
 })
+function saveProgress(stepsDone = account.edits.firmProfileDraft?.stepsDone ?? 0) {
+  account.saveFirmProfileDraft(JSON.parse(JSON.stringify(draft)), stepsDone)
+  saved.value = true
+}
+watch(draft, () => ready && open.value && saveProgress(), { deep: true })
 
-const displayName = computed(() => draft.company_name?.trim() || account.firmName || 'your company')
-const title = computed(() => `Tell us more about ${displayName.value}`)
+// "Company profile", as the checklist step and its button say.
+const title = 'Company profile'
 const primaryLabel = computed(() => (step.value === TOTAL - 1 ? 'Save details' : 'Continue'))
 
 // ── Step 2's options and checks (step 1 is three text fields) ──────────────
@@ -91,9 +121,9 @@ const revenueError = (value) => {
 const errors1 = computed(() =>
   submitted[0]
     ? {
-        company_name: lengthError(draft.company_name, 'Company name', 2, 140),
-        address: lengthError(draft.address, 'Address', 10, 300),
-        headquarter_city: lengthError(draft.headquarter_city, 'Headquarter city', 2, 80),
+        company_name: lengthError(draft.company_name, 'Legal company name', 2, 140),
+        address: lengthError(draft.address, 'Registered address', 10, 300),
+        headquarter_city: lengthError(draft.headquarter_city, 'Head office city', 2, 80),
         annual_revenue: revenueError(draft.annual_revenue),
       }
     : {},
@@ -109,10 +139,10 @@ const verticalOptions = [
 // ── Step 3 ──────────────────────────────────────────────────────────────────
 const partnershipOptions = ['SAP', 'Odoo', 'Oracle', 'Microsoft'].map((v) => ({ label: v, value: v }))
 const PARTNERSHIP_AGREEMENT_LINK = 'https://frappe.io/partners/terms'
-const logoHelp =
-  'Upload your company logo. This will be displayed on the partner listing — use a square image that is not too large.'
-const certificateHelp =
-  'Upload your certificate of incorporation or equivalent company registration document. This helps us verify your legal entity before partnership approval.'
+// The limits checkLogo and checkDoc enforce, said before the upload rather
+// than in a hover tooltip. Once a file is attached, its row replaces this.
+const logoHelp = 'Square image, under 5 MB. Shown on your listing.'
+const certificateHelp = 'PDF or image, under 10 MB.'
 const errors3 = computed(() =>
   submitted[2]
     ? {
@@ -123,15 +153,59 @@ const errors3 = computed(() =>
       }
     : {},
 )
-const logoInput = ref(null)
-const certInput = ref(null)
-const fileError = reactive({ logo: '', cert: '' })
-function pick(e, key, which, check) {
+// ── Uploads ─────────────────────────────────────────────────────────────────
+// Empty, an Upload button over the limits. Attached, the file itself: a
+// thumbnail (the logo) or file icon, its name and size, and Replace / Remove
+// in a menu. frappe-ui's FileUploader has no look of its own and posts to a
+// Frappe server; the demo keeps the file in the browser.
+const fileInputs = reactive({})
+const fileError = reactive({ company_logo: '', incorporation_certificate: '' })
+// A picked logo shows from the file; the demo's own logo is Lumen's mark.
+const logoPreview = ref(null)
+const uploads = computed(() => [
+  {
+    key: 'company_logo',
+    label: 'Company logo',
+    accept: 'image/*',
+    help: logoHelp,
+    check: checkLogo,
+    thumb: draft.company_logo ? logoPreview.value ?? lumenLogo : null,
+    required: 'Company logo is required.',
+  },
+  {
+    key: 'incorporation_certificate',
+    label: 'Certificate of incorporation',
+    accept: 'application/pdf,image/*',
+    help: certificateHelp,
+    check: checkDoc,
+    thumb: null,
+    required: 'Certificate of incorporation is required.',
+  },
+])
+function pick(e, u) {
   const file = e.target.files?.[0]
   e.target.value = ''
   if (!file) return
-  fileError[which] = check(file) ?? ''
-  if (!fileError[which]) draft[key] = file.name
+  fileError[u.key] = u.check(file) ?? ''
+  if (fileError[u.key]) return
+  draft[u.key] = file.name
+  draft[`${u.key}_size`] = file.size
+  if (u.key === 'company_logo') logoPreview.value = URL.createObjectURL(file)
+}
+function removeFile(u) {
+  draft[u.key] = null
+  draft[`${u.key}_size`] = null
+  if (u.key === 'company_logo') logoPreview.value = null
+}
+function fileActions(u) {
+  return [
+    { label: 'Replace', icon: 'lucide-refresh-cw', onClick: () => fileInputs[u.key]?.click() },
+    { group: 'Remove', hideLabel: true, options: [{ label: 'Remove', icon: 'lucide-trash-2', theme: 'red', onClick: () => removeFile(u) }] },
+  ]
+}
+function fileSize(bytes) {
+  if (!bytes) return ''
+  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 const checkLogo = (f) =>
   !f.type.startsWith('image/') ? 'Upload an image file.' : f.size > 5 * 1024 * 1024 ? 'Logo must be under 5 MB.' : null
@@ -153,17 +227,18 @@ function primary() {
     if (Object.values(errors3.value).some(Boolean)) return
     return save()
   }
+  saveProgress(Math.max(account.edits.firmProfileDraft?.stepsDone ?? 0, step.value + 1))
   step.value += 1
 }
 function save() {
   account.saveFirmProfile({ ...draft, name: draft.company_name.trim(), country: draft.country })
-  toast.success('Company details updated')
+  toast.success('Company profile saved')
   open.value = false
 }
 </script>
 
 <template>
-  <Dialog v-model:open="open" size="lg" :title="title" :dismissible="false">
+  <Dialog v-model:open="open" size="lg" :title="title">
     <!-- frappe-ui's wizard step bar, as in its Dialog docs: one segment per
          step, done ones dark. No step count; the bar shows it. -->
     <div class="mb-5 flex items-center gap-1.5" aria-hidden="true">
@@ -185,15 +260,15 @@ function save() {
            their labels. Grouped by topic, 5 / 6 / 4 rows. -->
       <!-- ── Step 1: the company. The three required facts first. ──────── -->
       <form v-show="step === 0" class="flex flex-col gap-4" novalidate @submit.prevent="primary">
-        <FormControl v-model="draft.company_name" label="Registered company" required size="sm" :error="errors1.company_name" />
-        <FormControl v-model="draft.address" label="Address" required size="sm" placeholder="Company's registered address" :error="errors1.address" />
-        <FormControl v-model="draft.headquarter_city" label="Headquarter city" required size="sm" placeholder="Headquarter city" :error="errors1.headquarter_city" />
+        <FormControl v-model="draft.company_name" label="Legal company name" required size="sm" :error="errors1.company_name" />
+        <FormControl v-model="draft.address" label="Registered address" required size="sm" :error="errors1.address" />
+        <FormControl v-model="draft.headquarter_city" label="Head office city" required size="sm" :error="errors1.headquarter_city" />
         <div class="flex flex-col gap-1.5">
           <div class="flex items-center justify-between gap-2">
             <FormLabel label="No. of employees" />
             <span class="text-xs text-ink-gray-5">Optional</span>
           </div>
-          <FormControl v-model="draft.employee_range" type="select" size="sm" placeholder="Select a range" :options="rangeOptions" />
+          <FormControl v-model="draft.employee_range" type="select" size="sm" placeholder="Select" :options="rangeOptions" />
         </div>
         <!-- Amount and currency under one label. -->
         <div class="flex flex-col gap-1.5">
@@ -219,7 +294,7 @@ function save() {
       <form v-show="step === 1" class="flex flex-col gap-4" novalidate @submit.prevent="primary">
         <div class="flex flex-col gap-1.5">
           <div class="flex items-center justify-between gap-2">
-            <FormLabel label="Verticals served" />
+            <FormLabel label="Industries you serve" />
             <span class="text-xs text-ink-gray-5">Optional</span>
           </div>
           <MultiSelect v-model="draft.verticals_served" class="w-full" size="sm" placeholder="Select" :options="verticalOptions" />
@@ -240,21 +315,21 @@ function save() {
         </div>
         <div class="flex flex-col gap-1.5">
           <div class="flex items-center justify-between gap-2">
-            <FormLabel label="No. of ERP implementations" />
+            <FormLabel label="ERP projects completed" />
             <span class="text-xs text-ink-gray-5">Optional</span>
           </div>
           <FormControl v-model="draft.erp_implementations_range" type="select" size="sm" placeholder="Select" :options="rangeOptions" />
         </div>
         <div class="flex flex-col gap-1.5">
           <div class="flex items-center justify-between gap-2">
-            <FormLabel label="Existing partnerships" />
+            <FormLabel label="Other partnerships" />
             <span class="text-xs text-ink-gray-5">Optional</span>
           </div>
-          <FormControl v-model="draft.existing_partnerships" type="select" size="sm" placeholder="Select" :options="partnershipOptions" />
+          <MultiSelect v-model="draft.existing_partnerships" class="w-full" size="sm" placeholder="Select" :options="partnershipOptions" />
         </div>
         <div class="flex flex-col gap-1.5">
           <div class="flex items-center justify-between gap-2">
-            <FormLabel label="No. of certified employees" />
+            <FormLabel label="Frappe-certified employees" />
             <span class="text-xs text-ink-gray-5">Optional</span>
           </div>
           <FormControl v-model="draft.certified_employees_range" type="select" size="sm" placeholder="Select" :options="certifiedOptions" />
@@ -264,37 +339,45 @@ function save() {
 
       <!-- ── Step 3: documents and agreements, all required ───────────────── -->
       <form v-show="step === 2" class="flex flex-col gap-4" novalidate @submit.prevent="primary">
-        <div class="flex flex-col gap-1.5">
-          <div class="flex items-center gap-1">
-            <FormLabel label="Company logo" required />
-            <Tooltip :text="logoHelp"><span class="lucide-circle-help size-3 text-ink-gray-5" aria-hidden="true" /></Tooltip>
+        <div v-for="u in uploads" :key="u.key" class="flex flex-col gap-1.5">
+          <FormLabel :label="u.label" required />
+          <input
+            :ref="(el) => (fileInputs[u.key] = el)"
+            type="file"
+            :accept="u.accept"
+            class="hidden"
+            @change="pick($event, u)"
+          />
+          <div v-if="draft[u.key]" class="flex items-center gap-3 rounded-6 border border-outline-gray-2 p-2">
+            <img v-if="u.thumb" :src="u.thumb" alt="" class="size-8 shrink-0 rounded-4 object-cover" />
+            <span v-else class="flex size-8 shrink-0 items-center justify-center rounded-4 bg-surface-gray-2">
+              <span class="lucide-file-text size-4 text-ink-gray-5" aria-hidden="true" />
+            </span>
+            <div class="flex min-w-0 flex-1 flex-col gap-1">
+              <p class="truncate text-base text-ink-gray-8">{{ draft[u.key] }}</p>
+              <p v-if="draft[`${u.key}_size`]" class="text-p-sm text-ink-gray-6">{{ fileSize(draft[`${u.key}_size`]) }}</p>
+            </div>
+            <Dropdown
+              :options="fileActions(u)"
+              :button="{ icon: 'lucide-more-horizontal', variant: 'ghost', 'aria-label': `More for ${u.label}` }"
+              align="end"
+            />
           </div>
-          <input ref="logoInput" type="file" accept="image/*" class="hidden" @change="pick($event, 'company_logo', 'logo', checkLogo)" />
-          <Button class="w-full !justify-start" :label="draft.company_logo ? 'Replace logo' : 'Upload logo'" @click="logoInput.click()" />
-          <p v-if="draft.company_logo" class="truncate text-xs text-ink-gray-6">{{ draft.company_logo }}</p>
+          <template v-else>
+            <div><Button label="Upload" icon-left="lucide-upload" @click="fileInputs[u.key]?.click()" /></div>
+            <p class="text-p-sm text-ink-gray-6">{{ u.help }}</p>
+          </template>
           <!-- frappe-ui's field error, as FormControl draws it (a Button has
                no :error). -->
-          <p v-if="fileError.logo || errors3.company_logo" class="text-p-sm text-ink-red-5">
-            {{ fileError.logo || 'Company logo is required.' }}
-          </p>
-        </div>
-        <div class="flex flex-col gap-1.5">
-          <div class="flex items-center gap-1">
-            <FormLabel label="Incorporation certificate" required />
-            <Tooltip :text="certificateHelp"><span class="lucide-circle-help size-3 text-ink-gray-5" aria-hidden="true" /></Tooltip>
-          </div>
-          <input ref="certInput" type="file" accept="application/pdf,image/*" class="hidden" @change="pick($event, 'incorporation_certificate', 'cert', checkDoc)" />
-          <Button class="w-full !justify-start" :label="draft.incorporation_certificate ? 'Replace document' : 'Attach document'" @click="certInput.click()" />
-          <p v-if="draft.incorporation_certificate" class="truncate text-xs text-ink-gray-6">{{ draft.incorporation_certificate }}</p>
-          <p v-if="fileError.cert || errors3.incorporation_certificate" class="text-p-sm text-ink-red-5">
-            {{ fileError.cert || 'Incorporation certificate is required.' }}
+          <p v-if="fileError[u.key] || errors3[u.key]" class="text-p-sm text-ink-red-5">
+            {{ fileError[u.key] || u.required }}
           </p>
         </div>
 
         <div class="mt-1 flex flex-col gap-3">
           <Checkbox
             v-model="draft.agreed_to_due_diligence"
-            label="I shall abide by the due diligence"
+            label="I agree to Frappe’s due diligence checks"
             required
             :error="errors3.due_diligence ? 'Due diligence confirmation is required.' : ''"
           />
@@ -305,7 +388,7 @@ function save() {
           >
             <template #label>
               I accept the
-              <a :href="PARTNERSHIP_AGREEMENT_LINK" target="_blank" rel="noopener noreferrer" class="underline">Partnership agreement</a>
+              <a :href="PARTNERSHIP_AGREEMENT_LINK" target="_blank" rel="noopener noreferrer" class="underline">partnership agreement</a>
               <!-- The label slot drops frappe-ui's own mark; this is its markup. -->
               <span class="ml-1 select-none text-ink-red-5" aria-hidden="true">*</span>
               <span class="sr-only">(required)</span>
@@ -316,9 +399,14 @@ function save() {
       </div>
     </ScrollArea>
 
-    <!-- Back sits next to the main action, on the right. -->
+    <!-- Back sits next to the main action, on the right. Left, that what's
+         been filled in is kept. -->
     <template #actions>
-      <div class="flex w-full justify-end gap-2">
+      <div class="flex w-full items-center justify-end gap-2">
+        <p v-if="saved" class="mr-auto flex items-center gap-1 text-sm text-ink-gray-5" role="status">
+          <span class="lucide-check size-4" aria-hidden="true" />
+          Saved
+        </p>
         <Button v-if="step > 0" variant="subtle" size="sm" label="Back" @click="step -= 1" />
         <Button variant="solid" size="sm" :label="primaryLabel" @click="primary" />
       </div>

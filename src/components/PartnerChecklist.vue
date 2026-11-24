@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Badge, Button, Dialog, FormControl, toast } from 'frappe-ui'
+import { Avatar, Badge, Button, Dialog, Dropdown, FormControl, dialog, toast } from 'frappe-ui'
+import { List, ListCell, ListRow } from 'frappe-ui/list'
 import CompanyInformationDialog from './CompanyInformationDialog.vue'
 import {
   AccordionContent,
@@ -39,30 +40,70 @@ const canEdit = computed(() => store.partnerRole === 'owner' && !account.edits.s
 // ── What the steps read ─────────────────────────────────────────────────────
 const standing = computed(() => standingFor('beginner'))
 const profileDone = computed(() => Boolean(account.edits.firmProfile) || !account.edits.fresh)
+// Started but not saved: the dialog has kept what was filled in.
+const profileStarted = computed(() => !profileDone.value && Boolean(account.edits.firmProfileDraft))
 
 // Only confirmed certificates count: one linked by ID or email waits for its
 // holder to confirm by email first, as in press.
+// Team members whose certificate still counts here.
+const certifiedTeam = computed(() =>
+  account.team.filter((p) => p.counts && !(account.edits.unlinkedCerts ?? []).includes(p.id)),
+)
 const certCount = computed(
-  () =>
-    account.team.filter((p) => p.counts).length +
-    account.edits.linkedCerts.filter((c) => c.status === 'linked').length,
+  () => certifiedTeam.value.length + account.edits.linkedCerts.filter((c) => c.status === 'linked').length,
 )
 // Every certificate on the step, confirmed or waiting: the team's own, then
 // the ones linked here. Listed in the step rather than behind press's "Check
 // link status" dialog, so a pending one shows where the count is.
 const certRows = computed(() => [
-  ...account.team
-    .filter((p) => p.counts)
-    .map((p) => ({ key: p.email, title: `${p.cert.name} certification`, who: p.email, status: 'linked' })),
+  ...certifiedTeam.value.map((p) => ({
+    key: p.email,
+    teamId: p.id,
+    title: `${p.cert.name} certification`,
+    type: p.cert.name,
+    holder: p.name,
+    who: p.email,
+    status: 'linked',
+  })),
   ...account.edits.linkedCerts.map((c, i) => ({
     key: `${c.ref}-${i}`,
+    index: i,
     title: `${c.name} certification`,
-    who: c.ref,
+    type: c.name,
+    // Linked by ID or email with no name yet: the email stands in as the name.
+    holder: c.holder ?? c.ref,
+    who: c.holder ? c.ref : null,
     status: c.status,
   })),
 ])
 function resend() {
   toast.success('Verification email sent')
+}
+// Resend for a pending one; Unlink last, red, in its own group.
+function rowActions(row) {
+  return [
+    ...(row.status === 'pending' ? [{ label: 'Resend email', icon: 'lucide-mail', onClick: resend }] : []),
+    { group: 'Remove', hideLabel: true, options: [{ label: 'Unlink', icon: 'lucide-unlink', theme: 'red', onClick: () => unlink(row) }] },
+  ]
+}
+// frappe-ui's danger dialog gives Cancel an outline; actions make it subtle.
+function unlink(row) {
+  dialog.danger({
+    title: `Unlink ${row.holder}’s certificate?`,
+    message: 'It won’t count until you link it again.',
+    actions: [
+      { label: 'Cancel' },
+      {
+        label: 'Unlink',
+        variant: 'solid',
+        theme: 'red',
+        onClick: () => {
+          account.unlinkBeginnerCert(row)
+          toast.success(`Unlinked ${row.holder}’s ${row.title}`)
+        },
+      },
+    ],
+  })
 }
 const certsDone = computed(() => certCount.value >= 2)
 
@@ -98,9 +139,17 @@ const steps = computed(() => [
     value: 'step-profile',
     title: 'Complete your company profile',
     completed: profileDone.value,
-    description:
-      'Before you continue, we need to know more about your company to understand how your company can benefit from becoming a Frappe Partner.',
-    actionLabel: canEdit.value ? 'Fill out company information' : null,
+    // One line for every state, saying what to have ready before starting:
+    // the documents are what send people off to look. The button carries
+    // the progress. (Press: "Before you continue, we need to know more…")
+    description: 'Your company’s details, logo and certificate of incorporation.',
+    actionLabel: canEdit.value
+      ? profileDone.value
+        ? 'Edit company profile'
+        : profileStarted.value
+          ? 'Finish company profile'
+          : 'Fill out company profile'
+      : null,
     onClick: openProfile,
   },
   {
@@ -109,8 +158,7 @@ const steps = computed(() => [
     completed: certsDone.value,
     description: 'Link two Framework or ERPNext certificates from Frappe School. Each holder confirms by email.',
     certs: true,
-    // A text link, as in press, so "Link certificate" is the step's one button.
-    link: { prefix: 'Don’t have a certificate?', text: 'Browse upcoming batches', url: 'https://school.frappe.io/lms/batches' },
+    link: { text: 'Browse batches', url: 'https://school.frappe.io/lms/batches' },
     summaryRight: certsDone.value ? null : `${Math.min(certCount.value, 2)} / 2`,
     actionLabel: canEdit.value ? 'Link certificate' : null,
     onClick: openLink,
@@ -203,7 +251,9 @@ function openProfile() {
 // ── Link a certificate ──────────────────────────────────────────────────────
 // By ID or the holder's email, as in press. The lookup is faked: under 6
 // characters finds nothing, "SW…" is already claimed by another partner,
-// anything else matches an ERPNext certificate.
+// anything else matches an ERPNext certificate. DEMO_CERT_ID, the field's
+// placeholder, finds a named holder so the demo can be tried end to end.
+const DEMO_CERT_ID = 'FS-ERP-20481'
 const linkOpen = ref(false)
 const certInput = ref('')
 const certError = ref('')
@@ -222,6 +272,8 @@ function lookUp() {
   const v = certInput.value.trim()
   if (v.length < 6) return (certError.value = 'No certificate matches that ID or email')
   if (/^sw/i.test(v)) return (certError.value = 'Another partner already counts this certificate. Your partner managers can help.')
+  if (v.toUpperCase() === DEMO_CERT_ID)
+    return (found.value = { name: 'ERPNext', full: true, holder: 'Kavya Rao', ref: 'kavya@lumen.example', issued: '2026-10-18', expires: '2028-10-18' })
   found.value = { name: 'ERPNext', full: true, ref: v, issued: '2026-10-18', expires: '2028-10-18' }
 }
 function saveLink() {
@@ -238,7 +290,7 @@ function saveLink() {
            steps that get it. Cards are static: no hover, no link. Icons match
            the sidebar items they open. -->
       <section class="space-y-4">
-        <h1 class="text-xl font-semibold text-ink-gray-9">Your journey to becoming a Frappe partner</h1>
+        <h1 class="text-xl font-semibold text-ink-gray-9">Get approved for leads and a listing</h1>
         <ul class="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <!-- Title and one line, then the picture. Each is a small, cropped
                piece of the product the perk lives in, with real words only on
@@ -328,7 +380,7 @@ function saveLink() {
            page's section gap. -->
       <section aria-labelledby="steps-title" class="mt-10 flex flex-col gap-6">
         <div>
-          <h2 id="steps-title" class="mb-2 text-base-semibold text-ink-gray-8">Steps to approval</h2>
+          <h2 id="steps-title" class="mb-2 text-base-semibold text-ink-gray-8">Your steps to approval</h2>
           <AccordionRoot v-model="openStep" type="single" collapsible class="w-full">
             <AccordionItem
               v-for="step in steps"
@@ -385,27 +437,44 @@ function saveLink() {
                   <div class="max-w-prose text-p-base font-normal leading-5 text-ink-gray-6" :class="(step.actionLabel || step.link) && 'mb-4'">
                     <p>{{ step.description }}</p>
                   </div>
-                  <!-- The certificates on this step and where each stands. -->
-                  <!-- Right edge meets the count badge in the row above (the
-                       chevron button and its gap: 40px, less the content's
-                       4px). Narrow, the status drops under the name. -->
-                  <ul v-if="step.certs && certRows.length" class="mb-4 pr-9">
-                    <li v-for="c in certRows" :key="c.key" class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
-                      <span class="min-w-0 basis-full sm:basis-0 sm:flex-1">
-                        <span class="block truncate text-base-medium text-ink-gray-8">{{ c.title }}</span>
-                        <span class="block truncate text-sm text-ink-gray-5">{{ c.who }}</span>
-                      </span>
-                      <Button v-if="c.status === 'pending' && canEdit" variant="ghost" size="sm" label="Resend" @click="resend" />
-                      <Badge v-if="c.status === 'pending'" theme="amber" label="Waiting for confirmation" class="shrink-0" />
-                      <Badge v-else label="Linked" class="shrink-0" />
-                    </li>
-                  </ul>
-                  <div v-if="step.actionLabel || step.link" class="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <!-- The certificates on this step and where each stands: status
+                       beside the name, actions on the right. The list runs to
+                       the step's right edge, under the chevron. -->
+                  <div v-if="step.certs && certRows.length" class="-mr-1 mb-4">
+                    <!-- One row per holder, person first: the avatar is who the row is
+                         about, and who Resend and Unlink act on.
+                         Gameplan's People list: the avatar in its own 2.5rem track so
+                         the inset divider starts at the text. 72px rows, the
+                         list note's height for two lines. -->
+                    <List class="list-gap-3" :columns="['2.5rem', 'minmax(0,1fr)', 'auto']" :row-height="72" divider="inset">
+                      <ListRow v-for="item in certRows" :key="item.key" :value="item.key">
+                        <ListCell>
+                          <Avatar :label="item.holder" size="2xl" />
+                        </ListCell>
+                        <ListCell>
+                          <div class="flex min-w-0 flex-col gap-1">
+                            <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                              <span class="min-w-0 truncate text-base-medium text-ink-gray-8">{{ item.holder }}</span>
+                              <Badge v-if="item.status === 'pending'" theme="amber" size="sm" label="Pending" class="shrink-0" />
+                              <Badge v-else size="sm" label="Linked" class="shrink-0" />
+                            </div>
+                            <p class="truncate text-p-sm text-ink-gray-6">{{ [item.type, item.who].filter(Boolean).join(' · ') }}</p>
+                          </div>
+                        </ListCell>
+                        <ListCell class="justify-end">
+                          <Dropdown
+                            v-if="canEdit"
+                            :options="rowActions(item)"
+                            :button="{ icon: 'lucide-more-horizontal', variant: 'ghost', 'aria-label': `More for ${item.holder}` }"
+                            align="end"
+                          />
+                        </ListCell>
+                      </ListRow>
+                    </List>
+                  </div>
+                  <div v-if="step.actionLabel || step.link" class="flex flex-wrap items-center gap-2">
                     <Button v-if="step.actionLabel" variant="solid" :label="step.actionLabel" @click="step.onClick" />
-                    <p v-if="step.link" class="text-sm text-ink-gray-6">
-                      {{ step.link.prefix }}
-                      <a :href="step.link.url" target="_blank" rel="noopener noreferrer" class="text-ink-gray-8 underline">{{ step.link.text }}</a>
-                    </p>
+                    <Button v-if="step.link" :label="step.link.text" :href="step.link.url" icon-right="lucide-arrow-up-right" />
                   </div>
                 </div>
               </AccordionContent>
@@ -416,6 +485,7 @@ function saveLink() {
         <div class="flex justify-start">
           <Button
             variant="solid"
+            size="md"
             class="w-full sm:w-auto"
             :disabled="!canSubmit"
             :label="account.edits.submitted ? 'Submitted for approval' : 'Submit for approval'"
@@ -437,6 +507,7 @@ function saveLink() {
         <FormControl
           v-model="certInput"
           label="Certificate ID, or the email they took the exam with"
+          :placeholder="DEMO_CERT_ID"
           autofocus
           :error="certError"
         />

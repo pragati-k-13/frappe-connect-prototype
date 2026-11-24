@@ -175,8 +175,8 @@ const website = computed(() => !hasAccount.value)
 
 const shellSubtitle = computed(() => {
   if (store.role === 'partner') {
-    // A firm that has just signed up has no name until its profile is filled
-    // in; until then, the person, as on the business side.
+    // The firm, named at sign-up. The person only stands in for a firm with
+    // no name at all, as on the business side.
     return account.firmName ?? account.edits.me
   }
   // The header is the organization on both sides; the person is in the

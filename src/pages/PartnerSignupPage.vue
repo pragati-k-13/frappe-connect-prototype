@@ -14,7 +14,10 @@ import { usePartnerAccountStore } from '../stores/partnerAccount'
 // isn't listed, gets no leads and has no partner code, so there is nothing to
 // review at this point. Frappe reviews once, when the Bronze criteria are met.
 //
-// ⚠️ Who you are, where to send the code, and the country. Country is here
+// ⚠️ Who you are, where to send the code, the company and the country. The
+// company's name is asked here so the sidebar, the company profile's first
+// field and the Frappe Cloud team name have it from the start; the profile
+// still asks for the legal name, filled in from this. Country is here
 // because it sets the firm's currency and MRR target from the start, as press's
 // registration does. Everything else about the firm is the first step of the
 // checklist on Partnership, so sign-up stays two screens: this, then the code.
@@ -25,7 +28,7 @@ const account = usePartnerAccountStore()
 const router = useRouter()
 
 // India only for now — see `COUNTRY_OPTIONS_INDIA_ONLY`.
-const form = reactive({ name: '', email: '', country: SELECTABLE_COUNTRY })
+const form = reactive({ name: '', email: '', company: '', country: SELECTABLE_COUNTRY })
 
 // Quiet until the first submit, live after it. See `SignupPage`.
 const submitted = ref(false)
@@ -35,6 +38,7 @@ const errors = computed(() => {
   if (!form.name.trim()) e.name = 'Enter your full name'
   if (!form.email.trim()) e.email = 'Enter your work email'
   else if (!isEmail(form.email)) e.email = 'Enter a valid email address, like you@company.com'
+  if (!form.company.trim()) e.company = 'Enter your company name'
   if (!form.country) e.country = 'Select a country'
   return e
 })
@@ -42,7 +46,7 @@ const errors = computed(() => {
 const submit = () => {
   submitted.value = true
   if (Object.keys(errors.value).length) return
-  account.holdSignup({ name: form.name.trim(), email: form.email.trim(), country: form.country })
+  account.holdSignup({ name: form.name.trim(), email: form.email.trim(), company: form.company.trim(), country: form.country })
   router.push({ name: 'partner-signup-verify', query: { email: form.email.trim() } })
 }
 </script>
@@ -67,6 +71,14 @@ const submit = () => {
         placeholder="name@company.com"
         autocomplete="email"
         :error="errors.email"
+      />
+      <FormControl
+        v-model="form.company"
+        size="sm"
+        label="Company name"
+        placeholder="Your company’s name"
+        autocomplete="organization"
+        :error="errors.company"
       />
       <Combobox
         v-model="form.country"

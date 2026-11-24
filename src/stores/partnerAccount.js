@@ -64,14 +64,20 @@ const blank = () => ({
   // PMM audits, newest first. Seeded for Bronze and up; a Beginner has none.
   audits: [],
   // A firm that signed up in this demo rather than the seeded one: no team
-  // but the person who signed up, no milestones reached, no name until the
-  // firm profile is filled in. See `startFresh`.
+  // but the person who signed up, no milestones reached, and the company
+  // name given at sign-up (`company`). See `startFresh`.
   fresh: false,
   // A Beginner's checklist (`PartnerChecklist`). The firm profile, the first
   // step: `{ name, country, done, …the rest of press's form }`. Certificates linked by ID or email, which
   // count without a person on the team. When it was submitted for approval.
   firmProfile: null,
+  // The company profile as far as it got: `{ values, stepsDone }`. Saved as
+  // the owner goes, so closing the dialog loses nothing; `firmProfile` only
+  // changes on "Save details".
+  firmProfileDraft: null,
   linkedCerts: [],
+  // Team members whose certificate the owner unlinked from the checklist.
+  unlinkedCerts: [],
   submitted: null,
   // The Frappe Cloud team whose billing counts as MRR, once the owner has
   // connected it. The seeded firm has; a firm that just signed up hasn't
@@ -84,7 +90,7 @@ const blank = () => ({
 const beginnerSeed = () => ({
   ...blank(),
   linkedCerts: [
-    { name: 'Framework', full: true, ref: 'arvind@lumen.example', status: 'pending', issued: '2026-09-04', expires: '2028-09-04' },
+    { name: 'Framework', full: true, holder: 'Arvind Menon', ref: 'arvind@lumen.example', status: 'pending', issued: '2026-09-04', expires: '2028-09-04' },
   ],
 })
 
@@ -208,10 +214,10 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
       return linkRequestsFor(this.tier).filter((r) => !this.edits.handled[r.id])
     },
 
-    // The firm's name once it has one. A firm that has just signed up has none
-    // until its profile is filled in.
+    // The firm's name: the profile's once saved, else the one given at
+    // sign-up. Only a fresh firm from before sign-up asked for it has none.
     firmName() {
-      return this.edits.firmProfile?.name ?? (this.edits.fresh ? null : firmFor(this.tier).name)
+      return this.edits.firmProfile?.name ?? (this.edits.fresh ? this.edits.company ?? null : firmFor(this.tier).name)
     },
 
     team() {
@@ -234,15 +240,16 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
     // Partner sign-up. Replaces the demo's Beginner firm with a new one: the
     // owner who signed up, nothing else. Signing up makes a firm a Beginner,
     // with no application.
-    holdSignup({ name, email, country }) {
-      this.signup = { name, email, country }
+    holdSignup({ name, email, company, country }) {
+      this.signup = { name, email, company, country }
     },
     startFresh() {
-      const { name, email, country } = this.signup ?? {}
+      const { name, email, company, country } = this.signup ?? {}
       this.byTier.beginner = {
         ...blank(),
         fresh: true,
         me: name ?? null,
+        company: company ?? null,
         email: email ?? null,
         country: country ?? null,
         frappeCloudTeam: null,
@@ -258,6 +265,10 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
     // are what the rest of the app reads.
     saveFirmProfile(profile) {
       this.edits.firmProfile = { ...profile, done: todayIso() }
+      this.edits.firmProfileDraft = null
+    },
+    saveFirmProfileDraft(values, stepsDone) {
+      this.edits.firmProfileDraft = { values, stepsDone }
     },
     // ⚠️ STANDS IN FOR A ROUND TRIP. The real Connect goes to Frappe Cloud,
     // where the owner signs in (or signs up) and picks the team, and comes
@@ -269,6 +280,12 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
     // press; only confirmed ones count toward the two.
     linkBeginnerCert(cert) {
       this.edits.linkedCerts.push({ ...cert, status: 'pending' })
+    },
+    // Takes a certificate off the checklist: one linked here is dropped, a
+    // team member's stops counting.
+    unlinkBeginnerCert(row) {
+      if (row.teamId) (this.edits.unlinkedCerts ??= []).push(row.teamId)
+      else this.edits.linkedCerts.splice(row.index, 1)
     },
     submitForApproval() {
       this.edits.submitted = todayIso()
