@@ -36,7 +36,7 @@
 // every screen in the flow.
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Button, Dropdown } from 'frappe-ui'
+import { Button, Dropdown, toast } from 'frappe-ui'
 import { emptyBrief } from '../data/custom'
 import { stagesFor } from '../data/project'
 import { PARTNERSHIP_STATES } from '../data/partnership'
@@ -111,6 +111,70 @@ function setPartnerRole(r) {
   store.setPartnerRole(r)
   router.push(store.partnerHome)
 }
+
+// ── A Beginner's way to approval ───────────────────────────────────────────
+// What other people do between a Beginner's steps: a certificate holder
+// confirming by email, Frappe Cloud billing reaching the target, Frappe
+// approving. Each shows only when it applies, so the menu walks the demo in
+// order. Approval moves the firm to Bronze and up, the next thing a real
+// approved partner would see.
+const partnershipEvents = computed(() => {
+  if (store.role !== 'partner' || store.partnerTier !== 'beginner' || route.name !== 'partnership') return []
+  const e = account.edits
+  const pending = e.linkedCerts.findIndex((c) => c.status === 'pending')
+  const india = (e.firmProfile?.country ?? e.country ?? 'India') === 'India'
+  return [
+    pending >= 0 && {
+      label: `${e.linkedCerts[pending].holder ?? e.linkedCerts[pending].ref} confirms by email`,
+      icon: 'lucide-mail-check',
+      onClick: () => {
+        account.confirmBeginnerCert(pending)
+        toast.success('Certificate linked')
+      },
+    },
+    e.fresh && e.frappeCloudTeam && !e.mrrReached && {
+      label: `Frappe Cloud MRR reaches ${india ? '₹10,000' : '$100'}`,
+      icon: 'lucide-trending-up',
+      onClick: () => account.reachBeginnerMrr(),
+    },
+    e.review?.status === 'rejected' &&
+      e.review.flags?.['step-profile']?.fields?.incorporation_certificate && {
+        label: 'Upload the corrected certificate',
+        icon: 'lucide-file-up',
+        onClick: () => {
+          account.uploadCorrectedCertificate()
+          toast.success('Certificate of incorporation replaced')
+        },
+      },
+    e.submitted && {
+      label: 'Frappe rejects the application',
+      icon: 'lucide-circle-x',
+      onClick: () =>
+        account.rejectApplication({
+          'step-profile': {
+            comment: `The certificate of incorporation is for a different company name. Upload the one for ${account.firmName ?? 'your company'}, or update the legal company name to match it.`,
+            // The certificate first: the dialog opens on the first one's page.
+            fields: {
+              incorporation_certificate: 'This certificate is for a different company name.',
+              company_name: 'Doesn’t match your certificate of incorporation.',
+            },
+          },
+        }),
+    },
+    e.submitted && {
+      label: 'Frappe approves the partnership',
+      icon: 'lucide-badge-check',
+      // As press: the checklist says so and its button becomes "Become an
+      // active partner"; the owner moves on to the Bronze view from there.
+      onClick: () => account.approveApplication(),
+    },
+    {
+      label: 'Start with no steps done',
+      icon: 'lucide-rotate-ccw',
+      onClick: () => account.resetBeginnerChecklist(),
+    },
+  ].filter(Boolean)
+})
 
 // ── The stage picker ───────────────────────────────────────────────────────
 // ⚠️ Only on a project's own page, and that is the whole design of it. A stage
@@ -306,6 +370,7 @@ const options = computed(() => [
         },
       ]
     : []),
+  ...(partnershipEvents.value.length ? [{ group: 'This partnership', options: partnershipEvents.value }] : []),
   ...(leadEvents.value.length ? [{ group: 'This lead', options: leadEvents.value }] : []),
   ...(hireAskable.value
     ? [

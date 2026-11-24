@@ -329,7 +329,13 @@ const canReviewLinks = computed(() => ['owner', 'sales'].includes(store.partnerR
 const notifItems = computed(() => {
   if (store.role !== 'partner') return store.hasProject ? notifications.business : []
   const requests = canReviewLinks.value ? account.requests.map(requestNotification) : []
-  return [...notifications.partner, ...requests].sort((a, b) => b.time - a.time)
+  // A Beginner's approval: how the owner learns of it, since review takes days.
+  const review = store.partnerTier === 'beginner' && account.edits.review
+  const approval =
+    review?.status === 'approved'
+      ? [{ id: 'n-approved', from: { name: 'Frappe' }, action: 'approved', target: `${account.firmName ?? 'your firm'} as a Bronze partner`, time: new Date(`${review.on}T10:00:00`).getTime(), read: review.seen, route: '/connect/partnership' }]
+      : []
+  return [...notifications.partner, ...requests, ...approval].sort((a, b) => b.time - a.time)
 })
 const unread = computed(() => notifItems.value.filter((n) => !n.read).length)
 const notifOpen = ref(false)

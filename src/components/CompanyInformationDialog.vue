@@ -75,6 +75,9 @@ watch(open, async (isOpen) => {
   // Saved before partnerships became a multiselect: one name, not a list.
   if (typeof draft.existing_partnerships === 'string') draft.existing_partnerships = [draft.existing_partnerships]
   step.value = Math.min(progress?.stepsDone ?? 0, TOTAL - 1)
+  // Sent back with a field flagged: open on that field's page.
+  const flagged = Object.keys(flaggedFields.value)[0]
+  if (flagged) step.value = FIELD_STEP[flagged] ?? step.value
   submitted[0] = submitted[1] = submitted[2] = false
   saved.value = Boolean(progress)
   await nextTick()
@@ -88,6 +91,22 @@ watch(draft, () => ready && open.value && saveProgress(), { deep: true })
 
 // "Company profile", as the checklist step and its button say.
 const title = 'Company profile'
+
+// ── Fields Frappe flagged when sending the application back ─────────────────
+// The reviewer's note shows as each flagged field's error. The fields of one
+// flag are alternatives (fix the certificate, or the legal name), so changing
+// any of them clears them all.
+const flaggedFields = computed(() =>
+  account.edits.review?.status === 'rejected' ? (account.edits.review.flags?.['step-profile']?.fields ?? {}) : {},
+)
+const FIELD_STEP = { company_name: 0, address: 0, headquarter_city: 0, company_logo: 2, incorporation_certificate: 2 }
+const flagCleared = computed(() =>
+  Object.entries(flaggedFields.value).some(([f, { was }]) => (draft[f] ?? null) !== was),
+)
+const flagError = (field) => {
+  const f = flaggedFields.value[field]
+  return f && !flagCleared.value ? f.message : ''
+}
 const primaryLabel = computed(() => (step.value === TOTAL - 1 ? 'Save details' : 'Continue'))
 
 // ── Step 2's options and checks (step 1 is three text fields) ──────────────
@@ -260,9 +279,9 @@ function save() {
            their labels. Grouped by topic, 5 / 6 / 4 rows. -->
       <!-- ── Step 1: the company. The three required facts first. ──────── -->
       <form v-show="step === 0" class="flex flex-col gap-4" novalidate @submit.prevent="primary">
-        <FormControl v-model="draft.company_name" label="Legal company name" required size="sm" :error="errors1.company_name" />
-        <FormControl v-model="draft.address" label="Registered address" required size="sm" :error="errors1.address" />
-        <FormControl v-model="draft.headquarter_city" label="Head office city" required size="sm" :error="errors1.headquarter_city" />
+        <FormControl v-model="draft.company_name" label="Legal company name" required size="sm" :error="errors1.company_name || flagError('company_name')" />
+        <FormControl v-model="draft.address" label="Registered address" required size="sm" :error="errors1.address || flagError('address')" />
+        <FormControl v-model="draft.headquarter_city" label="Head office city" required size="sm" :error="errors1.headquarter_city || flagError('headquarter_city')" />
         <div class="flex flex-col gap-1.5">
           <div class="flex items-center justify-between gap-2">
             <FormLabel label="No. of employees" />
@@ -369,8 +388,8 @@ function save() {
           </template>
           <!-- frappe-ui's field error, as FormControl draws it (a Button has
                no :error). -->
-          <p v-if="fileError[u.key] || errors3[u.key]" class="text-p-sm text-ink-red-5">
-            {{ fileError[u.key] || u.required }}
+          <p v-if="fileError[u.key] || errors3[u.key] || flagError(u.key)" class="text-p-sm text-ink-red-5">
+            {{ fileError[u.key] || (errors3[u.key] ? u.required : flagError(u.key)) }}
           </p>
         </div>
 

@@ -75,6 +75,12 @@ const blank = () => ({
   // the owner goes, so closing the dialog loses nothing; `firmProfile` only
   // changes on "Save details".
   firmProfileDraft: null,
+  // Demo: Frappe Cloud billing has reached the MRR target (`reachBeginnerMrr`).
+  mrrReached: false,
+  // Frappe's decision on a submission: `{ status: 'rejected', flags }`, where
+  // `flags` maps a step to the reviewer's comment and how that step stood
+  // when it was sent back; or `{ status: 'approved', on, seen }`.
+  review: null,
   linkedCerts: [],
   // Team members whose certificate the owner unlinked from the checklist.
   unlinkedCerts: [],
@@ -220,6 +226,17 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
       return this.edits.firmProfile?.name ?? (this.edits.fresh ? this.edits.company ?? null : firmFor(this.tier).name)
     },
 
+    // Each step's answers, to tell whether a flagged step changed since
+    // Frappe sent it back.
+    stepSnapshots() {
+      const e = this.edits
+      return {
+        'step-profile': JSON.stringify(e.firmProfile),
+        'step-certificates': JSON.stringify([e.linkedCerts.map((c) => [c.ref, c.name, c.status]), e.unlinkedCerts]),
+        'step-mrr': JSON.stringify([e.frappeCloudTeam, e.mrrReached]),
+      }
+    },
+
     team() {
       const connect = useConnectStore()
       // A new firm is the person who signed up and nobody else.
@@ -287,9 +304,81 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
       if (row.teamId) (this.edits.unlinkedCerts ??= []).push(row.teamId)
       else this.edits.linkedCerts.splice(row.index, 1)
     },
+    // ⚠️ DEMO EVENTS (the Demo menu's "This partnership"): what other people
+    // do — a holder confirming by email, Frappe Cloud billing growing — which
+    // the partner can't do in the product.
+    confirmBeginnerCert(index) {
+      this.edits.linkedCerts[index].status = 'linked'
+    },
+    reachBeginnerMrr() {
+      this.edits.mrrReached = true
+    },
+    // A resubmission clears Frappe's earlier decision.
     submitForApproval() {
       this.edits.submitted = todayIso()
+      this.edits.review = null
     },
+    withdrawSubmission() {
+      this.edits.submitted = null
+    },
+    // ⚠️ DEMO EVENT: Frappe's review sends the application back.
+    // `flags`: `{ [step]: { comment, fields? } }`. `fields` names the profile
+    // fields the comment is about, `{ [field]: message }`, so the dialog can
+    // mark them; each keeps its value at send-back to tell when it changed.
+    rejectApplication(flags) {
+      this.edits.submitted = null
+      const snaps = this.stepSnapshots
+      const profile = this.edits.firmProfile ?? {}
+      this.edits.review = {
+        status: 'rejected',
+        flags: Object.fromEntries(
+          Object.entries(flags).map(([step, { comment, fields = {} }]) => [
+            step,
+            {
+              comment,
+              snapshot: snaps[step],
+              fields: Object.fromEntries(Object.entries(fields).map(([f, message]) => [f, { message, was: profile[f] ?? null }])),
+            },
+          ]),
+        ),
+      }
+    },
+    // ⚠️ DEMO: the checklist with nothing done, for the same firm and owner —
+    // as right after sign-up. Keeps who they are; clears everything else.
+    resetBeginnerChecklist() {
+      const { me, email, country } = this.edits
+      const company = this.firmName
+      const owner = me ?? this.team.find((p) => p.roles?.includes('owner'))?.name ?? null
+      this.byTier.beginner = {
+        ...blank(),
+        fresh: true,
+        me: owner,
+        email: email ?? null,
+        company,
+        country: country ?? null,
+        frappeCloudTeam: null,
+      }
+    },
+    // ⚠️ DEMO: the owner replaces the certificate Frappe flagged, without a
+    // file picker in the middle of a demo.
+    uploadCorrectedCertificate() {
+      const name = (this.firmName ?? 'company').toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      this.edits.firmProfile = {
+        ...this.edits.firmProfile,
+        incorporation_certificate: `certificate-of-incorporation-${name}.pdf`,
+        incorporation_certificate_size: 1153434,
+      }
+    },
+    // ⚠️ DEMO EVENT: Frappe's review approves it.
+    approveApplication() {
+      this.edits.submitted = null
+      this.edits.review = { status: 'approved', on: todayIso(), seen: false }
+    },
+    // The one-time approval dialog has been shown.
+    markApprovalSeen() {
+      if (this.edits.review) this.edits.review.seen = true
+    },
+
     handleRequest(id, outcome, link = null) {
       this.edits.handled[id] = outcome
       if (link) this.edits.requestLinks[id] = link

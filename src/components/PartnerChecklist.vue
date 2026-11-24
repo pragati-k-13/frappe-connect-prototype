@@ -1,8 +1,10 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Avatar, Badge, Button, Dialog, Dropdown, FormControl, dialog, toast } from 'frappe-ui'
+import { useRouter } from 'vue-router'
+import { Alert, Avatar, Badge, Button, Dialog, Dropdown, FormControl, dialog, toast } from 'frappe-ui'
 import { List, ListCell, ListRow } from 'frappe-ui/list'
 import CompanyInformationDialog from './CompanyInformationDialog.vue'
+import TierIcon from './TierIcon.vue'
 import {
   AccordionContent,
   AccordionHeader,
@@ -10,6 +12,7 @@ import {
   AccordionRoot,
 } from '../lib/accordion'
 import { SELECTABLE_COUNTRY } from '../data/company'
+import { isEmail } from '../utils/auth'
 import { TIERS, longDate, standingFor } from '../data/partnership'
 import { useConnectStore } from '../stores/connect'
 import { usePartnerAccountStore } from '../stores/partnerAccount'
@@ -33,9 +36,23 @@ import northbeamLogo from '../assets/northbeam-systems.svg'
 // billing, since a Beginner has no partner code to link customers with.
 const store = useConnectStore()
 const account = usePartnerAccountStore()
+const router = useRouter()
 
-// Only the owner fills the checklist in; everyone else sees where it stands.
-const canEdit = computed(() => store.partnerRole === 'owner' && !account.edits.submitted)
+// Only the owner fills the checklist in, and only while it isn't submitted;
+// everyone else sees where it stands. A done step stays editable, but
+// Frappe reviews what was sent, so a submission pauses every step until the
+// owner withdraws it.
+const isOwner = computed(() => store.partnerRole === 'owner')
+const rejected = computed(() => account.edits.review?.status === 'rejected')
+const approved = computed(() => account.edits.review?.status === 'approved')
+// Sent back by Frappe: everything reopens at once to fix and resubmit.
+const canEdit = computed(() => isOwner.value && !account.edits.submitted && !approved.value)
+// Press's last step: the owner chooses when to move on to the partner view.
+// The demo's Bronze view is its own seeded firm.
+function becomeActivePartner() {
+  store.setPartnerTier('bronze-up')
+  router.push(store.partnerHome)
+}
 
 // ── What the steps read ─────────────────────────────────────────────────────
 const standing = computed(() => standingFor('beginner'))
@@ -70,27 +87,30 @@ const certRows = computed(() => [
     index: i,
     title: `${c.name} certification`,
     type: c.name,
-    // Linked by ID or email with no name yet: the email stands in as the name.
-    holder: c.holder ?? c.ref,
-    who: c.holder ? c.ref : null,
+    // As press: the holder's name only once they confirm. Until then the
+    // request is just an email, and the name isn't shown to the partner.
+    holder: c.status === 'linked' ? (c.holder ?? c.ref) : c.ref,
+    who: c.status === 'linked' && c.holder ? c.ref : null,
     status: c.status,
   })),
 ])
-function resend() {
-  toast.success('Verification email sent')
+// The holder's email: `who`, or the name itself when linked by email alone.
+function resend(row) {
+  toast.success(`Verification email sent to ${row.who ?? row.holder}`)
 }
 // Resend for a pending one; Unlink last, red, in its own group.
 function rowActions(row) {
   return [
-    ...(row.status === 'pending' ? [{ label: 'Resend email', icon: 'lucide-mail', onClick: resend }] : []),
+    ...(row.status === 'pending' ? [{ label: 'Resend email', icon: 'lucide-mail', onClick: () => resend(row) }] : []),
     { group: 'Remove', hideLabel: true, options: [{ label: 'Unlink', icon: 'lucide-unlink', theme: 'red', onClick: () => unlink(row) }] },
   ]
 }
 // frappe-ui's danger dialog gives Cancel an outline; actions make it subtle.
 function unlink(row) {
   dialog.danger({
-    title: `Unlink ${row.holder}’s certificate?`,
-    message: 'It won’t count until you link it again.',
+    // Short enough for one line: the certificate goes in the message.
+    title: `Unlink ${row.holder}?`,
+    message: `Their ${row.type} certificate won’t count until you link it again.`,
     actions: [
       { label: 'Cancel' },
       {
@@ -99,7 +119,7 @@ function unlink(row) {
         theme: 'red',
         onClick: () => {
           account.unlinkBeginnerCert(row)
-          toast.success(`Unlinked ${row.holder}’s ${row.title}`)
+          toast.success(`Unlinked the ${row.type} certificate for ${row.holder}`)
         },
       },
     ],
@@ -116,7 +136,10 @@ const country = computed(
 )
 const currency = computed(() => (country.value === 'India' ? 'INR' : standing.value.mrr.currency))
 const mrrTarget = computed(() => (currency.value === 'INR' ? 10_000 : 100))
-const mrrCurrent = computed(() => (account.edits.fresh ? 0 : standing.value.mrr.current))
+// The demo's "MRR reaches" event sets it to the target.
+const mrrCurrent = computed(() =>
+  account.edits.mrrReached ? mrrTarget.value : account.edits.fresh ? 0 : standing.value.mrr.current,
+)
 const fmt = (amount) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: currency.value, maximumFractionDigits: 0 }).format(amount)
 const fcTeam = computed(() => account.edits.frappeCloudTeam)
@@ -134,7 +157,7 @@ function connectFrappeCloud() {
   toast.success('Frappe Cloud connected')
 }
 
-const steps = computed(() => [
+const baseSteps = computed(() => [
   {
     value: 'step-profile',
     title: 'Complete your company profile',
@@ -156,7 +179,7 @@ const steps = computed(() => [
     value: 'step-certificates',
     title: 'Link at least two Frappe School certificates',
     completed: certsDone.value,
-    description: 'Link two Framework or ERPNext certificates from Frappe School. Each holder confirms by email.',
+    description: 'Link two Framework or ERPNext certificates. Each holder confirms by email.',
     certs: true,
     link: { text: 'Browse batches', url: 'https://school.frappe.io/lms/batches' },
     summaryRight: certsDone.value ? null : `${Math.min(certCount.value, 2)} / 2`,
@@ -185,6 +208,25 @@ const steps = computed(() => [
         onClick: connectFrappeCloud,
       },
 ])
+// Sent back: a flagged step reopens with the reviewer's comment in place of
+// its description, and a badge for where it stands. It counts as not done
+// until something in it changes, so Resubmit stays locked until then.
+// "Updated" is gray: changed, not judged — only a reviewer can say it's right.
+const flags = computed(() => (rejected.value ? (account.edits.review.flags ?? {}) : {}))
+const steps = computed(() =>
+  baseSteps.value.map((s) => {
+    const flag = flags.value[s.value]
+    if (!flag) return s
+    const changed = account.stepSnapshots[s.value] !== flag.snapshot
+    return {
+      ...s,
+      completed: s.completed && changed,
+      description: flag.comment,
+      flag: changed ? { label: 'Updated', theme: 'gray' } : { label: 'Changes requested', theme: 'amber' },
+    }
+  }),
+)
+const flaggedCount = computed(() => Object.keys(flags.value).length)
 
 // The next step still to do opens on its own, as in press.
 const openStep = ref('')
@@ -234,11 +276,50 @@ const invoiceMonth = dayjs().format('MMMM YYYY')
 
 // ── Submit ──────────────────────────────────────────────────────────────────
 const canSubmit = computed(
-  () => store.partnerRole === 'owner' && !account.edits.submitted && steps.value.every((s) => s.completed),
+  () => canEdit.value && steps.value.every((s) => s.completed),
 )
 function submit() {
+  const again = rejected.value
+  sendForApproval(again)
+}
+function sendForApproval(again) {
   account.submitForApproval()
-  toast.success('Details submitted for approval')
+  toast.success(again ? 'Resubmitted for approval' : 'Details submitted for approval')
+}
+
+// ── Approved ────────────────────────────────────────────────────────────────
+// Once, the first time the owner sees the page after approval: what they've
+// earned, and the way on. Review takes days, so this greets them on return;
+// the notification tells them before.
+const approvalOpen = ref(false)
+watch(
+  () => approved.value && !account.edits.review?.seen,
+  (show) => {
+    if (show) {
+      approvalOpen.value = true
+      account.markApprovalSeen()
+    }
+  },
+  { immediate: true },
+)
+// Reversible (submit again), so a neutral confirm, not a red one. Cancel is
+// subtle, as everywhere else here, hence `actions`.
+function withdraw() {
+  dialog.confirm({
+    title: 'Withdraw your submission?',
+    message: 'Frappe stops reviewing it until you submit again.',
+    actions: [
+      { label: 'Cancel' },
+      {
+        label: 'Withdraw',
+        variant: 'solid',
+        onClick: () => {
+          account.withdrawSubmission()
+          toast.success('Submission withdrawn')
+        },
+      },
+    ],
+  })
 }
 
 // ── Company information ─────────────────────────────────────────────────────
@@ -249,37 +330,55 @@ function openProfile() {
 }
 
 // ── Link a certificate ──────────────────────────────────────────────────────
-// By ID or the holder's email, as in press. The lookup is faked: under 6
-// characters finds nothing, "SW…" is already claimed by another partner,
-// anything else matches an ERPNext certificate. DEMO_CERT_ID, the field's
-// placeholder, finds a named holder so the demo can be tried end to end.
-const DEMO_CERT_ID = 'FS-ERP-20481'
+// Press's inputs, in onboarding and the partner dashboard alike: the
+// certificate type and the holder's email. As the partner dashboard does, it
+// checks the email as it's typed and says only how many certificates match,
+// never the holder's name. Faked here: "sw…" is already counted by another
+// partner; any other address finds one. Opens filled in for the demo.
+const certTypes = [
+  { label: 'ERPNext', value: 'ERPNext' },
+  { label: 'Frappe Framework', value: 'Framework' },
+]
 const linkOpen = ref(false)
-const certInput = ref('')
-const certError = ref('')
-const found = ref(null)
-watch(certInput, () => {
-  found.value = null
-  certError.value = ''
+const certType = ref('ERPNext')
+const certEmail = ref('')
+const domain = computed(() => account.edits.email?.split('@')[1] ?? 'lumen.example')
+// The demo's holders, revealed only when they confirm.
+const DEMO_HOLDERS = { kavya: 'Kavya Rao', arvind: 'Arvind Menon', nisha: 'Nisha Pillai', rohan: 'Rohan Desai', farah: 'Farah Khan' }
+const holderFor = (email) => {
+  const local = email.split('@')[0]
+  return DEMO_HOLDERS[local] ?? local.charAt(0).toUpperCase() + local.slice(1)
+}
+// Set on send, so the check doesn't re-run against the certificate it just
+// linked and flash "already linked" while the dialog closes.
+const sent = ref(false)
+const certCheck = computed(() => {
+  if (sent.value) return { found: 1 }
+  const email = certEmail.value.trim()
+  if (!isEmail(email)) return null
+  if (/^sw/i.test(email)) return { error: 'Another partner already counts this certificate. Your partner managers can help.' }
+  if (account.edits.linkedCerts.some((c) => c.ref === email && c.name === certType.value))
+    return { error: `${email} is already linked here for ${certTypeLabel.value}.` }
+  return { found: 1 }
 })
+const certTypeLabel = computed(() => certTypes.find((t) => t.value === certType.value)?.label)
 function openLink() {
-  certInput.value = ''
-  certError.value = ''
-  found.value = null
+  sent.value = false
+  certType.value = 'ERPNext'
+  // The first demo holder not already linked, so the demo never opens on an
+  // "already linked" error.
+  const taken = new Set(account.edits.linkedCerts.map((c) => c.ref))
+  const local = Object.keys(DEMO_HOLDERS).find((l) => !taken.has(`${l}@${domain.value}`)) ?? 'kavya'
+  certEmail.value = `${local}@${domain.value}`
   linkOpen.value = true
 }
-function lookUp() {
-  const v = certInput.value.trim()
-  if (v.length < 6) return (certError.value = 'No certificate matches that ID or email')
-  if (/^sw/i.test(v)) return (certError.value = 'Another partner already counts this certificate. Your partner managers can help.')
-  if (v.toUpperCase() === DEMO_CERT_ID)
-    return (found.value = { name: 'ERPNext', full: true, holder: 'Kavya Rao', ref: 'kavya@lumen.example', issued: '2026-10-18', expires: '2028-10-18' })
-  found.value = { name: 'ERPNext', full: true, ref: v, issued: '2026-10-18', expires: '2028-10-18' }
-}
 function saveLink() {
-  account.linkBeginnerCert(found.value)
+  if (!certCheck.value?.found) return
+  const email = certEmail.value.trim()
+  sent.value = true
+  account.linkBeginnerCert({ name: certType.value, full: true, ref: email, holder: holderFor(email) })
   linkOpen.value = false
-  toast.success('Verification email sent')
+  toast.success(`Verification email sent to ${email}`)
 }
 </script>
 
@@ -290,7 +389,7 @@ function saveLink() {
            steps that get it. Cards are static: no hover, no link. Icons match
            the sidebar items they open. -->
       <section class="space-y-4">
-        <h1 class="text-xl font-semibold text-ink-gray-9">Get approved for leads and a listing</h1>
+        <h1 class="text-xl font-semibold text-ink-gray-9">{{ approved ? "You’re a Bronze partner" : "Get approved for leads and a listing" }}</h1>
         <ul class="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <!-- Title and one line, then the picture. Each is a small, cropped
                piece of the product the perk lives in, with real words only on
@@ -412,7 +511,8 @@ function saveLink() {
                   </span>
                 </span>
                 <!-- The count, gray in every state: the check already says done. -->
-                <Badge v-if="step.summaryRight" :label="step.summaryRight" class="shrink-0" />
+                <Badge v-if="step.flag" :theme="step.flag.theme" :label="step.flag.label" class="shrink-0" />
+                <Badge v-else-if="step.summaryRight" :label="step.summaryRight" class="shrink-0" />
                 <!-- Not reka's AccordionTrigger: that puts `data-state="open"` on it,
                      and frappe-ui's Button reads that as pressed (it's how a
                      Dropdown trigger stays filled while its menu is open). -->
@@ -455,7 +555,7 @@ function saveLink() {
                           <div class="flex min-w-0 flex-col gap-1">
                             <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                               <span class="min-w-0 truncate text-base-medium text-ink-gray-8">{{ item.holder }}</span>
-                              <Badge v-if="item.status === 'pending'" theme="amber" size="sm" label="Pending" class="shrink-0" />
+                              <Badge v-if="item.status === 'pending'" theme="amber" size="sm" label="Email sent" class="shrink-0" />
                               <Badge v-else size="sm" label="Linked" class="shrink-0" />
                             </div>
                             <p class="truncate text-p-sm text-ink-gray-6">{{ [item.type, item.who].filter(Boolean).join(' · ') }}</p>
@@ -482,17 +582,50 @@ function saveLink() {
           </AccordionRoot>
         </div>
 
-        <div class="flex justify-start">
+        <!-- The one button keeps its place: Submit, then Withdraw in the same
+             slot and size once submitted, with why the steps are paused
+             beside it. -->
+        <!-- Sent back: the reviewer's comment stays above the button until the
+             owner resubmits. Unlike press there's no "Start new application":
+             the steps reopen at once and nothing is lost, so the fix is the
+             next thing to do, then Resubmit. -->
+        <Alert
+          v-if="rejected"
+          theme="red"
+          title="Frappe sent your application back"
+          :description="flaggedCount > 1 ? `Make the changes on ${flaggedCount} steps, then resubmit.` : 'Make the requested changes, then resubmit.'"
+        />
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <template v-if="approved">
+            <!-- The headline says approved; the button is the way on. -->
+            <Button variant="solid" size="md" class="w-full sm:w-auto" :disabled="!isOwner" label="Start using Connect" @click="becomeActivePartner">
+              <template #prefix><span class="lucide-circle-check size-4" aria-hidden="true" /></template>
+            </Button>
+          </template>
+          <template v-else-if="account.edits.submitted">
+            <Button v-if="isOwner" size="md" label="Withdraw" @click="withdraw" />
+            <!-- Quiet: the hidden step buttons and Withdraw already say the rest. -->
+            <p class="min-w-0 text-p-sm text-ink-gray-5" role="status">
+              Under review since {{ longDate(account.edits.submitted) }}
+            </p>
+          </template>
           <Button
+            v-else
             variant="solid"
             size="md"
             class="w-full sm:w-auto"
             :disabled="!canSubmit"
-            :label="account.edits.submitted ? 'Submitted for approval' : 'Submit for approval'"
+            :label="rejected ? 'Resubmit for approval' : 'Submit for approval'"
             @click="submit"
           >
+            <!-- Locked until every step is done; the lock opens when it is.
+                 Both icons share one slot and cross-fade, the closed one
+                 shrinking and blurring out as the open one settles in. -->
             <template #prefix>
-              <span class="lucide-lock -mr-0.5 size-3.5" aria-hidden="true" />
+              <span class="fc-lock relative size-4" :data-open="canSubmit" aria-hidden="true">
+                <span class="fc-lock-closed lucide-lock absolute inset-0 size-4" />
+                <span class="fc-lock-open lucide-lock-open absolute inset-0 size-4" />
+              </span>
             </template>
           </Button>
         </div>
@@ -501,27 +634,82 @@ function saveLink() {
 
     <CompanyInformationDialog v-model:open="profileOpen" />
 
+    <!-- ── Approved, once ────────────────────────────────────────────── -->
+    <!-- The approval, once: Frappe's bronze seal, centred, with the perks
+         now on and the way on stacked under them. -->
+    <Dialog v-model:open="approvalOpen" size="md" bare>
+      <!-- No ×: "Later" closes it, as do Esc and a click outside. -->
+      <div class="flex flex-col items-center px-6 pb-6 pt-8 text-center">
+        <TierIcon tier="bronze" size="xl" celebrate />
+        <h2 class="mt-5 text-xl font-semibold text-ink-gray-8">You’re a Frappe Bronze partner!</h2>
+        <!-- Centred as a block, read down the left: one line of checks. -->
+        <ul class="mt-2.5 flex flex-col items-start gap-2 text-left">
+          <li v-for="p in perks" :key="p.key" class="flex items-center gap-2 text-base text-ink-gray-8">
+            <span class="lucide-check size-4 shrink-0 text-ink-green-7" aria-hidden="true" />
+            {{ p.title }}
+          </li>
+        </ul>
+        <div class="mt-10 flex w-full flex-col gap-2">
+          <Button variant="solid" size="md" class="w-full" label="Start using Connect" @click="becomeActivePartner" />
+          <Button size="md" class="w-full" label="Later" @click="approvalOpen = false" />
+        </div>
+      </div>
+    </Dialog>
+
     <!-- ── Link a certificate ──────────────────────────────────────────── -->
     <Dialog v-model:open="linkOpen" size="md" title="Link a certificate">
-      <form class="space-y-4" novalidate @submit.prevent="found ? saveLink() : lookUp()">
-        <FormControl
-          v-model="certInput"
-          label="Certificate ID, or the email they took the exam with"
-          :placeholder="DEMO_CERT_ID"
-          autofocus
-          :error="certError"
-        />
-        <div v-if="found" class="rounded-6 border border-outline-gray-1 p-3">
-          <p class="text-base text-ink-gray-8">{{ found.name }} certification</p>
-          <p class="mt-1 text-sm text-ink-gray-5">
-            {{ found.ref }} · Issued {{ longDate(found.issued) }} · Until {{ longDate(found.expires) }}
+      <form class="space-y-4" novalidate @submit.prevent="saveLink">
+        <FormControl v-model="certType" type="select" label="Certificate type" :options="certTypes" />
+        <div class="space-y-1.5">
+          <FormControl
+            v-model="certEmail"
+            type="email"
+            label="Holder’s email"
+            placeholder="name@company.com"
+            autofocus
+            :error="certCheck?.error"
+          />
+          <!-- What press's check says: a count, not who. -->
+          <p v-if="certCheck?.found" class="flex items-center gap-1.5 text-p-sm text-ink-gray-6">
+            <span class="lucide-circle-check size-4 shrink-0 text-ink-green-5" aria-hidden="true" />
+            Found {{ certCheck.found }} {{ certTypeLabel }} certificate for {{ certEmail.trim() }}
           </p>
         </div>
         <div class="flex justify-end gap-2 pt-2">
           <Button label="Cancel" @click="linkOpen = false" />
-          <Button type="submit" variant="solid" :label="found ? 'Link certificate' : 'Look up'" />
+          <Button type="submit" variant="solid" :disabled="!certCheck?.found" label="Send verification email" />
         </div>
       </form>
     </Dialog>
   </div>
 </template>
+
+<style scoped>
+/* The Submit lock: a state change seen once or twice, so it can carry a
+   little delight. 220ms strong ease-out; scale from 0.8, never 0; a 2px blur
+   bridges the two icons so it reads as one lock opening. */
+.fc-lock > span {
+  transition:
+    opacity 220ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 220ms cubic-bezier(0.23, 1, 0.32, 1),
+    filter 220ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.fc-lock-open,
+.fc-lock[data-open='true'] .fc-lock-closed {
+  opacity: 0;
+  transform: scale(0.8);
+  filter: blur(2px);
+}
+.fc-lock[data-open='true'] .fc-lock-open {
+  opacity: 1;
+  transform: scale(1);
+  filter: blur(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .fc-lock > span {
+    transition: opacity 150ms ease;
+    transform: none !important;
+    filter: none !important;
+  }
+}
+</style>
