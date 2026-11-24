@@ -6,6 +6,7 @@ import AuthShell from '../components/AuthShell.vue'
 import OtpInput from '../components/OtpInput.vue'
 import { AUTH_MS, nextFrom, useAuthExit } from '../utils/auth'
 import { useConnectStore } from '../stores/connect'
+import { usePartnerAccountStore } from '../stores/partnerAccount'
 
 // SCREEN — verify the email address.
 //
@@ -23,7 +24,11 @@ const store = useConnectStore()
 const route = useRoute()
 const router = useRouter()
 
-const isSignup = computed(() => route.name === 'signup-verify')
+// Partner sign-up shares the screen too. It ends somewhere else: the firm is
+// now a Beginner, and the owner lands on Partnership.
+const isPartner = computed(() => route.name === 'partner-signup-verify')
+const isSignup = computed(() => route.name === 'signup-verify' || isPartner.value)
+const account = usePartnerAccountStore()
 
 // ⚠️ In the query as well as the store: the store is in memory, so a reload on
 // this screen would otherwise leave it unable to say which address it sent a
@@ -43,6 +48,15 @@ const verify = () => {
   loading.value = true
   timer = setTimeout(async () => {
     loading.value = false
+    if (isPartner.value) {
+      account.startFresh()
+      store.setRole('partner')
+      store.setPartnerTier('beginner')
+      store.setPartnerRole('owner')
+      toast.success('Account created', { id: 'auth' })
+      await router.replace({ name: 'partnership' })
+      return
+    }
     // ⚠️ ONE ENDING NOW, AND THERE WERE THREE. This handler forked on whether
     // the visitor was signing up, then again on whether they had an errand, and
     // two of the three branches were broken:
@@ -90,7 +104,7 @@ const resend = () => {
 // Back to the form that sent them here, carrying `next` so the gate's errand
 // survives the correction.
 const back = computed(() => ({
-  name: isSignup.value ? 'signup' : 'login',
+  name: isPartner.value ? 'partner-signup' : isSignup.value ? 'signup' : 'login',
   query: route.query.next ? { next: route.query.next } : {},
 }))
 

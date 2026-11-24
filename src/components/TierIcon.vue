@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
 import { Badge, Tooltip } from 'frappe-ui'
 
 // The partner tier seal, lifted from Frappe's own "Frappe Partner Badges" set
@@ -25,7 +25,11 @@ const props = defineProps({
   // is the point (the Partnership header) rather than a mark in a row.
   labelled: { type: Boolean, default: false },
   size: { type: String, default: 'sm' },
+  // With `xl`: the seal settles in, its check draws left to right, then a
+  // metallic sheen crosses it once. For the approval moment only.
+  celebrate: { type: Boolean, default: false },
 })
+const uid = useId()
 
 const TIERS = {
   gold: { label: 'Gold Partner', name: 'Gold', theme: 'amber', fill: '#E79913' },
@@ -37,6 +41,10 @@ const TIERS = {
 // data error — or a partner with no tier at all — into a badge claiming a level
 // they don't hold.
 const spec = computed(() => TIERS[props.tier] ?? null)
+// The seal alone: row-sized by default; `xl` for a moment where the tier is
+// the whole message (the approval dialog), where its label sits beside it and
+// a tooltip would only repeat it.
+const sealClass = computed(() => (props.size === 'xl' ? 'size-14' : 'size-3.5'))
 const asBadge = computed(() => Boolean(spec.value) && (props.labelled || props.tier === 'gold'))
 
 // Traced from the badge set — do not hand-edit; re-lift from the SVGs instead.
@@ -55,10 +63,40 @@ const CHECK = 'M171.908 8.17383C172.432 7.56654 173.35 7.50017 173.957 8.02441C1
     </template>
   </Badge>
 
+  <!-- `xl`: the seal on a soft halo of its own colour, so it carries the
+       weight of the moment without growing past the dialog's scale. -->
+  <span
+    v-else-if="spec && size === 'xl'"
+    class="grid size-24 shrink-0 place-items-center rounded-full"
+    :style="{ backgroundColor: `color-mix(in srgb, ${spec.fill} 12%, transparent)` }"
+  >
+  <svg
+    viewBox="140.65 -10.52 48.64 48.64"
+    :class="[sealClass, 'shrink-0', celebrate && 'tier-seal--celebrate']"
+    aria-hidden="true"
+  >
+    <defs v-if="celebrate">
+      <clipPath :id="`${uid}-seal`"><path :d="SCALLOP" /></clipPath>
+      <!-- The check's reveal: a rect that grows from the check's left edge. -->
+      <clipPath :id="`${uid}-check`"><rect class="tier-seal-reveal" x="155" y="7" width="21" height="17" /></clipPath>
+      <linearGradient :id="`${uid}-sheen`" x1="0" x2="1">
+        <stop offset="0" stop-color="white" stop-opacity="0" />
+        <stop offset="0.5" stop-color="white" stop-opacity="0.85" />
+        <stop offset="1" stop-color="white" stop-opacity="0" />
+      </linearGradient>
+    </defs>
+    <path :d="SCALLOP" :fill="spec.fill" />
+    <rect width="23.2542" height="23.2542" transform="translate(153.444 3.73389)" :fill="spec.fill" />
+    <path :d="CHECK" fill="white" :clip-path="celebrate ? `url(#${uid}-check)` : undefined" />
+    <g v-if="celebrate" :clip-path="`url(#${uid}-seal)`">
+      <rect class="tier-seal-sheen" x="122" y="-12" width="20" height="52" :fill="`url(#${uid}-sheen)`" />
+    </g>
+  </svg>
+  </span>
   <Tooltip v-else-if="spec" :text="spec.label">
     <svg
       viewBox="140.65 -10.52 48.64 48.64"
-      class="size-3.5 shrink-0"
+      :class="[sealClass, 'shrink-0']"
       role="img"
       :aria-label="spec.label"
     >
@@ -68,3 +106,58 @@ const CHECK = 'M171.908 8.17383C172.432 7.56654 173.35 7.50017 173.957 8.02441C1
     </svg>
   </Tooltip>
 </template>
+
+<style scoped>
+/* The approval moment: seen once, so it may carry a little delight. Settle
+   (420ms), then the check draws (360ms), then one bright sheen (900ms). Strong
+   ease-out throughout; scale from 0.85, never 0. */
+.tier-seal--celebrate {
+  transform-origin: center;
+  animation: tier-seal-settle 420ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+.tier-seal--celebrate .tier-seal-reveal {
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: tier-seal-draw 360ms cubic-bezier(0.23, 1, 0.32, 1) 260ms both;
+}
+.tier-seal--celebrate .tier-seal-sheen {
+  animation: tier-seal-sheen 900ms cubic-bezier(0.77, 0, 0.175, 1) 650ms both;
+}
+@keyframes tier-seal-settle {
+  from {
+    opacity: 0;
+    transform: scale(0.85) rotate(-12deg);
+  }
+}
+@keyframes tier-seal-draw {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes tier-seal-sheen {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(72px);
+  }
+}
+/* Reduced motion: the seal fades in whole, check drawn; no sheen. */
+@media (prefers-reduced-motion: reduce) {
+  .tier-seal--celebrate {
+    animation: tier-seal-fade 200ms ease both;
+  }
+  .tier-seal--celebrate .tier-seal-reveal {
+    animation: none;
+  }
+  .tier-seal--celebrate .tier-seal-sheen {
+    animation: none;
+    opacity: 0;
+  }
+}
+@keyframes tier-seal-fade {
+  from {
+    opacity: 0;
+  }
+}
+</style>

@@ -1,9 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useConnectStore } from './stores/connect'
 
-const asPartner = () => {
+// A Beginner has Partnership and Resources only (see the rail in
+// `ConnectShell`); any other partner screen sends them to Partnership.
+const BEGINNER_ROUTES = new Set(['partnership', 'resources'])
+const asPartner = (to) => {
   const store = useConnectStore()
   if (store.role !== 'partner') store.setRole('partner')
+  if (store.partnerTier === 'beginner' && !BEGINNER_ROUTES.has(to.name)) return { name: 'partnership' }
 }
 
 // One route per screen in the handoff.
@@ -72,6 +76,15 @@ const routes = [
   {
     path: '/connect/login/verify',
     name: 'login-verify',
+    component: () => import('./pages/VerifyPage.vue'),
+  },
+  // Partner sign-up, from "Become a partner": name and email, then the same
+  // code screen. Finishing makes the firm a Beginner and lands on Partnership.
+  // There is no partner log-in: partners sign in on `login`.
+  { path: '/connect/partner-signup', name: 'partner-signup', component: () => import('./pages/PartnerSignupPage.vue') },
+  {
+    path: '/connect/partner-signup/verify',
+    name: 'partner-signup-verify',
     component: () => import('./pages/VerifyPage.vue'),
   },
   // Where the booking flow stops: confirm the pack and book the call.

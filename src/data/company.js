@@ -267,3 +267,24 @@ export const answerRows = (brief) =>
     { label: 'Apps in use', value: (brief?.apps ?? []).join(', ') },
     { label: 'Problems to solve', value: problemLabels(brief?.problems).join(', ') },
   ].filter((r) => r.value)
+
+// ── Demo answers for a Beginner's company information ───────────────────────
+// Prefills `CompanyInformationDialog` so a demo can click straight through.
+// Invented, like the Beginner firm itself. The two agreements stay unticked:
+// a demo shouldn't accept terms for anyone, so it shows that step happening.
+export const DEMO_FIRM_PROFILE = {
+  address: 'Office 402, Baner Road, Pune 411045',
+  headquarter_city: 'Pune',
+  verticals_served: ['Manufacturing', 'Distribution and Trading'],
+  customer_count_range: '11-50',
+  erpnext_customer_count_range: '1-10',
+  existing_partnerships: ['Odoo'],
+  erp_implementations_range: '11-50',
+  employee_range: '11-50',
+  certified_employees_range: '1-5',
+  annual_revenue: '4500000',
+  company_logo: 'company-logo.png',
+  company_logo_size: 245760,
+  incorporation_certificate: 'certificate-of-incorporation.pdf',
+  incorporation_certificate_size: 1258291,
+}

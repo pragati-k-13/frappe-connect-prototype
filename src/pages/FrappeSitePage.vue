@@ -298,11 +298,8 @@ const BENEFITS = [
 
           <!-- ── Become a partner ──────────────────────────────────────────
                The real page's fourth section, and the only one addressed to
-               somebody who is not a customer. It is here because the ask was
-               fidelity and this is a quarter of the page — but the partner side
-               of this prototype does not exist, so the button says so rather
-               than going somewhere that would have to be invented. Same
-               treatment as the inert "Get in touch" on the contact mock. -->
+               somebody who is not a customer. The button opens Connect's
+               partner sign-up, which makes the firm a Beginner partner. -->
           <section class="mx-auto max-w-[600px] pt-24">
             <h2 class="font-serif text-[24px] font-medium leading-[1.3] text-ink-gray-8">
               Join us, become a Frappe Partner
@@ -314,8 +311,8 @@ const BENEFITS = [
             </p>
             <button
               type="button"
-              disabled
-              class="mt-6 flex items-center gap-1.5 rounded-4 bg-surface-gray-2 px-3 py-1.5 text-[15px] text-ink-gray-5"
+              class="mt-6 flex items-center gap-1.5 rounded-4 bg-surface-gray-2 px-3 py-1.5 text-[15px] text-ink-gray-8 transition-colors hover:bg-surface-gray-3"
+              @click="go('/partner-signup')"
             >
               Become a partner
               <LucideArrowRight class="size-4" />

@@ -49,6 +49,10 @@ const blank = () => ({
   reviewReports: {},
   // The signed-in person's name, once they change it in their settings.
   me: null,
+  // Their address and the firm's country, for a firm that signed up in the
+  // demo. Country sets the checklist's currency and MRR target.
+  email: null,
+  country: null,
   // Per lead or customer id: follow-ups logged, activity recorded here.
   followUps: {},
   activity: {},
@@ -59,10 +63,49 @@ const blank = () => ({
   threads: {},
   // PMM audits, newest first. Seeded for Bronze and up; a Beginner has none.
   audits: [],
+  // A firm that signed up in this demo rather than the seeded one: no team
+  // but the person who signed up, no milestones reached, and the company
+  // name given at sign-up (`company`). See `startFresh`.
+  fresh: false,
+  // A Beginner's checklist (`PartnerChecklist`). The firm profile, the first
+  // step: `{ name, country, done, …the rest of press's form }`. Certificates linked by ID or email, which
+  // count without a person on the team. When it was submitted for approval.
+  firmProfile: null,
+  // The company profile as far as it got: `{ values, stepsDone }`. Saved as
+  // the owner goes, so closing the dialog loses nothing; `firmProfile` only
+  // changes on "Save details".
+  firmProfileDraft: null,
+  // Demo: Frappe Cloud billing has reached the MRR target (`reachBeginnerMrr`).
+  mrrReached: false,
+  // Frappe's decision on a submission: `{ status: 'rejected', flags }`, where
+  // `flags` maps a step to the reviewer's comment and how that step stood
+  // when it was sent back; or `{ status: 'approved', on, seen }`.
+  review: null,
+  linkedCerts: [],
+  // Team members whose certificate the owner unlinked from the checklist.
+  unlinkedCerts: [],
+  submitted: null,
+  // The Frappe Cloud team whose billing counts as MRR, once the owner has
+  // connected it. The seeded firm has; a firm that just signed up hasn't
+  // (`startFresh`).
+  frappeCloudTeam: 'Lumen Digital',
+})
+
+// The demo Beginner: one certificate linked by email and still waiting on its
+// holder, so the checklist shows a pending one from the start.
+const beginnerSeed = () => ({
+  ...blank(),
+  linkedCerts: [
+    { name: 'Framework', full: true, holder: 'Arvind Menon', ref: 'arvind@lumen.example', status: 'pending', issued: '2026-09-04', expires: '2028-09-04' },
+  ],
 })
 
 export const usePartnerAccountStore = defineStore('partnerAccount', {
-  state: () => ({ byTier: { beginner: blank(), 'bronze-up': { ...blank(), audits: auditsSeed() } } }),
+  state: () => ({
+    byTier: { beginner: beginnerSeed(), 'bronze-up': { ...blank(), audits: auditsSeed() } },
+    // Partner sign-up's form, held until the code comes back on verify.
+    signup: null,
+  }),
 
   getters: {
     tier: () => useConnectStore().partnerTier,
@@ -177,9 +220,30 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
       return linkRequestsFor(this.tier).filter((r) => !this.edits.handled[r.id])
     },
 
+    // The firm's name: the profile's once saved, else the one given at
+    // sign-up. Only a fresh firm from before sign-up asked for it has none.
+    firmName() {
+      return this.edits.firmProfile?.name ?? (this.edits.fresh ? this.edits.company ?? null : firmFor(this.tier).name)
+    },
+
+    // Each step's answers, to tell whether a flagged step changed since
+    // Frappe sent it back.
+    stepSnapshots() {
+      const e = this.edits
+      return {
+        'step-profile': JSON.stringify(e.firmProfile),
+        'step-certificates': JSON.stringify([e.linkedCerts.map((c) => [c.ref, c.name, c.status]), e.unlinkedCerts]),
+        'step-mrr': JSON.stringify([e.frappeCloudTeam, e.mrrReached]),
+      }
+    },
+
     team() {
       const connect = useConnectStore()
-      return [...teamFor(this.tier, connect.partnershipState), ...this.edits.invited]
+      // A new firm is the person who signed up and nobody else.
+      const seeded = this.edits.fresh
+        ? [{ id: 'me', name: this.edits.me, email: this.edits.email, roles: ['owner'], cert: null, status: 'none', counts: false }]
+        : teamFor(this.tier, connect.partnershipState)
+      return [...seeded, ...this.edits.invited]
         .filter((p) => !this.edits.removed.includes(p.id))
         .map((p) => {
           const cert = this.edits.certs[p.id]
@@ -190,6 +254,131 @@ export const usePartnerAccountStore = defineStore('partnerAccount', {
   },
 
   actions: {
+    // Partner sign-up. Replaces the demo's Beginner firm with a new one: the
+    // owner who signed up, nothing else. Signing up makes a firm a Beginner,
+    // with no application.
+    holdSignup({ name, email, company, country }) {
+      this.signup = { name, email, company, country }
+    },
+    startFresh() {
+      const { name, email, company, country } = this.signup ?? {}
+      this.byTier.beginner = {
+        ...blank(),
+        fresh: true,
+        me: name ?? null,
+        company: company ?? null,
+        email: email ?? null,
+        country: country ?? null,
+        frappeCloudTeam: null,
+      }
+      this.signup = null
+    },
+    // Unregister: the firm stops being a Beginner partner and its checklist
+    // goes. The demo's own Beginner firm comes back in its place.
+    unregister() {
+      this.byTier.beginner = beginnerSeed()
+    },
+    // Everything the company information form asked; `name` and `country`
+    // are what the rest of the app reads.
+    saveFirmProfile(profile) {
+      this.edits.firmProfile = { ...profile, done: todayIso() }
+      this.edits.firmProfileDraft = null
+    },
+    saveFirmProfileDraft(values, stepsDone) {
+      this.edits.firmProfileDraft = { values, stepsDone }
+    },
+    // ⚠️ STANDS IN FOR A ROUND TRIP. The real Connect goes to Frappe Cloud,
+    // where the owner signs in (or signs up) and picks the team, and comes
+    // back. The demo has no Frappe Cloud, so it links the firm's own team.
+    connectFrappeCloud(team) {
+      this.edits.frappeCloudTeam = team
+    },
+    // A linked certificate waits for its holder to confirm by email, as in
+    // press; only confirmed ones count toward the two.
+    linkBeginnerCert(cert) {
+      this.edits.linkedCerts.push({ ...cert, status: 'pending' })
+    },
+    // Takes a certificate off the checklist: one linked here is dropped, a
+    // team member's stops counting.
+    unlinkBeginnerCert(row) {
+      if (row.teamId) (this.edits.unlinkedCerts ??= []).push(row.teamId)
+      else this.edits.linkedCerts.splice(row.index, 1)
+    },
+    // ⚠️ DEMO EVENTS (the Demo menu's "This partnership"): what other people
+    // do — a holder confirming by email, Frappe Cloud billing growing — which
+    // the partner can't do in the product.
+    confirmBeginnerCert(index) {
+      this.edits.linkedCerts[index].status = 'linked'
+    },
+    reachBeginnerMrr() {
+      this.edits.mrrReached = true
+    },
+    // A resubmission clears Frappe's earlier decision.
+    submitForApproval() {
+      this.edits.submitted = todayIso()
+      this.edits.review = null
+    },
+    withdrawSubmission() {
+      this.edits.submitted = null
+    },
+    // ⚠️ DEMO EVENT: Frappe's review sends the application back.
+    // `flags`: `{ [step]: { comment, fields? } }`. `fields` names the profile
+    // fields the comment is about, `{ [field]: message }`, so the dialog can
+    // mark them; each keeps its value at send-back to tell when it changed.
+    rejectApplication(flags) {
+      this.edits.submitted = null
+      const snaps = this.stepSnapshots
+      const profile = this.edits.firmProfile ?? {}
+      this.edits.review = {
+        status: 'rejected',
+        flags: Object.fromEntries(
+          Object.entries(flags).map(([step, { comment, fields = {} }]) => [
+            step,
+            {
+              comment,
+              snapshot: snaps[step],
+              fields: Object.fromEntries(Object.entries(fields).map(([f, message]) => [f, { message, was: profile[f] ?? null }])),
+            },
+          ]),
+        ),
+      }
+    },
+    // ⚠️ DEMO: the checklist with nothing done, for the same firm and owner —
+    // as right after sign-up. Keeps who they are; clears everything else.
+    resetBeginnerChecklist() {
+      const { me, email, country } = this.edits
+      const company = this.firmName
+      const owner = me ?? this.team.find((p) => p.roles?.includes('owner'))?.name ?? null
+      this.byTier.beginner = {
+        ...blank(),
+        fresh: true,
+        me: owner,
+        email: email ?? null,
+        company,
+        country: country ?? null,
+        frappeCloudTeam: null,
+      }
+    },
+    // ⚠️ DEMO: the owner replaces the certificate Frappe flagged, without a
+    // file picker in the middle of a demo.
+    uploadCorrectedCertificate() {
+      const name = (this.firmName ?? 'company').toLowerCase().replace(/[^a-z0-9]+/g, '-')
+      this.edits.firmProfile = {
+        ...this.edits.firmProfile,
+        incorporation_certificate: `certificate-of-incorporation-${name}.pdf`,
+        incorporation_certificate_size: 1153434,
+      }
+    },
+    // ⚠️ DEMO EVENT: Frappe's review approves it.
+    approveApplication() {
+      this.edits.submitted = null
+      this.edits.review = { status: 'approved', on: todayIso(), seen: false }
+    },
+    // The one-time approval dialog has been shown.
+    markApprovalSeen() {
+      if (this.edits.review) this.edits.review.seen = true
+    },
+
     handleRequest(id, outcome, link = null) {
       this.edits.handled[id] = outcome
       if (link) this.edits.requestLinks[id] = link

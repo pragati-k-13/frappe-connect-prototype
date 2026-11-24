@@ -134,6 +134,17 @@ const partnerRail = computed(() => {
   // for a Beginner, so the list reshuffled the day a firm reached Bronze. A
   // Beginner still LANDS on Partnership — that is `partnerHome`'s job, not
   // the rail's.
+  // A Beginner isn't listed, so it has no leads, customers, profile, invoices
+  // or audits yet: Partnership and Resources are all there is.
+  if (store.partnerTier === 'beginner')
+    return [
+      {
+        items: [
+          { label: 'Partnership', to: '/connect/partnership', icon: 'lucide-handshake', active: at('partnership') },
+          { label: 'Resources', to: '/connect/resources', icon: 'lucide-folder', active: at('resources') },
+        ],
+      },
+    ]
   return [
     {
       items: [
@@ -164,7 +175,9 @@ const website = computed(() => !hasAccount.value)
 
 const shellSubtitle = computed(() => {
   if (store.role === 'partner') {
-    return firmFor(store.partnerTier).name
+    // The firm, named at sign-up. The person only stands in for a firm with
+    // no name at all, as on the business side.
+    return account.firmName ?? account.edits.me
   }
   // The header is the organization on both sides; the person is in the
   // footer. Falls back to the name for an account with no company yet.
@@ -316,7 +329,13 @@ const canReviewLinks = computed(() => ['owner', 'sales'].includes(store.partnerR
 const notifItems = computed(() => {
   if (store.role !== 'partner') return store.hasProject ? notifications.business : []
   const requests = canReviewLinks.value ? account.requests.map(requestNotification) : []
-  return [...notifications.partner, ...requests].sort((a, b) => b.time - a.time)
+  // A Beginner's approval: how the owner learns of it, since review takes days.
+  const review = store.partnerTier === 'beginner' && account.edits.review
+  const approval =
+    review?.status === 'approved'
+      ? [{ id: 'n-approved', from: { name: 'Frappe' }, action: 'approved', target: `${account.firmName ?? 'your firm'} as a Bronze partner`, time: new Date(`${review.on}T10:00:00`).getTime(), read: review.seen, route: '/connect/partnership' }]
+      : []
+  return [...notifications.partner, ...requests, ...approval].sort((a, b) => b.time - a.time)
 })
 const unread = computed(() => notifItems.value.filter((n) => !n.read).length)
 const notifOpen = ref(false)

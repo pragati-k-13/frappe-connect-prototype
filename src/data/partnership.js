@@ -108,22 +108,11 @@ const FIRMS = {
 }
 export const firmFor = (tier) => FIRMS[tier] ?? FIRMS['bronze-up']
 
-// Beginner to Bronze. `done` is the date it was reached; the first undone one
-// is the next step. USD, because that is how Frappe states them.
+// A Beginner's standing. What it does next is the checklist on Partnership
+// (`PartnerChecklist`), which reads the consultants and MRR from here.
 const BEGINNER = {
   tier: 'beginner',
   consultants: 1,
-  milestones: [
-    { key: 'cert-1', label: '1st certification', done: '2026-08-12', to: 'team' },
-    { key: 'cert-2', label: '2nd certification', todo: '1 more certification', to: 'team' },
-    { key: 'mrr-100', label: '$100 MRR', done: '2026-09-03', to: 'contributions' },
-    { key: 'mrr-300', label: '$300 MRR', todo: '$136 more MRR', to: 'contributions' },
-    {
-      key: 'bronze',
-      label: 'Bronze criteria',
-      todo: 'A PMM 3 audit and the rest of Bronze',
-    },
-  ],
 }
 
 // Silver, working toward Gold. The demo's Partnership state picks one of these

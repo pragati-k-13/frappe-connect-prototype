@@ -116,8 +116,8 @@ press's "Interested in partnering with us?" dialog is outdated and isn't used.
 
 1. **Sign up** from "Become a partner": work email, then the one-time code, with name, company
    and country. The firm is now a Beginner, and the owner lands on Partnership.
-2. **Work through the checklist on Partnership** (§1): the agreement, the company profile, the
-   Frappe Cloud team, certificates and MRR.
+2. **Work through the checklist on Partnership** (§1): the agreement, the company profile,
+   certificates and MRR (with the Frappe Cloud team connected inside it).
 3. **Submit for approval.** This requests the PMM audit. In review, then a decision by email:
    approved means Bronze (listed, leads, partner code, the full rail); declined shows the reason
    on Partnership, and the firm carries on as a Beginner.
@@ -155,10 +155,13 @@ more MRR"):
 
 1. Accept the partner agreement. It can't be skipped.
 2. Complete the company profile (press's fields, on one form).
-3. Link the firm's Frappe Cloud team, so its own billing counts as MRR.
-4. Link two Frappe School certificates. Each holder confirms by email, as in press.
-5. The MRR milestones, tracked from the firm's own Frappe Cloud billing; nothing to update.
-6. Submit for approval, which requests the PMM audit, with its lead time shown from the first
+3. Link two Frappe School certificates. Each holder confirms by email, as in press.
+4. The MRR milestones, tracked from the firm's own Frappe Cloud billing; nothing to update.
+   Connecting the firm's Frappe Cloud team is part of this step, not a step of its own
+   (2026-11-23): it exists only so MRR can be tracked. One "Connect Frappe Cloud" button;
+   Frappe Cloud's sign-in offers sign-up for a firm without an account. Until it's
+   connected the step shows no count.
+5. Submit for approval, which requests the PMM audit, with its lead time shown from the first
    visit.
 
 **Bronze and up.** The current tier with its benefits (discount, listing type). Then one row
