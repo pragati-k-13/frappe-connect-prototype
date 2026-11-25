@@ -215,40 +215,20 @@ export const CRMS = {
 
 // ── Resources ───────────────────────────────────────────────────────────────
 // From Frappe's partner guide. Real links; Connect only points at them.
+// Grouped by what the partner is after, not by kind of link. Help runs from
+// reading on your own to asking someone, so the ticket comes last. `logo` is
+// the mark of the site the link opens (see LOGO-HANDOVER.md).
 export const RESOURCES = [
   {
     key: 'help',
-    title: 'Help with a project',
+    title: 'Help and learning',
     items: [
-      { label: 'Frappe Support', href: 'https://support.frappe.io', note: 'Product tickets' },
-      { label: 'Community forum', href: 'https://discuss.frappe.io', note: 'Questions answered by the community' },
-      { label: 'Partner forum', href: 'https://partners.frappe.io', note: 'Partners and the Frappe team' },
-      { label: 'Documentation', href: 'https://docs.frappe.io', note: 'Frappe, ERPNext and the apps' },
-      { label: 'Co-deliver with a partner', href: 'https://frappe.io/partners/list', note: 'Work with an experienced partner' },
-    ],
-  },
-  {
-    key: 'selling',
-    title: 'Selling',
-    items: [
-      { label: 'Sales Bootcamp', href: 'https://school.frappe.io/lms/courses/frappe-sales-bootcamp', note: 'Five hours of recorded sales training' },
-      { label: 'Partner guide', href: 'https://docs.frappe.io/partner-guide/guide-for-new-partners', note: 'Tiers, leads and how to grow' },
-    ],
-  },
-  {
-    key: 'hiring',
-    title: 'Hiring and certification',
-    items: [
-      { label: 'Certified participants', href: 'https://frappe.school/lms/certified-participants', note: 'People certified on Frappe School' },
-      { label: 'Job openings', href: 'https://frappe.school/lms/job-openings', note: 'Post and find roles' },
-    ],
-  },
-  {
-    key: 'updates',
-    title: 'Staying up to date',
-    items: [
-      { label: 'Frappe on YouTube', href: 'https://www.youtube.com/@frappetech', note: 'Demos and talks' },
-      { label: 'Frappe Times', href: 'https://frappe.io/times', note: 'The newsletter' },
+      { label: 'Documentation', href: 'https://docs.frappe.io', logo: 'frappe', note: 'Frappe Framework, ERPNext and other apps' },
+      { label: 'Partner guide', href: 'https://docs.frappe.io/partner-guide/guide-for-new-partners', logo: 'frappe', note: 'Tiers, leads and how to grow' },
+      { label: 'Sales Bootcamp', href: 'https://school.frappe.io/lms/courses/frappe-sales-bootcamp', logo: 'learning', note: '5 hours of recorded sales training' },
+      { label: 'Community forum', href: 'https://discuss.frappe.io', logo: 'frappe', note: 'Answered by Frappe users' },
+      { label: 'Partner forum', href: 'https://partners.frappe.io', logo: 'frappe', note: 'Answered by partners and the Frappe team' },
+      { label: 'Raise a support ticket', href: 'https://support.frappe.io', logo: 'helpdesk', note: 'For a bug in a Frappe product' },
     ],
   },
 ]
