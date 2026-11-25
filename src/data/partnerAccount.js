@@ -223,20 +223,12 @@ export const RESOURCES = [
     key: 'help',
     title: 'Help and learning',
     items: [
-      { label: 'Documentation', href: 'https://docs.frappe.io', logo: 'frappe', note: 'Frappe, ERPNext and the apps' },
+      { label: 'Documentation', href: 'https://docs.frappe.io', logo: 'frappe', note: 'Frappe Framework, ERPNext and other apps' },
       { label: 'Partner guide', href: 'https://docs.frappe.io/partner-guide/guide-for-new-partners', logo: 'frappe', note: 'Tiers, leads and how to grow' },
       { label: 'Sales Bootcamp', href: 'https://school.frappe.io/lms/courses/frappe-sales-bootcamp', logo: 'learning', note: '5 hours of recorded sales training' },
       { label: 'Community forum', href: 'https://discuss.frappe.io', logo: 'frappe', note: 'Answered by Frappe users' },
       { label: 'Partner forum', href: 'https://partners.frappe.io', logo: 'frappe', note: 'Answered by partners and the Frappe team' },
       { label: 'Raise a support ticket', href: 'https://support.frappe.io', logo: 'helpdesk', note: 'For a bug in a Frappe product' },
-    ],
-  },
-  {
-    key: 'hiring',
-    title: 'Hiring',
-    items: [
-      { label: 'Find certified people', href: 'https://frappe.school/lms/certified-participants', logo: 'learning', note: 'People who passed a Frappe certification' },
-      { label: 'Post a job', href: 'https://frappe.school/lms/job-openings', logo: 'learning', note: 'Hire for a Frappe role' },
     ],
   },
 ]

@@ -3,7 +3,7 @@ import ConnectShell from '../components/ConnectShell.vue'
 import { RESOURCES } from '../data/partnerAccount'
 import { COLLATERAL, FOLDER_ICON } from '../data/collateral'
 import frappeMark from '../assets/frappe.svg'
-import learningMark from '../assets/apps/learning.png'
+import learningMark from '../assets/apps/learning.svg'
 import helpdeskMark from '../assets/apps/helpdesk.png'
 
 // SCREEN — Resources: what Frappe gives partners to sell and deliver with.
@@ -17,7 +17,7 @@ const LOGOS = { frappe: frappeMark, learning: learningMark, helpdesk: helpdeskMa
 <template>
   <ConnectShell root-label="Resources">
     <!-- The list width: the folder grid is scanned across a row. -->
-    <div class="fc-page-list space-y-12 pb-10 pt-8">
+    <div class="fc-page-list space-y-16 pb-10 pt-8">
       <section>
         <h2 class="text-lg-semibold text-ink-gray-8">Collateral</h2>
         <ul class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -55,7 +55,7 @@ const LOGOS = { frappe: frappeMark, learning: learningMark, helpdesk: helpdeskMa
               <!-- Title and subtext per frappe-patterns list.md. -->
               <span class="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span class="text-base font-medium text-ink-gray-8">{{ item.label }}</span>
-                <span class="text-p-base text-ink-gray-6">
+                <span v-if="item.note" class="text-p-base text-ink-gray-6">
                   {{ item.note }}
                 </span>
               </span>

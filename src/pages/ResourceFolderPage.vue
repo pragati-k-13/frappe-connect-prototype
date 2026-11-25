@@ -1,34 +1,39 @@
+<script>
+// Where each folder was scrolled to, kept for the app's life so coming back
+// from the file viewer lands where the partner left off. Module scope, like
+// ConnectShell's `collapsed`: the page unmounts while the viewer is open.
+const scrollTops = new Map()
+</script>
+
 <script setup>
-import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, nextTick, onMounted } from 'vue'
+import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import { Button } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
 import EmptyState from '../components/EmptyState.vue'
-import FilePreviewDialog from '../components/FilePreviewDialog.vue'
 import { FILE_TYPES, fileMeta, folderBySlug } from '../data/collateral'
 
-// SCREEN — one collateral folder: its files as a grid, each opening an in-app
-// preview. The open file lives in the URL (`?file=`), so Back closes the
-// preview and a link to one file can be shared.
+// SCREEN — one collateral folder: its files as a grid. Each card opens the
+// full-screen file viewer at its own address.
 const route = useRoute()
-const router = useRouter()
 
 const folder = computed(() => folderBySlug(route.params.folder))
 const files = computed(() => folder.value?.files ?? [])
 
-const openFile = computed(() => files.value.find((f) => f.slug === route.query.file) ?? null)
+// The shell's content scroll region (frappe-ui ScrollArea's viewport).
+const scroller = () => document.querySelector('.fc-content [data-reka-scroll-area-viewport]')
 
-// Opening pushes, so Back closes it. Moving between files inside the preview
-// replaces, so Back doesn't step through every file seen.
-function open(file) {
-  router.push({ query: { file: file.slug } })
-}
-function show(file) {
-  router.replace({ query: { file: file.slug } })
-}
-function close() {
-  router.replace({ query: {} })
-}
+onBeforeRouteLeave(() => {
+  const el = scroller()
+  if (el && folder.value) scrollTops.set(folder.value.slug, el.scrollTop)
+})
+onMounted(async () => {
+  const top = folder.value && scrollTops.get(folder.value.slug)
+  if (!top) return
+  await nextTick()
+  const el = scroller()
+  if (el) el.scrollTop = top
+})
 </script>
 
 <template>
@@ -40,10 +45,9 @@ function close() {
       <EmptyState v-else-if="!files.length" icon="lucide-folder" title="No files in this folder yet" />
       <ul v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <li v-for="f in files" :key="f.slug">
-          <button
-            type="button"
-            class="group block h-full w-full overflow-hidden rounded-5 border border-outline-gray-1 text-left transition-colors hover:bg-surface-gray-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-outline-gray-3"
-            @click="open(f)"
+          <RouterLink
+            :to="{ name: 'resource-file', params: { folder: folder.slug, file: f.slug } }"
+            class="group block h-full w-full overflow-hidden rounded-5 border border-outline-gray-1 transition-colors hover:bg-surface-gray-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-outline-gray-3"
           >
             <!-- Stand-in thumbnail: the type's Drive icon on a page-shaped surface,
                  until Drive's thumbnails are wired in. -->
@@ -56,16 +60,9 @@ function close() {
               <span class="text-base font-medium text-ink-gray-8">{{ f.name }}</span>
               <span class="text-p-sm text-ink-gray-6">{{ fileMeta(f) }}</span>
             </span>
-          </button>
+          </RouterLink>
         </li>
       </ul>
     </div>
-    <FilePreviewDialog
-      v-if="folder"
-      :file="openFile"
-      :files="files"
-      @show="show"
-      @close="close"
-    />
   </ConnectShell>
 </template>
