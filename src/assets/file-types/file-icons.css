@@ -1,0 +1,32 @@
+/*
+  Frappe Suite's Drive file-type icons as `file-icon-<type>` classes, used like
+  a `lucide-*` class: size with `size-*`, colour with `text-*`. Each SVG is a
+  mask filled with `currentColor`; the 10% tint and 50% accent are opacities
+  baked into the SVG, so one ink token colours the whole icon and it follows
+  the theme. Copied from Suite's `icons.css` — see README.md here.
+
+  `:where()` keeps these at zero specificity, so a utility on the same element
+  (`size-6`, `hidden`) always wins.
+*/
+:where(
+  .file-icon-folder,
+  .file-icon-slides,
+  .file-icon-pdf,
+  .file-icon-image,
+  .file-icon-archive
+) {
+  display: block;
+  flex-shrink: 0;
+  width: 1em;
+  height: 1em;
+  background-color: currentColor;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+}
+
+:where(.file-icon-folder) { mask-image: url('./folder.svg'); }
+:where(.file-icon-slides) { mask-image: url('./slides.svg'); }
+:where(.file-icon-pdf) { mask-image: url('./pdf.svg'); }
+:where(.file-icon-image) { mask-image: url('./image.svg'); }
+:where(.file-icon-archive) { mask-image: url('./archive.svg'); }

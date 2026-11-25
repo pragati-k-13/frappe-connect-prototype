@@ -3,7 +3,7 @@
 Read this before touching any logo or thumbnail in Connect. Update it whenever a
 logo decision changes.
 
-Last updated: 2026-11-13 (client logos come only from success stories).
+Last updated: 2026-11-24 (Resources link rows show the mark of the site they open).
 
 ## Rules from Pragati
 
@@ -26,6 +26,7 @@ Last updated: 2026-11-13 (client logos come only from success stories).
 | Client logos | `src/assets/clients/<partner-id>--<client-slug>.<ext>` (63) | `logoFor(name)` in `src/data/stories.js`, via the `logo` field of each story | Success stories rows and featured story, client strip |
 | Featured thumbnails | `src/assets/featured/` (podcast-<youtubeId>.jpg, story-<name>.png) | `thumb()` in `src/data/featured.js` | Featured by Frappe rows |
 | Frappe mark | `src/assets/frappe.svg` | added by hand to `LOGOS` | Starter Pack threads |
+| Help link marks | `src/assets/frappe.svg`, `src/assets/apps/{learning,helpdesk}.png` | `logo` key on each `RESOURCES` item in `src/data/partnerAccount.js`, mapped in `ResourcesPage.vue` | Resources: Help and learning, Hiring rows, at 28px |
 
 A firm with two country listings shares one logo. `wahni-it-solutions-fze` maps to
 `wahni` in `logos.js`, and the same goes for its featured items (`FIRM` in

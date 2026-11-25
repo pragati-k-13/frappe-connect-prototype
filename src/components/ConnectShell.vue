@@ -141,7 +141,7 @@ const partnerRail = computed(() => {
       {
         items: [
           { label: 'Partnership', to: '/connect/partnership', icon: 'lucide-handshake', active: at('partnership') },
-          { label: 'Resources', to: '/connect/resources', icon: 'lucide-folder', active: at('resources') },
+          { label: 'Resources', to: '/connect/resources', icon: 'lucide-folder', active: at('resources', 'resource-folder') },
         ],
       },
     ]
@@ -154,7 +154,7 @@ const partnerRail = computed(() => {
         { label: 'Audits', to: '/connect/audits', icon: 'lucide-clipboard-check', active: at('audits', 'audit') },
         { label: 'Public profile', to: '/connect/profile', icon: 'lucide-store', active: at('own-profile', 'own-reviews') },
         !member && role !== 'sales' && { label: 'Invoices', to: '/connect/invoices', icon: 'lucide-receipt', active: at('invoices') },
-        { label: 'Resources', to: '/connect/resources', icon: 'lucide-folder', active: at('resources') },
+        { label: 'Resources', to: '/connect/resources', icon: 'lucide-folder', active: at('resources', 'resource-folder') },
       ].filter(Boolean),
     },
   ]

@@ -3,7 +3,7 @@ import { useConnectStore } from './stores/connect'
 
 // A Beginner has Partnership and Resources only (see the rail in
 // `ConnectShell`); any other partner screen sends them to Partnership.
-const BEGINNER_ROUTES = new Set(['partnership', 'resources'])
+const BEGINNER_ROUTES = new Set(['partnership', 'resources', 'resource-folder'])
 const asPartner = (to) => {
   const store = useConnectStore()
   if (store.role !== 'partner') store.setRole('partner')
@@ -203,6 +203,7 @@ const routes = [
   { path: '/connect/profile', name: 'own-profile', component: () => import('./pages/OwnProfilePage.vue'), beforeEnter: asPartner },
   { path: '/connect/profile/reviews', name: 'own-reviews', component: () => import('./pages/OwnReviewsPage.vue'), beforeEnter: asPartner },
   { path: '/connect/resources', name: 'resources', component: () => import('./pages/ResourcesPage.vue'), beforeEnter: asPartner },
+  { path: '/connect/resources/:folder', name: 'resource-folder', component: () => import('./pages/ResourceFolderPage.vue'), beforeEnter: asPartner },
   // The collaboration half of the product: everything the account is tracking.
   //
   // A LIST and a detail, not one screen. A business routinely has more than one
