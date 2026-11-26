@@ -269,21 +269,12 @@ const clearTags = () => search({ tier: null, apps: [], rating: null, reply: null
 
 // ── The list ────────────────────────────────────────────────────────────────
 const results = computed(() => store.results)
-const suggestions = computed(() => (isResults.value ? store.suggestions : []))
+// Partners one lifted filter away, as one list in the store's group order.
+// Each row's city and industries already show what differs, so no group
+// titles. A partner misses exactly one filter, so no one appears twice.
+const suggestions = computed(() => (isResults.value ? store.suggestions.flatMap((g) => g.partners) : []))
 // Nothing matched and nothing is one step away: the empty state.
 const emptied = computed(() => !results.value.length && !suggestions.value.length)
-
-// Titles for the suggestion groups, each leading with what these partners DO
-// have.
-//
-// ⚠️ "Proven in other industries", not "partners in other industries": a
-// partner's `industries` are where they've published success stories, not a
-// declared limit on the work they take.
-const SUGGESTION_TITLES = {
-  geo: 'Partners in other countries',
-  segments: 'Proven in other industries',
-  app: 'Working with other Frappe apps',
-}
 
 // ⚠️ Inert. There is no feedback form, and a text field in a toast isn't one.
 const feedbackToast = () =>
@@ -379,67 +370,77 @@ const feedbackToast = () =>
       <!-- The list's title with its count. One title that never changes:
            the results view's chips already say where and what. "Certified"
            carries the hero's promise onto the list it leads to. -->
-      <div class="mb-4 flex min-w-0 items-center gap-2">
-        <h1 v-if="isResults" class="truncate text-2xl font-semibold text-ink-gray-9">Certified partners</h1>
-        <h2 v-else class="text-lg font-semibold text-ink-gray-9">All partners</h2>
-        <Badge :label="results.length" />
+      <!-- Signed out, the title anchors the page (the website bar has no page
+           title): a page title, then the filters under it. Signed in, the
+           app's top bar names the page, so it reads as an app list: the
+           filters lead as a toolbar, then the matches get a section title the
+           size of "More partners to consider", so the two lists are siblings. -->
+      <div class="flex flex-col" :class="hasAccount ? 'gap-8' : 'gap-4'">
+        <div class="flex min-w-0 shrink-0 items-center gap-2">
+          <h1 v-if="isResults" class="truncate font-semibold text-ink-gray-9" :class="hasAccount ? 'text-lg' : 'text-2xl'">Certified partners</h1>
+          <h2 v-else class="text-lg font-semibold text-ink-gray-9">All partners</h2>
+          <Badge :label="results.length" />
+        </div>
+
+        <!-- ── The filter row (results view) ────────────────────────────────
+             Part of the page, not sticky. Location and industry lead, subtle
+             (gray fill), because they always hold an answer, even "Any …",
+             capped at 180px so a long pick truncates instead of pushing the
+             row. The Filter follows after a rule: all three narrow the same
+             list, so they sit together, and the rule keeps it from reading as a
+             third question. On phones it leads the row, so it's never scrolled
+             off-screen behind them. -->
+        <ScrollArea v-if="isResults" orientation="horizontal" class="-mx-5 min-w-0 md:mx-0" :class="hasAccount && 'order-first'" viewport-class="px-5 md:px-0">
+          <div class="flex items-center gap-1.5">
+              <div class="min-w-0 shrink-0">
+                <MultiSelect v-model="barCountries" :options="geoOptions" placeholder="Search countries" aria-label="Filter by country" variant="subtle" size="sm" class="max-w-[11.25rem]">
+                  <template #prefix>
+                    <span class="sentence-icon-globe size-4 shrink-0 text-ink-blue-6" aria-hidden="true" />
+                  </template>
+                  <template #summary>
+                    <span class="text-ink-gray-8">{{ geoSummary ?? 'Any country' }}</span>
+                  </template>
+                  <template #item-suffix="{ item }">
+                    <span class="tabular-nums text-ink-gray-5">{{ item.count }}</span>
+                  </template>
+                  <template #group-label="{ group }">
+                    <span class="min-w-0 flex-1 truncate">{{ group.group }}</span>
+                    <span class="tabular-nums">{{ groupTotal(group) }}</span>
+                  </template>
+                  <!-- No Clear All / Select All, as on the page's other pickers:
+                       untick to clear. "Select All" countries is no answer. -->
+                  <template #footer />
+                </MultiSelect>
+              </div>
+              <div class="min-w-0 shrink-0">
+                <MultiSelect v-model="barSegments" :options="segmentOptions" placeholder="Search industries" aria-label="Filter by industry" variant="subtle" size="sm" class="max-w-[11.25rem]">
+                  <template #prefix>
+                    <span class="sentence-icon-briefcase size-4 shrink-0 text-ink-amber-6" aria-hidden="true" />
+                  </template>
+                  <template #summary>
+                    <span class="text-ink-gray-8">{{ segmentSummary ?? 'Any industry' }}</span>
+                  </template>
+                  <template #item-suffix="{ item }">
+                    <span class="tabular-nums text-ink-gray-5">{{ item.count }}</span>
+                  </template>
+                  <template #group-label="{ group }">
+                    <span class="min-w-0 flex-1 truncate">{{ group.group }}</span>
+                    <span class="tabular-nums">{{ store.industryCounts[group.key] ?? 0 }}</span>
+                  </template>
+                  <!-- No Clear All / Select All, as on the page's other pickers:
+                       untick to clear. "Select All" countries is no answer. -->
+                  <template #footer />
+                </MultiSelect>
+              </div>
+            <div class="mx-1 h-4 shrink-0 border-l border-outline-gray-3 max-md:hidden" aria-hidden="true" />
+            <div class="shrink-0 max-md:order-first">
+              <PartnerFilter :fields="FILTER_FIELDS" :values="tagValues()" @set="setFilter" @clear="clearTags" />
+            </div>
+          </div>
+        </ScrollArea>
       </div>
 
-      <!-- ── The filter row (results view) ────────────────────────────────
-           Part of the page, not sticky. Location and industry lead, subtle
-           (gray fill), because they always hold an answer, even "Any …",
-           capped at 180px so a long pick truncates instead of pushing the
-           row. The Filter sits at the right; on phones it leads the row, so
-           it's never scrolled off-screen behind them. -->
-      <ScrollArea v-if="isResults" orientation="horizontal" class="-mx-5 min-w-0 md:mx-0" viewport-class="px-5 md:px-0">
-        <div class="flex items-center gap-1.5">
-            <div class="min-w-0 shrink-0">
-              <MultiSelect v-model="barCountries" :options="geoOptions" placeholder="Search countries" aria-label="Filter by country" variant="subtle" size="sm" class="max-w-[11.25rem]">
-                <template #prefix>
-                  <span class="sentence-icon-globe size-4 shrink-0 text-ink-blue-6" aria-hidden="true" />
-                </template>
-                <template #summary>
-                  <span class="text-ink-gray-8">{{ geoSummary ?? 'Any country' }}</span>
-                </template>
-                <template #item-suffix="{ item }">
-                  <span class="tabular-nums text-ink-gray-5">{{ item.count }}</span>
-                </template>
-                <template #group-label="{ group }">
-                  <span class="min-w-0 flex-1 truncate">{{ group.group }}</span>
-                  <span class="tabular-nums">{{ groupTotal(group) }}</span>
-                </template>
-                <!-- No Clear All / Select All, as on the page's other pickers:
-                     untick to clear. "Select All" countries is no answer. -->
-                <template #footer />
-              </MultiSelect>
-            </div>
-            <div class="min-w-0 shrink-0">
-              <MultiSelect v-model="barSegments" :options="segmentOptions" placeholder="Search industries" aria-label="Filter by industry" variant="subtle" size="sm" class="max-w-[11.25rem]">
-                <template #prefix>
-                  <span class="sentence-icon-briefcase size-4 shrink-0 text-ink-amber-6" aria-hidden="true" />
-                </template>
-                <template #summary>
-                  <span class="text-ink-gray-8">{{ segmentSummary ?? 'Any industry' }}</span>
-                </template>
-                <template #item-suffix="{ item }">
-                  <span class="tabular-nums text-ink-gray-5">{{ item.count }}</span>
-                </template>
-                <template #group-label="{ group }">
-                  <span class="min-w-0 flex-1 truncate">{{ group.group }}</span>
-                  <span class="tabular-nums">{{ store.industryCounts[group.key] ?? 0 }}</span>
-                </template>
-                <!-- No Clear All / Select All, as on the page's other pickers:
-                     untick to clear. "Select All" countries is no answer. -->
-                <template #footer />
-              </MultiSelect>
-            </div>
-          <div class="shrink-0 max-md:order-first md:ml-auto">
-            <PartnerFilter :fields="FILTER_FIELDS" :values="tagValues()" @set="setFilter" @clear="clearTags" />
-          </div>
-        </div>
-      </ScrollArea>
-
-      <PartnerList v-if="results.length" :class="isLanding ? 'mt-2' : 'mt-4'">
+      <PartnerList v-if="results.length" :class="isLanding || hasAccount ? 'mt-2' : 'mt-4'">
         <PartnerRow v-for="p in results" :key="p.id" :partner="p" :city-only="isResults && applied.countries.length === 1" />
       </PartnerList>
 
@@ -453,18 +454,21 @@ const feedbackToast = () =>
       </div>
 
       <!-- Partners one lifted filter away, when the list has narrowed to two
-           or fewer. Each group says which filter it lifted. -->
-      <div v-if="suggestions.length" class="mt-12">
-        <div v-for="g in suggestions" :key="g.key" class="mt-8 first:mt-0">
-          <h2 class="text-lg font-semibold text-ink-gray-9">{{ SUGGESTION_TITLES[g.key] ?? 'Also worth considering' }}</h2>
-          <PartnerList class="mt-2">
-            <PartnerRow v-for="p in g.partners" :key="p.id" :partner="p" />
-          </PartnerList>
-        </div>
+           or fewer, closest first. -->
+      <div v-if="suggestions.length" :class="results.length ? 'mt-9' : 'mt-12'">
+        <!-- A rule between the matches and the suggestions: past it, the
+             list no longer answers the search. 36px above it plus the last
+             row's own padding is about 64px of air, matching the 64px below. -->
+        <hr v-if="results.length" class="mb-16 border-outline-gray-2" />
+        <h2 class="text-lg font-semibold text-ink-gray-9">More partners to consider</h2>
+        <PartnerList class="mt-2">
+          <PartnerRow v-for="p in suggestions" :key="p.id" :partner="p" />
+        </PartnerList>
       </div>
 
-      <!-- Feedback, where the search ended. -->
-      <div class="mt-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-3 pt-6">
+      <!-- Feedback, where the search ended. Visitors only: signed in, the
+           help menu has Give feedback. -->
+      <div v-if="!hasAccount" class="mt-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-3 pt-6">
         <p class="text-p-base text-ink-gray-7">
           Help us improve by providing feedback on your search experience
         </p>

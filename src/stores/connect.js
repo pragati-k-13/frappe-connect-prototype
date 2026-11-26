@@ -250,12 +250,14 @@ const matches = (p, c, skip = null) => {
 }
 
 // The dimensions a suggestion group may lift, and how to tell whether each is
-// constraining anything right now.
+// constraining anything right now. The results page shows the groups as one
+// list in this order: other industries first (a partner where you are, whose
+// industries are only where they've published stories), then other places.
 const SUGGESTABLE = [
+  { key: 'segments', active: (c) => c.segments.length > 0 },
   // Region and country lift together, because they're one dimension. Lifting
   // only one of them would offer a "suggestion" the other half still excludes.
   { key: 'geo', active: (c) => c.region.length > 0 || c.countries.length > 0 },
-  { key: 'segments', active: (c) => c.segments.length > 0 },
   { key: 'app', active: (c) => c.apps.length > 0 },
 ]
 

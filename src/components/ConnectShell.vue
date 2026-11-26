@@ -277,6 +277,8 @@ const logoMenu = computed(() => [
   // A visitor has no footer, so the theme stays here for them. Signed in, it
   // is in the footer with the rest of what's yours.
   ...(hasAccount.value ? [] : [themeMenu.value]),
+  // ⚠️ Inert for now: a placeholder for where Resources will live in this menu.
+  { label: 'Resources', icon: 'lucide-folder', onClick: () => {} },
   { label: 'Give feedback', icon: 'lucide-message-square-quote', onClick: () => (feedback.value = true) },
 ])
 
@@ -726,9 +728,13 @@ const heroSolid = computed(() => (props.heroPassed != null ? props.heroPassed : 
           <Button
             v-if="cart"
             variant="subtle"
-            :label="store.packs.length ? `View cart (${store.packs.length})` : 'View cart'"
+            label="View cart"
             @click="router.push({ name: 'cart' })"
           >
+            <template v-if="store.packs.length" #suffix>
+              <!-- The count as the Filter's white chip (PartnerFilter), not in brackets in the label. -->
+              <span class="flex size-5 items-center justify-center rounded-2 bg-surface-base pt-px text-xs-medium text-ink-gray-8 shadow-sm">{{ store.packs.length }}</span>
+            </template>
             <template #prefix><IconBag class="size-4" aria-hidden="true" /></template>
           </Button>
         </div>
@@ -803,9 +809,13 @@ const heroSolid = computed(() => (props.heroPassed != null ? props.heroPassed : 
           <Button
             v-if="saved"
             variant="subtle"
-            :label="store.savedPartners.length ? `Saved (${store.savedPartners.length})` : 'Saved'"
+            label="Saved"
             @click="router.push({ name: 'saved-partners' })"
           >
+            <template v-if="store.savedPartners.length" #suffix>
+              <!-- The count as the Filter's white chip (PartnerFilter), not in brackets in the label. -->
+              <span class="flex size-5 items-center justify-center rounded-2 bg-surface-base pt-px text-xs-medium text-ink-gray-8 shadow-sm">{{ store.savedPartners.length }}</span>
+            </template>
             <template #prefix><LucideBookmark class="size-4" aria-hidden="true" /></template>
           </Button>
           <!-- The trailing control. A page fills it through `#action` — the
@@ -852,14 +862,18 @@ const heroSolid = computed(() => (props.heroPassed != null ? props.heroPassed : 
             </Button>
           </slot>
           <!-- ⚠️ A BAG, not a cart: `shopping-cart` is the Buying module's mark.
-               Labelled, in the catalogue's words ("View cart (2)" beside its
-               total): an icon alone up here went unnoticed. -->
+               Labelled, in the catalogue's words ("View cart", its count in a
+               chip): an icon alone up here went unnoticed. -->
           <Button
             v-if="cart"
             variant="subtle"
-            :label="store.packs.length ? `View cart (${store.packs.length})` : 'View cart'"
+            label="View cart"
             @click="router.push({ name: 'cart' })"
           >
+            <template v-if="store.packs.length" #suffix>
+              <!-- The count as the Filter's white chip (PartnerFilter), not in brackets in the label. -->
+              <span class="flex size-5 items-center justify-center rounded-2 bg-surface-base pt-px text-xs-medium text-ink-gray-8 shadow-sm">{{ store.packs.length }}</span>
+            </template>
             <template #prefix><IconBag class="size-4" aria-hidden="true" /></template>
           </Button>
         </div>

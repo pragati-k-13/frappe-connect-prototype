@@ -124,7 +124,7 @@ const revealOnRowActivity =
           <div class="min-w-0 overflow-hidden">
             <Tooltip text="Clear all filters">
               <div class="flex">
-                <Button class="rounded-s-none border-s" icon="lucide-x" aria-label="Clear all filters" @click.stop="clearAll(popover?.close)" />
+                <Button class="rounded-s-none border-s border-outline-gray-2" icon="lucide-x" aria-label="Clear all filters" @click.stop="clearAll(popover?.close)" />
               </div>
             </Tooltip>
           </div>
