@@ -50,7 +50,7 @@ const appLabel = (value) => APPS.find((a) => a.value === value)?.label ?? { fram
 // Nothing is checked if they skipped the quiz, which is correct: there is no
 // requirement to match against.
 const wantsIndustry = (name) => store.answers.segments.includes(name)
-const wantsApp = (value) => store.filters.app === value
+const wantsApp = (value) => store.filters.apps.includes(value)
 
 // `app` keys back into APPS for the display label, the same way the Frappe
 // apps row does — no second list of certification names to keep in sync.

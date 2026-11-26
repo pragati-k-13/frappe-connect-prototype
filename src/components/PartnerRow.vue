@@ -20,6 +20,9 @@ const props = defineProps({
   // again — a toast with Undo is the way back. Elsewhere the filled bookmark
   // and the top bar's count are the confirmation, and the bookmark undoes.
   undoToast: { type: Boolean, default: false },
+  // The list is already narrowed to one country, so "Mumbai, India" on every
+  // row would repeat it: show the city alone.
+  cityOnly: { type: Boolean, default: false },
 })
 
 const store = useConnectStore()
@@ -203,7 +206,7 @@ const industryLine = computed(() => {
             <!-- No icon here. The city sits directly under the name as a plain
            subtitle — the icons below label a row of unlike facts (rate, rating,
            response time) that need telling apart at a glance; this line doesn't. -->
-            <p v-if="!compact" class="mt-0.5 text-p-sm text-ink-gray-6">{{ partner.city }}</p>
+            <p v-if="!compact" class="mt-0.5 text-p-sm text-ink-gray-6">{{ cityOnly ? partner.city.split(',')[0] : partner.city }}</p>
             <!-- Compact: the city joins the facts, with an icon like theirs,
                  since it is no longer a subtitle on a line of its own. -->
             <div

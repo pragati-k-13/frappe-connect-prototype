@@ -1,8 +1,5 @@
 import { defineStore } from 'pinia'
 import { APPS, FRAPPE_TEAM, PARTNERS, implementerFor } from '../data/partners'
-// Two consumers: `industryCounts`, the group totals on the industry filter's
-// headings, and `saveCompany`, which derives a segment's group. Both need to
-// know which segments belong to which group.
 import {
   DECLINE_REASONS,
   bidMessage,
@@ -21,6 +18,7 @@ import {
 import { demoProjects, nextStage, projectName, stagesFor } from '../data/project'
 import { modulesFor } from '../data/modules'
 import { sharedAnswers } from '../data/company'
+// `saveCompany` derives a segment's group from it.
 import { INDUSTRIES } from '../data/quiz'
 import { emptyBrief, matchingPartners } from '../data/custom'
 import { takingWork } from '../data/takingWork'
@@ -56,6 +54,8 @@ const sendTimers = new Map()
 // as the group label) can widen that to any set across any groups. Keeping the
 // group as a second, parallel filter meant two controls for one dimension and
 // two chances for them to disagree.
+const emptyFilters = () => ({ apps: [], countries: [], tier: null, rating: null, reply: null })
+
 const emptyAnswers = () => ({
   industry: null,
   segments: [],
@@ -93,11 +93,6 @@ const ACCOUNT_STATES = ['visitor', 'exploring', 'client']
 // through the store, which is.
 let pendingAction = null
 
-// The answers and filters as they were immediately before the last `reset()`,
-// so Undo on the cleared-filters toast can put them back. Module scope rather
-// than store state: it's a one-shot stash the toast reads once, not something
-// any screen renders.
-let lastCleared = null
 
 // The listing's primary order, always. Tier is the one ranking the partner
 // programme itself publishes, so it outranks whatever order the filters happen
@@ -108,6 +103,27 @@ let lastCleared = null
 const TIER_RANK = { gold: 0, silver: 1, bronze: 2 }
 const tierRank = (p) => TIER_RANK[p.tier] ?? 3
 const byTier = (a, b) => tierRank(a) - tierRank(b)
+
+// The directory's order: most success stories first, then rating, then a
+// shuffle among ties that holds for one visit (a page load). Not tier: a
+// listing ranked by tier tells every visitor the same three firms are the
+// answer, and the stories are the evidence a business is actually reading for.
+// A partner with under `RATED_AT` reviews has no rating yet, so it ties at 0
+// rather than outranking a firm with a long record on a single review.
+const RATED_AT = 5
+export const ratedFor = (p) => (p.reviews >= RATED_AT ? p.rating : null)
+const visitOrder = new Map()
+const visitRank = (p) => {
+  if (!visitOrder.has(p.id)) visitOrder.set(p.id, Math.random())
+  return visitOrder.get(p.id)
+}
+const byStories = (a, b) =>
+  (b.stories ?? 0) - (a.stories ?? 0) ||
+  (ratedFor(b) ?? 0) - (ratedFor(a) ?? 0) ||
+  visitRank(a) - visitRank(b)
+
+// Reply time, from the `responds` string ('5h'). Hours, for the filter.
+const replyHours = (p) => parseInt(p.responds, 10) || Infinity
 
 // A brief's own fields and nothing else — `emptyBrief`'s keys, filled from
 // whatever carries them. A sent snapshot also holds the company's answers and
@@ -176,16 +192,19 @@ const snapshotBrief = (project, own, company) => ({
   problems: own.problems?.length ? [...own.problems] : [...(company.problems ?? [])],
 })
 
-// The whole filter set as one object. Built rather than read straight off state
-// so the search term is normalised in exactly one place, and so `results` and
-// the suggestion groups are demonstrably asking about the same thing.
+// The whole filter set as one object, so `results` and the suggestion groups
+// are demonstrably asking about the same thing.
+//
+// No search and no implementation: the partners page dropped both. Country and
+// industry are the sentence; tier, app, rating and reply time are the tags.
 const criteriaFrom = (state) => ({
   segments: state.answers.segments,
   region: state.answers.region,
-  implementation: state.answers.implementation,
-  app: state.filters.app,
+  apps: state.filters.apps,
   countries: state.filters.countries,
-  q: state.filters.search.trim().toLowerCase(),
+  tier: state.filters.tier,
+  rating: state.filters.rating,
+  reply: state.filters.reply,
 })
 
 // Does this partner survive the filters?
@@ -211,40 +230,33 @@ const matches = (p, c, skip = null) => {
     const byCountry = p.countries.some((x) => c.countries.includes(x))
     if (!byRegion && !byCountry) return false
   }
-  if (skip !== 'app' && c.app && !p.apps.includes(c.app)) return false
+  // Several apps read as "any of these", like several segments.
+  if (skip !== 'app' && c.apps.length && !p.apps.some((a) => c.apps.includes(a))) return false
   // Union, not intersection: several segments read as "any of these", the same
   // way several regions do. Partners are tagged with the directory's own segment
   // names, so this is a direct match — no mapping up to the group, because the
   // group isn't a filter of its own any more.
   if (skip !== 'segments' && c.segments.length && !p.industries.some((i) => c.segments.includes(i)))
     return false
-  // A standard implementation is only useful from a partner who actually sells
-  // starter packs.
-  if (skip !== 'implementation' && c.implementation === 'standard' && p.packs.length === 0)
-    return false
-  // Never skipped — see SUGGESTABLE.
-  if (c.q) {
-    const haystack = [p.name, p.city, ...p.industries, ...p.apps].join(' ').toLowerCase()
-    if (!haystack.includes(c.q)) return false
-  }
+  // The tags. Never lifted by a suggestion group: each is a choice made on
+  // this screen, one click to undo, so answering it with partners outside it
+  // would read as the tag being ignored.
+  if (c.tier && p.tier !== c.tier) return false
+  // A partner with too few reviews to have a rating stays in: no rating yet
+  // isn't a low one.
+  if (c.rating && ratedFor(p) !== null && ratedFor(p) < c.rating) return false
+  if (c.reply && replyHours(p) > c.reply) return false
   return true
 }
 
 // The dimensions a suggestion group may lift, and how to tell whether each is
 // constraining anything right now.
-//
-// Search is deliberately absent. A typed term is a request for one specific
-// thing — often a partner by name — so answering it with partners that don't
-// match the text reads as the app ignoring what you typed.
 const SUGGESTABLE = [
   // Region and country lift together, because they're one dimension. Lifting
   // only one of them would offer a "suggestion" the other half still excludes.
   { key: 'geo', active: (c) => c.region.length > 0 || c.countries.length > 0 },
   { key: 'segments', active: (c) => c.segments.length > 0 },
-  // Only 'standard' constrains. Custom work rules nobody out, so lifting it
-  // would produce an empty group.
-  { key: 'implementation', active: (c) => c.implementation === 'standard' },
-  { key: 'app', active: (c) => Boolean(c.app) },
+  { key: 'app', active: (c) => c.apps.length > 0 },
 ]
 
 // Suggest at or below this many results. Two is still a thin slice of a
@@ -492,13 +504,11 @@ export const useConnectStore = defineStore('connect', {
     // same questions again on the next screen is the friction this whole flow
     // exists to remove. `{ apps, modules }`, and `null` from every other door.
     inquiryPrefill: null,
-    // Filters on the results page. `app` starts unset — it's a refinement
-    // offered mid-list, not a qualifier.
-    // `countries` is the granular half of the region dimension. Empty reads as
-    // "no constraint", the same as an unset `app` — see the filter notes above.
-    // It is NOT post-quiz only: the quiz's India chip is a country, so the
-    // question before the listing writes this field too (`toggleGeo`).
-    filters: { search: '', app: null, countries: [] },
+    // Filters on the partners page. `countries` is the sentence's country
+    // (one at most from the page, though the quiz and sign-up write it too);
+    // `apps`, `tier`, `rating` (minimum stars) and `reply` (maximum hours) are
+    // the tags under the hero. Empty and `null` read as "no constraint".
+    filters: emptyFilters(),
     // The e-mail a question on the Packs page was sent from, or `null` before
     // one is. Here rather than on the page so the confirmation is still there
     // after a visit to another page; a refresh clears it, as it would for an
@@ -513,7 +523,8 @@ export const useConnectStore = defineStore('connect', {
     // ranked list — as main assigns it at payment; the first partner when the
     // filters have narrowed to nothing.
     packImplementerFor() {
-      return this.packsByFrappe ? FRAPPE_TEAM : (this.results[0] ?? PARTNERS[0])
+      // By tier, as main assigns it, whatever order the directory lists in.
+      return this.packsByFrappe ? FRAPPE_TEAM : ([...this.results].sort(byTier)[0] ?? PARTNERS[0])
     },
     // The two questions a screen actually wants to ask. Everything that varies
     // by account state should go through these, so the enum stays in one place.
@@ -667,31 +678,14 @@ export const useConnectStore = defineStore('connect', {
 
     results(state) {
       const c = criteriaFrom(state)
-      return (
-        PARTNERS.filter((p) => matches(p, c))
-          // `.filter()` already handed back a fresh array, so this sorts a copy,
-          // not PARTNERS. Sort is stable in every engine this runs on, which is
-          // what keeps the order inside a tier equal to the order in
-          // `data/partners.js` — the seed list's order is the tiebreak.
-          .sort(byTier)
-      )
+      // `.filter()` already handed back a fresh array, so this sorts a copy.
+      return PARTNERS.filter((p) => matches(p, c)).sort(byStories)
     },
 
-    // Partner count per country, for the labels on the country filter.
-    //
-    // Skips the whole `geo` dimension — region and country together, because
-    // they are one dimension — and nothing else. That's what makes the numbers
-    // worth reading: counted with geo applied, every country you hadn't picked
-    // would read 0 the moment you picked one.
-    //
-    // So each number answers "how many would picking this ADD", which is the
-    // right question now that the dimension is a union: with Europe selected,
-    // India still reads 8, because ticking it would widen the list by eight and
-    // not narrow it to nothing. Industry, app and search are still respected.
-    //
-    // A plain object keyed by country name. Countries with no partners never
-    // appear here; the filter reads a missing key as 0 rather than this getter
-    // having to know the directory's full country list.
+    // Partner counts for the partners page's country and industry dropdowns,
+    // as on main. Each skips its own dimension and nothing
+    // else, so a row's number says how many picking it would ADD, and never
+    // reads 0 the moment a sibling is ticked.
     countryCounts(state) {
       const c = criteriaFrom(state)
       const counts = {}
@@ -701,12 +695,6 @@ export const useConnectStore = defineStore('connect', {
       }
       return counts
     },
-
-    // Partner count per segment, for the labels on the industry filter. The
-    // same shape and the same reasoning as `countryCounts` above: it skips the
-    // whole `segments` dimension and nothing else, so each number says how many
-    // picking that row would ADD rather than reading 0 the moment you pick a
-    // sibling. Region, app and search are still respected.
     segmentCounts(state) {
       const c = criteriaFrom(state)
       const counts = {}
@@ -716,16 +704,8 @@ export const useConnectStore = defineStore('connect', {
       }
       return counts
     },
-
-    // Partner count per industry GROUP, keyed by industry value — the number on
-    // the filter's group headings.
-    //
-    // ⚠️ Not the sum of the group's segment counts, which is what the geo
-    // filter's heading can get away with. A partner sits in exactly one country
-    // but routinely in several segments — Tridots is in five — so summing would
-    // count the same partner once per segment it lists and report more
-    // "partners" in Manufacturing than the directory holds. This counts each
-    // partner once per group.
+    // Per industry GROUP, each partner counted once: summing a group's segment
+    // counts would count a partner once per segment it lists.
     industryCounts(state) {
       const c = criteriaFrom(state)
       const counts = {}
@@ -760,7 +740,7 @@ export const useConnectStore = defineStore('connect', {
           // `matches(…, d.key)` is "would qualify without this filter";
           // `!matches(…)` drops the ones already in the list above.
           partners: PARTNERS.filter((p) => matches(p, c, d.key) && !matches(p, c))
-            .sort(byTier)
+            .sort(byStories)
             .slice(0, SUGGEST_PER_GROUP),
         }))
         .filter((g) => g.partners.length)
@@ -2228,39 +2208,10 @@ export const useConnectStore = defineStore('connect', {
       this.regionInferred = true
     },
     reset() {
-      // Snapshot first. This is the app's one destructive action — it discards
-      // all three quiz answers along with the filters — and the only way back
-      // used to be redoing the quiz. Copied field by field rather than cloned
-      // wholesale because `region` and `segments` are arrays, and a spread
-      // alone would hand back the same array the store is about to replace.
-      lastCleared = {
-        answers: {
-          ...this.answers,
-          region: [...this.answers.region],
-          segments: [...this.answers.segments],
-        },
-        regionInferred: this.regionInferred,
-        // `countries` is an array, so it needs the same explicit copy as the
-        // answers above — a bare spread would hand back the very array the
-        // reset is about to replace.
-        filters: { ...this.filters, countries: [...this.filters.countries] },
-      }
       this.answers = emptyAnswers()
       this.regionInferred = false
-      this.filters = { search: '', app: null, countries: [] }
+      this.filters = emptyFilters()
     },
 
-    // Undo for the toast `reset()` raises. Returns whether there was anything
-    // to put back: the stash is one-shot, so an Undo pressed on a stale toast
-    // (a second clear has happened since, or it was already used) reports that
-    // rather than silently doing nothing.
-    restoreCleared() {
-      if (!lastCleared) return false
-      this.answers = lastCleared.answers
-      this.regionInferred = lastCleared.regionInferred
-      this.filters = lastCleared.filters
-      lastCleared = null
-      return true
-    },
   },
 })

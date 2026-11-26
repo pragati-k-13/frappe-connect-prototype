@@ -1,569 +1,469 @@
 <script setup>
-// SCREEN 5 — the partner listing.
+// The partners page.
 //
-// What the quiz buys you. The answers arrive as the initial filter state and
-// stay visible and editable in the filter bar — someone who over-narrowed can
-// widen without redoing the questions, and someone who skipped a question sees
-// an unset filter rather than a silent constraint.
+//   landing   signed out, `/connect/partners`. "Work with certified Frappe
+//             Partners" over a gray search bar: country and industry
+//             dropdowns and a search button, two suggested searches under
+//             it, then every partner. The bar is a DRAFT: it applies only on
+//             search.
+//   results   `/connect/partners/search?country=…&industry=…`, where search
+//             lands. "Certified partners" and the count, then one row of
+//             filters: the same two dropdowns, and Tier, App, Rating and
+//             Reply time folded into one Filter (Helpdesk's pattern). Here
+//             everything applies as you pick. Its own URL, so Back returns to
+//             the search and a search can be shared. Unknown values in the
+//             URL are dropped.
+//   signed in the results view inside the app shell, opened pre-filled from
+//             the company profile. A partner browsing gets nothing pre-filled.
 
-import { computed } from 'vue'
-import { Button, MultiSelect, TextInput, toast } from 'frappe-ui'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { Badge, Button, MultiSelect, ScrollArea, Tooltip, toast } from 'frappe-ui'
 import ConnectShell from '../components/ConnectShell.vue'
+import BarField from '../components/BarField.vue'
+import PartnerFilter from '../components/PartnerFilter.vue'
 import PartnerList from '../components/PartnerList.vue'
 import PartnerRow from '../components/PartnerRow.vue'
-import FilterChip from '../components/FilterChip.vue'
 import { useConnectStore } from '../stores/connect'
-import { APPS } from '../data/partners'
-
-// The mid-list app question's chips. Not every app: Drive is left off.
-// `APPS` itself is unchanged, so the filter label and every other reader
-// still know it.
-const APP_CHIPS = APPS.filter((a) => a.value !== 'drive')
+import { APPS, PARTNERS } from '../data/partners'
 import { INDUSTRIES, REGIONS } from '../data/quiz'
 
 const store = useConnectStore()
+const route = useRoute()
+const router = useRouter()
 
-const results = computed(() => store.results)
-const suggestions = computed(() => store.suggestions)
+const hasAccount = computed(() => store.signedIn || store.role === 'partner')
+const isResults = computed(() => route.name === 'partner-search')
+const isLanding = computed(() => !isResults.value && !hasAccount.value)
 
-// Copy for the suggestion groups. The store says which filter was lifted; this
-// says what that means to a reader.
-//
-// Every title leads with what these partners DO have and leaves the gap to the
-// note underneath, because the group's job is to widen a search that dead-ended,
-// not to explain a rejection.
-//
-// ⚠️ The industry title is deliberately NOT "partners in other industries". A
-// partner's `industries` are the segments they have published success stories
-// in — the row renders them as exactly that — and not a declaration of what work
-// they will take on. Saying they belong to other industries asserts a limit the
-// data doesn't record, about real, named companies. "Proven in other industries"
-// claims only the thing that is true, and the note carries the rest.
-const suggestionCopy = (key) => {
-  const { segments } = store.answers
-  const appLabel = APPS.find((a) => a.value === store.filters.app)?.label
-  switch (key) {
-    case 'geo': {
-      // Region and country lift together, so the title has to fit whichever
-      // was actually picked rather than assuming one of them.
-      const regions = store.answers.region
-      const picked = store.filters.countries
-      if (!regions.length && picked.length === 1) {
-        return {
-          title: 'Partners in other countries',
-          note: `Outside ${picked[0]}, but matching everything else.`,
-        }
-      }
-      if (!picked.length) {
-        // No note: the title is already the whole fact, and every row names its
-        // own city underneath.
-        //
-        // "in other regions", not "outside your region". The quiz asks where the
-        // PARTNER can be based, not where the visitor is, so the answer is a set
-        // of acceptable regions and these are the partners outside that set.
-        // "Your region" would claim to know where they are, which this screen no
-        // longer asks. The two branches either side name what was PICKED for the
-        // same reason.
-        return { title: 'Partners in other regions' }
-      }
-      return {
-        title: 'Partners in other locations',
-        note: 'Outside the places you picked, but matching everything else.',
-      }
-    }
-    case 'segments':
-      return {
-        title: 'Proven in other industries',
-        note:
-          segments.length === 1
-            ? `No published ${segments[0]} work yet.`
-            : 'No published work in your selected industries yet.',
-      }
-    case 'implementation':
-      return {
-        title: 'Partners who quote custom work',
-        note: 'They scope each project rather than selling fixed-scope Starter Packs.',
-      }
-    case 'app':
-      return {
-        title: 'Working with other Frappe apps',
-        note: appLabel ? `No ${appLabel} work listed yet.` : undefined,
-      }
-    default:
-      return { title: 'Also worth considering' }
+// ── What can be picked ──────────────────────────────────────────────────────
+// Countries that have partners, for the signed-in pre-fill. Every country the
+// directory lists is pickable, at 0 where nobody is, so the URL accepts them
+// all.
+const PARTNER_COUNTRIES = new Set(PARTNERS.flatMap((p) => p.countries))
+const ALL_COUNTRIES = new Set(REGIONS.flatMap((r) => r.countries))
+const SEGMENTS = new Set(INDUSTRIES.flatMap((i) => i.segments))
+const TIERS = [
+  { value: 'gold', label: 'Gold' },
+  { value: 'silver', label: 'Silver' },
+  { value: 'bronze', label: 'Bronze' },
+]
+const RATINGS = [
+  { value: 4, label: '4.0 and up' },
+  { value: 4.5, label: '4.5 and up' },
+]
+const REPLIES = [
+  { value: 4, label: 'Within 4 hours' },
+  { value: 6, label: 'Within 6 hours' },
+]
+
+// ── The URL ─────────────────────────────────────────────────────────────────
+// Everything the results view shows comes from its query, so Back, reload and
+// a shared link all land on the same list. Values the directory doesn't know
+// are dropped rather than erroring.
+const list = (v) => (v == null ? [] : Array.isArray(v) ? v : [v])
+const fromQuery = (q) => {
+  const num = (v, allowed) => (allowed.some((a) => a.value === Number(v)) ? Number(v) : null)
+  return {
+    countries: list(q.country).filter((c) => ALL_COUNTRIES.has(c)),
+    segments: list(q.industry).filter((s) => SEGMENTS.has(s)),
+    tier: TIERS.some((t) => t.value === q.tier) ? q.tier : null,
+    apps: list(q.app).filter((v) => APPS.some((a) => a.value === v)),
+    rating: num(q.rating, RATINGS),
+    reply: num(q.reply, REPLIES),
   }
 }
+const toQuery = ({ countries, segments, tier, apps, rating, reply }) =>
+  Object.fromEntries(
+    Object.entries({ country: countries, industry: segments, tier, app: apps, rating, reply }).filter(
+      ([, v]) => v != null && !(Array.isArray(v) && !v.length),
+    ),
+  )
 
-// `undefined` clears a control; the store wants `null` for "no constraint".
-const setFilter = (key, value) => {
-  store.filters[key] = value ?? null
-}
-// Segments takes several answers, so its empty state is an empty array rather
-// than `null` — see the store. Region is handled by `setGeo` below, which owns
-// both halves of that dimension.
-const setSegments = (value) => {
-  store.answers.segments = value ?? []
-}
+// The Filter's values as the store holds them.
+const tagValues = () => ({
+  tier: store.filters.tier,
+  apps: store.filters.apps,
+  rating: store.filters.rating,
+  reply: store.filters.reply,
+})
 
-// ONE control for where a partner is: every country the programme lists, grouped
-// under its region. Countries are the only rows — a region is a heading, not an
-// option.
-//
-// Region and country as two separate dropdowns was worse in the way the
-// industry/segment rework already established: two controls for one dimension
-// and two chances for them to disagree.
-//
-// There USED to be an "All of Asia" row leading each group, carrying a prefixed
-// region value, because `MultiSelect` renders a group LABEL and not a group
-// option. It's gone, and with it the one-click way to say "anywhere in this
-// region" — the quiz still asks that question with its chips, and here a region
-// is said by ticking its countries. What keeps that from being a downgrade in
-// the store is `setGeo` below: a region whose every country is ticked collapses
-// back to the region value, so `answers.region` still holds what the quiz
-// collects and what the landing map is drawn from, and the trigger still names
-// the region rather than counting to twelve.
-
-// Counts come from `store.countryCounts`, which ignores the whole geo dimension
-// so each number says how many picking that row would ADD. A country with no
-// partners is simply absent from that map and reads 0.
-//
-// ⚠️ Every country stays listed and selectable at 0. Hiding them reflows the
-// list on every keystroke elsewhere in the bar and can empty a whole region
-// group, so you could no longer tell a country the programme doesn't cover from
-// one your other filters ruled out.
-//
-// The group heading carries the region's own partner total, so regions stay
-// comparable without adding up their countries by eye. It's rendered through
-// `#group-label` and summed from the options by `groupTotal` — it can't ride on
-// the group object, which `normalizeMultiSelectOptions` strips down to `key`,
-// `group`, `hideLabel` and `options` on the way through.
-//
-// Each group is ordered by that count, most partners first — the order the
-// source page lists countries in, and the order that reads as an answer to "who
-// is actually here". `data/quiz.js` holds the lists alphabetically; that order
-// survives as the tiebreak, which is what the long tail of 0s is sorted by.
-//
-// Ordering by a number that MOVES is safe here, and only here. The count shifts
-// when search, industry or app shifts — controls you can't reach without
-// closing this list — and ticking a country inside it moves nothing, because
-// `countryCounts` skips the whole geo dimension by design. So the list never
-// reshuffles while it's open, and it always agrees with the numbers printed
-// down its right edge.
-const geoOptions = computed(() =>
-  REGIONS.map((r) => {
-    const countries = r.countries
-      .map((name) => ({
-        label: name,
-        value: name,
-        // Read back by `#item-suffix`. `MultiSelectOption` allows arbitrary keys,
-        // which is what lets the count ride along on the option itself instead of
-        // being looked up again during render.
-        count: store.countryCounts[name] ?? 0,
-      }))
-      // `.map()` already handed back a fresh array, so this sorts a copy and
-      // leaves `r.countries` alone.
-      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
-    return { key: r.value, group: r.label, options: countries }
-  }),
+// The results view writes its query into the store, which is what `results`
+// and the suggestion groups read. The landing clears country and industry:
+// its bar is a draft, so the list under it is every partner.
+watch(
+  () => [route.name, route.query, hasAccount.value],
+  () => {
+    if (route.name === 'results') {
+      if (hasAccount.value) return openSignedIn()
+      store.filters.countries = []
+      store.answers.region = []
+      store.answers.segments = []
+      return
+    }
+    if (!isResults.value) return
+    const q = fromQuery(route.query)
+    store.filters.countries = q.countries
+    store.answers.region = []
+    store.answers.segments = q.segments
+    Object.assign(store.filters, { tier: q.tier, apps: q.apps, rating: q.rating, reply: q.reply })
+  },
+  { immediate: true },
 )
 
-// The region's partner total, for its group heading. Every option in the group
-// is a country now, so this is just their sum — the same arithmetic the old
-// "All of …" row carried, done where the number is used.
-const groupTotal = (group) => group.options.reduce((n, o) => n + o.count, 0)
-
-// The merge, both ways — and the whole reason removing the "All of …" rows costs
-// the store nothing.
-//
-// Out: a region in `answers.region` shows as every one of its countries ticked,
-// because that is what it means in a list where only countries are selectable.
-// A `Set` because a country can arrive from both halves at once — Asia answered
-// in the quiz, then India ticked here — and a duplicate value would render the
-// row twice in the trigger's count.
-const geoSelection = computed(() => [
-  ...new Set([
-    ...REGIONS.filter((r) => store.answers.region.includes(r.value)).flatMap((r) => r.countries),
-    ...store.filters.countries,
-  ]),
-])
-
-// In: a region survives as a region only while every country in it is still
-// ticked. Untick one and the answer becomes the countries themselves — "Asia
-// except Pakistan" is sayable, and it has to be, because the row you unticked
-// was the only way to say it. Tick the last one back and it collapses to the
-// region again.
-const setGeo = (value) => {
-  const picked = value ?? []
-  const whole = REGIONS.filter((r) => r.countries.every((c) => picked.includes(c)))
-  const covered = new Set(whole.flatMap((r) => r.countries))
-  // Through `answer()` rather than assigned, so picking here clears the
-  // inferred-region flag the same way the quiz's own chips do.
-  store.answer(
-    'region',
-    whole.map((r) => r.value),
-  )
-  store.filters.countries = picked.filter((c) => !covered.has(c))
-}
-
-// What the trigger says, for the same reason `segmentSummary` exists below: a
-// whole region ticked is "Asia", and "12 selected" would hide a plain answer
-// behind a number. Regions first, then any loose countries — "Asia +1" rather
-// than a number that lost the word.
-const geoSummary = computed(() => {
-  const regions = REGIONS.filter((r) => store.answers.region.includes(r.value))
-  const loose = store.filters.countries
-  if (!regions.length) return loose.length > 1 ? `${loose.length} countries` : null
-  const named = regions.map((r) => r.label).join(', ')
-  return loose.length ? `${named} +${loose.length}` : named
-})
-// ONE control for the industry dimension, not two. Industry and segment used to
-// be separate Selects — pick a group, then a second control appears to narrow
-// inside it — which meant two controls for one question, an option list you
-// could only reach by first picking its parent, and no way to say "Discrete
-// Manufacturing or Logistics". frappe-ui's MultiSelect takes grouped options
-// natively, so the industry becomes the group label and the segments are the
-// options. Nothing is selectable at the group level, because nothing in the
-// data is tagged there: partners carry segment names.
-//
-// Counts ride along the same way the geo control's do — on the option for
-// `#item-suffix`, and off `store.industryCounts` for the heading. The heading's
-// number is NOT the sum of its rows: a partner lists several segments, so
-// summing would report it once per segment (see `industryCounts`). Order is left
-// as the directory's; only the geo list is sorted by count, and there the count
-// can't move while the list is open.
-const segmentOptions = computed(() =>
-  INDUSTRIES.map((i) => ({
-    group: i.label,
-    key: i.value,
-    // Read back by `#group-label`, which gets the group object — and unlike the
-    // options, groups are stripped to `key`/`group`/`hideLabel`/`options` on
-    // the way through `normalizeMultiSelectOptions`, so the count can't ride on
-    // the group. The key survives, so the heading looks it up by that.
-    options: i.segments.map((s) => ({ label: s, value: s, count: store.segmentCounts[s] ?? 0 })),
-  })),
-)
-
-// What the trigger says. MultiSelect's default is the label when one is picked
-// and "N selected" past that, which loses the useful case: every segment in one
-// group is exactly "Manufacturing", and saying "12 selected" instead would hide
-// a plain answer behind a number.
-const segmentSummary = computed(() => {
-  const picked = store.answers.segments
-  if (picked.length < 2) return null // 0 and 1 — MultiSelect's own default is right
-  const whole = INDUSTRIES.find(
-    (i) => i.segments.length === picked.length && i.segments.every((s) => picked.includes(s)),
-  )
-  return whole ? whole.label : `${picked.length} segments`
-})
-
-// Filters with no control of their own in the bar — just the app, which is set
-// from the chips mid-list. The controls beside this button speak for themselves,
-// so counting them here would report the same constraint twice.
-const extraFilterCount = computed(() => (store.filters.app ? 1 : 0))
-
-// Clearing wipes everything, so the button stays live whenever anything is set,
-// not only when there's a number to show.
-const anyFilterActive = computed(() => {
-  const { segments, region, implementation } = store.answers
-  const { search, app, countries } = store.filters
-  return Boolean(
-    segments.length || region.length || countries.length || implementation || app || search.trim(),
-  )
-})
-
-// Clearing is the one destructive action on this screen: `store.reset()` drops
-// all three quiz answers along with the filters, and before this there was no
-// way back short of redoing the quiz. Two call sites — the funnel in the bar and
-// the ghost button beside the count when nothing matched — so it's one function,
-// and Undo restores the snapshot `reset()` takes.
-//
-// The store's stash is one-shot, so a stale Undo (a second clear since, or one
-// already used) says so rather than appearing to work.
-const clearFilters = () => {
-  store.reset()
-  toast('Filters cleared', {
-    id: 'filters-cleared',
-    // Says the consequence plainly. It read "The quiz answers went with them.",
-    // which is the one line in the toast doing real work — clearing wipes all
-    // three quiz answers, not just the filter bar you pressed — and it was
-    // phrased as an aside. "Went with them" is also vaguer than it looks: it
-    // never says the answers are gone, only that something happened to them.
-    description: 'Your quiz answers were cleared too.',
-    action: {
-      label: 'Undo',
-      onClick: () => {
-        if (!store.restoreCleared()) toast.info('Those filters are no longer available to restore')
-      },
-    },
+// Signed in there is no landing: the page opens as the results view, filled
+// from the company profile. A partner browsing the directory has no profile
+// to fill it from, so gets nothing pre-filled.
+function openSignedIn() {
+  const c = store.role === 'partner' ? {} : store.company
+  router.replace({
+    name: 'partner-search',
+    query: toQuery({
+      countries: PARTNER_COUNTRIES.has(c.country) ? [c.country] : [],
+      segments: (c.segments ?? []).filter((s) => SEGMENTS.has(s)),
+    }),
   })
 }
 
-// ⚠️ Inert. There is no feedback form, and a text field in a toast isn't one —
-// this says where the answer would go rather than swallowing the click.
+// ── Country and industry ────────────────────────────────────────────────────
+// On the landing they edit a draft; in the results view, the URL.
+const draft = ref({ countries: [], segments: [] })
+const applied = computed(() => ({
+  countries: store.filters.countries,
+  segments: store.answers.segments,
+}))
+const picked = computed(() => (isResults.value ? applied.value : draft.value))
+
+const search = (patch, how = 'push') =>
+  router[how]({
+    name: 'partner-search',
+    query: toQuery({ ...applied.value, ...tagValues(), ...patch }),
+  })
+
+// Search runs as a view transition: the page changes, not its controls. The
+// landing fades out quickly, the results fade in with an 8px lift, the top
+// bar holds still (the unscoped styles). Landing to results only: filter
+// changes on the results view never animate. Without View Transitions it's
+// the plain switch.
+const find = () => {
+  const go = () => search({ ...draft.value })
+  if (isResults.value || !document.startViewTransition) return go()
+  document.startViewTransition(async () => {
+    await go()
+    await nextTick()
+  })
+}
+
+// The two dropdowns, in the hero and as the first chips of the results
+// view's filter row: every country under its region and every segment under
+// its industry, each row with the partners picking it would add, each
+// heading with its group's total.
+const barCountries = computed({
+  get: () => picked.value.countries,
+  set: (v) => {
+    const value = v ?? []
+    if (isResults.value) search({ countries: value })
+    else draft.value = { ...draft.value, countries: value }
+  },
+})
+const barSegments = computed({
+  get: () => picked.value.segments,
+  set: (v) => {
+    const value = v ?? []
+    if (isResults.value) search({ segments: value })
+    else draft.value = { ...draft.value, segments: value }
+  },
+})
+// Most partners first, alphabetical among equals. Ticking a country moves no
+// count in its own list (the counts skip the location), so it never reshuffles
+// while open.
+const geoOptions = computed(() =>
+  REGIONS.map((r) => ({
+    key: r.value,
+    group: r.label,
+    options: r.countries
+      .map((c) => ({ label: c, value: c, count: store.countryCounts[c] ?? 0 }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
+  })),
+)
+const groupTotal = (group) => group.options.reduce((n, o) => n + o.count, 0)
+const segmentOptions = computed(() =>
+  INDUSTRIES.map((i) => ({
+    key: i.value,
+    group: i.label,
+    options: i.segments.map((s) => ({ label: s, value: s, count: store.segmentCounts[s] ?? 0 })),
+  })),
+)
+// What a field says. A whole region ticked is its name, not "12 countries";
+// a whole industry likewise. "Any …" is a real answer, so it reads in the
+// label's ink, not the placeholder gray.
+const geoSummary = computed(() => {
+  const chosen = picked.value.countries
+  if (!chosen.length) return null
+  const whole = REGIONS.filter((r) => r.countries.every((c) => chosen.includes(c)))
+  const covered = new Set(whole.flatMap((r) => r.countries))
+  const loose = chosen.filter((c) => !covered.has(c))
+  if (!whole.length) return loose.length === 1 ? loose[0] : `${loose.length} countries`
+  const named = whole.map((r) => r.label).join(', ')
+  return loose.length ? `${named} +${loose.length}` : named
+})
+const segmentSummary = computed(() => {
+  const chosen = picked.value.segments
+  if (!chosen.length) return null
+  if (chosen.length === 1) return chosen[0]
+  const whole = INDUSTRIES.find(
+    (i) => i.segments.length === chosen.length && i.segments.every((s) => chosen.includes(s)),
+  )
+  return whole ? whole.label : `${chosen.length} industries`
+})
+
+// Suggested searches: two, in different industries, so neither repeats the
+// other. The directory's biggest pairs: Retail in India (7 partners) and
+// Discrete Manufacturing in India (4). A click fades the values into the
+// fields (`fade` on BarField), and 200ms later the search runs.
+const SUGGESTIONS = [
+  { label: 'Retail in India', countries: ['India'], segments: ['Retail'] },
+  { label: 'Discrete Manufacturing in India', countries: ['India'], segments: ['Discrete Manufacturing'] },
+]
+const barFade = ref(false)
+const useSuggestion = (s) => {
+  barFade.value = true
+  draft.value = { countries: s.countries, segments: s.segments }
+  setTimeout(() => {
+    find()
+    barFade.value = false
+  }, 200)
+}
+
+// Whether the gray bar has scrolled up under the 48px top bar, which is when
+// the top bar takes its fill and rule (ConnectShell `heroPassed`). Until
+// then it stays clear over the hero.
+const barEl = ref(null)
+const barPassed = ref(false)
+let barObserver = null
+watch(barEl, (el) => {
+  barObserver?.disconnect()
+  barPassed.value = false
+  if (!el) return
+  barObserver = new IntersectionObserver(
+    ([e]) => (barPassed.value = !e.isIntersecting && e.boundingClientRect.top < 48),
+    { rootMargin: '-48px 0px 0px 0px' },
+  )
+  barObserver.observe(el)
+})
+onBeforeUnmount(() => barObserver?.disconnect())
+
+// ── The Filter ──────────────────────────────────────────────────────────────
+// Tier, App, Rating and Reply time in one Filter (PartnerFilter, Helpdesk's
+// pattern), so the row always fits on one line. App takes several values;
+// the rest one each.
+const APP_OPTIONS = APPS.map((a) => ({ label: a.label, value: a.value }))
+const FILTER_FIELDS = [
+  { key: 'tier', icon: 'lucide-award', label: 'Tier', options: TIERS, multiple: false },
+  { key: 'apps', icon: 'lucide-layout-grid', label: 'App', options: APP_OPTIONS, multiple: true },
+  { key: 'rating', icon: 'lucide-star', label: 'Rating', options: RATINGS, multiple: false },
+  { key: 'reply', icon: 'lucide-clock', label: 'Reply time', options: REPLIES, multiple: false },
+]
+const setFilter = (key, value) => search({ [key]: value }, 'replace')
+const clearTags = () => search({ tier: null, apps: [], rating: null, reply: null }, 'replace')
+
+// ── The list ────────────────────────────────────────────────────────────────
+const results = computed(() => store.results)
+const suggestions = computed(() => (isResults.value ? store.suggestions : []))
+// Nothing matched and nothing is one step away: the empty state.
+const emptied = computed(() => !results.value.length && !suggestions.value.length)
+
+// Titles for the suggestion groups, each leading with what these partners DO
+// have.
+//
+// ⚠️ "Proven in other industries", not "partners in other industries": a
+// partner's `industries` are where they've published success stories, not a
+// declared limit on the work they take.
+const SUGGESTION_TITLES = {
+  geo: 'Partners in other countries',
+  segments: 'Proven in other industries',
+  app: 'Working with other Frappe apps',
+}
+
+// ⚠️ Inert. There is no feedback form, and a text field in a toast isn't one.
 const feedbackToast = () =>
   toast.info('The feedback form is not built yet', {
     description: 'It would ask about the search you just ran.',
   })
-
-const clearTooltip = computed(() => {
-  if (!anyFilterActive.value) return 'No filters active'
-  if (extraFilterCount.value) {
-    return `${extraFilterCount.value} more filter${extraFilterCount.value === 1 ? '' : 's'} — clear all`
-  }
-  return 'Clear all filters'
-})
 </script>
 
 <template>
-  <ConnectShell saved>
-    <div class="fc-page-list py-8">
-      <h1 class="text-xl font-semibold text-ink-gray-9">
-        Work with certified partners with vast expertise
-      </h1>
-
-      <!-- Filter bar. Seeded from the quiz, editable from here on.
-           Every SELECT is a fixed 160px. frappe-ui's Select trigger is
-           `inline-flex`, so left alone it sizes to its value and the row reflows
-           every time you pick something — "Trading and Distribution" was 201px
-           against "All regions"' 111px. The trigger already truncates
-           internally, so a fixed width shortens the label instead of moving its
-           neighbours, and a uniform width means any wrap is an even one.
-
-           ⚠️ Search is the exception: `flex-1`, so it absorbs whatever the
-           fixed controls leave and the row always reaches the right edge of the
-           column. A row that stops short of the content beneath it reads as a
-           ragged edge rather than as a bar. It's also the right control to give
-           the slack to — a search field can always use more room, where a
-           Select past its longest option is just padding.
-
-           `min-w-40` floors it at the Selects' own 160px. Below that the row
-           wraps, which is the only time it should: `flex-wrap` is here for
-           genuinely narrow viewports, not as the resting state. -->
-      <div class="mt-3 flex flex-wrap items-center gap-2">
-        <TextInput
-          :model-value="store.filters.search"
-          class="min-w-40 flex-1"
-          placeholder="Search"
-          @update:model-value="setFilter('search', $event)"
-        >
-          <!-- gray-4, not the gray-6 the row-metadata icons use: this one is a
-               control affordance, and its peers are the chevrons on the two
-               dropdowns beside it, which `MultiSelect` hardcodes at
-               `text-ink-gray-4`. It's also the colour of the
-               placeholder it sits against — TextInput's own is
-               `placeholder-ink-gray-4` — so an empty field reads as one thing.
-               Passing no class at all would inherit the input's `text-ink-gray-8`
-               and be darker still.
-               ⚠️ frappe-ui's own `PrefixSuffix` story uses `-6` for exactly this
-               icon, so copying the story reproduces the bug. It works there
-               because that input isn't sitting in a row of placeholders. -->
-          <template #prefix>
-            <LucideSearch class="size-4 text-ink-gray-4" />
-          </template>
-        </TextInput>
-
-        <!-- Where the partner is — region AND country, one control. MultiSelect
-             because the quiz asks region as a multi-answer question, so the
-             filter mirroring it has to hold more than one; otherwise arriving
-             here would silently drop all but one of the regions you picked. -->
-        <MultiSelect
-          class="w-40"
-          :model-value="geoSelection"
-          :options="geoOptions"
-          placeholder="All regions"
-          @update:model-value="setGeo"
-        >
-          <!-- One slot covers every row: `slotFns` on `MultiSelectResults` is
-               the parent's own `useSlots()`, forwarded. `tabular-nums` so the
-               column of counts doesn't jitter between 1 and 8. -->
-          <template #item-suffix="{ item }">
-            <span class="tabular-nums text-ink-gray-5">{{ item.count }}</span>
-          </template>
-          <!-- The region's count belongs in the same column as its countries',
-               not inline after the label where it read as a count OF those
-               countries. `ComboboxLabel` is `px-2` and so is `ItemListRow` at
-               `sm`, so a right-aligned span here lands on exactly the edge
-               `#item-suffix` sits on. Colour is inherited: the heading is one
-               quiet line, and a gray-5 number in a gray-4 label splits it. -->
-          <template #group-label="{ group }">
-            <span class="min-w-0 flex-1 truncate">{{ group.group }}</span>
-            <span class="tabular-nums">{{ groupTotal(group) }}</span>
-          </template>
-          <template v-if="geoSummary" #summary>{{ geoSummary }}</template>
-        </MultiSelect>
-
-        <!-- Industry AND segment, in one control. The group label is the
-             industry and the options are its segments — nothing is selectable
-             at the group level, because nothing in the data is tagged there.
-             Multi-select, so "Discrete Manufacturing or Logistics" is sayable;
-             as two chained Selects it wasn't. -->
-        <MultiSelect
-          class="w-40"
-          :model-value="store.answers.segments"
-          :options="segmentOptions"
-          placeholder="All industries"
-          @update:model-value="setSegments"
-        >
-          <template v-if="segmentSummary" #summary>{{ segmentSummary }}</template>
-          <!-- Same two slots as the geo control, so the two dropdowns read as
-               one bar: count right-aligned on every row, and the group's own
-               total in the same column on the heading. -->
-          <template #item-suffix="{ item }">
-            <span class="tabular-nums text-ink-gray-5">{{ item.count }}</span>
-          </template>
-          <template #group-label="{ group }">
-            <span class="min-w-0 flex-1 truncate">{{ group.group }}</span>
-            <span class="tabular-nums">{{ store.industryCounts[group.key] ?? 0 }}</span>
-          </template>
-        </MultiSelect>
-        <!-- The count is only for filters with no control of their own in this
-             bar — currently the mid-list app chip. The Selects beside it already
-             show their own state, so counting them here would double-report.
-             Clearing still clears everything, so the button stays live whenever
-             any filter is set. -->
-        <Button
-          variant="subtle"
-          :label="extraFilterCount ? String(extraFilterCount) : undefined"
-          :tooltip="clearTooltip"
-          :disabled="!anyFilterActive"
-          @click="clearFilters"
-        >
-          <!-- `#icon` when there's no count, `#prefix` when there is. With
-               `#prefix` and no label frappe-ui's Button still renders its
-               (empty) label span and the `gap-2` before it, so the button came
-               out 40px wide with 8px of dead space beside the icon. `#icon`
-               makes it a real icon button — 28px, square. -->
-          <template v-if="extraFilterCount" #prefix>
-            <LucideListFilter class="size-4" />
-          </template>
-          <template v-else #icon>
-            <LucideListFilter class="size-4" />
-          </template>
-        </Button>
-      </div>
-
-      <!-- The heading and the filter bar are one group — a title and the
-           controls that belong to it — so they sit close (`mt-3`), and the gap
-           that matters is this one, between that group and the results it
-           produced. The count belongs to the list, not the bar: it's the list's
-           label, so it takes the space with it.
-
-           At zero it becomes the empty state. This used to be a centre-aligned
-           block below — headline, hint and a button — which stopped working once
-           suggestions landed underneath it: a tall centred panel sat between the
-           count and the partners it was telling you about, so the screen read as
-           finished when the useful part was below the fold. A label already
-           saying how many matched is the honest place for "none did", and it
-           costs no vertical space.
-
-           `ghost` for Clear filters because the suggestions below are now the
-           real way forward — this is the escape hatch, not the recommendation,
-           and a `subtle` button here would outrank the partners.
-
-           The Button is 28px against the text's 21px line box, so it sets the
-           row height and `items-center` centres the text against it — the
-           `text-p-base`-in-a-flex-row trap in FRAPPE-UI-NOTES needs the text to
-           be the tallest item to bite, and it isn't. -->
-      <div class="mt-9 flex min-h-7 flex-wrap items-center gap-x-1 gap-y-1">
-        <p class="text-p-base text-ink-gray-6">
-          <template v-if="results.length">
-            {{ results.length }} {{ results.length === 1 ? 'partner' : 'partners' }}
-          </template>
-          <template v-else>No partners match every filter</template>
-        </p>
-        <!-- `gap-x-1` rather than the `gap-x-2` this bar uses elsewhere: the
-             ghost Button carries 8px of internal padding of its own, so 4px of
-             gap reads as 12px between the two pieces of text, which is the
-             spacing that was wanted. Measure to the label, not the box. -->
-        <Button
-          v-if="!results.length && anyFilterActive"
-          variant="ghost"
-          label="Clear filters"
-          @click="clearFilters"
-        />
-      </div>
-
-      <!-- First page of results -->
-      <PartnerList class="mt-1">
-        <PartnerRow v-for="p in results.slice(0, 5)" :key="p.id" :partner="p" />
-      </PartnerList>
-
-      <!-- Interstitial refinement. Sits mid-list on purpose: it's the question
-           worth asking once someone has seen enough rows to know the list is
-           too broad, and it costs nothing to ignore. -->
-      <div v-if="results.length > 5" class="py-6">
-        <p class="text-p-base font-medium text-ink-gray-8">Which app are you looking to implement?</p>
+  <ConnectShell :hero="!hasAccount" :hero-passed="isLanding ? barPassed : null" saved>
+    <!-- ── The hero (landing only) ──────────────────────────────────────
+         A headline over a gray box holding two dropdown fields, location and
+         industry, and the search button. The fields are BarField
+         (frappe-ui's subtle field states minus the focus border) over
+         MultiSelect. Below `md` they stack in the box and the button takes
+         its label. -->
+    <section v-if="isLanding">
+      <div class="fc-page-list relative pb-12 pt-8 md:pb-16 md:pt-16">
+        <h1 class="text-6xl font-semibold text-ink-gray-9">Work with certified Frappe Partners</h1>
+        <!-- 576px (`max-w-xl`), not the column's 800: a shorter shape under the
+             headline and above the full-width list, so the page doesn't read
+             as one block. Each field still fits "United Arab Emirates". -->
+        <!-- One row from `sm` (640px): at 576px the bar fits any tablet or
+             narrow window. Below that the two fields stack in the box with a
+             rule between them, and the labeled button sits under the box,
+             not in it. -->
+        <div ref="barEl" class="fc-bar mt-4 flex flex-col rounded-6 bg-surface-gray-2 p-1 sm:max-w-xl sm:flex-row sm:items-center">
+          <!-- frappe-ui puts no class on MultiSelect's root when a #trigger is
+               passed, so this wrapper takes the flex share. -->
+          <div class="fc-bar-slot min-w-0 sm:flex-1">
+            <MultiSelect v-model="barCountries" :options="geoOptions" placeholder="Search countries" aria-label="Countries">
+              <template #trigger="{ open }">
+                <BarField :label="geoSummary ?? 'Any country'" :open="open" :fade="barFade" icon="sentence-icon-globe" tint="text-ink-blue-6" />
+              </template>
+              <template #item-suffix="{ item }">
+                <span class="tabular-nums text-ink-gray-5">{{ item.count }}</span>
+              </template>
+              <template #group-label="{ group }">
+                <span class="min-w-0 flex-1 truncate">{{ group.group }}</span>
+                <span class="tabular-nums">{{ groupTotal(group) }}</span>
+              </template>
+              <!-- No Clear All / Select All, as on the page's other pickers:
+                   untick to clear. "Select All" countries is no answer. -->
+              <template #footer />
+            </MultiSelect>
+          </div>
+          <div class="fc-bar-sep mx-2.5 shrink-0 border-t border-outline-gray-3 sm:mx-0 sm:h-4 sm:border-l sm:border-t-0" aria-hidden="true" />
+          <div class="fc-bar-slot min-w-0 sm:flex-1">
+            <MultiSelect v-model="barSegments" :options="segmentOptions" placeholder="Search industries" aria-label="Industries">
+              <template #trigger="{ open }">
+                <BarField :label="segmentSummary ?? 'Any industry'" :open="open" :fade="barFade" icon="sentence-icon-briefcase" tint="text-ink-amber-6" />
+              </template>
+              <template #item-suffix="{ item }">
+                <span class="tabular-nums text-ink-gray-5">{{ item.count }}</span>
+              </template>
+              <template #group-label="{ group }">
+                <span class="min-w-0 flex-1 truncate">{{ group.group }}</span>
+                <span class="tabular-nums">{{ store.industryCounts[group.key] ?? 0 }}</span>
+              </template>
+              <!-- No Clear All / Select All, as on the page's other pickers:
+                   untick to clear. "Select All" countries is no answer. -->
+              <template #footer />
+            </MultiSelect>
+          </div>
+          <!-- frappe-ui's `md` icon Button, 32px like the fields, 4px in from
+               the box's edge like them. Named in a tooltip. -->
+          <Tooltip text="Find partners">
+            <Button variant="solid" size="md" aria-label="Find partners" class="ml-1 shrink-0 max-sm:hidden" @click="find">
+              <template #icon><span class="lucide-search size-4" aria-hidden="true" /></template>
+            </Button>
+          </Tooltip>
+        </div>
+        <Button variant="solid" size="md" label="Find partners" class="mt-2 w-full sm:hidden" @click="find" />
+        <!-- Suggested searches, the directory's biggest pairs. Outline, not
+             the page's usual subtle: gray right under the gray box read as
+             a second row of fields. `trending-up`: these are what people
+             search for, not ideas. -->
         <div class="mt-3 flex flex-wrap gap-2">
-          <!-- Smaller than the quiz's region chips: this is a secondary
-               refinement offered mid-list, not a question being asked. -->
-          <FilterChip
-            v-for="a in APP_CHIPS"
-            :key="a.value"
-            :label="a.label"
-            size="xs"
-            :count="a.count"
-            :selected="store.filters.app === a.value"
-            @toggle="setFilter('app', store.filters.app === a.value ? null : a.value)"
+          <Button
+            v-for="s in SUGGESTIONS"
+            :key="s.label"
+            variant="outline"
+            size="sm"
+            icon-left="lucide-trending-up"
+            :label="s.label"
+            @click="useSuggestion(s)"
           />
         </div>
       </div>
+    </section>
 
-      <!-- Remaining results -->
-      <PartnerList>
-        <PartnerRow v-for="p in results.slice(5)" :key="p.id" :partner="p" />
+    <div class="fc-page-list pb-10" :class="isLanding ? 'pt-12' : hasAccount ? 'pt-5' : 'pt-6'">
+      <!-- The list's title with its count. One title that never changes:
+           the results view's chips already say where and what. "Certified"
+           carries the hero's promise onto the list it leads to. -->
+      <div class="mb-4 flex min-w-0 items-center gap-2">
+        <h1 v-if="isResults" class="truncate text-2xl font-semibold text-ink-gray-9">Certified partners</h1>
+        <h2 v-else class="text-lg font-semibold text-ink-gray-9">All partners</h2>
+        <Badge :label="results.length" />
+      </div>
+
+      <!-- ── The filter row (results view) ────────────────────────────────
+           Part of the page, not sticky. Location and industry lead, subtle
+           (gray fill), because they always hold an answer, even "Any …",
+           capped at 180px so a long pick truncates instead of pushing the
+           row. The Filter sits at the right; on phones it leads the row, so
+           it's never scrolled off-screen behind them. -->
+      <ScrollArea v-if="isResults" orientation="horizontal" class="-mx-5 min-w-0 md:mx-0" viewport-class="px-5 md:px-0">
+        <div class="flex items-center gap-1.5">
+            <div class="min-w-0 shrink-0">
+              <MultiSelect v-model="barCountries" :options="geoOptions" placeholder="Search countries" aria-label="Filter by country" variant="subtle" size="sm" class="max-w-[11.25rem]">
+                <template #prefix>
+                  <span class="sentence-icon-globe size-4 shrink-0 text-ink-blue-6" aria-hidden="true" />
+                </template>
+                <template #summary>
+                  <span class="text-ink-gray-8">{{ geoSummary ?? 'Any country' }}</span>
+                </template>
+                <template #item-suffix="{ item }">
+                  <span class="tabular-nums text-ink-gray-5">{{ item.count }}</span>
+                </template>
+                <template #group-label="{ group }">
+                  <span class="min-w-0 flex-1 truncate">{{ group.group }}</span>
+                  <span class="tabular-nums">{{ groupTotal(group) }}</span>
+                </template>
+                <!-- No Clear All / Select All, as on the page's other pickers:
+                     untick to clear. "Select All" countries is no answer. -->
+                <template #footer />
+              </MultiSelect>
+            </div>
+            <div class="min-w-0 shrink-0">
+              <MultiSelect v-model="barSegments" :options="segmentOptions" placeholder="Search industries" aria-label="Filter by industry" variant="subtle" size="sm" class="max-w-[11.25rem]">
+                <template #prefix>
+                  <span class="sentence-icon-briefcase size-4 shrink-0 text-ink-amber-6" aria-hidden="true" />
+                </template>
+                <template #summary>
+                  <span class="text-ink-gray-8">{{ segmentSummary ?? 'Any industry' }}</span>
+                </template>
+                <template #item-suffix="{ item }">
+                  <span class="tabular-nums text-ink-gray-5">{{ item.count }}</span>
+                </template>
+                <template #group-label="{ group }">
+                  <span class="min-w-0 flex-1 truncate">{{ group.group }}</span>
+                  <span class="tabular-nums">{{ store.industryCounts[group.key] ?? 0 }}</span>
+                </template>
+                <!-- No Clear All / Select All, as on the page's other pickers:
+                     untick to clear. "Select All" countries is no answer. -->
+                <template #footer />
+              </MultiSelect>
+            </div>
+          <div class="shrink-0 max-md:order-first md:ml-auto">
+            <PartnerFilter :fields="FILTER_FIELDS" :values="tagValues()" @set="setFilter" @clear="clearTags" />
+          </div>
+        </div>
+      </ScrollArea>
+
+      <PartnerList v-if="results.length" :class="isLanding ? 'mt-2' : 'mt-4'">
+        <PartnerRow v-for="p in results" :key="p.id" :partner="p" :city-only="isResults && applied.countries.length === 1" />
       </PartnerList>
 
-      <!-- ── Suggestions ─────────────────────────────────────────────────
-           Shown when the filters have narrowed to two partners or fewer, which
-           is few enough that the list has stopped being a choice.
+      <!-- Nothing matched and nothing is one step away either. -->
+      <div v-else-if="emptied" class="flex flex-col items-center py-16 text-center">
+        <div class="rounded-full bg-surface-gray-2 p-3 text-ink-gray-5">
+          <span class="lucide-building-2 size-6" aria-hidden="true" />
+        </div>
+        <p class="mt-3 text-base text-ink-gray-7">No partners match</p>
+        <Button variant="subtle" label="Talk to us" class="mt-5" @click="router.push('/contact')" />
+      </div>
 
-           Below the results AND below the empty state, deliberately: it answers
-           "what now?", which is only a question once you've seen how little
-           came back. The empty-state screen is the one that needs it most — its
-           only way out used to be discarding the whole quiz.
-
-           Each group is one lifted filter, so its title can say why these
-           partners are here. No rule above the block: the group titles already
-           say these aren't results, and a stroke here would be structure rather
-           than meaning. Same reason the mid-list app interstitial has none. -->
+      <!-- Partners one lifted filter away, when the list has narrowed to two
+           or fewer. Each group says which filter it lifted. -->
       <div v-if="suggestions.length" class="mt-12">
         <div v-for="g in suggestions" :key="g.key" class="mt-8 first:mt-0">
-          <p class="text-p-base font-medium text-ink-gray-8">{{ suggestionCopy(g.key).title }}</p>
-          <p v-if="suggestionCopy(g.key).note" class="mt-0.5 text-p-sm text-ink-gray-6">
-            {{ suggestionCopy(g.key).note }}
-          </p>
-          <!-- Real `PartnerRow`s, not a reduced card: Save and Contact have to
-               behave here exactly as they do in the list, and a suggested
-               partner is still a partner you might click through to. `mt-1`
-               matches the results list's own leading gap. -->
-          <PartnerList class="mt-1">
+          <h2 class="text-lg font-semibold text-ink-gray-9">{{ SUGGESTION_TITLES[g.key] ?? 'Also worth considering' }}</h2>
+          <PartnerList class="mt-2">
             <PartnerRow v-for="p in g.partners" :key="p.id" :partner="p" />
           </PartnerList>
         </div>
       </div>
 
-      <!-- Feedback. Kept inline at the end of the list rather than as a floating
-           widget: it asks about the search you just did, so it belongs where
-           that search ended.
-
-           The prompt and its button sit on ONE line, with the button pushed to
-           the right edge of the content column — which is the same edge every
-           row's Contact button sits on, so it joins that vertical rather than
-           floating mid-column. The rows bleed their hover fill 12px past this
-           column (`-mx-3 px-3`) but their content is measured to it, so
-           `justify-between` here lands flush with them.
-
-           `text-p-base` stays, even though FRAPPE-UI-NOTES warns the paragraph
-           scale stretches a flex row to its own 21px line box. That only bites
-           when the text is the TALLEST item in the row; here the 28px Button is,
-           so the row is 28px either way and `items-center` lands both dead
-           centre. Keeping the paragraph scale is what makes the wrapped case
-           read — narrow enough and this is two lines, where 21px leading is
-           right and `text-base`'s 16px is cramped.
-
-           `flex-wrap` + `gap-y-3` so a narrow viewport drops the button onto its
-           own line at the same spacing it used to have, rather than crushing the
-           text. -->
+      <!-- Feedback, where the search ended. -->
       <div class="mt-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-3 pt-6">
         <p class="text-p-base text-ink-gray-7">
           Help us improve by providing feedback on your search experience
@@ -573,3 +473,72 @@ const clearTooltip = computed(() => {
     </div>
   </ConnectShell>
 </template>
+
+<style scoped>
+/* MultiSelect's root is a block `div` sized by its flex slot, and its
+   trigger fills it. The rule between the fields steps aside when either
+   neighbour is hovered or open, so a lifted field never has a line cutting
+   into its edge. */
+.fc-bar-slot :deep(> *) {
+  width: 100%;
+}
+.fc-bar:has(.fc-bar-field:hover, .fc-bar-field[data-open]) .fc-bar-sep {
+  opacity: 0;
+}
+</style>
+
+<style>
+/* ⚠️ Not scoped: MultiSelect portals its popover to the body. Pinned widths,
+   so a popover never resizes as the search filters its rows or a pick
+   changes. frappe-ui only sets a MINIMUM (the trigger's width) and lets the
+   longest visible row widen it. The hero's popovers match their field;
+   the results view's chips get 320px, the room "United Arab Emirates", its
+   checkbox and its count need. Rows truncate inside. */
+[data-slot='content']:is([aria-label='Countries'], [aria-label='Industries']) {
+  width: var(--reka-combobox-trigger-width);
+}
+[data-slot='content']:is([aria-label='Filter by country'], [aria-label='Filter by industry']) {
+  width: 320px;
+}
+
+/* The search → results view transition (see `find`). The page
+   changes, not its controls: the landing leaves in 120ms, the results come
+   in over 200ms with an 8px lift, both on the strong ease-out. The top bar
+   has its own name and no animation, so the logo and Log in stay put.
+   Reduced motion: a 150ms fade, no lift. Only this transition exists in
+   the app. */
+::view-transition-old(root) {
+  animation: fc-vt-out 120ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+::view-transition-new(root) {
+  animation: fc-vt-in 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+::view-transition-group(fc-top),
+::view-transition-new(fc-top) {
+  animation: none;
+}
+::view-transition-old(fc-top) {
+  display: none;
+}
+@keyframes fc-vt-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes fc-vt-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-new(root) {
+    animation: fc-vt-fade 150ms ease-out both;
+  }
+  @keyframes fc-vt-fade {
+    from {
+      opacity: 0;
+    }
+  }
+}
+</style>

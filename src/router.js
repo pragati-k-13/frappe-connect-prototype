@@ -241,6 +241,14 @@ const routes = [
     name: 'results',
     component: () => import('./pages/ResultsPage.vue'),
   },
+  // A search from the partners hero: the same page as its results view, at
+  // its own URL so Back returns to it and it can be shared. Country, industry
+  // and the tags ride in the query. Static, so it outranks `:id`.
+  {
+    path: '/connect/partners/search',
+    name: 'partner-search',
+    component: () => import('./pages/ResultsPage.vue'),
+  },
   // The pack catalogue. A pack's detail opens as a dialog OVER this screen and
   // carries its id in `?pack=`, so a detail view is linkable, Back closes it,
   // and a shared link opens the right pack — none of which a dialog with no

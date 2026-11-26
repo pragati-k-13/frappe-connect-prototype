@@ -27,7 +27,7 @@ const collapsed = ref(window.matchMedia('(max-width: 639px)').matches)
 </script>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   Alert,
@@ -108,7 +108,7 @@ const projectRows = computed(() => {
 // the two are separate places and each has its row.
 // `contact-partners` too: it sits under /connect/partners and its breadcrumb
 // reads Partners, so the rail says the same.
-const DIRECTORY_ROUTES = new Set(['results', 'partner', 'partner-reviews', 'saved-partners', 'contact-partners'])
+const DIRECTORY_ROUTES = new Set(['results', 'partner-search', 'partner', 'partner-reviews', 'saved-partners', 'contact-partners'])
 const inDirectory = computed(() => DIRECTORY_ROUTES.has(route.name))
 
 // The front door: the questions, and the answer they produce.
@@ -376,7 +376,7 @@ const onRailMove = (e) => {
 //
 // Sidebar owns its own collapse behaviour (auto-collapses below `sm`), so
 // there's no responsive handling to write here.
-defineProps({
+const props = defineProps({
   // Trailing breadcrumb label. Unset on the list screens, where the bar just
   // reads the root.
   crumb: { type: String, default: null },
@@ -408,7 +408,33 @@ defineProps({
   // app's top bar. Always shown, "Saved" at zero. Signed in only: visitors
   // can't save, and their top bar is the website nav.
   saved: { type: Boolean, default: false },
+  // The partners page, signed out. The website nav at frappe-ui PageHeader's
+  // metrics (48px, `px-3 sm:px-5`), sticky, the same on the landing and the
+  // results view so the logo and Log in never move between them. Clear at
+  // rest; white with PageHeader's gray-1 rule once content scrolls under it.
+  hero: { type: Boolean, default: false },
+  // Whether the page's hero has scrolled under the bar, which is when its
+  // fill and rule fade in. Left null (no hero, e.g. the results view), the
+  // bar turns solid as soon as anything scrolls.
+  heroPassed: { type: Boolean, default: null },
 })
+
+// Whether anything has scrolled under the hero nav. A 1px sentinel at the top
+// of the scroll content; the root is the viewport, which still respects the
+// ScrollArea's clipping.
+const heroSentinel = ref(null)
+const heroScrolled = ref(false)
+let heroObserver = null
+watch(heroSentinel, (el) => {
+  heroObserver?.disconnect()
+  if (!el) return
+  heroObserver = new IntersectionObserver(([e]) => (heroScrolled.value = !e.isIntersecting))
+  heroObserver.observe(el)
+})
+onBeforeUnmount(() => heroObserver?.disconnect())
+// Clear while the hero shows, then white with PageHeader's gray-1 rule, both
+// fading in over the header's 150ms.
+const heroSolid = computed(() => (props.heroPassed != null ? props.heroPassed : heroScrolled.value))
 
 // Slots: `default` is the screen. `#action` is optional and replaces the top
 // bar's trailing control — see the note at the slot for why it replaces the
@@ -678,7 +704,7 @@ defineProps({
            the page, and the nav stays the same on every screen and at every
            scroll position. -->
       <header
-        v-if="website && !bare"
+        v-if="website && !bare && !hero"
         class="flex h-12 shrink-0 items-center justify-between border-b px-5"
       >
         <!-- The logo goes to the partner list: with Home stored (see the
@@ -707,7 +733,7 @@ defineProps({
           </Button>
         </div>
       </header>
-      <PageHeader v-else-if="!bare" class="!min-h-11 h-11 shrink-0">
+      <PageHeader v-else-if="!bare && !website" class="!min-h-11 h-11 shrink-0">
         <!-- "Partners" alone on the list screens; a breadcrumb once you're
              inside one. `crumb` is the trailing label, and "Partners" becomes
              the link back — the profile is a level down, so the bar is where
@@ -873,6 +899,29 @@ defineProps({
           :class="$slots.panel ? 'hidden md:block' : ''"
         >
           <main class="min-w-0">
+            <template v-if="website && hero">
+              <div ref="heroSentinel" class="h-px" aria-hidden="true" />
+              <!-- `fc-top`: its own view-transition name, so search's page
+                   fade leaves it still (ResultsPage). -->
+              <header
+                class="sticky top-0 z-20 -mt-px flex h-12 items-center justify-between border-b px-3 transition-colors duration-150 sm:px-5"
+                :class="heroSolid ? 'border-outline-gray-1 bg-surface-base' : 'border-transparent bg-transparent'"
+                style="view-transition-name: fc-top"
+              >
+                <RouterLink to="/connect/partners" class="flex items-center gap-2 rounded text-base font-medium text-ink-gray-9">
+                  <ConnectMark size="md" />
+                  Frappe Connect
+                </RouterLink>
+                <Button
+                  v-if="!store.signedIn"
+                  variant="ghost"
+                  label="Log in or create account"
+                  @click="requireAccount()"
+                >
+                  <template #suffix><LucideArrowRight class="size-4" /></template>
+                </Button>
+              </header>
+            </template>
             <slot />
           </main>
         </ScrollArea>
