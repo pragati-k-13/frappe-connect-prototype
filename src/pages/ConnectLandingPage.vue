@@ -166,7 +166,7 @@ const orbit = PARTNERS.filter((p) => logoFor(p.id))
         v-for="(sec, i) in SECTIONS"
         :id="sec.id"
         :key="sec.id"
-        class="mx-auto grid max-w-[800px] scroll-mt-8 items-center gap-10 py-12 lg:grid-cols-2 lg:gap-14 lg:py-16"
+        class="mx-auto grid max-w-3xl scroll-mt-8 items-center gap-10 py-12 lg:grid-cols-2 lg:gap-14 lg:py-16"
       >
         <div :class="i % 2 && 'lg:order-2'">
           <p class="text-base font-medium text-ink-gray-5">{{ sec.title }}</p>

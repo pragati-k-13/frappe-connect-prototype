@@ -460,7 +460,7 @@ defineExpose({ send })
            reason, and a mark is what makes a list of reasons scannable as a
            list. The generic block below carries a different mark for the
            same reason: these two lists are not the same kind of claim.
-           ⚠️ `max-w-[62ch]`, against the page's own 800px. At the full
+           ⚠️ `max-w-[62ch]`, against the page's own 768px. At the full
            measure these ran to about 110 characters a line. -->
       <ul v-if="!overridden" class="mt-3 max-w-[62ch] space-y-2.5">
         <li v-for="(reason, i) in reco.reasons" :key="i" class="flex gap-2.5">
