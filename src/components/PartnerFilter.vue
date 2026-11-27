@@ -56,6 +56,10 @@ const reset = () => {
   field.value = null
   step.value = active.value.length ? 'overview' : 'fields'
 }
+// The step on screen. An overview with nothing set is an empty box, so it
+// falls back to the field list, however the last filter went (removed here,
+// cleared from the trigger, or dropped by a search that replaced the URL).
+const view = computed(() => (step.value === 'overview' && !active.value.length ? 'fields' : step.value))
 const canGoBackFromFields = computed(() => active.value.length > 0)
 const openField = (f) => {
   field.value = f
@@ -136,9 +140,11 @@ const revealOnRowActivity =
       <div class="my-2 w-64 rounded-6 border border-outline-gray-1 bg-surface-base shadow-xl">
         <div class="relative overflow-clip rounded-[inherit]">
           <Transition :name="direction === 'forward' ? 'slide-forward' : 'slide-back'">
-            <div :key="step">
-              <!-- Overview: the set filters -->
-              <template v-if="step === 'overview'">
+            <div :key="view">
+              <!-- Overview: the set filters. The footer's buttons are ghost `sm` in
+                   their own ink, as MultiSelect's footer: Helpdesk's xs gray-5
+                   read as disabled, and its trash can promised a delete. -->
+              <template v-if="view === 'overview'">
                 <div class="flex h-9 items-center border-b border-outline-gray-1 p-2 ps-3">
                   <span class="text-base-medium text-ink-gray-8">Filters</span>
                 </div>
@@ -168,16 +174,16 @@ const revealOnRowActivity =
                   </div>
                 </div>
                 <div class="flex items-center justify-between border-t border-outline-gray-1 px-1 py-1.5">
-                  <Button v-if="unset.length" variant="ghost" size="xs" class="!text-ink-gray-5" label="Add filter" @click="go('fields')">
+                  <Button v-if="unset.length" variant="ghost" size="sm" label="Add filter" @click="go('fields')">
                     <template #prefix><span class="lucide-plus size-4" aria-hidden="true" /></template>
                   </Button>
                   <span v-else />
-                  <Button variant="ghost" size="xs" class="!text-ink-gray-5" label="Clear all" icon-left="lucide-trash-2" @click="clearAll(close)" />
+                  <Button variant="ghost" size="sm" label="Clear all" @click="clearAll(close)" />
                 </div>
               </template>
 
               <!-- Fields: the ones not yet set -->
-              <template v-else-if="step === 'fields'">
+              <template v-else-if="view === 'fields'">
                 <div v-if="canGoBackFromFields" class="flex h-9 items-center border-b border-outline-gray-1 ps-1">
                   <Button
                     variant="ghost"
@@ -204,7 +210,7 @@ const revealOnRowActivity =
               </template>
 
               <!-- Value: the field's options -->
-              <template v-else-if="step === 'value' && field">
+              <template v-else-if="view === 'value' && field">
                 <div class="flex h-9 items-center border-b border-outline-gray-1 pe-2 ps-1">
                   <Button
                     variant="ghost"
