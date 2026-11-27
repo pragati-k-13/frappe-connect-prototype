@@ -619,6 +619,15 @@ export const useConnectStore = defineStore('connect', {
     myReviewOf: (state) => (partnerId) =>
       state.writtenReviews.find((r) => r.partnerId === partnerId && r.author.email === state.viewer.email) ?? null,
 
+    // What `sendBrief` would send for this project right now, in the shape the
+    // partner's thread carries. Contact shows it before Send.
+    briefPreview() {
+      return (projectId) => {
+        const project = this.projects.find((p) => p.id === projectId)
+        return project ? snapshotBrief(project, this.briefOf(projectId), project.answers ?? this.company) : null
+      }
+    },
+
     briefOf: (state) => (projectId) => {
       const project = state.projects.find((p) => p.id === projectId)
       if (!project) return emptyBrief()

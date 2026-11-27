@@ -1,23 +1,12 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button, Dialog, FormControl, Select, Textarea } from 'frappe-ui'
-// Reached for directly because frappe-ui's `Dialog` renders `message` only as
-// the FALLBACK content of its default slot — so any dialog with a body of its
-// own loses the description, and the underlying primitive then warns that
-// `aria-describedby` is missing. reka-ui is frappe-ui's own dialog dependency,
-// not a new one. Same reasoning as `EstimateQuoteDialog`.
-import { DialogDescription } from 'reka-ui'
+import { Dialog, FormControl, ScrollArea, Select, Textarea } from 'frappe-ui'
 import NewProjectDialog from './NewProjectDialog.vue'
-import { PARTNERS, PROJECT_APPS } from '../data/partners'
-import {
-  briefComplete,
-  briefErrors,
-  budgetBandsFor,
-  budgetLabel,
-  scopeHint,
-  timelineLabel,
-} from '../data/custom'
+import BriefSummary from './BriefSummary.vue'
+import { useScrollFade } from '../lib/scrollFade'
+import { PARTNERS } from '../data/partners'
+import { briefComplete, briefErrors, budgetBandsFor, scopeHint } from '../data/custom'
 import { requirementsSentToast } from '../feedback'
 import { useConnectStore } from '../stores/connect'
 
@@ -38,9 +27,15 @@ import { useConnectStore } from '../stores/connect'
 //
 //   no project    `NewProjectDialog` with a partner: the project's questions,
 //                 then the brief, as one dialog that ends in Send.
-//   a project     "Contact <partner>". The brief read-only when it is complete;
-//                 when it is not, its two required answers asked here and
+//   a project     "Contact <partner>". The brief read-only when it is complete,
+//                 drawn by `BriefSummary` — the requirements dialog's own read
+//                 view, so what you check here is what the partner reads. When
+//                 it is not complete, its two required answers asked here and
 //                 saved to the project, so the next firm is not asked again.
+//
+// ⚠️ A LONG DESCRIPTION SCROLLS THE BODY, never the dialog: the title and Send
+// stay put, and the bottom edge fades while there is more (`useScrollFade`).
+// Not clamped — this is the last look before it is sent, so all of it shows.
 //
 // ⚠️ "A project" means `store.inquiryProjects` — custom and undecided work
 // only. A pack is bought as a fixed scope, so it is not requirements anyone is
@@ -88,6 +83,23 @@ const saved = computed(() => (project.value ? store.briefOf(project.value.id) : 
 // decision with consequences elsewhere — twelve firms may already be quoting
 // against it — so it is read-only here, with Manage beside it.
 const asking = computed(() => Boolean(saved.value) && !briefComplete(saved.value))
+
+// The brief as `sendBrief` will send it, company answers included.
+const preview = computed(() => (project.value ? store.briefPreview(project.value.id) : null))
+const companyName = computed(
+  () => (project.value?.answers ?? store.company).name || store.company.name || store.viewer.company || '',
+)
+
+const scroller = ref(null)
+const { more, remeasure } = useScrollFade(scroller)
+watch([() => form.projectId, asking], remeasure)
+
+// Edit leaves for the project; only shown when there is a finished brief to
+// change — an unfinished one is being written right here.
+const actions = computed(() => [
+  ...(asking.value ? [] : [{ label: 'Edit', variant: 'subtle', onClick: () => manage() }]),
+  { label: 'Send requirements', variant: 'solid', iconLeft: 'lucide-message-square', onClick: () => send() },
+])
 
 const bands = computed(() =>
   budgetBandsFor((project.value?.answers ?? store.company).country),
@@ -188,123 +200,71 @@ const send = () => {
     @create="createAndSend"
   />
 
-  <Dialog :open="open" size="md" @update:open="!$event && close()">
-    <template v-if="shownPartner" #title>
-      <div>
-        <h3 class="text-2xl font-semibold text-ink-gray-9">Contact {{ shownPartner.name }}</h3>
-        <!-- What sending hands over, said before it is sent: the company goes
-             with the brief. `pr-8` clears the ×, which the title slot does not
-             reserve room for. -->
-        <DialogDescription class="mt-1 pr-8 text-p-base text-ink-gray-5">
-          Your requirements and company details are shared with them.
-        </DialogDescription>
-      </div>
-    </template>
-
+  <!-- The requirements dialog's shape: frappe-ui's own title, a ScrollArea
+       body, and the footer from `actions`, pinned under it. -->
+  <Dialog
+    :open="open"
+    size="md"
+    :title="shownPartner ? `Contact ${shownPartner.name}` : ''"
+    :actions="project ? actions : []"
+    @update:open="!$event && close()"
+  >
     <template v-if="shownPartner && project" #default>
-      <form novalidate @submit.prevent="send">
-        <!-- The PICKER, and only when there is something to pick. Manage stays
-             visible beside it: this row is already interactive, and a control
-             that hides beside another control reads as part of it. -->
-        <div v-if="picking" class="flex items-center justify-between gap-3">
+      <ScrollArea
+        ref="scroller"
+        class="fc-scroll-dialog -my-1 -ml-1 -mr-4 sm:-mr-6"
+        :class="{ 'fc-scroll-more': more }"
+        viewport-class="py-1 pl-1 pr-4 sm:pr-6"
+      >
+        <form novalidate @submit.prevent="send">
+          <!-- The PICKER, and only when there is something to pick. -->
           <Select
+            v-if="picking"
             v-model="form.projectId"
-            class="min-w-0 flex-1"
+            class="mb-6"
             label="Project"
             :options="projectOptions"
           />
-          <Button class="shrink-0 self-end" variant="ghost" size="sm" label="Manage" @click="manage">
-            <template #suffix><LucideArrowUpRight class="size-4" /></template>
-          </Button>
-        </div>
 
-        <dl :class="picking ? 'mt-4 space-y-2' : 'space-y-2'">
-          <!-- ⚠️ `group` + `opacity`, NOT `v-if`, for Manage: the button keeps
-               its space, so revealing it cannot reflow the name beside it, and
-               it stays in the tab order. -->
-          <div v-if="!picking" class="group flex gap-6 text-p-base">
-            <dt class="w-32 shrink-0 text-ink-gray-5">Project</dt>
-            <dd class="flex min-w-0 items-center gap-1 font-medium text-ink-gray-8">
-              <span class="min-w-0">{{ project.name }}</span>
-              <Button
-                class="-my-1 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-                variant="ghost"
-                size="sm"
-                label="Manage"
-                @click="manage"
-              >
-                <template #suffix><LucideArrowUpRight class="size-4" /></template>
-              </Button>
-            </dd>
-          </div>
+          <BriefSummary v-if="!asking" :brief="preview" own :company-name="companyName" />
 
-          <!-- The brief as the partner will read it: the same three facts the
-               card in their thread leads with. `line-clamp-3`, not a cut
-               string — the scope is whatever somebody typed. -->
-          <template v-if="!asking">
-            <div class="flex gap-6 text-p-base">
-              <dt class="w-32 shrink-0 text-ink-gray-5">What you need</dt>
-              <dd class="line-clamp-3 min-w-0 whitespace-pre-line text-ink-gray-8">
-                {{ saved.scope }}
-              </dd>
-            </div>
-            <div v-if="project?.apps?.length" class="flex gap-6 text-p-base">
-              <dt class="w-32 shrink-0 text-ink-gray-5">Apps</dt>
-              <dd class="font-medium text-ink-gray-8">{{ project.apps.map((v) => PROJECT_APPS.find((a) => a.value === v)?.label ?? v).join(', ') }}</dd>
-            </div>
-            <div class="flex gap-6 text-p-base">
-              <dt class="w-32 shrink-0 text-ink-gray-5">Budget</dt>
-              <dd class="font-medium text-ink-gray-8">{{ budgetLabel(saved.budget) }}</dd>
-            </div>
-            <div v-if="saved.timeline" class="flex gap-6 text-p-base">
-              <dt class="w-32 shrink-0 text-ink-gray-5">Timeline</dt>
-              <dd class="font-medium text-ink-gray-8">{{ timelineLabel(saved.timeline) }}</dd>
-            </div>
-          </template>
-        </dl>
-
-        <!-- ── The brief, when the project cannot be sent yet ─────────────
-             The same two questions, labels and live hint as the
-             recommendation's custom half, so a brief written here and one
-             written there are the same brief. -->
-        <div v-if="asking" class="mt-5 space-y-4">
-          <FormControl
-            v-model="form.budget"
-            type="select"
-            label="Your budget"
-            placeholder="Select a range"
-            required
-            :options="bands"
-            :error="errors.budget"
-          />
-          <div>
-            <Textarea
-              v-model="form.scope"
-              label="What do you want built?"
-              placeholder="What do you make or sell, who are your customers, how does it run today, what keeps going wrong, and what must it connect to or prove?"
-              :rows="5"
+          <!-- The brief, when the project cannot be sent yet. The same two
+               questions, labels and live hint as the recommendation's custom
+               half, so a brief written here and one written there are the
+               same brief. -->
+          <div v-else class="space-y-4">
+            <FormControl
+              v-model="form.budget"
+              type="select"
+              label="Your budget"
+              placeholder="Select a range"
               required
-              :error="errors.scope"
+              :options="bands"
+              :error="errors.budget"
             />
-            <p
-              class="mt-1.5 text-p-sm leading-relaxed"
-              :class="{
-                'text-ink-gray-5': hint.tone === 'neutral',
-                'text-ink-amber-7': hint.tone === 'warn',
-                'text-ink-green-7': hint.tone === 'good',
-              }"
-            >
-              {{ hint.text }}
-            </p>
+            <div>
+              <Textarea
+                v-model="form.scope"
+                label="What do you want built?"
+                placeholder="What do you make or sell, who are your customers, how does it run today, what keeps going wrong, and what must it connect to or prove?"
+                :rows="5"
+                required
+                :error="errors.scope"
+              />
+              <p
+                class="mt-1.5 text-p-sm leading-relaxed"
+                :class="{
+                  'text-ink-gray-5': hint.tone === 'neutral',
+                  'text-ink-amber-7': hint.tone === 'warn',
+                  'text-ink-green-7': hint.tone === 'good',
+                }"
+              >
+                {{ hint.text }}
+              </p>
+            </div>
           </div>
-        </div>
-
-        <div class="mt-8">
-          <Button class="w-full" variant="solid" size="sm" label="Send requirements" type="submit">
-            <template #prefix><LucideSend class="size-4" /></template>
-          </Button>
-        </div>
-      </form>
+        </form>
+      </ScrollArea>
     </template>
   </Dialog>
 </template>
