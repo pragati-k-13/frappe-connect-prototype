@@ -29,6 +29,7 @@ import {
   windowFor,
 } from '../data/project'
 import { appsInUse, sharedAnswers } from '../data/company'
+import { budgetLabel, timelineLabel } from '../data/custom'
 import { useConnectStore } from '../stores/connect'
 import { useContactPartner } from '../utils/contact'
 
@@ -162,6 +163,23 @@ const brief = computed(() => {
   }
 })
 const briefOpen = ref(false)
+const detailsOpen = ref(false)
+const canReview = computed(() => Boolean(reviewable.value && project.value?.completedAt && !reviewed.value))
+
+// The header's facts: how many apps, the budget, the deadline. Short — the
+// full answers are in Details.
+const SHORT_TIMELINE = { now: 'As soon as possible', quarter: '3 months', half: '6 months', none: 'No deadline' }
+const facts = computed(() => {
+  const p = project.value
+  if (!p) return []
+  const b = brief.value ?? p.brief ?? {}
+  const apps = (p.apps ?? []).length
+  return [
+    apps && { icon: 'lucide-layout-grid', text: `${apps} ${apps === 1 ? 'app' : 'apps'}` },
+    b.budget && budgetLabel(b.budget) && { icon: 'lucide-wallet', text: budgetLabel(b.budget) },
+    b.timeline && { icon: 'lucide-calendar', text: SHORT_TIMELINE[b.timeline] ?? timelineLabel(b.timeline) },
+  ].filter(Boolean)
+})
 
 // ── A draft ─────────────────────────────────────────────────────────────────
 // Editable and deletable until it starts — see `isDraft`.
@@ -441,7 +459,7 @@ const complete = () => {
         <!-- The started project's column brings its own padding
              (`fc-page-read`); the missing-project state and a draft keep the
              page's. -->
-        <div class="w-full py-8" :class="!project ? 'px-5 lg:px-8' : ''">
+        <div class="w-full pb-10 pt-8" :class="!project ? 'px-5 lg:px-8' : ''">
           <!-- An id that names nothing: a forwarded or stale link should land
                somewhere it can be recovered from. -->
           <div v-if="!project" class="py-20 text-center">
@@ -456,12 +474,30 @@ const complete = () => {
                read top to bottom, which names a project — so body copy does
                not stretch across a wide pane beside the rail. Every stage has
                the rail, the unshared one included. -->
-          <div v-else class="fc-page-read mx-auto w-full">
-            <!-- ⚠️ NO TITLE HERE on a started project, at any width: the
-                 column opens on the work. The breadcrumb names the project,
-                 and the rail's header renames it — below `lg`, at the foot of
-                 the page. A title here, shown only when the rail stacked, sat
-                 directly under the breadcrumb saying the same thing. -->
+          <div v-else class="fc-page-list mx-auto w-full">
+            <!-- ⚠️ THE PAGE'S ANCHOR: the project's name, large, with what was
+                 asked for as an icon and a word or two each. Everything else
+                 the rail used to hold is one click away in Details. -->
+            <header class="mb-14 flex flex-wrap items-start gap-4">
+              <div class="min-w-0 flex-1">
+                <h1 class="text-pretty text-4xl font-semibold text-ink-gray-9">{{ project.name }}</h1>
+                <ul v-if="facts.length" class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-base text-ink-gray-6">
+                  <li v-for="f in facts" :key="f.icon" class="inline-flex items-center gap-1.5">
+                    <span :class="f.icon" class="size-4 shrink-0" aria-hidden="true" />
+                    {{ f.text }}
+                  </li>
+                </ul>
+              </div>
+              <Button class="mt-0.5" label="Details" @click="detailsOpen = true" />
+            </header>
+            <!-- Was a button in the rail: once the work is done, the review is
+                 the one thing left to ask, so it sits under the name. -->
+            <Alert
+              v-if="canReview"
+              class="mb-6"
+              :title="`How was working with ${partner.name}?`"
+              :primary-action="{ label: 'Write a review', onClick: () => (rating = true) }"
+            />
 
             <!-- ⚠️ A STARTER PACK IS ONE LIST, not stages behind a progress bar
                  — see `PACK_STAGES`. Custom work keeps its stages. -->
@@ -550,52 +586,10 @@ const complete = () => {
             </template>
 
 
-            <!-- Below `lg` there is no rail, so the reference stacks under the
-                 work. `-mx-5` cancels the page padding so its rules run edge to
-                 edge. -->
-            <div class="-mx-5 mt-10 border-t border-outline-gray-1 lg:hidden">
-              <ProjectAbout
-                :project="project"
-                :packs="packs"
-                :partner="partner"
-                :region="region"
-                @scope="openScope"
-                :has-brief="Boolean(brief)"
-                :brief="brief"
-                @requirements="briefOpen = true"
-                :can-review="Boolean(reviewable && project?.completedAt && !reviewed)"
-                :when="project?.completedAt && project.service === 'pack' ? when : null"
-                @message="messagePartner(partner)"
-                @review="rating = true"
-                @rename="rename"
-              />
-            </div>
           </div>
         </div>
       </ScrollArea>
 
-      <aside
-        v-if="project"
-        class="hidden w-[352px] shrink-0 flex-col border-l border-outline-gray-1 lg:flex"
-      >
-        <ScrollArea class="min-h-0 flex-1">
-          <ProjectAbout
-            :project="project"
-            :packs="packs"
-            :partner="partner"
-            :region="region"
-            @scope="openScope"
-            :has-brief="Boolean(brief)"
-                :brief="brief"
-            @requirements="briefOpen = true"
-            :can-review="Boolean(reviewable && project?.completedAt && !reviewed)"
-            :when="project?.completedAt && project.service === 'pack' ? when : null"
-            @message="messagePartner(partner)"
-            @review="rating = true"
-                @rename="rename"
-          />
-        </ScrollArea>
-      </aside>
     </div>
 
     <PackTermsDialog
@@ -642,6 +636,30 @@ const complete = () => {
         { label: 'Delete', variant: 'solid', theme: 'red', onClick: deleteDraft },
       ]"
     />
+    <!-- The rail's content, Rename included, behind Details. Requirements
+         closes it first, so two dialogs never stack. -->
+    <Dialog v-model="detailsOpen" title="Project" size="md">
+      <template #default>
+        <ProjectAbout
+          v-if="project"
+          class="-mx-5 -mb-5"
+          without-asked
+          :project="project"
+          :packs="packs"
+          :partner="partner"
+          :region="region"
+          :has-brief="Boolean(brief)"
+          :brief="brief"
+          :can-review="canReview"
+          :when="project?.completedAt && project.service === 'pack' ? when : null"
+          @scope="detailsOpen = false; openScope()"
+          @requirements="detailsOpen = false; briefOpen = true"
+          @message="messagePartner(partner)"
+          @review="detailsOpen = false; rating = true"
+          @rename="rename"
+        />
+      </template>
+    </Dialog>
     <BriefDetailsDialog
       v-model:open="briefOpen"
       :brief="brief"

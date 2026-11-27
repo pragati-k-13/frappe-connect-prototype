@@ -35,6 +35,9 @@ const props = defineProps({
   brief: { type: Object, default: null },
   // Offer the public review — only once the project is complete and unreviewed.
   canReview: { type: Boolean, default: false },
+  // In the project page's Details dialog the header already shows the budget
+  // and timeline, so the rows would repeat it.
+  withoutAsked: { type: Boolean, default: false },
   // The page's time line — days left on a pack, or when it was completed —
   // `{ text, tone }`, shown under the timeline.
   when: { type: Object, default: null },
@@ -154,7 +157,7 @@ const apps = computed(() =>
 )
 // What the business asked for, on custom work. A pack's is in its scope.
 const asked = computed(() => {
-  if (props.packs.length) return []
+  if (props.packs.length || props.withoutAsked) return []
   const b = props.brief ?? props.project.brief ?? {}
   return [
     { label: 'Budget', value: budgetLabel(b.budget) },
