@@ -395,6 +395,11 @@
 .fc-page-wide {
   max-width: calc(1040px + 2 * var(--fc-page-pad));
 }
+/* The project page: 768px, between read and list. Comes after them so it
+   wins over `.fc-page-list`, whose padding it keeps. */
+.fc-page-project {
+  max-width: calc(768px + 2 * var(--fc-page-pad));
+}
 
 /* The in-app content column, as a container-query root.
    A screen can open a side panel (see `ConnectShell`'s `panel` slot), and when

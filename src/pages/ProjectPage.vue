@@ -474,11 +474,11 @@ const complete = () => {
                read top to bottom, which names a project — so body copy does
                not stretch across a wide pane beside the rail. Every stage has
                the rail, the unshared one included. -->
-          <div v-else class="fc-page-list mx-auto w-full">
+          <div v-else class="fc-page-list fc-page-project mx-auto w-full">
             <!-- ⚠️ THE PAGE'S ANCHOR: the project's name, large, with what was
                  asked for as an icon and a word or two each. Everything else
                  the rail used to hold is one click away in Details. -->
-            <header class="mb-14 flex flex-wrap items-start gap-4">
+            <header class="mb-16 flex flex-wrap items-start gap-4">
               <div class="min-w-0 flex-1">
                 <h1 class="text-pretty text-4xl font-semibold text-ink-gray-9">{{ project.name }}</h1>
                 <ul v-if="facts.length" class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-base text-ink-gray-6">

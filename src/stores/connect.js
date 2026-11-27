@@ -269,7 +269,7 @@ export const useConnectStore = defineStore('connect', {
     //   partnerRole   'owner' | 'sales' | 'finance' | 'member' — sets landing and actions
     //   partnershipState  one of PARTNERSHIP_STATES; Bronze and up only
     partnerTier: 'bronze-up',
-    // The project page's quote layout while two are compared: 'rows' | 'cards'.
+    // The project page's quote layout while they're compared: 'rows' | 'cards' | 'soft'.
     // See `PartnerCard`. Set from the Demo menu.
     quoteLayout: 'rows',
     partnerRole: 'owner',

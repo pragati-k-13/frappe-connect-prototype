@@ -259,13 +259,9 @@ const SHARED_NOTE = {
 // Which of these rows each view shows: a firm marked Not interested before it
 // quoted sits in that view with the quotes marked the same way.
 const OTHERS_IN = {
-  all: (r) => r.status !== 'passed',
   quoted: () => false,
   waiting: (r) => r.status === 'waiting' || r.status === 'sending',
   notSent: () => false,
-  declined: (r) => r.status === 'declined',
-  passed: (r) => r.status === 'passed',
-  hidden: () => false,
 }
 
 // The lead list's status style: a dot and a word. Waiting is still open, so it
@@ -299,34 +295,33 @@ const sendNotInterested = (payload) => {
 // shared" was a view when sharing was a separate step; every Send shares them
 // now, so it no longer splits the list.
 const VIEWS = {
-  all: { label: 'All', match: (r) => r.state !== 'not-interested' },
-  quoted: { label: 'Quoted', match: (r) => r.state !== 'not-interested' },
-  waiting: { label: 'Awaiting quote', match: () => false },
-  notSent: { label: 'Suggested', match: () => false },
-  // Their no and yours are different filters: one ends the firm's interest,
-  // the other yours.
-  declined: { label: 'Declined', match: () => false },
-  passed: { label: 'Not interested', match: (r) => r.state === 'not-interested' },
-  hidden: { label: 'Hidden', match: () => false },
+  quoted: { match: (r) => r.state !== 'not-interested' },
+  waiting: { match: () => false },
+  notSent: { match: () => false },
 }
-const RECOMMENDED_IN = { all: true, notSent: true }
+const RECOMMENDED_IN = { notSent: true }
 const view = ref('quoted')
 // Hidden rows leave every view but Hidden, whatever their status. Hidden
 // shows them all, quotes and firms you're waiting on as well as suggestions.
 const isHidden = (id) => hiddenIds.value.includes(id)
+// ⚠️ CLOSED IS THREE NOES IN ONE TAB: the firm declined, you said not
+// interested, or you hid it. Each card still says which. Three tabs for them
+// pushed the bar past the column as soon as a suggestion appeared.
+const isClosedQuote = (r) => isHidden(r.partnerId) || r.state === 'not-interested'
+const isClosedOther = (r) => isHidden(r.partnerId) || r.status === 'declined' || r.status === 'passed'
 const rowsIn = (key) =>
-  key === 'hidden'
-    ? rows.value.filter((r) => isHidden(r.partnerId))
+  key === 'closed'
+    ? rows.value.filter(isClosedQuote)
     : rows.value.filter((r) => !isHidden(r.partnerId) && VIEWS[key].match(r))
 const othersIn = (key) =>
-  key === 'hidden'
-    ? others.value.filter((r) => isHidden(r.partnerId))
+  key === 'closed'
+    ? others.value.filter(isClosedOther)
     : others.value.filter((r) => !isHidden(r.partnerId) && OTHERS_IN[key](r))
 const count = (key) =>
   rowsIn(key).length +
   othersIn(key).length +
   (RECOMMENDED_IN[key] ? recommended.value.length : 0) +
-  (key === 'hidden' ? hiddenRows.value.length : 0)
+  (key === 'closed' ? hiddenRows.value.length : 0)
 const visible = computed(() => rowsIn(view.value))
 const visibleOthers = computed(() => othersIn(view.value))
 // The rows after the quotes, in three runs — see the template.
@@ -336,7 +331,11 @@ const tail = computed(() => [
   { key: 'declined', rows: visibleOthers.value.filter((r) => r.status === 'declined') },
 ])
 const visibleRecommended = computed(() =>
-  RECOMMENDED_IN[view.value] ? recommended.value : view.value === 'hidden' ? hiddenRows.value : [],
+  RECOMMENDED_IN[view.value]
+    ? recommended.value
+    : view.value === 'closed'
+      ? hiddenRows.value
+      : [],
 )
 
 // "Details shared" under a name only when it tells rows apart: a broadcast
@@ -349,19 +348,17 @@ const shareVaries = computed(() => INTEREST_STEP && rows.value.some((r) => r.sta
 const TAB_LABEL = {
   quoted: 'Quotes',
   waiting: 'Waiting',
-  declined: 'Declined',
-  passed: 'Not interested',
   notSent: 'Suggested',
-  hidden: 'Hidden',
+  closed: 'Closed',
 }
 const ALWAYS = ['quoted', 'waiting']
 // Each tab's dot: the colour its cards' status already uses, so tab and card
-// say the same thing. Suggested and Hidden take the hollow ring (not started).
+// say the same thing. Suggested takes the hollow ring (not started); Closed
+// the gray of a no.
 const TAB_DOT = {
   quoted: 'bg-surface-green-7',
   waiting: STATUS.waiting.dot,
-  declined: STATUS.declined.dot,
-  passed: STATUS.passed.dot,
+  closed: STATUS.passed.dot,
 }
 const tabs = computed(() =>
   Object.keys(TAB_LABEL)
@@ -377,8 +374,11 @@ const firstFull = () => ['quoted', 'waiting', 'notSent'].find((k) => count(k) > 
 // back lands on the tab you left, not on Quotes.
 const route = useRoute()
 const router = useRouter()
-const fromUrl = route.query.tab
+// Links from before Closed existed name its three parts; they open Closed.
+const OLD_TAB = { declined: 'closed', passed: 'closed', hidden: 'closed' }
+const fromUrl = OLD_TAB[route.query.tab] ?? route.query.tab
 view.value = fromUrl && tabs.value.some((t) => t.key === fromUrl) ? fromUrl : firstFull()
+if (route.query.tab && route.query.tab !== view.value) router.replace({ query: { ...route.query, tab: view.value } })
 watch(view, (tab) => {
   if (route.query.tab !== tab) router.replace({ query: { ...route.query, tab } })
 })
@@ -463,14 +463,10 @@ const suggestedActions = (row) =>
         { kind: 'dismiss', label: 'Hide', icon: 'lucide-eye-off', onClick: () => hide(row) },
       ]
 
+// Only Quotes and Waiting can be empty: the other tabs go when they empty.
 const EMPTY = {
-  all: { icon: 'lucide-inbox', title: 'No partners yet' },
   quoted: { icon: 'lucide-inbox', title: 'No quotes yet' },
   waiting: { icon: 'lucide-clock', title: 'No quotes pending' },
-  notSent: { icon: 'lucide-send', title: 'Sent to every recommended partner' },
-  declined: { icon: 'lucide-ban', title: 'No one declined' },
-  passed: { icon: 'lucide-ban', title: 'No one marked not interested' },
-  hidden: { icon: 'lucide-eye-off', title: 'No hidden partners' },
 }
 </script>
 
@@ -539,7 +535,7 @@ const EMPTY = {
       </p>
 
       <div ref="listEl" class="mt-4">
-        <EmptyState v-if="!visible.length && !visibleOthers.length && !visibleRecommended.length" :icon="EMPTY[view].icon" :title="EMPTY[view].title" />
+        <EmptyState v-if="!visible.length && !visibleOthers.length && !visibleRecommended.length" :icon="(EMPTY[view] ?? EMPTY.quoted).icon" :title="(EMPTY[view] ?? EMPTY.quoted).title" />
 
         <!-- Two layouts while we choose, from the Demo menu — see
              `PartnerCard`. Rows are divided, never ruled above the first;
@@ -558,6 +554,9 @@ const EMPTY = {
           >
             <template #badges>
               <Badge v-if="project.hireRequest === row.partnerId" theme="blue" label="Requested" />
+              <!-- In Closed, which no it was. -->
+              <Badge v-else-if="isHidden(row.partnerId)" theme="gray" label="Hidden" />
+              <Badge v-else-if="row.state === 'not-interested'" theme="gray" label="Not interested" />
             </template>
             <template #aside>
               <!-- ⚠️ A QUOTE FROM BEFORE THE REQUIREMENTS CHANGED gets a history
@@ -582,6 +581,9 @@ const EMPTY = {
               :layout="layout"
               :actions="otherActions(row)"
             >
+              <template v-if="isHidden(row.partnerId)" #badges>
+                <Badge theme="gray" label="Hidden" />
+              </template>
               <template #aside>
                 <span class="inline-flex items-center gap-2 text-base text-ink-gray-7">
                   <StageDot :color="STATUS[row.status].dot" />
@@ -605,14 +607,18 @@ const EMPTY = {
                   {{ row.note }}
                 </span>
               </template>
+              <!-- Hidden, in Closed: a badge by the name, like every closed card. -->
+              <template v-if="row.hidden" #badges>
+                <Badge theme="gray" label="Hidden" />
+              </template>
               <!-- ⚠️ A HOLLOW RING for Suggested: not started, lighter than
                    the statuses that need you. -->
-              <template #aside>
+              <template v-if="!row.hidden" #aside>
                 <span class="inline-flex items-center gap-2 text-base text-ink-gray-6">
                   <span class="grid size-4 shrink-0 place-items-center" aria-hidden="true">
                     <span class="size-2 rounded-full border border-outline-gray-4" />
                   </span>
-                  {{ row.hidden ? 'Hidden' : 'Suggested' }}
+                  Suggested
                 </span>
               </template>
             </PartnerCard>

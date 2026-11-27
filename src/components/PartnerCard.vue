@@ -13,6 +13,10 @@ import { logoFor } from '../data/logos'
 //          rating; the opening of their story. Hire, Message and Not
 //          interested stacked behind a rule, top-aligned; only Not
 //          interested has an icon.
+//   soft   The rows card without its inner frames: one outline-gray-2
+//          hairline, 24px padding, 16px radius. Name over city, rating and
+//          founding year; price over weeks. Not interested bottom left,
+//          Message and Hire bottom right.
 //   cards  Braintrust's card. A small logo, the name and the price on one line;
 //          the note under them; a footer with location and weeks on the left
 //          and the actions on the right, Hire last.
@@ -37,6 +41,12 @@ const facts = computed(() => {
   return [
     p.reviews > 0 && p.rating && { icon: 'lucide-star', text: p.rating.toFixed(1), strong: true, after: `(${p.reviews})` },
   ].filter(Boolean)
+})
+// Soft cards: the firm's facts with the founding year back — the weeks
+// moved under the price, so this row is only about the firm.
+const firmFacts = computed(() => {
+  const year = props.partner.founding?.year
+  return [...facts.value, year && { icon: 'lucide-building-2', text: `Since ${year}` }].filter(Boolean)
 })
 const story = computed(() => props.partner.founding?.story?.[0] ?? '')
 
@@ -110,6 +120,74 @@ const HIRE_HOVER = 'hover:!bg-surface-gray-10 hover:!text-ink-base active:!bg-su
         :label="a.label"
         :icon-left="a.kind === 'dismiss' ? a.icon : undefined"
                 :route="a.route"
+        :class="a.kind === 'primary' && a.hire ? HIRE_HOVER : ''"
+        @click="a.onClick?.()"
+      />
+    </div>
+  </article>
+
+  <!-- ── Soft: one outline, nothing inside it ──────────────────────── -->
+  <article v-else-if="layout === 'soft'" class="rounded-7 border border-outline-gray-2 bg-surface-base p-6">
+    <!-- Two lines a side: the firm (name over city, rating, founded) on
+         the left, the offer (price over weeks) on the right. -->
+    <div class="flex items-start gap-3.5">
+      <Avatar
+        :image="logoFor(partner.id)"
+        :label="partner.name"
+        size="2xl"
+        shape="square"
+        class="fc-logo-avatar fc-logo-tint shrink-0"
+      />
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-2">
+          <RouterLink
+            :to="{ name: 'partner', params: { id: partner.id } }"
+            class="truncate text-xl font-semibold text-ink-gray-7 hover:underline"
+          >
+            {{ partner.name }}
+          </RouterLink>
+          <TierIcon :tier="partner.tier" />
+          <slot name="badges" />
+        </div>
+        <div class="mt-1 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-sm text-ink-gray-6">
+          <span class="inline-flex items-center gap-1">
+            <span class="lucide-map-pin size-4 shrink-0" aria-hidden="true" />
+            {{ cityOf(partner) }}
+          </span>
+          <span v-for="f in firmFacts" :key="f.icon" class="inline-flex items-center gap-1">
+            <span :class="f.icon" class="size-4 shrink-0" aria-hidden="true" />
+            <span :class="f.strong ? 'tabular-nums text-ink-gray-8' : ''">{{ f.text }}</span>
+            <span v-if="f.after">{{ f.after }}</span>
+          </span>
+          <slot name="meta" />
+        </div>
+      </div>
+      <div class="shrink-0 text-right">
+        <slot name="aside" />
+        <p v-if="weeks" class="mt-1 text-sm tabular-nums text-ink-gray-6">{{ weeks }} weeks</p>
+      </div>
+    </div>
+    <p v-if="story" class="mt-3 line-clamp-2 text-p-base text-ink-gray-6">{{ story }}</p>
+    <!-- ⚠️ NOT INTERESTED ON THE LEFT, Message and Hire on the right: the
+         way out sits across the card from the way in, so a hurried click
+         can't land on the wrong one. Natural widths; Hire turns solid under
+         the pointer. -->
+    <div class="mt-4 flex flex-wrap items-center gap-2">
+      <Button
+        v-for="a in byKind('dismiss')"
+        :key="a.label"
+        class="-ml-2.5"
+        variant="ghost"
+        :label="a.label"
+        :icon-left="a.icon"
+        @click="a.onClick?.()"
+      />
+      <span class="flex-1" />
+      <Button
+        v-for="a in [...byKind('secondary'), ...byKind('primary')]"
+        :key="a.label"
+        :label="a.label"
+        :route="a.route"
         :class="a.kind === 'primary' && a.hire ? HIRE_HOVER : ''"
         @click="a.onClick?.()"
       />

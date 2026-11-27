@@ -393,6 +393,7 @@ const options = computed(() => [
           options: [
             { label: 'Rows', icon: store.quoteLayout === 'rows' ? 'lucide-check' : 'lucide-minus', onClick: () => store.setQuoteLayout('rows') },
             { label: 'Cards', icon: store.quoteLayout === 'cards' ? 'lucide-check' : 'lucide-minus', onClick: () => store.setQuoteLayout('cards') },
+            { label: 'Soft cards', icon: store.quoteLayout === 'soft' ? 'lucide-check' : 'lucide-minus', onClick: () => store.setQuoteLayout('soft') },
           ],
         },
       ]
