@@ -23,7 +23,7 @@ import {
   isOverdue,
 } from '../data/audits'
 
-// SCREEN — one audit, the same shape at every stage, in the 800px column
+// SCREEN — one audit, the same shape at every stage, in the 768px column
 // Invoices uses. Named by the PMM level it's for, which a reschedule can't
 // change, with press's ID beside it to quote in email. Three cards whose values
 // fill in as the audit moves: the date with its status, the partner manager

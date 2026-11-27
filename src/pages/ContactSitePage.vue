@@ -105,8 +105,8 @@ const OFFICE = [
       </header>
 
       <div class="min-h-0 flex-1 overflow-y-auto">
-        <!-- 800px of content: the 848px cap less the 24px gutter each side. -->
-        <main class="mx-auto w-full max-w-[848px] px-6 py-16">
+        <!-- 768px of content: the 816px cap less the 24px gutter each side. -->
+        <main class="mx-auto w-full max-w-[816px] px-6 py-16">
           <p class="text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-gray-5">
             Contact
           </p>

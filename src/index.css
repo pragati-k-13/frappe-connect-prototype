@@ -356,7 +356,7 @@
    Two widths, by what the page is for:
      .fc-page-read   720px — pages read top to bottom: a profile, a project,
                      the home screen. Gameplan's discussion column.
-     .fc-page-list   800px — lists scanned across a row: partners, saved
+     .fc-page-list   768px (max-w-3xl) — lists scanned across a row: partners, saved
                      partners, projects. Any wider and a partner row puts too
                      much air between the name and Contact.
 
@@ -383,7 +383,7 @@
 }
 
 .fc-page-list {
-  max-width: calc(800px + 2 * var(--fc-page-pad));
+  max-width: calc(768px + 2 * var(--fc-page-pad));
 }
 
 /* 1040px — a pack page: images beside the pack, two columns of ~500px. */
@@ -439,7 +439,7 @@
    where three columns still leave the middle one — the only one padded on both
    sides — enough for its longest label. Measured; see `PacksPage`. At 640 the
    bodies wrap and one title is 6px short of fitting; the layout stacks just
-   below this, and the design width is the 800px column. */
+   below this, and the design width is the 768px column. */
 .fc-col-3 {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -509,13 +509,13 @@
 /* ── The scope panel, and the page making room for it ──────────────────────
  *
  * WHAT WAS WRONG: the panel faded in while the page BESIDE it jumped. Measured
- * at 1440px, the content block keeps its 800px measure and moves 190px left in
+ * at 1440px, the content block keeps its list measure and moves 190px left in
  * a single frame — a pure translation, no re-wrap. Softening the panel and
  * leaving that jump animated the small half of the change and not the loud one.
  *
  * WHAT MOVES NOW: the panel's own width, 0 → 352px. Everything else follows
  * from the flex layout for free — the content column widens and narrows, and
- * the 800px block re-centres — so the page and the panel are one motion rather
+ * the list block re-centres — so the page and the panel are one motion rather
  * than two events. It also makes CLOSING work: a FLIP transform on the content
  * can't handle it, because the panel stays in the DOM for its whole leave and
  * the column doesn't widen until it's gone.

@@ -288,11 +288,6 @@ const options = computed(() => [
               icon: 'lucide-globe',
               onClick: () => startFrom('/contact'),
             },
-            {
-              label: 'Frappe Connect',
-              icon: 'lucide-log-in',
-              onClick: () => startFrom('/connect'),
-            },
           ],
         },
       ]

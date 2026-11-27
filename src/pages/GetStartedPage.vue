@@ -8,7 +8,7 @@
 // side by side — a Starter Pack Frappe implements itself, or a partner of your
 // choosing — and hands off into Connect from each. Same site type system as
 // `FrappeSitePage` (Newsreader headings, Inter 15 body, 600px measure); the
-// options section takes 800px because two cards at 600 would be 290px each.
+// options section takes 768px (max-w-3xl) because two cards at 600 would be 290px each.
 //
 // ⚠️ THE REFERENCE'S "Pricing" BLOCK IS DROPPED. The options section above it
 // already carries the one price and both payment terms.
@@ -205,7 +205,7 @@ const toggleFaq = (i) => (openFaq.value = openFaq.value === i ? null : i)
           </section>
 
           <!-- ── The two ways in ── -->
-          <section class="mx-auto max-w-[800px] pt-28">
+          <section class="mx-auto max-w-3xl pt-28">
             <!-- ⚠️ WHAT YOU GET, NOT WHAT IT IS CALLED. The cards below name the
                  two services; a heading that named them too said everything
                  twice. One line, capped at the page's 600px measure and centred
@@ -381,7 +381,7 @@ const toggleFaq = (i) => (openFaq.value = openFaq.value === i ? null : i)
           </section>
 
           <!-- ── Success stories ── -->
-          <section class="mx-auto max-w-[800px] pt-32">
+          <section class="mx-auto max-w-3xl pt-32">
             <h2 class="text-[20px] font-semibold leading-[1.35] text-ink-gray-8">
               Success stories
             </h2>

@@ -12,7 +12,7 @@ import { AUDIT_STATUS, auditDate, auditDay, auditTitle } from '../data/audits'
 import { TIERS, nextTier, standingFor } from '../data/partnership'
 
 // SCREEN — Audits: the firm's PMM audits, newest first, as a compact list in
-// the 800px column Invoices uses. Each row is named as the page it opens is,
+// the 768px column Invoices uses. Each row is named as the page it opens is,
 // "PMM 5 audit", with press's ID under it to quote to Frappe; the date is a
 // plain column and the sort. A firm has about one a year, so there's nothing
 // to filter or search.

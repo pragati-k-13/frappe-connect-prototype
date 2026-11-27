@@ -1,0 +1,18 @@
+/*
+  The partners hero's chip icons, drawn in the style of Frappe Suite's Drive
+  file icons (../file-types): one ink colour, a 1.5px stroke, the shape at 10%
+  fill and one accent at 50%. Used like a lucide class: size with `size-*`,
+  colour with `text-ink-*`. See README.md.
+*/
+:where(.sentence-icon-globe, .sentence-icon-briefcase) {
+  display: block;
+  flex-shrink: 0;
+  width: 1em;
+  height: 1em;
+  background-color: currentColor;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+}
+:where(.sentence-icon-globe) { mask-image: url('./globe.svg'); }
+:where(.sentence-icon-briefcase) { mask-image: url('./briefcase.svg'); }

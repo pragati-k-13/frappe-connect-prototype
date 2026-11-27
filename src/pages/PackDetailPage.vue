@@ -269,7 +269,7 @@ const termsOpen = ref(false)
   <!-- ⚠️ No `flush` any more. That prop existed to hand the region over to a
        page that ran its own scrollers side by side — content left, pack panel
        right. There is one column now, so the shell's own ScrollArea is the
-       right one, and this page takes the same 800px measure as the catalogue
+       right one, and this page takes the same 768px measure as the catalogue
        it came from — it needs it now, for a screenshot beside each module's
        list. -->
   <!-- ⚠️ The crumb is the PACK, not "Confirm selection". That label named an
@@ -402,13 +402,13 @@ const termsOpen = ref(false)
         </div>
 
         <!-- ── What the sessions cover ───────────────────────────────────────
-             800px, in two columns from `md`: the heading on the left, scrolling
+             768px, in two columns from `md`: the heading on the left, scrolling
              with the page, and the rows on the right — so a
-             closed row isn't an icon and a word on an 800px line. Rules
+             closed row isn't an icon and a word on a 768px line. Rules
              between the rows only. An open row's points run with commas —
              see `commas`. -->
         <section
-          class="mx-auto mt-36 max-w-[800px] md:grid md:grid-cols-[240px_minmax(0,1fr)] md:gap-12"
+          class="mx-auto mt-36 max-w-3xl md:grid md:grid-cols-[240px_minmax(0,1fr)] md:gap-12"
           aria-labelledby="pack-scope"
         >
           <div class="md:self-start md:pt-5">

@@ -371,7 +371,7 @@ const viewCartLabel = computed(() =>
   <!-- The bar's "Log in or create account" stays: someone who already has an
        account needs a way in before they reach the cart. -->
   <ConnectShell root-label="Starter Packs" root-to="/connect/packs">
-    <div class="mx-auto w-full max-w-[800px] pb-24 pt-8">
+    <div class="mx-auto w-full max-w-3xl pb-24 pt-8">
       <!-- ── Hero ─────────────────────────────────────────────────────────
            Text left, video right, vertically centred on each other. Stacks
            below `md`. The price rail that used to sit beside the column is
