@@ -316,9 +316,13 @@ const feedbackToast = () =>
                 <span class="min-w-0 flex-1 truncate">{{ group.group }}</span>
                 <span class="tabular-nums">{{ groupTotal(group) }}</span>
               </template>
-              <!-- No Clear All / Select All, as on the page's other pickers:
-                   untick to clear. "Select All" countries is no answer. -->
-              <template #footer />
+              <!-- frappe-ui's footer minus Select All: every country is "Any
+                   country". Clear all shows once something is ticked. -->
+              <template #footer="{ selectedOptions, clear }">
+                <div v-if="selectedOptions.length" class="flex border-t border-outline-gray-1 px-2 py-1.5">
+                  <Button variant="ghost" size="sm" label="Clear all" @click="clear" />
+                </div>
+              </template>
             </MultiSelect>
           </div>
           <div class="fc-bar-sep mx-2.5 shrink-0 border-t border-outline-gray-3 sm:mx-0 sm:h-4 sm:border-l sm:border-t-0" aria-hidden="true" />
@@ -334,9 +338,13 @@ const feedbackToast = () =>
                 <span class="min-w-0 flex-1 truncate">{{ group.group }}</span>
                 <span class="tabular-nums">{{ store.industryCounts[group.key] ?? 0 }}</span>
               </template>
-              <!-- No Clear All / Select All, as on the page's other pickers:
-                   untick to clear. "Select All" countries is no answer. -->
-              <template #footer />
+              <!-- frappe-ui's footer minus Select All: every industry is "Any
+                   industry". Clear all shows once something is ticked. -->
+              <template #footer="{ selectedOptions, clear }">
+                <div v-if="selectedOptions.length" class="flex border-t border-outline-gray-1 px-2 py-1.5">
+                  <Button variant="ghost" size="sm" label="Clear all" @click="clear" />
+                </div>
+              </template>
             </MultiSelect>
           </div>
           <!-- frappe-ui's `md` icon Button, 32px like the fields, 4px in from
