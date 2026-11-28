@@ -156,7 +156,7 @@ const HIRE_HOVER = 'hover:!bg-surface-gray-10 hover:!text-ink-base active:!bg-su
           </span>
           <span v-for="f in firmFacts" :key="f.icon" class="inline-flex items-center gap-1">
             <span :class="f.icon" class="size-4 shrink-0" aria-hidden="true" />
-            <span :class="f.strong ? 'tabular-nums text-ink-gray-8' : ''">{{ f.text }}</span>
+            <span class="tabular-nums">{{ f.text }}</span>
             <span v-if="f.after">{{ f.after }}</span>
           </span>
           <slot name="meta" />
