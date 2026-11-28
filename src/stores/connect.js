@@ -271,7 +271,7 @@ export const useConnectStore = defineStore('connect', {
     partnerTier: 'bronze-up',
     // The project page's quote layout while they're compared: 'rows' | 'cards' | 'soft'.
     // See `PartnerCard`. Set from the Demo menu.
-    quoteLayout: 'rows',
+    quoteLayout: 'soft',
     partnerRole: 'owner',
     // Opens Firm settings on a tab from anywhere (the Leads page's alert);
     // ConnectShell owns the dialog and clears this when it closes.

@@ -14,7 +14,7 @@ import { logoFor } from '../data/logos'
 //          interested stacked behind a rule, top-aligned; only Not
 //          interested has an icon.
 //   soft   The rows card without its inner frames: one outline-gray-2
-//          hairline, 24px padding, 16px radius. Name over city, rating and
+//          hairline, 24px padding, 12px radius. Name over city, rating and
 //          founding year; price over weeks. Not interested bottom left,
 //          Message and Hire bottom right.
 //   cards  Braintrust's card. A small logo, the name and the price on one line;
@@ -127,7 +127,7 @@ const HIRE_HOVER = 'hover:!bg-surface-gray-10 hover:!text-ink-base active:!bg-su
   </article>
 
   <!-- ── Soft: one outline, nothing inside it ──────────────────────── -->
-  <article v-else-if="layout === 'soft'" class="rounded-7 border border-outline-gray-2 bg-surface-base p-6">
+  <article v-else-if="layout === 'soft'" class="rounded-6 border border-outline-gray-2 bg-surface-base p-6">
     <!-- Two lines a side: the firm (name over city, rating, founded) on
          the left, the offer (price over weeks) on the right. -->
     <div class="flex items-start gap-3.5">
@@ -142,7 +142,7 @@ const HIRE_HOVER = 'hover:!bg-surface-gray-10 hover:!text-ink-base active:!bg-su
         <div class="flex items-center gap-2">
           <RouterLink
             :to="{ name: 'partner', params: { id: partner.id } }"
-            class="truncate text-xl font-semibold text-ink-gray-7 hover:underline"
+            class="truncate text-lg font-semibold text-ink-gray-7 hover:underline"
           >
             {{ partner.name }}
           </RouterLink>
@@ -172,7 +172,7 @@ const HIRE_HOVER = 'hover:!bg-surface-gray-10 hover:!text-ink-base active:!bg-su
          way out sits across the card from the way in, so a hurried click
          can't land on the wrong one. Natural widths; Hire turns solid under
          the pointer. -->
-    <div class="mt-4 flex flex-wrap items-center gap-2">
+    <div class="mt-5 flex flex-wrap items-center gap-2">
       <Button
         v-for="a in byKind('dismiss')"
         :key="a.label"
@@ -183,12 +183,14 @@ const HIRE_HOVER = 'hover:!bg-surface-gray-10 hover:!text-ink-base active:!bg-su
         @click="a.onClick?.()"
       />
       <span class="flex-1" />
+      <!-- ⚠️ HIRE IS SOLID ON EVERY SOFT CARD, by choice: each card is its
+           own decision, as on consumer marketplaces. Message stays subtle. -->
       <Button
         v-for="a in [...byKind('secondary'), ...byKind('primary')]"
         :key="a.label"
+        :variant="a.kind === 'primary' && a.hire ? 'solid' : 'subtle'"
         :label="a.label"
         :route="a.route"
-        :class="a.kind === 'primary' && a.hire ? HIRE_HOVER : ''"
         @click="a.onClick?.()"
       />
     </div>
