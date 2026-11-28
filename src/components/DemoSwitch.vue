@@ -381,6 +381,18 @@ const options = computed(() => [
         },
       ]
     : []),
+  ...(project.value?.service === 'custom' && !project.value.partnerId
+    ? [
+        {
+          group: 'Quote layout',
+          options: [
+            { label: 'Rows', icon: store.quoteLayout === 'rows' ? 'lucide-check' : 'lucide-minus', onClick: () => store.setQuoteLayout('rows') },
+            { label: 'Cards', icon: store.quoteLayout === 'cards' ? 'lucide-check' : 'lucide-minus', onClick: () => store.setQuoteLayout('cards') },
+            { label: 'Soft cards', icon: store.quoteLayout === 'soft' ? 'lucide-check' : 'lucide-minus', onClick: () => store.setQuoteLayout('soft') },
+          ],
+        },
+      ]
+    : []),
   ...(liveMarkable.value
     ? [
         {

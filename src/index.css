@@ -105,6 +105,11 @@
 .fc-logo-avatar img {
   object-fit: contain;
 }
+/* The project page's logos: a tile lighter than gray-1, so the mark has a
+   ground without the box reading as a grey square. */
+.fc-logo-tint {
+  background-color: color-mix(in srgb, var(--surface-gray-1) 75%, white);
+}
 /* Dark: a dark surface tile, so the logos sit in the page instead of as a
    column of light squares. */
 [data-theme='dark'] .fc-logo-avatar {
@@ -389,6 +394,11 @@
 /* 1040px — a pack page: images beside the pack, two columns of ~500px. */
 .fc-page-wide {
   max-width: calc(1040px + 2 * var(--fc-page-pad));
+}
+/* The project page: 768px, between read and list. Comes after them so it
+   wins over `.fc-page-list`, whose padding it keeps. */
+.fc-page-project {
+  max-width: calc(768px + 2 * var(--fc-page-pad));
 }
 
 /* The in-app content column, as a container-query root.

@@ -283,6 +283,9 @@ export const useConnectStore = defineStore('connect', {
     //   partnerRole   'owner' | 'sales' | 'finance' | 'member' — sets landing and actions
     //   partnershipState  one of PARTNERSHIP_STATES; Bronze and up only
     partnerTier: 'bronze-up',
+    // The project page's quote layout while they're compared: 'rows' | 'cards' | 'soft'.
+    // See `PartnerCard`. Set from the Demo menu.
+    quoteLayout: 'soft',
     partnerRole: 'owner',
     // Opens Firm settings on a tab from anywhere (the Leads page's alert);
     // ConnectShell owns the dialog and clears this when it closes.
@@ -785,6 +788,9 @@ export const useConnectStore = defineStore('connect', {
     openFirmSettings(tab, focus = null) {
       this.firmSettingsTab = tab
       this.firmSettingsFocus = focus
+    },
+    setQuoteLayout(layout) {
+      this.quoteLayout = layout
     },
     setPartnerRole(role) {
       if (!['owner', 'sales', 'finance', 'member'].includes(role)) return
